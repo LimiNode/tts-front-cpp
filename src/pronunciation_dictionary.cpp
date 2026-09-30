@@ -1,84 +1,127 @@
 #include "tts_front/tts_front.hpp"
 
-#include <algorithm>
 #include <cctype>
 #include <fstream>
-#include <regex>
 #include <sstream>
 
 namespace tts_front {
 namespace {
-std::string ascii_lower(std::string value) {
-  for (char& c : value) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-  return value;
-}
-std::string unescape(std::string value) {
-  std::string out;
-  for (std::size_t i = 0; i < value.size(); ++i) {
-    if (value[i] == '\\' && i + 1 < value.size()) {
-      const char n = value[++i];
-      out += n == 'n' ? '\n' : n == 't' ? '\t' : n;
-    } else out += value[i];
+
+std::size_t count_vowels(std::string_view text) {
+  std::size_t count = 0;
+  for (std::size_t i = 0; i < text.size();) {
+    const auto c = static_cast<unsigned char>(text[i]);
+    std::size_t length = c < 0x80 ? 1 : (c & 0xe0) == 0xc0 ? 2 : (c & 0xf0) == 0xe0 ? 3 : 4;
+    const std::string unit(text.substr(i, length));
+    if (unit == "a" || unit == "e" || unit == "i" || unit == "o" || unit == "u" || unit == "y" || unit == "A" || unit == "E" || unit == "I" || unit == "O" || unit == "U" || unit == "Y" || unit == "а" || unit == "е" || unit == "ё" || unit == "и" || unit == "о" || unit == "у" || unit == "ы" || unit == "э" || unit == "ю" || unit == "я" || unit == "А" || unit == "Е" || unit == "Ё" || unit == "И" || unit == "О" || unit == "У" || unit == "Ы" || unit == "Э" || unit == "Ю" || unit == "Я") ++count;
+    i += length;
   }
-  return out;
+  return count;
 }
+std::string lower_ascii(std::string value) { for (char& c : value) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c))); return value; }
+
+class JsonParser {
+public:
+  explicit JsonParser(std::string_view source) : m_source(source) {}
+  bool parse(std::vector<PronunciationDictionary::Entry>& entries, std::string& error) {
+    skip_space(); if (!consume('[')) return fail(error, "top-level JSON value must be an array");
+    skip_space(); if (consume(']')) { skip_space(); return m_position == m_source.size() ? true : fail(error, "trailing data after JSON array"); }
+    while (true) {
+      PronunciationDictionary::Entry entry; bool has_pattern = false; bool has_pronunciation = false;
+      if (!parse_entry(entry, has_pattern, has_pronunciation, error)) return false;
+      if (!has_pattern || !has_pronunciation || entry.pattern.empty() || entry.pronunciation.empty()) return fail(error, "entry requires non-empty pattern and pronunciation");
+      if (entry.stressed_vowel && *entry.stressed_vowel >= count_vowels(entry.pronunciation)) return fail(error, "stressed_vowel is outside pronunciation vowel range");
+      entries.push_back(std::move(entry)); skip_space();
+      if (consume(']')) {
+        skip_space();
+        return m_position == m_source.size() ? true : fail(error, "trailing data after JSON array");
+      }
+      if (!consume(',')) return fail(error, "expected comma between entries");
+    }
+  }
+
+private:
+  bool fail(std::string& error, std::string message) { error = std::move(message) + " at byte " + std::to_string(m_position); return false; }
+  void skip_space() { while (m_position < m_source.size() && std::isspace(static_cast<unsigned char>(m_source[m_position]))) ++m_position; }
+  bool consume(char expected) { skip_space(); if (m_position >= m_source.size() || m_source[m_position] != expected) return false; ++m_position; return true; }
+  bool parse_entry(PronunciationDictionary::Entry& entry, bool& has_pattern, bool& has_pronunciation, std::string& error) {
+    if (!consume('{')) return fail(error, "expected object");
+    bool force_phrase = false;
+    skip_space();
+    if (consume('}')) return fail(error, "empty entry");
+    while (true) {
+      std::string key; if (!parse_string(key, error) || !consume(':')) return false;
+      if (key == "pattern" || key == "token" || key == "phrase") { if (!parse_string(entry.pattern, error)) return false; has_pattern = true; force_phrase = force_phrase || key == "phrase"; }
+      else if (key == "pronunciation" || key == "replacement") { if (!parse_string(entry.pronunciation, error)) return false; has_pronunciation = true; }
+      else if (key == "match") { std::string match; if (!parse_string(match, error)) return false; if (match == "exact_token") entry.match = PronunciationDictionary::Match::ExactToken; else if (match == "case_sensitive") entry.match = PronunciationDictionary::Match::CaseSensitiveToken; else if (match == "case_insensitive") entry.match = PronunciationDictionary::Match::CaseInsensitiveToken; else if (match == "phrase") entry.match = PronunciationDictionary::Match::ExactPhrase; else return fail(error, "unknown match value"); }
+      else if (key == "stressed_vowel") { std::size_t value = 0; if (!parse_unsigned(value, error)) return false; entry.stressed_vowel = value; }
+      else if (!skip_value(error)) return false;
+      skip_space(); if (consume('}')) { if (force_phrase) entry.match = PronunciationDictionary::Match::ExactPhrase; return true; } if (!consume(',')) return fail(error, "expected comma in entry");
+    }
+  }
+  bool parse_unsigned(std::size_t& value, std::string& error) {
+    skip_space(); const auto begin = m_position; while (m_position < m_source.size() && std::isdigit(static_cast<unsigned char>(m_source[m_position]))) ++m_position; if (begin == m_position) return fail(error, "expected unsigned integer");
+    try { value = static_cast<std::size_t>(std::stoull(std::string(m_source.substr(begin, m_position - begin)))); } catch (...) { return fail(error, "invalid unsigned integer"); } return true;
+  }
+  bool parse_hex4(unsigned& value, std::string& error) {
+    if (m_position + 4 > m_source.size()) return fail(error, "short unicode escape");
+    value = 0;
+    for (int i = 0; i < 4; ++i) {
+      const char h = m_source[m_position++]; value <<= 4;
+      if (h >= '0' && h <= '9') value += static_cast<unsigned>(h - '0');
+      else if (h >= 'a' && h <= 'f') value += static_cast<unsigned>(h - 'a' + 10);
+      else if (h >= 'A' && h <= 'F') value += static_cast<unsigned>(h - 'A' + 10);
+      else return fail(error, "invalid unicode escape");
+    }
+    return true;
+  }
+  static void append_codepoint(std::string& output, unsigned value) {
+    if (value < 0x80) output.push_back(static_cast<char>(value));
+    else if (value < 0x800) { output.push_back(static_cast<char>(0xc0 | (value >> 6))); output.push_back(static_cast<char>(0x80 | (value & 0x3f))); }
+    else if (value < 0x10000) { output.push_back(static_cast<char>(0xe0 | (value >> 12))); output.push_back(static_cast<char>(0x80 | ((value >> 6) & 0x3f))); output.push_back(static_cast<char>(0x80 | (value & 0x3f))); }
+    else { output.push_back(static_cast<char>(0xf0 | (value >> 18))); output.push_back(static_cast<char>(0x80 | ((value >> 12) & 0x3f))); output.push_back(static_cast<char>(0x80 | ((value >> 6) & 0x3f))); output.push_back(static_cast<char>(0x80 | (value & 0x3f))); }
+  }
+  bool parse_string(std::string& output, std::string& error) {
+    if (!consume('"')) return fail(error, "expected string");
+    output.clear();
+    while (m_position < m_source.size()) {
+      const char c = m_source[m_position++]; if (c == '"') return true; if (c != '\\') { output.push_back(c); continue; }
+      if (m_position >= m_source.size()) return fail(error, "unterminated escape");
+      const char escaped = m_source[m_position++];
+      switch (escaped) { case '"': case '\\': case '/': output.push_back(escaped); break; case 'b': output.push_back('\b'); break; case 'f': output.push_back('\f'); break; case 'n': output.push_back('\n'); break; case 'r': output.push_back('\r'); break; case 't': output.push_back('\t'); break; case 'u': { unsigned value = 0; if (!parse_hex4(value, error)) return false; if (value >= 0xd800 && value <= 0xdbff) { if (m_position + 6 > m_source.size() || m_source[m_position] != '\\' || m_source[m_position + 1] != 'u') return fail(error, "high surrogate without low surrogate"); m_position += 2; unsigned low = 0; if (!parse_hex4(low, error) || low < 0xdc00 || low > 0xdfff) return fail(error, "invalid low surrogate"); value = 0x10000 + ((value - 0xd800) << 10) + (low - 0xdc00); } else if (value >= 0xdc00 && value <= 0xdfff) return fail(error, "unexpected low surrogate"); append_codepoint(output, value); break; } default: return fail(error, "unknown escape"); }
+    }
+    return fail(error, "unterminated string");
+  }
+  bool skip_value(std::string& error) {
+    skip_space(); if (m_position >= m_source.size()) return fail(error, "missing value");
+    if (m_source[m_position] == '"') { std::string ignored; return parse_string(ignored, error); }
+    if (m_source[m_position] == '{' || m_source[m_position] == '[') { const char open = m_source[m_position++]; const char close = open == '{' ? '}' : ']'; int depth = 1; bool quoted = false; while (m_position < m_source.size() && depth > 0) { const char c = m_source[m_position++]; if (c == '\\' && quoted) { if (m_position < m_source.size()) ++m_position; continue; } if (c == '"') quoted = !quoted; else if (!quoted && c == open) ++depth; else if (!quoted && c == close) --depth; } return depth == 0 ? true : fail(error, "unterminated value"); }
+    while (m_position < m_source.size() && m_source[m_position] != ',' && m_source[m_position] != '}') ++m_position;
+    return true;
+  }
+  std::string_view m_source; std::size_t m_position = 0;
+};
 }
 
-void PronunciationDictionary::add_entry(Entry entry) { m_entries.push_back(std::move(entry)); }
-void PronunciationDictionary::add_token(std::string token, std::string pronunciation,
-                                        std::optional<std::size_t> stress) {
-  add_entry({std::move(token), std::move(pronunciation), Match::ExactToken, stress});
+void PronunciationDictionary::add_entry(Entry entry) {
+  if (entry.pattern.empty() || entry.pronunciation.empty()) return;
+  if (entry.stressed_vowel && *entry.stressed_vowel >= count_vowels(entry.pronunciation)) return;
+  for (const auto& existing : m_entries) if (existing.pattern == entry.pattern && existing.match == entry.match) return;
+  m_entries.push_back(std::move(entry));
 }
-void PronunciationDictionary::add_case_insensitive_token(std::string token, std::string pronunciation,
-                                                         std::optional<std::size_t> stress) {
-  add_entry({std::move(token), std::move(pronunciation), Match::CaseInsensitiveToken, stress});
-}
-void PronunciationDictionary::add_phrase(std::string phrase, std::string pronunciation,
-                                         std::optional<std::size_t> stress) {
-  add_entry({std::move(phrase), std::move(pronunciation), Match::ExactPhrase, stress});
-}
-
+void PronunciationDictionary::add_token(std::string token, std::string pronunciation, std::optional<std::size_t> stress) { add_entry({std::move(token), std::move(pronunciation), Match::ExactToken, stress}); }
+void PronunciationDictionary::add_case_insensitive_token(std::string token, std::string pronunciation, std::optional<std::size_t> stress) { add_entry({std::move(token), std::move(pronunciation), Match::CaseInsensitiveToken, stress}); }
+void PronunciationDictionary::add_phrase(std::string phrase, std::string pronunciation, std::optional<std::size_t> stress) { add_entry({std::move(phrase), std::move(pronunciation), Match::ExactPhrase, stress}); }
 const PronunciationDictionary::Entry* PronunciationDictionary::find_token(std::string_view token) const noexcept {
-  for (const auto& entry : m_entries) {
-    if (entry.match == Match::ExactPhrase) continue;
-    if (entry.match == Match::CaseInsensitiveToken) {
-      if (ascii_lower(entry.pattern) == ascii_lower(std::string(token))) return &entry;
-    } else if (entry.pattern == token) return &entry;
-  }
+  for (const auto& entry : m_entries) { if (entry.match == Match::ExactPhrase) continue; if (entry.match == Match::CaseInsensitiveToken ? lower_ascii(entry.pattern) == lower_ascii(std::string(token)) : entry.pattern == token) return &entry; }
   return nullptr;
 }
-
 bool PronunciationDictionary::load_file(const std::string& path, std::vector<TextWarning>* warnings) {
-  std::ifstream file(path, std::ios::binary);
-  if (!file) {
-    if (warnings) warnings->push_back({WarningCode::DictionaryParseError, "Cannot open pronunciation dictionary: " + path});
-    return false;
-  }
-  std::ostringstream buffer; buffer << file.rdbuf();
-  const std::string text = buffer.str();
-  // Deliberately small, dependency-free JSON reader for the documented entry format.
-  const std::regex object_re(R"(\{[^\}]*\})");
-  const std::regex field_re(R"REGEX("([A-Za-z_]+)"\s*:\s*"((\\.|[^"\\])*)")REGEX");
-  const std::regex stress_re(R"("stressed_vowel"\s*:\s*(\d+))");
-  bool loaded = false;
-  for (std::sregex_iterator it(text.begin(), text.end(), object_re), end; it != end; ++it) {
-    Entry entry; std::string match; const std::string object = it->str();
-    for (std::sregex_iterator f(object.begin(), object.end(), field_re), fend; f != fend; ++f) {
-      const auto key = (*f)[1].str(); const auto value = unescape((*f)[2].str());
-      if (key == "pattern" || key == "token" || key == "phrase") entry.pattern = value;
-      else if (key == "pronunciation" || key == "replacement") entry.pronunciation = value;
-      else if (key == "match") match = value;
-    }
-    std::smatch stress_match;
-    if (std::regex_search(object, stress_match, stress_re)) entry.stressed_vowel = static_cast<std::size_t>(std::stoul(stress_match[1].str()));
-    if (entry.pattern.empty()) continue;
-    if (match == "phrase" || text.substr(static_cast<std::size_t>(it->position()), it->length()).find("\"phrase\"") != std::string::npos)
-      entry.match = Match::ExactPhrase;
-    else if (match == "case_insensitive" || match == "insensitive") entry.match = Match::CaseInsensitiveToken;
-    else if (match == "case_sensitive") entry.match = Match::CaseSensitiveToken;
-    add_entry(std::move(entry)); loaded = true;
-  }
-  if (!loaded && warnings) warnings->push_back({WarningCode::DictionaryParseError, "No dictionary entries found in: " + path});
-  return loaded;
+  std::ifstream file(path, std::ios::binary); if (!file) { if (warnings) warnings->push_back({WarningCode::DictionaryParseError, "Cannot open pronunciation dictionary: " + path}); return false; }
+  std::ostringstream buffer; buffer << file.rdbuf(); const std::string json = buffer.str(); std::vector<Entry> parsed; std::string error; JsonParser parser(json);
+  if (!parser.parse(parsed, error)) { if (warnings) warnings->push_back({WarningCode::DictionaryParseError, "Invalid pronunciation dictionary: " + error}); return false; }
+  for (std::size_t i = 0; i < parsed.size(); ++i) for (std::size_t j = i + 1; j < parsed.size(); ++j) if (parsed[i].pattern == parsed[j].pattern && parsed[i].match == parsed[j].match) { if (warnings) warnings->push_back({WarningCode::DictionaryParseError, "Duplicate pronunciation dictionary entry"}); return false; }
+  for (const auto& candidate : parsed) for (const auto& existing : m_entries) if (candidate.pattern == existing.pattern && candidate.match == existing.match) { if (warnings) warnings->push_back({WarningCode::DictionaryParseError, "Duplicate pronunciation dictionary entry"}); return false; }
+  m_entries.insert(m_entries.end(), parsed.begin(), parsed.end()); return true;
 }
 } // namespace tts_front

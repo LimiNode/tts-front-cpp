@@ -24,6 +24,11 @@ struct TextWarning {
 
 struct WordPronunciation {
   std::string surface;
+  /// Model-neutral rendered pronunciation for this token; empty means unchanged.
+  std::string pronunciation;
+  /// Byte offset into normalized_text (only an offset, never a stress index).
+  std::size_t source_offset = 0;
+  /// Ordinal of the stressed vowel (zero-based), not a UTF-8 byte/code-point offset.
   std::optional<std::size_t> stressed_vowel;
   bool from_dictionary = false;
 };
@@ -49,6 +54,7 @@ public:
     std::string pattern;
     std::string pronunciation;
     Match match = Match::ExactToken;
+    /// Zero-based vowel ordinal in the pronunciation. Invalid ordinals are rejected.
     std::optional<std::size_t> stressed_vowel;
   };
 

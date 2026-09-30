@@ -1,6 +1,6 @@
 # Source survey
 
-Этот документ фиксирует provenance правил, использованных в `tts-front-cpp` 0.1. В core не включён код или runtime из перечисленных проектов; используются только публичные поведенческие идеи и адаптированные test vectors.
+Этот документ фиксирует provenance правил, использованных в `tts-front-cpp` 0.1. В core не включён код или runtime из перечисленных проектов; используются только публичные поведенческие идеи. Текущий committed corpus содержит 13 локальных rule fixtures (`tests/fixtures/basic.jsonl`); адаптированные vectors из upstream пока не заявляются и будут добавлены отдельным provenance-reviewed commit.
 
 | Source | Revision / license | Используем | Не переносим |
 |---|---|---|---|
@@ -10,7 +10,7 @@
 
 ## Правила provenance
 
-Встроенные C++ правила написаны заново и не являются механической копией исходников. Повторяемые vectors хранятся в `tests/text_frontend_tests.cpp`; при добавлении corpus fixture следует указывать `category`, `source` и дату адаптации. MIT/Apache attribution сохраняется в этом файле и не меняет лицензию самого проекта.
+Встроенные C++ правила написаны заново и не являются механической копией исходников. Повторяемые vectors хранятся в `tests/fixtures/basic.jsonl` и исполняются `tts_front_fixture_tests`; при добавлении corpus fixture следует указывать `category`, `source` и дату адаптации. MIT/Apache attribution сохраняется в этом файле и не меняет лицензию самого проекта.
 
 ## Текущий scope
 
