@@ -1,3 +1,4 @@
+#include "detail/utf8.hpp"
 #include "tts_front/tts_front.hpp"
 
 #include <cctype>
@@ -9,40 +10,13 @@
 namespace tts_front {
 namespace {
 
-bool valid_utf8(std::string_view text) {
-    for (std::size_t i = 0; i < text.size();) {
-        const auto c = static_cast<unsigned char>(text[i]);
-        std::size_t length = c < 0x80             ? 1
-                             : (c & 0xe0) == 0xc0 ? 2
-                             : (c & 0xf0) == 0xe0 ? 3
-                             : (c & 0xf8) == 0xf0 ? 4
-                                                  : 0;
-        if (length == 0 || i + length > text.size())
-            return false;
-        std::uint32_t value = c & (length == 2   ? 0x1f
-                                   : length == 3 ? 0x0f
-                                   : length == 4 ? 0x07
-                                                 : 0x7f);
-        for (std::size_t j = 1; j < length; ++j) {
-            const auto next = static_cast<unsigned char>(text[i + j]);
-            if ((next & 0xc0) != 0x80)
-                return false;
-            value = (value << 6) | (next & 0x3f);
-        }
-        if ((length == 2 && value < 0x80) || (length == 3 && value < 0x800) ||
-            (length == 4 && value < 0x10000) || value > 0x10ffff ||
-            (value >= 0xd800 && value <= 0xdfff))
-            return false;
-        i += length;
-    }
-    return true;
-}
-
 std::size_t count_vowels(std::string_view text) {
     std::size_t count = 0;
     for (std::size_t i = 0; i < text.size();) {
         const auto c = static_cast<unsigned char>(text[i]);
-        std::size_t length = c < 0x80 ? 1 : (c & 0xe0) == 0xc0 ? 2 : (c & 0xf0) == 0xe0 ? 3 : 4;
+        const std::size_t length = detail::utf8_sequence_length(c);
+        if (length == 0 || i + length > text.size())
+            break;
         const std::string unit(text.substr(i, length));
         if (unit == "a" || unit == "e" || unit == "i" || unit == "o" || unit == "u" ||
             unit == "y" || unit == "A" || unit == "E" || unit == "I" || unit == "O" ||
@@ -61,10 +35,11 @@ std::string lower_unicode_ru_en(std::string value) {
     output.reserve(value.size());
     for (std::size_t i = 0; i < value.size();) {
         const auto c = static_cast<unsigned char>(value[i]);
-        const std::size_t length = c < 0x80             ? 1
-                                   : (c & 0xe0) == 0xc0 ? 2
-                                   : (c & 0xf0) == 0xe0 ? 3
-                                                        : 4;
+        const std::size_t length = detail::utf8_sequence_length(c);
+        if (length == 0 || i + length > value.size()) {
+            output.push_back(value[i++]);
+            continue;
+        }
         if (length == 1)
             output.push_back(static_cast<char>(std::tolower(c)));
         else if (length == 2 && static_cast<unsigned char>(value[i]) == 0xd0 &&
@@ -85,6 +60,17 @@ std::string lower_unicode_ru_en(std::string value) {
         i += length;
     }
     return output;
+}
+
+std::string dictionary_entry_key(const PronunciationDictionary::Entry& entry) {
+    return entry.match == PronunciationDictionary::Match::CaseInsensitiveToken
+               ? lower_unicode_ru_en(entry.pattern)
+               : entry.pattern;
+}
+
+bool same_dictionary_key(const PronunciationDictionary::Entry& lhs,
+                         const PronunciationDictionary::Entry& rhs) {
+    return lhs.match == rhs.match && dictionary_entry_key(lhs) == dictionary_entry_key(rhs);
 }
 
 class JsonParser {
@@ -396,17 +382,12 @@ class JsonParser {
 bool PronunciationDictionary::add_entry(Entry entry) {
     if (entry.pattern.empty() || entry.pronunciation.empty())
         return false;
-    if (!valid_utf8(entry.pattern) || !valid_utf8(entry.pronunciation))
+    if (!detail::is_valid_utf8(entry.pattern) || !detail::is_valid_utf8(entry.pronunciation))
         return false;
     if (entry.stressed_vowel && *entry.stressed_vowel >= count_vowels(entry.pronunciation))
         return false;
-    const auto duplicate_key = [](const Entry& value) {
-        return value.match == Match::CaseInsensitiveToken ? lower_unicode_ru_en(value.pattern)
-                                                          : value.pattern;
-    };
-    const auto key = duplicate_key(entry);
     for (const auto& existing : m_entries)
-        if (existing.match == entry.match && duplicate_key(existing) == key)
+        if (same_dictionary_key(existing, entry))
             return false;
     m_entries.push_back(std::move(entry));
     return true;
@@ -451,7 +432,7 @@ bool PronunciationDictionary::load_file(const std::string& path,
     std::ostringstream buffer;
     buffer << file.rdbuf();
     const std::string json = buffer.str();
-    if (!valid_utf8(json)) {
+    if (!detail::is_valid_utf8(json)) {
         if (warnings)
             warnings->push_back(
                 {WarningCode::DictionaryParseError, "Dictionary file is not valid UTF-8"});
@@ -466,14 +447,9 @@ bool PronunciationDictionary::load_file(const std::string& path,
                 {WarningCode::DictionaryParseError, "Invalid pronunciation dictionary: " + error});
         return false;
     }
-    const auto duplicate_key = [](const Entry& value) {
-        return value.match == Match::CaseInsensitiveToken ? lower_unicode_ru_en(value.pattern)
-                                                          : value.pattern;
-    };
     for (std::size_t i = 0; i < parsed.size(); ++i)
         for (std::size_t j = i + 1; j < parsed.size(); ++j)
-            if (parsed[i].match == parsed[j].match &&
-                duplicate_key(parsed[i]) == duplicate_key(parsed[j])) {
+            if (same_dictionary_key(parsed[i], parsed[j])) {
                 if (warnings)
                     warnings->push_back({WarningCode::DictionaryParseError,
                                          "Duplicate pronunciation dictionary entry"});
@@ -481,8 +457,7 @@ bool PronunciationDictionary::load_file(const std::string& path,
             }
     for (const auto& candidate : parsed)
         for (const auto& existing : m_entries)
-            if (candidate.match == existing.match &&
-                duplicate_key(candidate) == duplicate_key(existing)) {
+            if (same_dictionary_key(candidate, existing)) {
                 if (warnings)
                     warnings->push_back({WarningCode::DictionaryParseError,
                                          "Duplicate pronunciation dictionary entry"});

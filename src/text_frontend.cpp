@@ -1,3 +1,4 @@
+#include "detail/utf8.hpp"
 #include "tts_front/tts_front.hpp"
 
 #include <algorithm>
@@ -12,50 +13,8 @@
 namespace tts_front {
 namespace {
 
-struct CodePoint {
-    std::uint32_t value = 0;
-    std::size_t offset = 0;
-    std::size_t length = 0;
-};
-
-bool decode_utf8(std::string_view text, std::vector<CodePoint>& output) {
-    output.clear();
-    for (std::size_t i = 0; i < text.size();) {
-        const std::size_t start = i;
-        const auto c = static_cast<unsigned char>(text[i]);
-        std::uint32_t value = 0;
-        std::size_t length = 0;
-        if (c <= 0x7f) {
-            value = c;
-            length = 1;
-        } else if ((c & 0xe0) == 0xc0) {
-            value = c & 0x1f;
-            length = 2;
-        } else if ((c & 0xf0) == 0xe0) {
-            value = c & 0x0f;
-            length = 3;
-        } else if ((c & 0xf8) == 0xf0) {
-            value = c & 0x07;
-            length = 4;
-        } else
-            return false;
-        if (i + length > text.size())
-            return false;
-        for (std::size_t j = 1; j < length; ++j) {
-            const auto continuation = static_cast<unsigned char>(text[i + j]);
-            if ((continuation & 0xc0) != 0x80)
-                return false;
-            value = (value << 6) | (continuation & 0x3f);
-        }
-        if ((length == 2 && value < 0x80) || (length == 3 && value < 0x800) ||
-            (length == 4 && value < 0x10000) || value > 0x10ffff ||
-            (value >= 0xd800 && value <= 0xdfff))
-            return false;
-        output.push_back({value, start, length});
-        i += length;
-    }
-    return true;
-}
+using CodePoint = detail::Utf8CodePoint;
+using detail::decode_utf8;
 
 bool is_cyrillic(std::uint32_t cp) {
     return cp >= 0x0400 && cp <= 0x052f;

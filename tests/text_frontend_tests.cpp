@@ -191,6 +191,12 @@ int main() {
     CHECK(frontend.process(surrogate, en).warnings.front().code == WarningCode::InvalidUtf8);
     std::string too_large("\xf4\x90\x80\x80", 4);
     CHECK(frontend.process(too_large, en).warnings.front().code == WarningCode::InvalidUtf8);
+    const std::string emoji("\xf0\x9f\x98\x80", 4);
+    CHECK(frontend.process(emoji, en).warnings.empty());
+    std::string bad_continuation("\xe2\x28\xa1", 3);
+    CHECK(frontend.process(bad_continuation, en).warnings.front().code == WarningCode::InvalidUtf8);
+    std::string truncated("\xf0\x9f\x98", 3);
+    CHECK(frontend.process(truncated, en).warnings.front().code == WarningCode::InvalidUtf8);
     std::cout << "tts_front tests passed\n";
     return EXIT_SUCCESS;
 }
