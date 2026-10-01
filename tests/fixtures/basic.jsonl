@@ -27,3 +27,12 @@
 {"input":"0,01 0,21 1,123","language":"ru","expected":"ноль целых одна сотая ноль целых двадцать одна сотая одна целая сто двадцать три тысячных","category":"ru_decimal_morphology","source":"review-regression"}
 {"input":"7,5%","language":"ru","expected":"семь целых пять десятых процента","category":"ru_decimal_percent","source":"review-regression"}
 {"input":"1 234 567","language":"en","expected":"one million two hundred thirty four thousand five hundred sixty seven","category":"en_grouped_numbers","source":"review-regression"}
+{"input":"01.02.2011","language":"ru","expected":"первое февраля две тысячи одиннадцатого года","category":"ru_date_ordinal_11","source":"review-regression"}
+{"input":"01.02.2012","language":"ru","expected":"первое февраля две тысячи двенадцатого года","category":"ru_date_ordinal_12","source":"review-regression"}
+{"input":"01.02.2019","language":"ru","expected":"первое февраля две тысячи девятнадцатого года","category":"ru_date_ordinal_19","source":"review-regression"}
+{"input":"01.02.2020","language":"ru","expected":"первое февраля две тысячи двадцатого года","category":"ru_date_ordinal_20","source":"review-regression"}
+{"input":"01.02.2042","language":"ru","expected":"первое февраля две тысячи сорок второго года","category":"ru_date_ordinal_42","source":"review-regression"}
+{"input":"В 5001 г.","language":"ru","expected":"В пять тысяч первом году","category":"ru_year_thousands_plural","source":"review-regression"}
+{"input":"01.02.5001","language":"ru","expected":"первое февраля пять тысяч первого года","category":"ru_date_thousands_plural","source":"review-regression"}
+{"input":"24:00 99:99","language":"ru","expected":"24:00 99:99","category":"ru_invalid_time_preserved","source":"review-regression"}
+{"input":"24:00 99:99","language":"en","expected":"24:00 99:99","category":"en_invalid_time_preserved","source":"review-regression"}

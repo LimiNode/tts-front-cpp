@@ -4,7 +4,6 @@
 #include <cctype>
 #include <cstdint>
 #include <cstdlib>
-#include <functional>
 #include <regex>
 #include <string>
 #include <utility>
@@ -152,41 +151,38 @@ std::string ru_ordinal_day(int day) {
   static const char* const ordinal[] = {"", "первое", "второе", "третье", "четвертое", "пятое", "шестое", "седьмое", "восьмое", "девятое", "десятое", "одиннадцатое", "двенадцатое", "тринадцатое", "четырнадцатое", "пятнадцатое", "шестнадцатое", "семнадцатое", "восемнадцатое", "девятнадцатое", "двадцатое", "двадцать первое", "двадцать второе", "двадцать третье", "двадцать четвертое", "двадцать пятое", "двадцать шестое", "двадцать седьмое", "двадцать восьмое", "двадцать девятое", "тридцатое", "тридцать первое"};
   return day >= 1 && day <= 31 ? ordinal[day] : ru_number(day);
 }
+enum class RuYearCase { Locative, Genitive };
+std::string ru_year_ordinal(int n, RuYearCase grammatical_case) {
+  const bool genitive = grammatical_case == RuYearCase::Genitive;
+  static const char* const loc[] = {"", "первом", "втором", "третьем", "четвертом", "пятом", "шестом", "седьмом", "восьмом", "девятом", "десятом", "одиннадцатом", "двенадцатом", "тринадцатом", "четырнадцатом", "пятнадцатом", "шестнадцатом", "семнадцатом", "восемнадцатом", "девятнадцатом", "двадцатом"};
+  static const char* const gen[] = {"", "первого", "второго", "третьего", "четвертого", "пятого", "шестого", "седьмого", "восьмого", "девятого", "десятого", "одиннадцатого", "двенадцатого", "тринадцатого", "четырнадцатого", "пятнадцатого", "шестнадцатого", "семнадцатого", "восемнадцатого", "девятнадцатого", "двадцатого"};
+  if (n <= 20) return std::string((genitive ? gen : loc)[n]);
+  static const char* const tens_loc[] = {"", "", "двадцатом", "тридцатом", "сороковом", "пятидесятом", "шестидесятом", "семидесятом", "восьмидесятом", "девяностом"};
+  static const char* const tens_gen[] = {"", "", "двадцатого", "тридцатого", "сорокового", "пятидесятого", "шестидесятого", "семидесятого", "восьмидесятого", "девяностого"};
+  if (n < 100) return n % 10 == 0 ? std::string((genitive ? tens_gen : tens_loc)[n / 10]) : ru_number(n / 10 * 10) + " " + ((genitive ? gen : loc)[n % 10]);
+  if (n % 100 == 0) {
+    static const char* const hundreds_loc[] = {"", "сотом", "двухсотом", "трехсотом", "четырехсотом", "пятисотом", "шестисотом", "семисотом", "восьмисотом", "девятисотом"};
+    static const char* const hundreds_gen[] = {"", "сотого", "двухсотого", "трехсотого", "четырехсотого", "пятисотого", "шестисотого", "семисотого", "восьмисотого", "девятисотого"};
+    return std::string((genitive ? hundreds_gen : hundreds_loc)[n / 100]);
+  }
+  return ru_number(n / 100 * 100) + " " + ru_year_ordinal(n % 100, grammatical_case);
+}
+std::string ru_year_prefix(int thousands) {
+  if (thousands == 1) return "тысяча";
+  if (thousands == 2) return "две тысячи";
+  return ru_number(thousands) + " " + ru_form(thousands, "тысяча", "тысячи", "тысяч");
+}
 std::string ru_year_locative(int year) {
   if (year < 1000 || year > 9999) return ru_number(year);
   const int thousands = year / 1000; const int rest = year % 1000;
-  if (rest == 0) {
-    static const char* const exact[] = {"", "тысячном", "двухтысячном", "трехтысячном", "четырехтысячном", "пятитысячном", "шеститысячном", "семитысячном", "восьмитысячном", "девятитысячном"};
-    return exact[thousands];
-  }
-  const auto prefix = thousands == 1 ? std::string("тысяча") : thousands == 2 ? std::string("две тысячи") : ru_number(thousands) + " тысячи";
-  std::function<std::string(int, bool)> ordinal = [&](int n, bool genitive) {
-    static const char* const loc[] = {"", "первом", "втором", "третьем", "четвертом", "пятом", "шестом", "седьмом", "восьмом", "девятом", "десятом", "одиннадцатом", "двенадцатом", "тринадцатом", "четырнадцатом", "пятнадцатом", "шестнадцатом", "семнадцатом", "восемнадцатом", "девятнадцатом", "двадцатом"};
-    static const char* const gen[] = {"", "первого", "второго", "третьего", "четвертого", "пятого", "шестого", "седьмого", "восьмого", "девятого", "десятого", "одиннадцатого", "двенадцатого", "тринадцатого", "четырнадцатого", "пятнадцатого", "шестнадцатого", "семнадцатого", "восемнадцатого", "девятнадцатого", "двадцатого"};
-    if (n <= 20) return std::string((genitive ? gen : loc)[n]);
-    static const char* const tens_loc[] = {"", "", "двадцатом", "тридцатом", "сороковом", "пятидесятом", "шестидесятом", "семидесятом", "восьмидесятом", "девяностом"};
-    static const char* const tens_gen[] = {"", "", "двадцатого", "тридцатого", "сорокового", "пятидесятого", "шестидесятого", "семидесятого", "восьмидесятого", "девяностого"};
-    if (n < 100) return n % 10 == 0 ? std::string((genitive ? tens_gen : tens_loc)[n / 10]) : std::string(ru_number(n / 10 * 10)) + " " + ((genitive ? gen : loc)[n % 10]);
-    if (n % 100 == 0) {
-      static const char* const hundreds_loc[] = {"", "сотом", "двухсотом", "трехсотом", "четырехсотом", "пятисотом", "шестисотом", "семисотом", "восьмисотом", "девятисотом"};
-      static const char* const hundreds_gen[] = {"", "сотого", "двухсотого", "трехсотого", "четырехсотого", "пятисотого", "шестисотого", "семисотого", "восьмисотого", "девятисотого"};
-      return std::string((genitive ? hundreds_gen : hundreds_loc)[n / 100]);
-    }
-    return ru_number(n / 100 * 100) + " " + ordinal(n % 100, genitive);
-  };
-  return prefix + " " + ordinal(rest, false);
+  if (rest == 0) { static const char* const exact[] = {"", "тысячном", "двухтысячном", "трехтысячном", "четырехтысячном", "пятитысячном", "шеститысячном", "семитысячном", "восьмитысячном", "девятитысячном"}; return exact[thousands]; }
+  return ru_year_prefix(thousands) + " " + ru_year_ordinal(rest, RuYearCase::Locative);
 }
 std::string ru_year_genitive(int year) {
   if (year < 1000 || year > 9999) return ru_number(year);
   const int thousands = year / 1000; const int rest = year % 1000;
   if (rest == 0) { static const char* const exact[] = {"", "тысячного", "двухтысячного", "трехтысячного", "четырехтысячного", "пятитысячного", "шеститысячного", "семитысячного", "восьмитысячного", "девятитысячного"}; return exact[thousands]; }
-  auto locative = ru_year_locative(year);
-  const auto at = locative.rfind(' ');
-  if (at == std::string::npos) return locative;
-  const auto last = locative.substr(at + 1);
-  static const std::pair<const char*, const char*> endings[] = {{"первом", "первого"}, {"втором", "второго"}, {"третьем", "третьего"}, {"четвертом", "четвертого"}, {"пятом", "пятого"}, {"шестом", "шестого"}, {"седьмом", "седьмого"}, {"восьмом", "восьмого"}, {"девятом", "девятого"}, {"десятом", "десятого"}, {"двадцатом", "двадцатого"}, {"тридцатом", "тридцатого"}, {"сороковом", "сорокового"}, {"пятидесятом", "пятидесятого"}, {"шестидесятом", "шестидесятого"}, {"семидесятом", "семидесятого"}, {"восьмидесятом", "восьмидесятого"}, {"девяностом", "девяностого"}};
-  for (const auto& ending : endings) if (last == ending.first) return locative.substr(0, at + 1) + ending.second;
-  return locative.substr(0, at + 1) + last + "го";
+  return ru_year_prefix(thousands) + " " + ru_year_ordinal(rest, RuYearCase::Genitive);
 }
 std::string ru_feminine_number(long long value);
 std::string ru_decimal(long long integer, const std::string& fraction) {
@@ -261,7 +257,7 @@ std::string normalize_ru(std::string text, std::vector<TextWarning>& warnings) {
   text = replace_matches(std::move(text), std::regex(R"(\b(\d{1,2}):(\d{2})\b)"), [&](const std::smatch& match) { long long h = 0, m = 0; if (!try_parse_long(match[1].str(), h) || !try_parse_long(match[2].str(), m) || h > 23 || m > 59) { warnings.push_back({WarningCode::UnresolvedNumber, "Invalid Russian clock time"}); return match.str(); } return ru_number(h) + " " + ru_form(h, "час", "часа", "часов") + " " + ru_feminine_number(m) + " " + ru_form(m, "минута", "минуты", "минут"); });
   text = replace_matches(std::move(text), std::regex(R"((-?\d+)[,](\d+)([^0-9]|$))"), [&](const std::smatch& match) { long long integer = 0, fraction = 0; if (!try_parse_long(match[1].str(), integer) || !try_parse_long(match[2].str(), fraction) || match[2].str().size() > 3) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse Russian decimal"}); return match.str(); } return ru_decimal(integer, match[2].str()) + match[3].str(); });
   text = replace_matches(std::move(text), std::regex(R"((-?\d+)\s*(километров|километра|километр|км|килограммов|килограмма|килограмм|кг|сантиметров|сантиметра|сантиметр|см|миллиметров|миллиметра|миллиметр|мм|ГБ|МБ|м)([^А-Яа-яЁёA-Za-z0-9]|$))"), [&](const std::smatch& match) { long long n = 0; if (!try_parse_long(match[1].str(), n)) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse Russian measurement"}); return match.str(); } const auto source = match[2].str(); const std::string unit = source.find("кг") == 0 || source.find("килограмм") == 0 ? ru_form(n, "килограмм", "килограмма", "килограммов") : source.find("км") == 0 || source.find("километр") == 0 ? ru_form(n, "километр", "километра", "километров") : source.find("см") == 0 || source.find("сантиметр") == 0 ? ru_form(n, "сантиметр", "сантиметра", "сантиметров") : source.find("мм") == 0 || source.find("миллиметр") == 0 ? ru_form(n, "миллиметр", "миллиметра", "миллиметров") : source == "м" ? ru_form(n, "метр", "метра", "метров") : source == "ГБ" ? ru_form(n, "гигабайт", "гигабайта", "гигабайт") : ru_form(n, "мегабайт", "мегабайта", "мегабайт"); return ru_number(n) + " " + unit + match[3].str(); });
-  text = replace_matches(std::move(text), std::regex(R"((^|[^A-Za-z0-9_,.])(-?\d+)(?![0-9]*[,.][0-9]))"), [&](const std::smatch& match) { return match[1].str() + number_or_original(match[2].str(), true, warnings); });
+  text = replace_matches(std::move(text), std::regex(R"((^|[^A-Za-z0-9_,.:])(-?\d+)(?![0-9]*[.,:][0-9]))"), [&](const std::smatch& match) { return match[1].str() + number_or_original(match[2].str(), true, warnings); });
   text = std::regex_replace(text, std::regex(R"(\bт\.д\.)"), "так далее");
   text = std::regex_replace(text, std::regex(R"(\bт\.п\.)"), "тому подобное");
   return restore_technical(std::move(text), protected_spans);
@@ -276,7 +272,7 @@ std::string normalize_en(std::string text, std::vector<TextWarning>& warnings) {
   text = replace_matches(std::move(text), std::regex(R"(\b(\d{1,2}):(\d{2})\b)"), [&](const std::smatch& match) { long long h = 0, m = 0; if (!try_parse_long(match[1].str(), h) || !try_parse_long(match[2].str(), m) || h > 23 || m > 59) { warnings.push_back({WarningCode::UnresolvedNumber, "Invalid English clock time"}); return match.str(); } return en_number(h) + (h == 1 ? " hour " : " hours ") + en_number(m) + (m == 1 ? " minute" : " minutes"); });
   text = replace_matches(std::move(text), std::regex(R"((^|[^$A-Za-z0-9])(-?\d+\.\d+))"), [&](const std::smatch& match) { const auto value = match[2].str(); const auto dot = value.find('.'); long long integer = 0; if (!try_parse_long(value.substr(0, dot), integer)) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse English decimal"}); return match.str(); } return match[1].str() + en_number(integer) + " point " + en_digits(value.substr(dot + 1)); });
   text = replace_matches(std::move(text), std::regex(R"((-?\d+)\s*(kilometers|kilometres|km|kilograms|kg|meters|metres|m|centimeters|centimetres|cm|millimeters|millimetres|mm|GB|MB)([^A-Za-z0-9]|$))"), [&](const std::smatch& match) { long long n = 0; if (!try_parse_long(match[1].str(), n)) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse English measurement"}); return match.str(); } const auto unit = match[2].str(); const bool singular = n == 1; const std::string spoken = unit == "kg" || unit.find("kilogram") == 0 ? (singular ? "kilogram" : "kilograms") : unit == "km" || unit.find("kilomet") == 0 ? (singular ? "kilometer" : "kilometers") : unit == "m" || unit == "meters" || unit == "metres" ? (singular ? "meter" : "meters") : unit == "cm" || unit.find("centimet") == 0 ? (singular ? "centimeter" : "centimeters") : unit == "mm" || unit.find("millimet") == 0 ? (singular ? "millimeter" : "millimeters") : unit == "MB" ? (singular ? "megabyte" : "megabytes") : (singular ? "gigabyte" : "gigabytes"); return en_number(n) + " " + spoken + match[3].str(); });
-  text = replace_matches(std::move(text), std::regex(R"((^|[^A-Za-z0-9_,.])(-?\d+)(?![0-9]*[,.][0-9]))"), [&](const std::smatch& match) { return match[1].str() + number_or_original(match[2].str(), false, warnings); });
+  text = replace_matches(std::move(text), std::regex(R"((^|[^A-Za-z0-9_,.:])(-?\d+)(?![0-9]*[.,:][0-9]))"), [&](const std::smatch& match) { return match[1].str() + number_or_original(match[2].str(), false, warnings); });
   return restore_technical(std::move(text), protected_spans);
 }
 

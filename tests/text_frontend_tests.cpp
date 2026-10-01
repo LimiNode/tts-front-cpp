@@ -33,7 +33,7 @@ int main() {
   CHECK(frontend.process("1 MB 2 MB 1 GB 2 GB", en).normalized_text == "one megabyte two megabytes one gigabyte two gigabytes");
   CHECK(frontend.process("$12.345", en).normalized_text == "$12.345");
   CHECK(frontend.process("1 234 567", en).normalized_text == "one million two hundred thirty four thousand five hundred sixty seven");
-  { const auto invalid_time = frontend.process("24:00 99:99", en); CHECK(invalid_time.normalized_text == "twenty four:zero ninety nine:ninety nine"); CHECK(invalid_time.warnings.size() == 2); }
+  { const auto invalid_time = frontend.process("24:00 99:99", en); CHECK(invalid_time.normalized_text == "24:00 99:99"); CHECK(invalid_time.warnings.size() == 2); }
   CHECK(frontend.process("There are 12 GPUs.", en).normalized_text == "There are twelve GPUs.");
 
   PronunciationDictionary dictionary; CHECK(dictionary.add_token("замок", "замок", 1)); CHECK(dictionary.add_case_insensitive_token("Qwen", "квен")); CHECK(dictionary.add_phrase("New York", "Нью-Йорк")); CHECK(!dictionary.add_token("замок", "замок", 1)); CHECK(dictionary.add_case_insensitive_token("Москва", "москва"));
@@ -74,12 +74,14 @@ int main() {
   CHECK(frontend.process(huge + "% $" + huge + " " + huge + ".1 " + huge + " kg", en).has_uncertainty());
   CHECK(frontend.process(huge + "% " + huge + ",1 " + huge + " кг", ru).has_uncertainty());
   CHECK(frontend.process("В 2042 г.", ru).normalized_text == "В две тысячи сорок втором году");
+  CHECK(frontend.process("В 5001 г.", ru).normalized_text == "В пять тысяч первом году");
+  CHECK(frontend.process("01.02.2011 01.02.2012 01.02.2019 01.02.2020 01.02.2042 01.02.5001", ru).normalized_text == "первое февраля две тысячи одиннадцатого года первое февраля две тысячи двенадцатого года первое февраля две тысячи девятнадцатого года первое февраля две тысячи двадцатого года первое февраля две тысячи сорок второго года первое февраля пять тысяч первого года");
   CHECK(frontend.process("01.02.2025", ru).normalized_text == "первое февраля две тысячи двадцать пятого года");
   CHECK(frontend.process("31.12.1987", ru).normalized_text == "тридцать первое декабря тысяча девятьсот восемьдесят седьмого года");
   CHECK(frontend.process("0,01 0,21 1,123", ru).normalized_text == "ноль целых одна сотая ноль целых двадцать одна сотая одна целая сто двадцать три тысячных");
   CHECK(frontend.process("1,1234", ru).normalized_text == "1,1234");
   CHECK(frontend.process("7,5%", ru).normalized_text == "семь целых пять десятых процента");
-  { const auto invalid_time = frontend.process("24:00 99:99", ru); CHECK(invalid_time.normalized_text == "двадцать четыре:ноль девяносто девять:девяносто девять"); CHECK(invalid_time.warnings.size() == 2); }
+  { const auto invalid_time = frontend.process("24:00 99:99", ru); CHECK(invalid_time.normalized_text == "24:00 99:99"); CHECK(invalid_time.warnings.size() == 2); }
   CHECK(frontend.process("99.99.2026", ru).normalized_text == "99.99.2026");
   std::string many_protected; for (int i = 0; i < 35; ++i) { if (!many_protected.empty()) many_protected += ' '; many_protected += "https://example.com/item" + std::to_string(i); }
   CHECK(frontend.process(many_protected, en).normalized_text == many_protected);
