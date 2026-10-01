@@ -1,5 +1,13 @@
 # Roadmap
 
+> Provenance clarification: PR #3 contains provenance-reviewed RU/EN vectors. Each
+> fixture distinguishes `adapted_vector` (an upstream behavior/test reproduced at the
+> pinned revision) from `category_derived` (a local vector selected from an upstream
+> normalization category or grammar). The roadmap does not claim that every fixture is
+> an exact upstream line. The numbered sequence below is the default order, not a hard
+> dependency graph; focused functional PRs may move an item when its contract and gate
+> criteria remain explicit.
+
 Этот документ фиксирует порядок развития `tts-front-cpp` после закрытия baseline
 v0.1. Этапы намеренно разделены: corpus и deterministic rules не должны незаметно
 превратиться в source-map или neural-runtime рефакторинг.
@@ -22,6 +30,8 @@ v0.1. Этапы намеренно разделены: corpus и deterministic 
 
 - числа, даты и годы, валюты, единицы и проценты;
 - protected technical spans;
+- adapted upstream vectors record project, exact revision, and adaptation date;
+- category-derived fixtures record the upstream project/revision and derived status;
 - mixed-language и ambiguous cases;
 - живые TTS-фразы, а не только изолированные токены;
 - для адаптированных upstream vectors — проект, exact revision и `adapted` date.
