@@ -20,6 +20,8 @@ const auto result = frontend.process("В 2026 г. API готов.", options);
 
 Automatic context-sensitive Russian stress намеренно не включён: `StressMode::Automatic` выдаёт явное предупреждение до parity-проверки native/ONNX backend. Это не блокирует normalization и dictionary-only stress.
 
+Encoding contract: all public `std::string`/`std::string_view` text is UTF-8, and project source files are UTF-8. MSVC targets compile with `/utf-8`.
+
 `StressMode::Disabled` и `resolve_stress=false` полностью отключают semantic stress; dictionary pronunciation replacement при этом продолжает работать. `StressMode::Automatic` использует доступные dictionary decisions и добавляет `AutomaticStressUnavailable`, пока parity-proven backend не появится.
 
 Намеренно не поддерживаются в v0.1: произвольная семантическая disambiguation дат/чисел, полноценная Unicode NFC normalization, phone/URL spoken rendering и neural context-sensitive stress. Неоднозначные/неподдержанные случаи сохраняются или сопровождаются warning, а не угадываются молча.

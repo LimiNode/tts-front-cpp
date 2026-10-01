@@ -52,6 +52,7 @@ target_include_directories(tts_front PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
 if(MSVC)
+  add_compile_options(/utf-8)
   target_compile_options(tts_front PRIVATE /W4 /permissive-)
 else()
   target_compile_options(tts_front PRIVATE -Wall -Wextra -Wpedantic)
