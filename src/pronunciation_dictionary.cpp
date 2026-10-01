@@ -17,7 +17,7 @@ std::size_t count_vowels(std::string_view text) {
         const std::size_t length = detail::utf8_sequence_length(c);
         if (length == 0 || i + length > text.size())
             break;
-        const std::string unit(text.substr(i, length));
+        const std::string_view unit = text.substr(i, length);
         if (unit == "a" || unit == "e" || unit == "i" || unit == "o" || unit == "u" ||
             unit == "y" || unit == "A" || unit == "E" || unit == "I" || unit == "O" ||
             unit == "U" || unit == "Y" || unit == "а" || unit == "е" || unit == "ё" ||
@@ -30,7 +30,7 @@ std::size_t count_vowels(std::string_view text) {
     }
     return count;
 }
-std::string lower_unicode_ru_en(std::string value) {
+std::string lower_unicode_ru_en(std::string_view value) {
     std::string output;
     output.reserve(value.size());
     for (std::size_t i = 0; i < value.size();) {
@@ -335,7 +335,7 @@ PronunciationDictionary::find_token(std::string_view token) const {
         if (entry.match == Match::ExactPhrase)
             continue;
         if (entry.match == Match::CaseInsensitiveToken
-                ? lower_unicode_ru_en(entry.pattern) == lower_unicode_ru_en(std::string(token))
+                ? lower_unicode_ru_en(entry.pattern) == lower_unicode_ru_en(token)
                 : entry.pattern == token)
             return &entry;
     }
