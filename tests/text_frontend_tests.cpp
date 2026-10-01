@@ -104,6 +104,16 @@ int main() {
     dictionary_options.resolve_stress = true;
     CHECK(frontend.process("New Yorkshire", dictionary_options).pronunciation_text ==
           "New Yorkshire");
+    PronunciationDictionary overlapping_dictionary;
+    CHECK(overlapping_dictionary.add_token("New", "single-token"));
+    CHECK(overlapping_dictionary.add_phrase("New York", "phrase-pronunciation"));
+    dictionary_options.dictionary = &overlapping_dictionary;
+    const auto overlapping_result = frontend.process("New York", dictionary_options);
+    CHECK(overlapping_result.pronunciation_text == "phrase-pronunciation");
+    CHECK(overlapping_result.words.size() == 2);
+    CHECK(overlapping_result.words[0].pronunciation == "phrase-pronunciation");
+    CHECK(overlapping_result.words[1].pronunciation.empty());
+    dictionary_options.dictionary = &dictionary;
     std::vector<TextWarning> dictionary_warnings;
     PronunciationDictionary loaded;
     CHECK(loaded.load_file(std::string(TTS_FRONT_SOURCE_DIR) + "/tests/fixtures/dictionary.json",
@@ -117,6 +127,9 @@ int main() {
     CHECK(!loaded.load_file(std::string(TTS_FRONT_SOURCE_DIR) +
                                 "/tests/fixtures/malformed_unknown.json",
                             &dictionary_warnings));
+    CHECK(
+        !loaded.load_file(std::string(TTS_FRONT_SOURCE_DIR) + "/tests/fixtures/unknown_field.json",
+                          &dictionary_warnings));
     CHECK(
         !loaded.load_file(std::string(TTS_FRONT_SOURCE_DIR) + "/tests/fixtures/duplicate_key.json",
                           &dictionary_warnings));
@@ -142,9 +155,14 @@ int main() {
     CHECK(frontend.process("тест", automatic).warnings.size() == 1);
     automatic.resolve_stress = false;
     CHECK(frontend.process("тест", automatic).warnings.empty());
+    TextFrontendOptions unsupported;
+    unsupported.language = static_cast<Language>(999);
+    const auto unsupported_result = frontend.process("test", unsupported);
+    CHECK(unsupported_result.warnings.size() == 1);
+    CHECK(unsupported_result.warnings.front().code == WarningCode::UnsupportedLanguage);
     TextFrontendOptions no_cleanup;
     no_cleanup.language = Language::English;
-    no_cleanup.cleanup_unicode = false;
+    no_cleanup.cleanup_spacing = false;
     CHECK(frontend.process("a  b", no_cleanup).normalized_text == "a  b");
     CHECK(frontend.process("café 😊", en).normalized_text == "café 😊");
     const auto mixed = frontend.process("Привет API", TextFrontendOptions{});
@@ -176,6 +194,20 @@ int main() {
         const auto invalid_time = frontend.process("24:00 99:99", ru);
         CHECK(invalid_time.normalized_text == "24:00 99:99");
         CHECK(invalid_time.warnings.size() == 2);
+        CHECK(invalid_time.warnings[0].offset == 0);
+        CHECK(invalid_time.warnings[0].length == 0);
+        CHECK(invalid_time.warnings[1].offset == 0);
+        CHECK(invalid_time.warnings[1].length == 0);
+    }
+    for (const auto& input : {std::string("1% 99:99"),
+                              std::string("RTX 4090 99:99"),
+                              std::string("a   99:99"),
+                              std::string("1 234 99:99")}) {
+        const auto transformed = frontend.process(input, en);
+        for (const auto& warning : transformed.warnings) {
+            CHECK(warning.offset == 0);
+            CHECK(warning.length == 0);
+        }
     }
     CHECK(frontend.process("99.99.2026", ru).normalized_text == "99.99.2026");
     std::string many_protected;
@@ -186,7 +218,10 @@ int main() {
     }
     CHECK(frontend.process(many_protected, en).normalized_text == many_protected);
     std::string invalid("\xc0\xaf", 2);
-    CHECK(frontend.process(invalid, en).warnings.front().code == WarningCode::InvalidUtf8);
+    const auto invalid_result = frontend.process(invalid, en);
+    CHECK(invalid_result.warnings.front().code == WarningCode::InvalidUtf8);
+    CHECK(invalid_result.warnings.front().offset == 0);
+    CHECK(invalid_result.warnings.front().length == invalid.size());
     std::string surrogate("\xed\xa0\x80", 3);
     CHECK(frontend.process(surrogate, en).warnings.front().code == WarningCode::InvalidUtf8);
     std::string too_large("\xf4\x90\x80\x80", 4);

@@ -157,10 +157,8 @@ class JsonParser {
                 std::string match;
                 if (!parse_string(match, error))
                     return false;
-                if (match == "exact_token")
+                if (match == "exact_token" || match == "case_sensitive")
                     entry.match = PronunciationDictionary::Match::ExactToken;
-                else if (match == "case_sensitive")
-                    entry.match = PronunciationDictionary::Match::CaseSensitiveToken;
                 else if (match == "case_insensitive")
                     entry.match = PronunciationDictionary::Match::CaseInsensitiveToken;
                 else if (match == "phrase")
@@ -172,8 +170,8 @@ class JsonParser {
                 if (!parse_unsigned(value, error))
                     return false;
                 entry.stressed_vowel = value;
-            } else if (!skip_value(error))
-                return false;
+            } else
+                return fail(error, "unknown entry field");
             skip_space();
             if (consume('}')) {
                 if (force_phrase)
@@ -296,83 +294,6 @@ class JsonParser {
             }
         }
         return fail(error, "unterminated string");
-    }
-    bool skip_value(std::string& error) {
-        skip_space();
-        if (m_position >= m_source.size())
-            return fail(error, "missing value");
-        if (m_source[m_position] == '"') {
-            std::string ignored;
-            return parse_string(ignored, error);
-        }
-        if (m_source[m_position] == '{' || m_source[m_position] == '[') {
-            const char open = m_source[m_position++];
-            const char close = open == '{' ? '}' : ']';
-            int depth = 1;
-            bool quoted = false;
-            while (m_position < m_source.size() && depth > 0) {
-                const char c = m_source[m_position++];
-                if (c == '\\' && quoted) {
-                    if (m_position < m_source.size())
-                        ++m_position;
-                    continue;
-                }
-                if (c == '"')
-                    quoted = !quoted;
-                else if (!quoted && c == open)
-                    ++depth;
-                else if (!quoted && c == close)
-                    --depth;
-            }
-            return depth == 0 ? true : fail(error, "unterminated value");
-        }
-        if (m_source.compare(m_position, 4, "true") == 0) {
-            m_position += 4;
-            return true;
-        }
-        if (m_source.compare(m_position, 5, "false") == 0) {
-            m_position += 5;
-            return true;
-        }
-        if (m_source.compare(m_position, 4, "null") == 0) {
-            m_position += 4;
-            return true;
-        }
-        const auto begin = m_position;
-        if (m_source[m_position] == '-')
-            ++m_position;
-        if (m_position >= m_source.size() ||
-            !std::isdigit(static_cast<unsigned char>(m_source[m_position])))
-            return fail(error, "invalid JSON scalar");
-        if (m_source[m_position] == '0')
-            ++m_position;
-        else
-            while (m_position < m_source.size() &&
-                   std::isdigit(static_cast<unsigned char>(m_source[m_position])))
-                ++m_position;
-        if (m_position < m_source.size() && m_source[m_position] == '.') {
-            ++m_position;
-            if (m_position >= m_source.size() ||
-                !std::isdigit(static_cast<unsigned char>(m_source[m_position])))
-                return fail(error, "invalid JSON number");
-            while (m_position < m_source.size() &&
-                   std::isdigit(static_cast<unsigned char>(m_source[m_position])))
-                ++m_position;
-        }
-        if (m_position < m_source.size() &&
-            (m_source[m_position] == 'e' || m_source[m_position] == 'E')) {
-            ++m_position;
-            if (m_position < m_source.size() &&
-                (m_source[m_position] == '+' || m_source[m_position] == '-'))
-                ++m_position;
-            if (m_position >= m_source.size() ||
-                !std::isdigit(static_cast<unsigned char>(m_source[m_position])))
-                return fail(error, "invalid JSON exponent");
-            while (m_position < m_source.size() &&
-                   std::isdigit(static_cast<unsigned char>(m_source[m_position])))
-                ++m_position;
-        }
-        return m_position > begin;
     }
     std::string_view m_source;
     std::size_t m_position = 0;
