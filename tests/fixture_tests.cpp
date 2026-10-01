@@ -17,6 +17,10 @@ bool valid_adaptation_date(const std::string& value) {
     static const std::regex pattern(R"(\d{4}-\d{2}-\d{2})");
     return std::regex_match(value, pattern);
 }
+
+bool valid_provenance(const std::string& value) {
+    return value == "adapted_vector" || value == "category_derived";
+}
 } // namespace
 int main() {
     tts_front::TextFrontend frontend;
@@ -40,14 +44,23 @@ int main() {
             const auto category = field(line, "category");
             const auto source = field(line, "source");
             const auto adapted = field(line, "adapted");
+            const auto provenance = field(line, "provenance");
             if (input.empty() || expected.empty() || category.empty() || source.empty() ||
-                (requires_adaptation_date && !valid_adaptation_date(adapted))) {
+                (requires_adaptation_date &&
+                 (!valid_adaptation_date(adapted) || !valid_provenance(provenance)))) {
                 std::cerr << "Malformed fixture line: " << line << "\n";
                 return EXIT_FAILURE;
             }
             tts_front::TextFrontendOptions options;
-            options.language =
-                language == "ru" ? tts_front::Language::Russian : tts_front::Language::English;
+            if (language == "ru")
+                options.language = tts_front::Language::Russian;
+            else if (language == "en")
+                options.language = tts_front::Language::English;
+            else {
+                std::cerr << "Unsupported fixture language [" << category << "]: " << language
+                          << "\n";
+                return EXIT_FAILURE;
+            }
             const auto result = frontend.process(input, options);
             if (result.normalized_text != expected) {
                 std::cerr << "Fixture mismatch [" << category << "] expected='" << expected
