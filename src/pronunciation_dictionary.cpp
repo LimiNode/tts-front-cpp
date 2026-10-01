@@ -113,7 +113,7 @@ private:
     if (!consume('"')) return fail(error, "expected string");
     output.clear();
     while (m_position < m_source.size()) {
-      const char c = m_source[m_position++]; if (c == '"') return true; if (c != '\\') { output.push_back(c); continue; }
+      const char c = m_source[m_position++]; if (c == '"') return true; if (static_cast<unsigned char>(c) < 0x20) return fail(error, "control character in JSON string"); if (c != '\\') { output.push_back(c); continue; }
       if (m_position >= m_source.size()) return fail(error, "unterminated escape");
       const char escaped = m_source[m_position++];
       switch (escaped) { case '"': case '\\': case '/': output.push_back(escaped); break; case 'b': output.push_back('\b'); break; case 'f': output.push_back('\f'); break; case 'n': output.push_back('\n'); break; case 'r': output.push_back('\r'); break; case 't': output.push_back('\t'); break; case 'u': { unsigned value = 0; if (!parse_hex4(value, error)) return false; if (value >= 0xd800 && value <= 0xdbff) { if (m_position + 6 > m_source.size() || m_source[m_position] != '\\' || m_source[m_position + 1] != 'u') return fail(error, "high surrogate without low surrogate"); m_position += 2; unsigned low = 0; if (!parse_hex4(low, error) || low < 0xdc00 || low > 0xdfff) return fail(error, "invalid low surrogate"); value = 0x10000 + ((value - 0xd800) << 10) + (low - 0xdc00); } else if (value >= 0xdc00 && value <= 0xdfff) return fail(error, "unexpected low surrogate"); append_codepoint(output, value); break; } default: return fail(error, "unknown escape"); }
@@ -142,14 +142,16 @@ bool PronunciationDictionary::add_entry(Entry entry) {
   if (entry.pattern.empty() || entry.pronunciation.empty()) return false;
   if (!valid_utf8(entry.pattern) || !valid_utf8(entry.pronunciation)) return false;
   if (entry.stressed_vowel && *entry.stressed_vowel >= count_vowels(entry.pronunciation)) return false;
-  for (const auto& existing : m_entries) if (existing.pattern == entry.pattern && existing.match == entry.match) return false;
+  const auto duplicate_key = [](const Entry& value) { return value.match == Match::CaseInsensitiveToken ? lower_unicode_ru_en(value.pattern) : value.pattern; };
+  const auto key = duplicate_key(entry);
+  for (const auto& existing : m_entries) if (existing.match == entry.match && duplicate_key(existing) == key) return false;
   m_entries.push_back(std::move(entry));
   return true;
 }
 bool PronunciationDictionary::add_token(std::string token, std::string pronunciation, std::optional<std::size_t> stress) { return add_entry({std::move(token), std::move(pronunciation), Match::ExactToken, stress}); }
 bool PronunciationDictionary::add_case_insensitive_token(std::string token, std::string pronunciation, std::optional<std::size_t> stress) { return add_entry({std::move(token), std::move(pronunciation), Match::CaseInsensitiveToken, stress}); }
 bool PronunciationDictionary::add_phrase(std::string phrase, std::string pronunciation, std::optional<std::size_t> stress) { return add_entry({std::move(phrase), std::move(pronunciation), Match::ExactPhrase, stress}); }
-const PronunciationDictionary::Entry* PronunciationDictionary::find_token(std::string_view token) const noexcept {
+const PronunciationDictionary::Entry* PronunciationDictionary::find_token(std::string_view token) const {
   for (const auto& entry : m_entries) { if (entry.match == Match::ExactPhrase) continue; if (entry.match == Match::CaseInsensitiveToken ? lower_unicode_ru_en(entry.pattern) == lower_unicode_ru_en(std::string(token)) : entry.pattern == token) return &entry; }
   return nullptr;
 }
@@ -158,8 +160,9 @@ bool PronunciationDictionary::load_file(const std::string& path, std::vector<Tex
   std::ostringstream buffer; buffer << file.rdbuf(); const std::string json = buffer.str(); if (!valid_utf8(json)) { if (warnings) warnings->push_back({WarningCode::DictionaryParseError, "Dictionary file is not valid UTF-8"}); return false; }
   std::vector<Entry> parsed; std::string error; JsonParser parser(json);
   if (!parser.parse(parsed, error)) { if (warnings) warnings->push_back({WarningCode::DictionaryParseError, "Invalid pronunciation dictionary: " + error}); return false; }
-  for (std::size_t i = 0; i < parsed.size(); ++i) for (std::size_t j = i + 1; j < parsed.size(); ++j) if (parsed[i].pattern == parsed[j].pattern && parsed[i].match == parsed[j].match) { if (warnings) warnings->push_back({WarningCode::DictionaryParseError, "Duplicate pronunciation dictionary entry"}); return false; }
-  for (const auto& candidate : parsed) for (const auto& existing : m_entries) if (candidate.pattern == existing.pattern && candidate.match == existing.match) { if (warnings) warnings->push_back({WarningCode::DictionaryParseError, "Duplicate pronunciation dictionary entry"}); return false; }
+  const auto duplicate_key = [](const Entry& value) { return value.match == Match::CaseInsensitiveToken ? lower_unicode_ru_en(value.pattern) : value.pattern; };
+  for (std::size_t i = 0; i < parsed.size(); ++i) for (std::size_t j = i + 1; j < parsed.size(); ++j) if (parsed[i].match == parsed[j].match && duplicate_key(parsed[i]) == duplicate_key(parsed[j])) { if (warnings) warnings->push_back({WarningCode::DictionaryParseError, "Duplicate pronunciation dictionary entry"}); return false; }
+  for (const auto& candidate : parsed) for (const auto& existing : m_entries) if (candidate.match == existing.match && duplicate_key(candidate) == duplicate_key(existing)) { if (warnings) warnings->push_back({WarningCode::DictionaryParseError, "Duplicate pronunciation dictionary entry"}); return false; }
   m_entries.insert(m_entries.end(), parsed.begin(), parsed.end()); return true;
 }
 } // namespace tts_front

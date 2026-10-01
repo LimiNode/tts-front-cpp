@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <cstdio>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -24,11 +25,15 @@ int main() {
   CHECK(frontend.process("1,1 2,2 5,1", ru).normalized_text == "одна целая одна десятая две целых две десятых пять целых одна десятая");
   TextFrontendOptions en; en.language = Language::English;
   CHECK(frontend.process("7.5%", en).normalized_text == "seven point five percent");
-  CHECK(frontend.process("$12.50 $1 $2", en).normalized_text == "twelve dollars five zero cents one dollar two dollars");
+  CHECK(frontend.process("$12.50 $12.05 $12.5 $1 $2", en).normalized_text == "twelve dollars fifty cents twelve dollars five cents twelve dollars fifty cents one dollar two dollars");
   CHECK(frontend.process("RTX 4090 CUDA 13.3 v2.1.0 127.0.0.1 C++ C# HTTP/2", en).normalized_text == "RTX 4090 CUDA 13.3 v2.1.0 127.0.0.1 C++ C# HTTP/2");
   CHECK(frontend.process("7.05 7.50", en).normalized_text == "seven point zero five seven point five zero");
   CHECK(frontend.process("1:01 2:02 12:30", en).normalized_text == "one hour one minute two hours two minutes twelve hours thirty minutes");
   CHECK(frontend.process("1 kg 2 km", en).normalized_text == "one kilogram two kilometers");
+  CHECK(frontend.process("1 MB 2 MB 1 GB 2 GB", en).normalized_text == "one megabyte two megabytes one gigabyte two gigabytes");
+  CHECK(frontend.process("$12.345", en).normalized_text == "$12.345");
+  CHECK(frontend.process("1 234 567", en).normalized_text == "one million two hundred thirty four thousand five hundred sixty seven");
+  { const auto invalid_time = frontend.process("24:00 99:99", en); CHECK(invalid_time.normalized_text == "twenty four:zero ninety nine:ninety nine"); CHECK(invalid_time.warnings.size() == 2); }
   CHECK(frontend.process("There are 12 GPUs.", en).normalized_text == "There are twelve GPUs.");
 
   PronunciationDictionary dictionary; CHECK(dictionary.add_token("замок", "замок", 1)); CHECK(dictionary.add_case_insensitive_token("Qwen", "квен")); CHECK(dictionary.add_phrase("New York", "Нью-Йорк")); CHECK(!dictionary.add_token("замок", "замок", 1)); CHECK(dictionary.add_case_insensitive_token("Москва", "москва"));
@@ -38,8 +43,8 @@ int main() {
   CHECK(dictionary_result.dictionary_replacements.size() == 2); CHECK(dictionary_result.words[1].dictionary_replacement.has_value()); CHECK(dictionary_result.words[2].dictionary_replacement.has_value());
   CHECK(frontend.process("МОСКВА", dictionary_options).pronunciation_text == "москва");
   dictionary_options.language = Language::Russian; CHECK(frontend.process("замок", dictionary_options).words.front().stressed_vowel == 1);
-  dictionary_options.stress_mode = StressMode::Disabled; CHECK(!frontend.process("замок", dictionary_options).words.front().stressed_vowel.has_value());
-  dictionary_options.stress_mode = StressMode::DictionaryOnly; dictionary_options.resolve_stress = false; CHECK(!frontend.process("замок", dictionary_options).words.front().stressed_vowel.has_value());
+  dictionary_options.stress_mode = StressMode::Disabled; { const auto disabled = frontend.process("замок", dictionary_options); CHECK(!disabled.words.front().stressed_vowel.has_value()); CHECK(disabled.stress_decisions.empty()); }
+  dictionary_options.stress_mode = StressMode::DictionaryOnly; dictionary_options.resolve_stress = false; { const auto disabled = frontend.process("замок", dictionary_options); CHECK(!disabled.words.front().stressed_vowel.has_value()); CHECK(disabled.stress_decisions.empty()); }
   dictionary_options.resolve_stress = true;
   CHECK(frontend.process("New Yorkshire", dictionary_options).pronunciation_text == "New Yorkshire");
   std::vector<TextWarning> dictionary_warnings; PronunciationDictionary loaded;
@@ -49,6 +54,12 @@ int main() {
   CHECK(loaded.find_token("broken") == nullptr);
   CHECK(!loaded.load_file(std::string(TTS_FRONT_SOURCE_DIR) + "/tests/fixtures/malformed_unknown.json", &dictionary_warnings));
   CHECK(!loaded.load_file(std::string(TTS_FRONT_SOURCE_DIR) + "/tests/fixtures/duplicate_key.json", &dictionary_warnings));
+  CHECK(!loaded.load_file(std::string(TTS_FRONT_SOURCE_DIR) + "/tests/fixtures/case_insensitive_duplicates.json", &dictionary_warnings));
+  const std::string control_json = std::string(TTS_FRONT_SOURCE_DIR) + "/tests/fixtures/control_char_runtime.json";
+  { std::ofstream file(control_json, std::ios::binary); file << "[{\"pattern\":\"bad"; file.put('\x01'); file << "\",\"pronunciation\":\"ok\"}]"; }
+  CHECK(!loaded.load_file(control_json, &dictionary_warnings));
+  std::remove(control_json.c_str());
+  CHECK(!loaded.add_case_insensitive_token("QWEN", "other"));
   CHECK(!loaded.add_token(std::string("\xc0\xaf", 2), "bad"));
 
   TextFrontendOptions automatic; automatic.language = Language::Russian; automatic.stress_mode = StressMode::Automatic;
@@ -62,6 +73,16 @@ int main() {
   const std::string huge(80, '9');
   CHECK(frontend.process(huge + "% $" + huge + " " + huge + ".1 " + huge + " kg", en).has_uncertainty());
   CHECK(frontend.process(huge + "% " + huge + ",1 " + huge + " кг", ru).has_uncertainty());
+  CHECK(frontend.process("В 2042 г.", ru).normalized_text == "В две тысячи сорок втором году");
+  CHECK(frontend.process("01.02.2025", ru).normalized_text == "первое февраля две тысячи двадцать пятого года");
+  CHECK(frontend.process("31.12.1987", ru).normalized_text == "тридцать первое декабря тысяча девятьсот восемьдесят седьмого года");
+  CHECK(frontend.process("0,01 0,21 1,123", ru).normalized_text == "ноль целых одна сотая ноль целых двадцать одна сотая одна целая сто двадцать три тысячных");
+  CHECK(frontend.process("1,1234", ru).normalized_text == "1,1234");
+  CHECK(frontend.process("7,5%", ru).normalized_text == "семь целых пять десятых процента");
+  { const auto invalid_time = frontend.process("24:00 99:99", ru); CHECK(invalid_time.normalized_text == "двадцать четыре:ноль девяносто девять:девяносто девять"); CHECK(invalid_time.warnings.size() == 2); }
+  CHECK(frontend.process("99.99.2026", ru).normalized_text == "99.99.2026");
+  std::string many_protected; for (int i = 0; i < 35; ++i) { if (!many_protected.empty()) many_protected += ' '; many_protected += "https://example.com/item" + std::to_string(i); }
+  CHECK(frontend.process(many_protected, en).normalized_text == many_protected);
   std::string invalid("\xc0\xaf", 2); CHECK(frontend.process(invalid, en).warnings.front().code == WarningCode::InvalidUtf8);
   std::string surrogate("\xed\xa0\x80", 3); CHECK(frontend.process(surrogate, en).warnings.front().code == WarningCode::InvalidUtf8);
   std::string too_large("\xf4\x90\x80\x80", 4); CHECK(frontend.process(too_large, en).warnings.front().code == WarningCode::InvalidUtf8);

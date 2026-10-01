@@ -4,6 +4,7 @@
 #include <cctype>
 #include <cstdint>
 #include <cstdlib>
+#include <functional>
 #include <regex>
 #include <string>
 #include <utility>
@@ -104,6 +105,12 @@ std::string ru_number(long long n) {
     if (rest) result += " " + ru_under_1000(rest);
     return result;
   }
+  if (n < 1000000000) {
+    const int millions = static_cast<int>(n / 1000000); const int rest = static_cast<int>(n % 1000000);
+    std::string result = ru_number(millions) + ((millions % 100 >= 11 && millions % 100 <= 14) ? " миллионов" : (millions % 10 == 1 ? " миллион" : (millions % 10 >= 2 && millions % 10 <= 4 ? " миллиона" : " миллионов")));
+    if (rest) result += " " + ru_number(rest);
+    return result;
+  }
   return std::to_string(n);
 }
 std::string en_number(long long n) {
@@ -114,16 +121,17 @@ std::string en_number(long long n) {
   if (n < 100) return std::string(tens[n / 10]) + (n % 10 ? " " + std::string(ones[n % 10]) : "");
   if (n < 1000) return std::string(ones[n / 100]) + " hundred" + (n % 100 ? " " + en_number(n % 100) : "");
   if (n < 1000000) return en_number(n / 1000) + " thousand" + (n % 1000 ? " " + en_number(n % 1000) : "");
+  if (n < 1000000000) return en_number(n / 1000000) + " million" + (n % 1000000 ? " " + en_number(n % 1000000) : "");
   return std::to_string(n);
 }
 std::string number_or_original(const std::string& token, bool russian, std::vector<TextWarning>& warnings) {
   try {
-    const auto value = std::stoll(token); if (value < -999999 || value > 999999) { warnings.push_back({WarningCode::UnresolvedNumber, "Number is outside deterministic range"}); return token; }
+    const auto value = std::stoll(token); if (value < -999999999 || value > 999999999) { warnings.push_back({WarningCode::UnresolvedNumber, "Number is outside deterministic range"}); return token; }
     return russian ? ru_number(value) : en_number(value);
   } catch (...) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse number"}); return token; }
 }
 bool try_parse_long(const std::string& token, long long& value) {
-  try { std::size_t consumed = 0; value = std::stoll(token, &consumed); return consumed == token.size() && value >= -999999 && value <= 999999; } catch (...) { return false; }
+  try { std::size_t consumed = 0; value = std::stoll(token, &consumed); return consumed == token.size() && value >= -999999999 && value <= 999999999; } catch (...) { return false; }
 }
 std::string ru_form(long long value, const char* one, const char* few, const char* many) {
   const auto n = std::llabs(value) % 100; const auto last = n % 10;
@@ -145,39 +153,49 @@ std::string ru_ordinal_day(int day) {
   return day >= 1 && day <= 31 ? ordinal[day] : ru_number(day);
 }
 std::string ru_year_locative(int year) {
-  switch (year) {
-    case 1999: return "тысяча девятьсот девяносто девятом";
-    case 2000: return "двухтысячном";
-    case 2012: return "две тысячи двенадцатом";
-    case 2026: return "две тысячи двадцать шестом";
-    case 2037: return "две тысячи тридцать седьмом";
-    default: break;
-  }
   if (year < 1000 || year > 9999) return ru_number(year);
   const int thousands = year / 1000; const int rest = year % 1000;
-  std::string result = thousands == 1 ? "одна тысяча" : thousands == 2 ? "две тысячи" : ru_number(thousands) + " тысяч";
-  if (rest == 0) return result;
-  static const char* const year_day[] = {"", "первом", "втором", "третьем", "четвертом", "пятом", "шестом", "седьмом", "восьмом", "девятом", "десятом", "одиннадцатом", "двенадцатом", "тринадцатом", "четырнадцатом", "пятнадцатом", "шестнадцатом", "семнадцатом", "восемнадцатом", "девятнадцатом", "двадцатом", "двадцать первом", "двадцать втором", "двадцать третьем", "двадцать четвертом", "двадцать пятом", "двадцать шестом", "двадцать седьмом", "двадцать восьмом", "двадцать девятом", "тридцатом", "тридцать первом"};
-  if (rest >= 1 && rest <= 31) return result + " " + year_day[rest];
-  if (rest < 100) return result + " " + ru_number(rest);
-  return result + " " + ru_under_1000(rest);
+  if (rest == 0) {
+    static const char* const exact[] = {"", "тысячном", "двухтысячном", "трехтысячном", "четырехтысячном", "пятитысячном", "шеститысячном", "семитысячном", "восьмитысячном", "девятитысячном"};
+    return exact[thousands];
+  }
+  const auto prefix = thousands == 1 ? std::string("тысяча") : thousands == 2 ? std::string("две тысячи") : ru_number(thousands) + " тысячи";
+  std::function<std::string(int, bool)> ordinal = [&](int n, bool genitive) {
+    static const char* const loc[] = {"", "первом", "втором", "третьем", "четвертом", "пятом", "шестом", "седьмом", "восьмом", "девятом", "десятом", "одиннадцатом", "двенадцатом", "тринадцатом", "четырнадцатом", "пятнадцатом", "шестнадцатом", "семнадцатом", "восемнадцатом", "девятнадцатом", "двадцатом"};
+    static const char* const gen[] = {"", "первого", "второго", "третьего", "четвертого", "пятого", "шестого", "седьмого", "восьмого", "девятого", "десятого", "одиннадцатого", "двенадцатого", "тринадцатого", "четырнадцатого", "пятнадцатого", "шестнадцатого", "семнадцатого", "восемнадцатого", "девятнадцатого", "двадцатого"};
+    if (n <= 20) return std::string((genitive ? gen : loc)[n]);
+    static const char* const tens_loc[] = {"", "", "двадцатом", "тридцатом", "сороковом", "пятидесятом", "шестидесятом", "семидесятом", "восьмидесятом", "девяностом"};
+    static const char* const tens_gen[] = {"", "", "двадцатого", "тридцатого", "сорокового", "пятидесятого", "шестидесятого", "семидесятого", "восьмидесятого", "девяностого"};
+    if (n < 100) return n % 10 == 0 ? std::string((genitive ? tens_gen : tens_loc)[n / 10]) : std::string(ru_number(n / 10 * 10)) + " " + ((genitive ? gen : loc)[n % 10]);
+    if (n % 100 == 0) {
+      static const char* const hundreds_loc[] = {"", "сотом", "двухсотом", "трехсотом", "четырехсотом", "пятисотом", "шестисотом", "семисотом", "восьмисотом", "девятисотом"};
+      static const char* const hundreds_gen[] = {"", "сотого", "двухсотого", "трехсотого", "четырехсотого", "пятисотого", "шестисотого", "семисотого", "восьмисотого", "девятисотого"};
+      return std::string((genitive ? hundreds_gen : hundreds_loc)[n / 100]);
+    }
+    return ru_number(n / 100 * 100) + " " + ordinal(n % 100, genitive);
+  };
+  return prefix + " " + ordinal(rest, false);
 }
 std::string ru_year_genitive(int year) {
-  switch (year) {
-    case 1999: return "тысяча девятьсот девяносто девятого";
-    case 2000: return "двухтысячного";
-    case 2012: return "две тысячи двенадцатого";
-    case 2026: return "две тысячи двадцать шестого";
-    case 2037: return "две тысячи тридцать седьмого";
-    default: return ru_number(year);
-  }
+  if (year < 1000 || year > 9999) return ru_number(year);
+  const int thousands = year / 1000; const int rest = year % 1000;
+  if (rest == 0) { static const char* const exact[] = {"", "тысячного", "двухтысячного", "трехтысячного", "четырехтысячного", "пятитысячного", "шеститысячного", "семитысячного", "восьмитысячного", "девятитысячного"}; return exact[thousands]; }
+  auto locative = ru_year_locative(year);
+  const auto at = locative.rfind(' ');
+  if (at == std::string::npos) return locative;
+  const auto last = locative.substr(at + 1);
+  static const std::pair<const char*, const char*> endings[] = {{"первом", "первого"}, {"втором", "второго"}, {"третьем", "третьего"}, {"четвертом", "четвертого"}, {"пятом", "пятого"}, {"шестом", "шестого"}, {"седьмом", "седьмого"}, {"восьмом", "восьмого"}, {"девятом", "девятого"}, {"десятом", "десятого"}, {"двадцатом", "двадцатого"}, {"тридцатом", "тридцатого"}, {"сороковом", "сорокового"}, {"пятидесятом", "пятидесятого"}, {"шестидесятом", "шестидесятого"}, {"семидесятом", "семидесятого"}, {"восьмидесятом", "восьмидесятого"}, {"девяностом", "девяностого"}};
+  for (const auto& ending : endings) if (last == ending.first) return locative.substr(0, at + 1) + ending.second;
+  return locative.substr(0, at + 1) + last + "го";
 }
 std::string ru_feminine_number(long long value);
 std::string ru_decimal(long long integer, const std::string& fraction) {
   const auto denominator = fraction.size() == 1 ? "десятая" : fraction.size() == 2 ? "сотая" : "тысячная";
   const auto denominator_plural = fraction.size() == 1 ? "десятых" : fraction.size() == 2 ? "сотых" : "тысячных";
   const auto fractional = std::stoll(fraction);
-  return ru_feminine_number(integer) + (std::llabs(integer) % 10 == 1 && std::llabs(integer) % 100 != 11 ? " целая " : " целых ") + ru_feminine_number(fractional) + (fractional == 1 ? " " + std::string(denominator) : " " + std::string(denominator_plural));
+  const auto category = std::llabs(fractional) % 100;
+  const auto denominator_word = category % 10 == 1 && !(category >= 11 && category <= 14) ? denominator : denominator_plural;
+  return ru_feminine_number(integer) + (std::llabs(integer) % 10 == 1 && std::llabs(integer) % 100 != 11 ? " целая " : " целых ") + ru_feminine_number(fractional) + " " + denominator_word;
 }
 std::string en_digits(const std::string& digits) {
   static const char* const names[] = {"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"}; std::string result;
@@ -186,7 +204,7 @@ std::string en_digits(const std::string& digits) {
 
 struct ProtectedSpan { std::string marker; std::string value; };
 std::string marker_for(const std::string& text, std::size_t index) {
-  std::string marker = "\x01tts_front_protected_" + std::string(1, static_cast<char>('A' + (index % 26))) + "\x02";
+  std::string marker = "\x01tts_front_protected_" + std::to_string(index) + "\x02";
   while (text.find(marker) != std::string::npos) marker.insert(marker.size() - 1, "x");
   return marker;
 }
@@ -213,18 +231,37 @@ std::string restore_technical(std::string text, const std::vector<ProtectedSpan>
   return text;
 }
 
+bool valid_date(int day, int month, int year) {
+  if (month < 1 || month > 12 || day < 1) return false;
+  static const int days[] = {0,31,28,31,30,31,30,31,31,30,31,30,31};
+  int limit = days[month];
+  if (month == 2 && (year % 400 == 0 || (year % 4 == 0 && year % 100 != 0))) limit = 29;
+  return day <= limit;
+}
+
+std::string collapse_grouped_numbers(std::string text) {
+  return replace_matches(std::move(text), std::regex(R"((^|[^0-9])-?\d{1,3}(?:\s+\d{3})+)"), [](const std::smatch& match) {
+    std::string result = match.str();
+    const auto number_start = match[1].length();
+    std::string prefix = result.substr(0, number_start);
+    result.erase(0, number_start);
+    result.erase(std::remove_if(result.begin(), result.end(), [](unsigned char c) { return std::isspace(c) != 0; }), result.end());
+    return prefix + result;
+  });
+}
+
 std::string normalize_ru(std::string text, std::vector<TextWarning>& warnings) {
   std::vector<ProtectedSpan> protected_spans; text = protect_technical(std::move(text), protected_spans);
-  text = std::regex_replace(text, std::regex(R"(\b(\d{1,3})\s+(\d{3})\b)"), "$1$2");
-  text = replace_matches(std::move(text), std::regex(R"(\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b)"), [&](const std::smatch& match) { long long day = 0, month = 0, year = 0; if (!try_parse_long(match[1].str(), day) || !try_parse_long(match[2].str(), month) || !try_parse_long(match[3].str(), year)) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse Russian date"}); return match.str(); } static const char* const months[] = {"", "января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"}; return ru_ordinal_day(static_cast<int>(day)) + " " + (month >= 1 && month <= 12 ? months[month] : match[2].str()) + " " + ru_year_genitive(static_cast<int>(year)) + " года"; });
+  text = collapse_grouped_numbers(std::move(text));
+  text = replace_matches(std::move(text), std::regex(R"(\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b)"), [&](const std::smatch& match) { long long day = 0, month = 0, year = 0; if (!try_parse_long(match[1].str(), day) || !try_parse_long(match[2].str(), month) || !try_parse_long(match[3].str(), year) || !valid_date(static_cast<int>(day), static_cast<int>(month), static_cast<int>(year))) { warnings.push_back({WarningCode::UnresolvedNumber, "Invalid Russian calendar date"}); return match.str(); } static const char* const months[] = {"", "января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"}; return ru_ordinal_day(static_cast<int>(day)) + " " + months[month] + " " + ru_year_genitive(static_cast<int>(year)) + " года"; });
   text = replace_matches(std::move(text), std::regex(R"(\b(\d{4})\s*г\.)"), [&](const std::smatch& match) { long long year = 0; if (!try_parse_long(match[1].str(), year)) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse Russian year"}); return match.str(); } return ru_year_locative(static_cast<int>(year)) + " году"; });
-  text = replace_matches(std::move(text), std::regex(R"((-?\d+),([0-9]+)\s*%)"), [&](const std::smatch& match) { long long integer = 0, fraction = 0; if (!try_parse_long(match[1].str(), integer) || !try_parse_long(match[2].str(), fraction)) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse Russian decimal percent"}); return match.str(); } return ru_decimal(integer, match[2].str()) + " процентов"; });
+  text = replace_matches(std::move(text), std::regex(R"((-?\d+),([0-9]+)\s*%([^0-9]|$))"), [&](const std::smatch& match) { long long integer = 0, fraction = 0; if (!try_parse_long(match[1].str(), integer) || !try_parse_long(match[2].str(), fraction) || match[2].str().size() > 3) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse Russian decimal percent"}); return match.str(); } return ru_decimal(integer, match[2].str()) + " процента" + match[3].str(); });
   text = replace_matches(std::move(text), std::regex(R"((-?\d+)\s*%)"), [&](const std::smatch& match) { long long n = 0; if (!try_parse_long(match[1].str(), n)) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse Russian percent"}); return match.str(); } return ru_number(n) + " " + ru_form(n, "процент", "процента", "процентов"); });
   text = replace_matches(std::move(text), std::regex(R"((-?\d+)\s*(рублей|рубля|рубль|руб\.?)([^А-Яа-яЁёA-Za-z0-9]|$))"), [&](const std::smatch& match) { long long n = 0; if (!try_parse_long(match[1].str(), n)) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse Russian currency"}); return match.str(); } return ru_number(n) + " " + ru_form(n, "рубль", "рубля", "рублей") + match[3].str(); });
-  text = replace_matches(std::move(text), std::regex(R"(\b(\d{1,2}):(\d{2})\b)"), [&](const std::smatch& match) { long long h = 0, m = 0; if (!try_parse_long(match[1].str(), h) || !try_parse_long(match[2].str(), m)) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse Russian time"}); return match.str(); } return ru_number(h) + " " + ru_form(h, "час", "часа", "часов") + " " + ru_feminine_number(m) + " " + ru_form(m, "минута", "минуты", "минут"); });
-  text = replace_matches(std::move(text), std::regex(R"((-?\d+)[,](\d+))"), [&](const std::smatch& match) { long long integer = 0, fraction = 0; if (!try_parse_long(match[1].str(), integer) || !try_parse_long(match[2].str(), fraction)) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse Russian decimal"}); return match.str(); } return ru_decimal(integer, match[2].str()); });
+  text = replace_matches(std::move(text), std::regex(R"(\b(\d{1,2}):(\d{2})\b)"), [&](const std::smatch& match) { long long h = 0, m = 0; if (!try_parse_long(match[1].str(), h) || !try_parse_long(match[2].str(), m) || h > 23 || m > 59) { warnings.push_back({WarningCode::UnresolvedNumber, "Invalid Russian clock time"}); return match.str(); } return ru_number(h) + " " + ru_form(h, "час", "часа", "часов") + " " + ru_feminine_number(m) + " " + ru_form(m, "минута", "минуты", "минут"); });
+  text = replace_matches(std::move(text), std::regex(R"((-?\d+)[,](\d+)([^0-9]|$))"), [&](const std::smatch& match) { long long integer = 0, fraction = 0; if (!try_parse_long(match[1].str(), integer) || !try_parse_long(match[2].str(), fraction) || match[2].str().size() > 3) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse Russian decimal"}); return match.str(); } return ru_decimal(integer, match[2].str()) + match[3].str(); });
   text = replace_matches(std::move(text), std::regex(R"((-?\d+)\s*(километров|километра|километр|км|килограммов|килограмма|килограмм|кг|сантиметров|сантиметра|сантиметр|см|миллиметров|миллиметра|миллиметр|мм|ГБ|МБ|м)([^А-Яа-яЁёA-Za-z0-9]|$))"), [&](const std::smatch& match) { long long n = 0; if (!try_parse_long(match[1].str(), n)) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse Russian measurement"}); return match.str(); } const auto source = match[2].str(); const std::string unit = source.find("кг") == 0 || source.find("килограмм") == 0 ? ru_form(n, "килограмм", "килограмма", "килограммов") : source.find("км") == 0 || source.find("километр") == 0 ? ru_form(n, "километр", "километра", "километров") : source.find("см") == 0 || source.find("сантиметр") == 0 ? ru_form(n, "сантиметр", "сантиметра", "сантиметров") : source.find("мм") == 0 || source.find("миллиметр") == 0 ? ru_form(n, "миллиметр", "миллиметра", "миллиметров") : source == "м" ? ru_form(n, "метр", "метра", "метров") : source == "ГБ" ? ru_form(n, "гигабайт", "гигабайта", "гигабайт") : ru_form(n, "мегабайт", "мегабайта", "мегабайт"); return ru_number(n) + " " + unit + match[3].str(); });
-  text = replace_matches(std::move(text), std::regex(R"(-?\d+)"), [&](const std::smatch& match) { return number_or_original(match.str(), true, warnings); });
+  text = replace_matches(std::move(text), std::regex(R"((^|[^A-Za-z0-9_,.])(-?\d+)(?![0-9]*[,.][0-9]))"), [&](const std::smatch& match) { return match[1].str() + number_or_original(match[2].str(), true, warnings); });
   text = std::regex_replace(text, std::regex(R"(\bт\.д\.)"), "так далее");
   text = std::regex_replace(text, std::regex(R"(\bт\.п\.)"), "тому подобное");
   return restore_technical(std::move(text), protected_spans);
@@ -232,14 +269,14 @@ std::string normalize_ru(std::string text, std::vector<TextWarning>& warnings) {
 
 std::string normalize_en(std::string text, std::vector<TextWarning>& warnings) {
   std::vector<ProtectedSpan> protected_spans; text = protect_technical(std::move(text), protected_spans);
-  text = std::regex_replace(text, std::regex(R"(\b(\d{1,3})\s+(\d{3})\b)"), "$1$2");
-  text = replace_matches(std::move(text), std::regex(R"(\$([0-9]+)\.([0-9]{1,}))"), [&](const std::smatch& match) { long long dollars = 0, cents = 0; if (!try_parse_long(match[1].str(), dollars) || !try_parse_long(match[2].str(), cents)) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse English currency"}); return match.str(); } return en_number(dollars) + (dollars == 1 ? " dollar" : " dollars") + " " + en_digits(match[2].str()) + " cents"; });
-  text = replace_matches(std::move(text), std::regex(R"(\$([0-9]+))"), [&](const std::smatch& match) { long long dollars = 0; if (!try_parse_long(match[1].str(), dollars)) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse English currency"}); return match.str(); } return en_number(dollars) + (dollars == 1 ? " dollar" : " dollars"); });
+  text = collapse_grouped_numbers(std::move(text));
+  text = replace_matches(std::move(text), std::regex(R"(\$([0-9]+)\.([0-9]{1,}))"), [&](const std::smatch& match) { long long dollars = 0, cents = 0; const auto fraction = match[2].str(); if (!try_parse_long(match[1].str(), dollars) || fraction.size() > 2 || !try_parse_long(fraction, cents)) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse English currency"}); return match.str(); } if (fraction.size() == 1) cents *= 10; return en_number(dollars) + (dollars == 1 ? " dollar" : " dollars") + " " + en_number(cents) + (cents == 1 ? " cent" : " cents"); });
+  text = replace_matches(std::move(text), std::regex(R"(\$([0-9]+)(?![0-9]|\.[0-9]))"), [&](const std::smatch& match) { long long dollars = 0; if (!try_parse_long(match[1].str(), dollars)) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse English currency"}); return match.str(); } return en_number(dollars) + (dollars == 1 ? " dollar" : " dollars"); });
   text = replace_matches(std::move(text), std::regex(R"((-?[0-9]+(?:\.[0-9]+)?)\s*%)"), [&](const std::smatch& match) { const auto value = match[1].str(); const auto dot = value.find('.'); long long integer = 0; if (!try_parse_long(dot == std::string::npos ? value : value.substr(0, dot), integer)) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse English percent"}); return match.str(); } return (dot == std::string::npos ? en_number(integer) : en_number(integer) + " point " + en_digits(value.substr(dot + 1))) + " percent"; });
-  text = replace_matches(std::move(text), std::regex(R"(\b(\d{1,2}):(\d{2})\b)"), [&](const std::smatch& match) { long long h = 0, m = 0; if (!try_parse_long(match[1].str(), h) || !try_parse_long(match[2].str(), m)) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse English time"}); return match.str(); } return en_number(h) + (h == 1 ? " hour " : " hours ") + en_number(m) + (m == 1 ? " minute" : " minutes"); });
-  text = replace_matches(std::move(text), std::regex(R"(-?\d+\.\d+)"), [&](const std::smatch& match) { const auto dot = match.str().find('.'); long long integer = 0; if (!try_parse_long(match.str().substr(0, dot), integer)) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse English decimal"}); return match.str(); } return en_number(integer) + " point " + en_digits(match.str().substr(dot + 1)); });
-  text = replace_matches(std::move(text), std::regex(R"((-?\d+)\s*(kilometers|kilometres|km|kilograms|kg|meters|metres|m|centimeters|centimetres|cm|millimeters|millimetres|mm|GB|MB)([^A-Za-z0-9]|$))"), [&](const std::smatch& match) { long long n = 0; if (!try_parse_long(match[1].str(), n)) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse English measurement"}); return match.str(); } const auto unit = match[2].str(); const bool singular = n == 1; const std::string spoken = unit == "kg" || unit.find("kilogram") == 0 ? (singular ? "kilogram" : "kilograms") : unit == "km" || unit.find("kilomet") == 0 ? (singular ? "kilometer" : "kilometers") : unit == "m" || unit == "meters" || unit == "metres" ? (singular ? "meter" : "meters") : unit == "cm" || unit.find("centimet") == 0 ? (singular ? "centimeter" : "centimeters") : unit == "mm" || unit.find("millimet") == 0 ? (singular ? "millimeter" : "millimeters") : (singular ? "gigabyte" : "gigabytes"); return en_number(n) + " " + spoken + match[3].str(); });
-  text = replace_matches(std::move(text), std::regex(R"(-?\d+)"), [&](const std::smatch& match) { return number_or_original(match.str(), false, warnings); });
+  text = replace_matches(std::move(text), std::regex(R"(\b(\d{1,2}):(\d{2})\b)"), [&](const std::smatch& match) { long long h = 0, m = 0; if (!try_parse_long(match[1].str(), h) || !try_parse_long(match[2].str(), m) || h > 23 || m > 59) { warnings.push_back({WarningCode::UnresolvedNumber, "Invalid English clock time"}); return match.str(); } return en_number(h) + (h == 1 ? " hour " : " hours ") + en_number(m) + (m == 1 ? " minute" : " minutes"); });
+  text = replace_matches(std::move(text), std::regex(R"((^|[^$A-Za-z0-9])(-?\d+\.\d+))"), [&](const std::smatch& match) { const auto value = match[2].str(); const auto dot = value.find('.'); long long integer = 0; if (!try_parse_long(value.substr(0, dot), integer)) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse English decimal"}); return match.str(); } return match[1].str() + en_number(integer) + " point " + en_digits(value.substr(dot + 1)); });
+  text = replace_matches(std::move(text), std::regex(R"((-?\d+)\s*(kilometers|kilometres|km|kilograms|kg|meters|metres|m|centimeters|centimetres|cm|millimeters|millimetres|mm|GB|MB)([^A-Za-z0-9]|$))"), [&](const std::smatch& match) { long long n = 0; if (!try_parse_long(match[1].str(), n)) { warnings.push_back({WarningCode::UnresolvedNumber, "Unable to parse English measurement"}); return match.str(); } const auto unit = match[2].str(); const bool singular = n == 1; const std::string spoken = unit == "kg" || unit.find("kilogram") == 0 ? (singular ? "kilogram" : "kilograms") : unit == "km" || unit.find("kilomet") == 0 ? (singular ? "kilometer" : "kilometers") : unit == "m" || unit == "meters" || unit == "metres" ? (singular ? "meter" : "meters") : unit == "cm" || unit.find("centimet") == 0 ? (singular ? "centimeter" : "centimeters") : unit == "mm" || unit.find("millimet") == 0 ? (singular ? "millimeter" : "millimeters") : unit == "MB" ? (singular ? "megabyte" : "megabytes") : (singular ? "gigabyte" : "gigabytes"); return en_number(n) + " " + spoken + match[3].str(); });
+  text = replace_matches(std::move(text), std::regex(R"((^|[^A-Za-z0-9_,.])(-?\d+)(?![0-9]*[,.][0-9]))"), [&](const std::smatch& match) { return match[1].str() + number_or_original(match[2].str(), false, warnings); });
   return restore_technical(std::move(text), protected_spans);
 }
 
@@ -273,6 +310,7 @@ TextFrontendResult TextFrontend::process(std::string_view input, const TextFront
   if (options.normalize) text = language == Language::Russian ? normalize_ru(std::move(text), result.warnings) : normalize_en(std::move(text), result.warnings);
   if (options.cleanup_unicode) text = cleanup_text(std::move(text));
   result.normalized_text = text; result.pronunciation_text = text;
+  const bool stress_enabled = options.resolve_stress && options.stress_mode != StressMode::Disabled;
 
   // Dictionary phrases are matched on complete token sequences, longest first, without rescanning output.
   if (options.apply_dictionary && options.dictionary) {
@@ -314,7 +352,7 @@ TextFrontendResult TextFrontend::process(std::string_view input, const TextFront
       if (span.begin >= replacement.offset && span.end <= replacement_end) { word.dictionary_replacement = replacement_index; word.from_dictionary = true; if (span.begin == replacement.offset) word.pronunciation = replacement.output; break; }
     }
     if (options.dictionary && options.apply_dictionary) { if (const auto* entry = options.dictionary->find_token(token)) { word.from_dictionary = true; word.pronunciation = entry->pronunciation; if (options.resolve_stress && options.stress_mode != StressMode::Disabled) word.stressed_vowel = entry->stressed_vowel; } }
-    result.words.push_back(word); if (options.diagnostics || word.from_dictionary) result.stress_decisions.push_back({token, word.stressed_vowel, word.from_dictionary, word.from_dictionary ? "pronunciation dictionary" : "no deterministic stress rule"});
+    result.words.push_back(word); if (stress_enabled && (options.diagnostics || word.from_dictionary)) result.stress_decisions.push_back({token, word.stressed_vowel, word.from_dictionary, word.from_dictionary ? "pronunciation dictionary" : "no deterministic stress rule"});
   }
   if (options.resolve_stress && options.stress_mode == StressMode::Automatic) result.warnings.push_back({WarningCode::AutomaticStressUnavailable, "Automatic stress is not available until a parity-proven backend is added"});
   return result;

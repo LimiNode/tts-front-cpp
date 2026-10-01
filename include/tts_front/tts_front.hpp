@@ -69,7 +69,7 @@ public:
   bool add_phrase(std::string phrase, std::string pronunciation,
                   std::optional<std::size_t> stressed_vowel = std::nullopt);
   bool load_file(const std::string& path, std::vector<TextWarning>* warnings = nullptr);
-  const Entry* find_token(std::string_view token) const noexcept;
+  const Entry* find_token(std::string_view token) const;
   const std::vector<Entry>& entries() const noexcept { return m_entries; }
 
 private:
