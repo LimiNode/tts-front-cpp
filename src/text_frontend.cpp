@@ -184,15 +184,18 @@ std::string ru_number(long long n) {
         std::string thousands_word = thousands == 1   ? "одна"
                                      : thousands == 2 ? "две"
                                                       : ru_under_1000(thousands);
-        if (thousands % 100 >= 11 && thousands % 100 <= 14) { /* cardinal form is already correct */
-        } else if (thousands % 10 == 1) {
-            const auto at = thousands_word.rfind("один");
-            if (at != std::string::npos)
-                thousands_word.replace(at, std::string("один").size(), "одна");
-        } else if (thousands % 10 == 2) {
-            const auto at = thousands_word.rfind("два");
-            if (at != std::string::npos)
-                thousands_word.replace(at, std::string("два").size(), "две");
+        const int last_two = thousands % 100;
+        const int last_digit = thousands % 10;
+        if (!(last_two >= 11 && last_two <= 14)) {
+            if (last_digit == 1) {
+                const auto at = thousands_word.rfind("один");
+                if (at != std::string::npos)
+                    thousands_word.replace(at, std::string("один").size(), "одна");
+            } else if (last_digit == 2) {
+                const auto at = thousands_word.rfind("два");
+                if (at != std::string::npos)
+                    thousands_word.replace(at, std::string("два").size(), "две");
+            }
         }
         std::string result = thousands_word;
         result += (thousands % 10 == 1 && thousands % 100 != 11) ? " тысяча"
