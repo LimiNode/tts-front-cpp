@@ -22,8 +22,7 @@ int main() {
     tts_front::TextFrontend frontend;
     std::size_t count = 0;
     for (const char* fixture_name : {"basic.jsonl", "upstream_adapted.jsonl"}) {
-        const bool requires_adaptation_date =
-            std::string(fixture_name) == "upstream_adapted.jsonl";
+        const bool requires_adaptation_date = std::string(fixture_name) == "upstream_adapted.jsonl";
         const std::string path =
             std::string(TTS_FRONT_SOURCE_DIR) + "/tests/fixtures/" + fixture_name;
         std::ifstream file(path);
@@ -47,8 +46,8 @@ int main() {
                 return EXIT_FAILURE;
             }
             tts_front::TextFrontendOptions options;
-            options.language = language == "ru" ? tts_front::Language::Russian
-                                                 : tts_front::Language::English;
+            options.language =
+                language == "ru" ? tts_front::Language::Russian : tts_front::Language::English;
             const auto result = frontend.process(input, options);
             if (result.normalized_text != expected) {
                 std::cerr << "Fixture mismatch [" << category << "] expected='" << expected

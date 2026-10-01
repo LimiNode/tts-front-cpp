@@ -32,8 +32,7 @@ int main() {
     CHECK(frontend.process("В 2026 г.", ru).normalized_text == "В две тысячи двадцать шестом году");
     CHECK(frontend.process("2 мм 2 м 2 метра", ru).normalized_text ==
           "два миллиметра два метра два метра");
-    CHECK(frontend.process("И т.д. и т.п.", ru).normalized_text ==
-          "И так далее и тому подобное");
+    CHECK(frontend.process("И т.д. и т.п.", ru).normalized_text == "И так далее и тому подобное");
     CHECK(frontend.process("5 руб. 5 рублей", ru).normalized_text == "пять рублей пять рублей");
     CHECK(frontend.process("21:21 22:22", ru).normalized_text ==
           "двадцать один час двадцать одна минута двадцать два часа двадцать две минуты");

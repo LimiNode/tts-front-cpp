@@ -704,14 +704,12 @@ std::string normalize_ru(std::string text, std::vector<TextWarning>& warnings) {
         std::move(text), regex_patterns().generic_ru_number, [&](const std::smatch& match) {
             return match[1].str() + number_or_original(match[2].str(), true, warnings);
         });
-    text = replace_matches(
-        std::move(text), regex_patterns().ru_abbreviation_td, [](const auto& match) {
-            return match[1].str() + "так далее";
-        });
-    text = replace_matches(
-        std::move(text), regex_patterns().ru_abbreviation_tp, [](const auto& match) {
-            return match[1].str() + "тому подобное";
-        });
+    text = replace_matches(std::move(text),
+                           regex_patterns().ru_abbreviation_td,
+                           [](const auto& match) { return match[1].str() + "так далее"; });
+    text = replace_matches(std::move(text),
+                           regex_patterns().ru_abbreviation_tp,
+                           [](const auto& match) { return match[1].str() + "тому подобное"; });
     return restore_technical(std::move(text), protected_spans);
 }
 
