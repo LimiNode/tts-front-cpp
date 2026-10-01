@@ -4,6 +4,43 @@ project(tts-front-cpp VERSION 0.1.0 LANGUAGES CXX)
 option(TTS_FRONT_BUILD_TESTS "Build tests" ON)
 option(TTS_FRONT_BUILD_EXAMPLES "Build examples" ON)
 option(TTS_FRONT_BUILD_BENCHMARKS "Build benchmarks" ON)
+set(TTS_FRONT_CLANG_FORMAT "" CACHE FILEPATH "Path to clang-format for format targets")
+
+file(GLOB_RECURSE TTS_FRONT_FORMAT_SOURCES CONFIGURE_DEPENDS
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/examples/*.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/examples/*.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/examples/*.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/*.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/*.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/*.cpp")
+if(NOT TTS_FRONT_CLANG_FORMAT)
+  find_program(TTS_FRONT_CLANG_FORMAT clang-format)
+endif()
+if(TTS_FRONT_CLANG_FORMAT)
+  add_custom_target(format
+    COMMAND ${TTS_FRONT_CLANG_FORMAT} -i ${TTS_FRONT_FORMAT_SOURCES}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Formatting C++ sources with clang-format")
+  add_custom_target(format-check
+    COMMAND ${TTS_FRONT_CLANG_FORMAT} --dry-run --Werror ${TTS_FRONT_FORMAT_SOURCES}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Checking C++ formatting with clang-format")
+else()
+  add_custom_target(format
+    COMMAND ${CMAKE_COMMAND} -E echo "clang-format was not found; install it or set TTS_FRONT_CLANG_FORMAT"
+    COMMAND ${CMAKE_COMMAND} -E false)
+  add_custom_target(format-check
+    COMMAND ${CMAKE_COMMAND} -E echo "clang-format was not found; install it or set TTS_FRONT_CLANG_FORMAT"
+    COMMAND ${CMAKE_COMMAND} -E false)
+endif()
 
 add_library(tts_front
     src/text_frontend.cpp

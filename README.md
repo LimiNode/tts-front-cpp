@@ -25,3 +25,15 @@ Automatic context-sensitive Russian stress намеренно не включё�
 Намеренно не поддерживаются в v0.1: произвольная семантическая disambiguation дат/чисел, полноценная Unicode NFC normalization, phone/URL spoken rendering и neural context-sensitive stress. Неоднозначные/неподдержанные случаи сохраняются или сопровождаются warning, а не угадываются молча.
 
 Исследовательские решения и provenance источников описаны в [docs/research/source-survey.md](docs/research/source-survey.md).
+
+## Разработка
+
+`clang-format` — canonical formatter для C++-кода. Локальные команды:
+
+```text
+cmake -S . -B build-format -DTTS_FRONT_CLANG_FORMAT=clang-format
+cmake --build build-format --target format
+cmake --build build-format --target format-check
+```
+
+Перед отправкой PR запускайте `format-check`.

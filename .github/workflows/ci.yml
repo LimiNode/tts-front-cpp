@@ -3,6 +3,18 @@ on:
   push:
   pull_request:
 jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install clang-format
+        run: |
+          python -m pip install clang-format==18.1.8
+      - name: Check formatting
+        run: |
+          clang-format --version
+          cmake -S . -B build-format -DTTS_FRONT_CLANG_FORMAT=clang-format -DTTS_FRONT_BUILD_TESTS=OFF -DTTS_FRONT_BUILD_EXAMPLES=OFF -DTTS_FRONT_BUILD_BENCHMARKS=OFF
+          cmake --build build-format --target format-check
   linux:
     strategy:
       matrix:
