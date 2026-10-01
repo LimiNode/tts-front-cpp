@@ -155,6 +155,11 @@ int main() {
     CHECK(frontend.process("тест", automatic).warnings.size() == 1);
     automatic.resolve_stress = false;
     CHECK(frontend.process("тест", automatic).warnings.empty());
+    TextFrontendOptions unsupported;
+    unsupported.language = static_cast<Language>(999);
+    const auto unsupported_result = frontend.process("test", unsupported);
+    CHECK(unsupported_result.warnings.size() == 1);
+    CHECK(unsupported_result.warnings.front().code == WarningCode::UnsupportedLanguage);
     TextFrontendOptions no_cleanup;
     no_cleanup.language = Language::English;
     no_cleanup.cleanup_spacing = false;
@@ -190,9 +195,19 @@ int main() {
         CHECK(invalid_time.normalized_text == "24:00 99:99");
         CHECK(invalid_time.warnings.size() == 2);
         CHECK(invalid_time.warnings[0].offset == 0);
-        CHECK(invalid_time.warnings[0].length == 5);
-        CHECK(invalid_time.warnings[1].offset == 6);
-        CHECK(invalid_time.warnings[1].length == 5);
+        CHECK(invalid_time.warnings[0].length == 0);
+        CHECK(invalid_time.warnings[1].offset == 0);
+        CHECK(invalid_time.warnings[1].length == 0);
+    }
+    for (const auto& input : {std::string("1% 99:99"),
+                              std::string("RTX 4090 99:99"),
+                              std::string("a   99:99"),
+                              std::string("1 234 99:99")}) {
+        const auto transformed = frontend.process(input, en);
+        for (const auto& warning : transformed.warnings) {
+            CHECK(warning.offset == 0);
+            CHECK(warning.length == 0);
+        }
     }
     CHECK(frontend.process("99.99.2026", ru).normalized_text == "99.99.2026");
     std::string many_protected;

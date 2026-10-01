@@ -2,11 +2,10 @@
 #include "tts_front/tts_front.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cstdint>
 #include <cstdlib>
-#include <map>
-#include <mutex>
 #include <regex>
 #include <string>
 #include <utility>
@@ -75,21 +74,52 @@ std::string replace_matches(std::string text, const std::regex& pattern, Formatt
     return output;
 }
 
-const std::regex& cached_regex(const char* expression) {
-    static std::mutex mutex;
-    static std::map<std::string, std::regex> cache;
-    std::lock_guard lock(mutex);
-    return cache.try_emplace(expression, expression).first->second;
+struct RegexPatterns {
+    const std::regex technical_url{R"(https?://[^\s]+)"};
+    const std::regex technical_email{R"([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})"};
+    const std::regex technical_ipv4{R"(\b\d{1,3}(?:\.\d{1,3}){3}\b)"};
+    const std::regex technical_version{R"(\bv\d+(?:\.\d+)+\b)"};
+    const std::regex technical_http{R"(\bHTTP/\d+(?:\.\d+)?\b)"};
+    const std::regex technical_gpu{R"(\b(?:RTX|CUDA|GPU|API)\s+\d+(?:\.\d+)?\b)"};
+    const std::regex technical_cpp{R"(C\+\+)"};
+    const std::regex technical_csharp{R"(C#)"};
+    const std::regex grouped_number{R"((^|[^0-9])-?\d{1,3}(?:\s+\d{3})+)"};
+    const std::regex ru_date{R"(\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b)"};
+    const std::regex ru_year{R"(\b(\d{4})\s*г\.)"};
+    const std::regex ru_decimal_percent{R"((-?\d+),([0-9]+)\s*%([^0-9]|$))"};
+    const std::regex ru_percent{R"((-?\d+)\s*%)"};
+    const std::regex ru_currency{
+        R"((-?\d+)\s*(рублей|рубля|рубль|руб\.?)([^А-Яа-яЁёA-Za-z0-9]|$))"};
+    const std::regex ru_time{R"(\b(\d{1,2}):(\d{2})\b)"};
+    const std::regex ru_decimal{R"((-?\d+)[,](\d+)([^0-9]|$))"};
+    const std::regex ru_measurement{
+        R"((-?\d+)\s*(километров|километра|километр|км|килограммов|килограмма|килограмм|кг|сантиметров|сантиметра|сантиметр|см|миллиметров|миллиметра|миллиметр|мм|ГБ|МБ|м)([^А-Яа-яЁёA-Za-z0-9]|$))"};
+    const std::regex generic_ru_number{R"((^|[^A-Za-z0-9_,.:])(-?\d+)(?![0-9]*[.,:][0-9]))"};
+    const std::regex ru_abbreviation_td{R"(\bт\.д\.)"};
+    const std::regex ru_abbreviation_tp{R"(\bт\.п\.)"};
+    const std::regex en_currency_decimal{R"(\$([0-9]+)\.([0-9]{1,}))"};
+    const std::regex en_currency_integer{R"(\$([0-9]+)(?![0-9]|\.[0-9]))"};
+    const std::regex en_percent{R"((-?[0-9]+(?:\.[0-9]+)?)\s*%)"};
+    const std::regex en_time{R"(\b(\d{1,2}):(\d{2})\b)"};
+    const std::regex en_decimal{R"((^|[^$A-Za-z0-9])(-?\d+\.\d+))"};
+    const std::regex en_measurement{
+        R"((-?\d+)\s*(kilometers|kilometres|km|kilograms|kg|meters|metres|m|centimeters|centimetres|cm|millimeters|millimetres|mm|GB|MB)([^A-Za-z0-9]|$))"};
+    const std::regex generic_en_number{R"((^|[^A-Za-z0-9_,.:])(-?\d+)(?![0-9]*[.,:][0-9]))"};
+};
+
+const RegexPatterns& regex_patterns() {
+    static const RegexPatterns patterns;
+    return patterns;
 }
 
 void add_warning(std::vector<TextWarning>& warnings,
                  WarningCode code,
                  std::string message,
                  const std::smatch& match) {
-    warnings.push_back({code,
-                        std::move(message),
-                        static_cast<std::size_t>(match.position()),
-                        static_cast<std::size_t>(match.length())});
+    (void)match;
+    // Normalization operates on transformed/protected text. Until a source map is introduced,
+    // exposing intermediate coordinates as source offsets would be misleading.
+    warnings.push_back({code, std::move(message), 0, 0});
 }
 
 void add_warning(std::vector<TextWarning>& warnings,
@@ -221,15 +251,11 @@ bool try_parse_long(std::string_view token, long long& value) {
         return false;
     }
 }
-std::string number_or_original(const std::string& token,
-                               bool russian,
-                               std::vector<TextWarning>& warnings,
-                               std::size_t offset = 0,
-                               std::size_t length = 0) {
+std::string
+number_or_original(const std::string& token, bool russian, std::vector<TextWarning>& warnings) {
     long long value = 0;
     if (!try_parse_long(token, value)) {
-        add_warning(
-            warnings, WarningCode::UnresolvedNumber, "Unable to parse number", offset, length);
+        add_warning(warnings, WarningCode::UnresolvedNumber, "Unable to parse number", 0, 0);
         return token;
     }
     return russian ? ru_number(value) : en_number(value);
@@ -479,19 +505,19 @@ std::string marker_for(const std::string& text, std::size_t index) {
     return marker;
 }
 std::string protect_technical(std::string text, std::vector<ProtectedSpan>& protected_spans) {
-    static const std::vector<std::regex> patterns = {
-        cached_regex(R"(https?://[^\s]+)"),
-        cached_regex(R"([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})"),
-        cached_regex(R"(\b\d{1,3}(?:\.\d{1,3}){3}\b)"),
-        cached_regex(R"(\bv\d+(?:\.\d+)+\b)"),
-        cached_regex(R"(\bHTTP/\d+(?:\.\d+)?\b)"),
-        cached_regex(R"(\b(?:RTX|CUDA|GPU|API)\s+\d+(?:\.\d+)?\b)"),
-        cached_regex(R"(C\+\+)"),
-        cached_regex(R"(C#)")};
-    for (const auto& pattern : patterns) {
+    const auto& patterns = regex_patterns();
+    const std::array<const std::regex*, 8> technical_patterns = {&patterns.technical_url,
+                                                                 &patterns.technical_email,
+                                                                 &patterns.technical_ipv4,
+                                                                 &patterns.technical_version,
+                                                                 &patterns.technical_http,
+                                                                 &patterns.technical_gpu,
+                                                                 &patterns.technical_cpp,
+                                                                 &patterns.technical_csharp};
+    for (const auto* pattern : technical_patterns) {
         std::string output;
         std::size_t cursor = 0;
-        for (std::sregex_iterator it(text.begin(), text.end(), pattern), end; it != end; ++it) {
+        for (std::sregex_iterator it(text.begin(), text.end(), *pattern), end; it != end; ++it) {
             const auto begin = static_cast<std::size_t>(it->position());
             const auto finish = begin + static_cast<std::size_t>(it->length());
             output.append(text, cursor, begin - cursor);
@@ -528,9 +554,7 @@ bool valid_date(int day, int month, int year) {
 
 std::string collapse_grouped_numbers(std::string text) {
     return replace_matches(
-        std::move(text),
-        cached_regex(R"((^|[^0-9])-?\d{1,3}(?:\s+\d{3})+)"),
-        [](const std::smatch& match) {
+        std::move(text), regex_patterns().grouped_number, [](const std::smatch& match) {
             std::string result = match.str();
             const auto number_start = match[1].length();
             std::string prefix = result.substr(0, number_start);
@@ -547,10 +571,8 @@ std::string normalize_ru(std::string text, std::vector<TextWarning>& warnings) {
     std::vector<ProtectedSpan> protected_spans;
     text = protect_technical(std::move(text), protected_spans);
     text = collapse_grouped_numbers(std::move(text));
-    text = replace_matches(
-        std::move(text),
-        cached_regex(R"(\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b)"),
-        [&](const std::smatch& match) {
+    text =
+        replace_matches(std::move(text), regex_patterns().ru_date, [&](const std::smatch& match) {
             long long day = 0, month = 0, year = 0;
             if (!try_parse_long(match[1].str(), day) || !try_parse_long(match[2].str(), month) ||
                 !try_parse_long(match[3].str(), year) ||
@@ -578,8 +600,8 @@ std::string normalize_ru(std::string text, std::vector<TextWarning>& warnings) {
             return ru_ordinal_day(static_cast<int>(day)) + " " + months[month] + " " +
                    ru_year_genitive(static_cast<int>(year)) + " года";
         });
-    text = replace_matches(
-        std::move(text), cached_regex(R"(\b(\d{4})\s*г\.)"), [&](const std::smatch& match) {
+    text =
+        replace_matches(std::move(text), regex_patterns().ru_year, [&](const std::smatch& match) {
             long long year = 0;
             if (!try_parse_long(match[1].str(), year)) {
                 add_warning(
@@ -589,9 +611,7 @@ std::string normalize_ru(std::string text, std::vector<TextWarning>& warnings) {
             return ru_year_locative(static_cast<int>(year)) + " году";
         });
     text = replace_matches(
-        std::move(text),
-        cached_regex(R"((-?\d+),([0-9]+)\s*%([^0-9]|$))"),
-        [&](const std::smatch& match) {
+        std::move(text), regex_patterns().ru_decimal_percent, [&](const std::smatch& match) {
             long long integer = 0, fraction = 0;
             if (!try_parse_long(match[1].str(), integer) ||
                 !try_parse_long(match[2].str(), fraction) || match[2].str().size() > 3) {
@@ -604,7 +624,7 @@ std::string normalize_ru(std::string text, std::vector<TextWarning>& warnings) {
             return ru_decimal(integer, match[2].str()) + " процента" + match[3].str();
         });
     text = replace_matches(
-        std::move(text), cached_regex(R"((-?\d+)\s*%)"), [&](const std::smatch& match) {
+        std::move(text), regex_patterns().ru_percent, [&](const std::smatch& match) {
             long long n = 0;
             if (!try_parse_long(match[1].str(), n)) {
                 add_warning(warnings,
@@ -616,9 +636,7 @@ std::string normalize_ru(std::string text, std::vector<TextWarning>& warnings) {
             return ru_number(n) + " " + ru_form(n, "процент", "процента", "процентов");
         });
     text = replace_matches(
-        std::move(text),
-        cached_regex(R"((-?\d+)\s*(рублей|рубля|рубль|руб\.?)([^А-Яа-яЁёA-Za-z0-9]|$))"),
-        [&](const std::smatch& match) {
+        std::move(text), regex_patterns().ru_currency, [&](const std::smatch& match) {
             long long n = 0;
             if (!try_parse_long(match[1].str(), n)) {
                 add_warning(warnings,
@@ -629,8 +647,8 @@ std::string normalize_ru(std::string text, std::vector<TextWarning>& warnings) {
             }
             return ru_number(n) + " " + ru_form(n, "рубль", "рубля", "рублей") + match[3].str();
         });
-    text = replace_matches(
-        std::move(text), cached_regex(R"(\b(\d{1,2}):(\d{2})\b)"), [&](const std::smatch& match) {
+    text =
+        replace_matches(std::move(text), regex_patterns().ru_time, [&](const std::smatch& match) {
             long long h = 0, m = 0;
             if (!try_parse_long(match[1].str(), h) || !try_parse_long(match[2].str(), m) ||
                 h > 23 || m > 59) {
@@ -641,26 +659,21 @@ std::string normalize_ru(std::string text, std::vector<TextWarning>& warnings) {
             return ru_number(h) + " " + ru_form(h, "час", "часа", "часов") + " " +
                    ru_feminine_number(m) + " " + ru_form(m, "минута", "минуты", "минут");
         });
-    text = replace_matches(std::move(text),
-                           cached_regex(R"((-?\d+)[,](\d+)([^0-9]|$))"),
-                           [&](const std::smatch& match) {
-                               long long integer = 0, fraction = 0;
-                               if (!try_parse_long(match[1].str(), integer) ||
-                                   !try_parse_long(match[2].str(), fraction) ||
-                                   match[2].str().size() > 3) {
-                                   add_warning(warnings,
-                                               WarningCode::UnresolvedNumber,
-                                               "Unable to parse Russian decimal",
-                                               match);
-                                   return match.str();
-                               }
-                               return ru_decimal(integer, match[2].str()) + match[3].str();
-                           });
     text = replace_matches(
-        std::move(text),
-        cached_regex(
-            R"((-?\d+)\s*(километров|километра|километр|км|килограммов|килограмма|килограмм|кг|сантиметров|сантиметра|сантиметр|см|миллиметров|миллиметра|миллиметр|мм|ГБ|МБ|м)([^А-Яа-яЁёA-Za-z0-9]|$))"),
-        [&](const std::smatch& match) {
+        std::move(text), regex_patterns().ru_decimal, [&](const std::smatch& match) {
+            long long integer = 0, fraction = 0;
+            if (!try_parse_long(match[1].str(), integer) ||
+                !try_parse_long(match[2].str(), fraction) || match[2].str().size() > 3) {
+                add_warning(warnings,
+                            WarningCode::UnresolvedNumber,
+                            "Unable to parse Russian decimal",
+                            match);
+                return match.str();
+            }
+            return ru_decimal(integer, match[2].str()) + match[3].str();
+        });
+    text = replace_matches(
+        std::move(text), regex_patterns().ru_measurement, [&](const std::smatch& match) {
             long long n = 0;
             if (!try_parse_long(match[1].str(), n)) {
                 add_warning(warnings,
@@ -684,18 +697,12 @@ std::string normalize_ru(std::string text, std::vector<TextWarning>& warnings) {
                                          : ru_form(n, "мегабайт", "мегабайта", "мегабайт");
             return ru_number(n) + " " + unit + match[3].str();
         });
-    text = replace_matches(std::move(text),
-                           cached_regex(R"((^|[^A-Za-z0-9_,.:])(-?\d+)(?![0-9]*[.,:][0-9]))"),
-                           [&](const std::smatch& match) {
-                               return match[1].str() +
-                                      number_or_original(match[2].str(),
-                                                         true,
-                                                         warnings,
-                                                         static_cast<std::size_t>(match.position()),
-                                                         static_cast<std::size_t>(match.length()));
-                           });
-    text = std::regex_replace(text, cached_regex(R"(\bт\.д\.)"), "так далее");
-    text = std::regex_replace(text, cached_regex(R"(\bт\.п\.)"), "тому подобное");
+    text = replace_matches(
+        std::move(text), regex_patterns().generic_ru_number, [&](const std::smatch& match) {
+            return match[1].str() + number_or_original(match[2].str(), true, warnings);
+        });
+    text = std::regex_replace(text, regex_patterns().ru_abbreviation_td, "так далее");
+    text = std::regex_replace(text, regex_patterns().ru_abbreviation_tp, "тому подобное");
     return restore_technical(std::move(text), protected_spans);
 }
 
@@ -704,7 +711,7 @@ std::string normalize_en(std::string text, std::vector<TextWarning>& warnings) {
     text = protect_technical(std::move(text), protected_spans);
     text = collapse_grouped_numbers(std::move(text));
     text = replace_matches(
-        std::move(text), cached_regex(R"(\$([0-9]+)\.([0-9]{1,}))"), [&](const std::smatch& match) {
+        std::move(text), regex_patterns().en_currency_decimal, [&](const std::smatch& match) {
             long long dollars = 0, cents = 0;
             const auto fraction = match[2].str();
             if (!try_parse_long(match[1].str(), dollars) || fraction.size() > 2 ||
@@ -720,23 +727,20 @@ std::string normalize_en(std::string text, std::vector<TextWarning>& warnings) {
             return en_number(dollars) + (dollars == 1 ? " dollar" : " dollars") + " " +
                    en_number(cents) + (cents == 1 ? " cent" : " cents");
         });
-    text = replace_matches(std::move(text),
-                           cached_regex(R"(\$([0-9]+)(?![0-9]|\.[0-9]))"),
-                           [&](const std::smatch& match) {
-                               long long dollars = 0;
-                               if (!try_parse_long(match[1].str(), dollars)) {
-                                   add_warning(warnings,
-                                               WarningCode::UnresolvedNumber,
-                                               "Unable to parse English currency",
-                                               match);
-                                   return match.str();
-                               }
-                               return en_number(dollars) + (dollars == 1 ? " dollar" : " dollars");
-                           });
     text = replace_matches(
-        std::move(text),
-        cached_regex(R"((-?[0-9]+(?:\.[0-9]+)?)\s*%)"),
-        [&](const std::smatch& match) {
+        std::move(text), regex_patterns().en_currency_integer, [&](const std::smatch& match) {
+            long long dollars = 0;
+            if (!try_parse_long(match[1].str(), dollars)) {
+                add_warning(warnings,
+                            WarningCode::UnresolvedNumber,
+                            "Unable to parse English currency",
+                            match);
+                return match.str();
+            }
+            return en_number(dollars) + (dollars == 1 ? " dollar" : " dollars");
+        });
+    text = replace_matches(
+        std::move(text), regex_patterns().en_percent, [&](const std::smatch& match) {
             const auto value = match[1].str();
             const auto dot = value.find('.');
             long long integer = 0;
@@ -752,8 +756,8 @@ std::string normalize_en(std::string text, std::vector<TextWarning>& warnings) {
                         : en_number(integer) + " point " + en_digits(value.substr(dot + 1))) +
                    " percent";
         });
-    text = replace_matches(
-        std::move(text), cached_regex(R"(\b(\d{1,2}):(\d{2})\b)"), [&](const std::smatch& match) {
+    text =
+        replace_matches(std::move(text), regex_patterns().en_time, [&](const std::smatch& match) {
             long long h = 0, m = 0;
             if (!try_parse_long(match[1].str(), h) || !try_parse_long(match[2].str(), m) ||
                 h > 23 || m > 59) {
@@ -764,27 +768,23 @@ std::string normalize_en(std::string text, std::vector<TextWarning>& warnings) {
             return en_number(h) + (h == 1 ? " hour " : " hours ") + en_number(m) +
                    (m == 1 ? " minute" : " minutes");
         });
-    text = replace_matches(std::move(text),
-                           cached_regex(R"((^|[^$A-Za-z0-9])(-?\d+\.\d+))"),
-                           [&](const std::smatch& match) {
-                               const auto value = match[2].str();
-                               const auto dot = value.find('.');
-                               long long integer = 0;
-                               if (!try_parse_long(value.substr(0, dot), integer)) {
-                                   add_warning(warnings,
-                                               WarningCode::UnresolvedNumber,
-                                               "Unable to parse English decimal",
-                                               match);
-                                   return match.str();
-                               }
-                               return match[1].str() + en_number(integer) + " point " +
-                                      en_digits(value.substr(dot + 1));
-                           });
     text = replace_matches(
-        std::move(text),
-        cached_regex(
-            R"((-?\d+)\s*(kilometers|kilometres|km|kilograms|kg|meters|metres|m|centimeters|centimetres|cm|millimeters|millimetres|mm|GB|MB)([^A-Za-z0-9]|$))"),
-        [&](const std::smatch& match) {
+        std::move(text), regex_patterns().en_decimal, [&](const std::smatch& match) {
+            const auto value = match[2].str();
+            const auto dot = value.find('.');
+            long long integer = 0;
+            if (!try_parse_long(value.substr(0, dot), integer)) {
+                add_warning(warnings,
+                            WarningCode::UnresolvedNumber,
+                            "Unable to parse English decimal",
+                            match);
+                return match.str();
+            }
+            return match[1].str() + en_number(integer) + " point " +
+                   en_digits(value.substr(dot + 1));
+        });
+    text = replace_matches(
+        std::move(text), regex_patterns().en_measurement, [&](const std::smatch& match) {
             long long n = 0;
             if (!try_parse_long(match[1].str(), n)) {
                 add_warning(warnings,
@@ -809,16 +809,10 @@ std::string normalize_en(std::string text, std::vector<TextWarning>& warnings) {
                                                       : (singular ? "gigabyte" : "gigabytes");
             return en_number(n) + " " + spoken + match[3].str();
         });
-    text = replace_matches(std::move(text),
-                           cached_regex(R"((^|[^A-Za-z0-9_,.:])(-?\d+)(?![0-9]*[.,:][0-9]))"),
-                           [&](const std::smatch& match) {
-                               return match[1].str() +
-                                      number_or_original(match[2].str(),
-                                                         false,
-                                                         warnings,
-                                                         static_cast<std::size_t>(match.position()),
-                                                         static_cast<std::size_t>(match.length()));
-                           });
+    text = replace_matches(
+        std::move(text), regex_patterns().generic_en_number, [&](const std::smatch& match) {
+            return match[1].str() + number_or_original(match[2].str(), false, warnings);
+        });
     return restore_technical(std::move(text), protected_spans);
 }
 
@@ -889,6 +883,10 @@ TextFrontendResult TextFrontend::process(std::string_view input,
                     "Mixed Cyrillic/Latin input uses Russian normalization by policy",
                     0,
                     text.size());
+    if (language != Language::Russian && language != Language::English) {
+        result.warnings.push_back({WarningCode::UnsupportedLanguage, "Unsupported language", 0, 0});
+        return result;
+    }
     if (options.normalize) {
         switch (language) {
         case Language::Russian:
@@ -1048,6 +1046,8 @@ const char* to_string(WarningCode code) noexcept {
     switch (code) {
     case WarningCode::InvalidUtf8:
         return "invalid_utf8";
+    case WarningCode::UnsupportedLanguage:
+        return "unsupported_language";
     case WarningCode::AmbiguousNormalization:
         return "ambiguous_normalization";
     case WarningCode::UnresolvedNumber:

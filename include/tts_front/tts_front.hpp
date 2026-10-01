@@ -25,6 +25,7 @@ enum class StressMode {
 /// \brief Category of a diagnostic emitted by the frontend.
 enum class WarningCode {
     InvalidUtf8,                ///< Input or dictionary text is not valid UTF-8.
+    UnsupportedLanguage,        ///< The language is known but not implemented.
     AmbiguousNormalization,     ///< Normalization could not be resolved deterministically.
     UnresolvedNumber,           ///< A numeric token could not be normalized.
     AutomaticStressUnavailable, ///< Automatic stress requires an unavailable backend.
@@ -35,8 +36,8 @@ enum class WarningCode {
 struct TextWarning {
     WarningCode code;       ///< Warning category.
     std::string message;    ///< Human-readable diagnostic message.
-    std::size_t offset = 0; ///< UTF-8 byte offset in the corresponding input text.
-    std::size_t length = 0; ///< Length in UTF-8 bytes.
+    std::size_t offset = 0; ///< Source byte offset when available; zero otherwise.
+    std::size_t length = 0; ///< Source byte length when available; zero otherwise.
 };
 
 /// \brief Pronunciation and semantic metadata for one normalized token.

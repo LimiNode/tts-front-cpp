@@ -2,7 +2,7 @@
 
 `TextFrontend` не хранит mutable global state и может безопасно переиспользоваться из нескольких потоков. Все настройки передаются через `TextFrontendOptions`; словарь передаётся как const pointer и может быть общим неизменяемым объектом.
 
-`TextFrontendResult` сохраняет оригинальный и нормализованный текст, rendered pronunciation text, semantic `WordPronunciation`, dictionary replacements и warnings. `stressed_vowel` — это zero-based ordinal гласной в произношении (`замок` со значением `1` означает вторую гласную), никогда не UTF-8 byte/code-point offset. `WordPronunciation::source_offset` связывает слово с byte offset в `normalized_text`.
+`TextFrontendResult` сохраняет оригинальный и нормализованный текст, rendered pronunciation text, semantic `WordPronunciation`, dictionary replacements и warnings. `stressed_vowel` — это zero-based ordinal гласной в произношении (`замок` со значением `1` означает вторую гласную), никогда не UTF-8 byte/code-point offset. `WordPronunciation::source_offset` связывает слово с byte offset в `normalized_text`. Для warnings, созданных после normalization transforms, `offset/length` пока равны `0/0`: source mapping до `original_text` будет отдельным контрактом.
 
 Файл словаря принимает dependency-free JSON-массив:
 
