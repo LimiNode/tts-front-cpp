@@ -1,0 +1,7 @@
+/build/
+/build-*/
+/stage-*/
+/consumer-*/
+/.vs/
+*.user
+*.suo

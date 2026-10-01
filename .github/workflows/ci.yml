@@ -1,0 +1,56 @@
+name: ci
+on:
+  push:
+  pull_request:
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install clang-format
+        run: |
+          python -m pip install clang-format==18.1.8
+      - name: Check formatting
+        run: |
+          clang-format --version
+          cmake -S . -B build-format -DTTS_FRONT_CLANG_FORMAT=clang-format -DTTS_FRONT_BUILD_TESTS=OFF -DTTS_FRONT_BUILD_EXAMPLES=OFF -DTTS_FRONT_BUILD_BENCHMARKS=OFF
+          cmake --build build-format --target format-check
+  linux:
+    strategy:
+      matrix:
+        compiler: [gcc, clang]
+        build_type: [Debug, Release]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select compiler
+        shell: bash
+        run: |
+          if [ "${{ matrix.compiler }}" = clang ]; then echo "CC=clang" >> "$GITHUB_ENV"; echo "CXX=clang++" >> "$GITHUB_ENV"; fi
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DTTS_FRONT_BUILD_TESTS=ON -DTTS_FRONT_BUILD_EXAMPLES=ON -DTTS_FRONT_BUILD_BENCHMARKS=ON
+      - name: Build and test
+        run: cmake --build build --parallel && ctest --test-dir build --output-on-failure
+      - name: Install and consumer smoke
+        run: |
+          cmake --install build --prefix "$PWD/stage"
+          cmake -S tests/consumer -B consumer-build -DCMAKE_PREFIX_PATH="$PWD/stage"
+          cmake --build consumer-build --parallel
+          ./consumer-build/tts_front_consumer
+  windows-msvc:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        build_type: [Debug, Release]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -DTTS_FRONT_BUILD_TESTS=ON -DTTS_FRONT_BUILD_EXAMPLES=ON -DTTS_FRONT_BUILD_BENCHMARKS=ON
+      - name: Build and test
+        run: cmake --build build --config ${{ matrix.build_type }} --parallel; ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure
+      - name: Install and consumer smoke
+        run: |
+          cmake --install build --config ${{ matrix.build_type }} --prefix stage
+          cmake -S tests/consumer -B consumer-build -DCMAKE_PREFIX_PATH="$PWD/stage"
+          cmake --build consumer-build --config ${{ matrix.build_type }} --parallel
+          .\consumer-build\${{ matrix.build_type }}\tts_front_consumer.exe

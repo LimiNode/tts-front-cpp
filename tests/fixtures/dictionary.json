@@ -1,0 +1,5 @@
+[
+  {"pattern":"Qwen","pronunciation":"квен","match":"case_insensitive"},
+  {"pattern":"замок","pronunciation":"замок","match":"exact_token","stressed_vowel":1},
+  {"pattern":"New York","pronunciation":"\u041dью-Йорк","match":"phrase"}
+]

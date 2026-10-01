@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.16)
+project(tts_front_consumer LANGUAGES CXX)
+find_package(TtsFront CONFIG REQUIRED)
+add_executable(tts_front_consumer main.cpp)
+target_link_libraries(tts_front_consumer PRIVATE TtsFront::tts_front)
+target_compile_features(tts_front_consumer PRIVATE cxx_std_17)
