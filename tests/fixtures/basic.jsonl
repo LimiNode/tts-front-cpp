@@ -6,8 +6,18 @@
 {"input":"12 500 -42","language":"ru","expected":"двенадцать тысяч пятьсот минус сорок два","category":"ru_grouped_negative","source":"local-rule"}
 {"input":"В 2026 г.","language":"ru","expected":"В две тысячи двадцать шестом году","category":"ru_year","source":"local-rule"}
 {"input":"2 кг 5 км","language":"ru","expected":"два килограмма пять километров","category":"ru_measurement","source":"local-rule"}
+{"input":"2 мм 2 м 2 метра","language":"ru","expected":"два миллиметра два метра два метра","category":"ru_measurement_boundary","source":"review-regression"}
+{"input":"5 руб. 5 рублей","language":"ru","expected":"пять рублей пять рублей","category":"ru_currency_boundary","source":"review-regression"}
+{"input":"21:21 22:22","language":"ru","expected":"двадцать один час двадцать одна минута двадцать два часа двадцать две минуты","category":"ru_time_feminine","source":"review-regression"}
+{"input":"21000 22000 11000","language":"ru","expected":"двадцать одна тысяча двадцать две тысячи одиннадцать тысяч","category":"ru_thousands_feminine","source":"review-regression"}
+{"input":"01.02.2026","language":"ru","expected":"первое февраля две тысячи двадцать шестого года","category":"ru_date_case","source":"review-regression"}
+{"input":"1,1 2,2 5,1","language":"ru","expected":"одна целая одна десятая две целых две десятых пять целых одна десятая","category":"ru_decimal_agreement","source":"review-regression"}
 {"input":"7.5%","language":"en","expected":"seven point five percent","category":"en_percent_decimal","source":"local-rule"}
-{"input":"$12.50 $1 $2","language":"en","expected":"twelve dollars fifty cents one dollar two dollars","category":"en_currency","source":"local-rule"}
+{"input":"$12.50 $1 $2","language":"en","expected":"twelve dollars five zero cents one dollar two dollars","category":"en_currency","source":"local-rule"}
 {"input":"There are 12 GPUs.","language":"en","expected":"There are twelve GPUs.","category":"en_integer","source":"local-rule"}
 {"input":"RTX 4090 CUDA 13.3 v2.1.0","language":"en","expected":"RTX 4090 CUDA 13.3 v2.1.0","category":"en_technical","source":"local-rule"}
 {"input":"café 😊","language":"en","expected":"café 😊","category":"en_unicode","source":"local-rule"}
+{"input":"7.05 7.50","language":"en","expected":"seven point zero five seven point five zero","category":"en_decimal_digits","source":"review-regression"}
+{"input":"1:01 2:02 12:30","language":"en","expected":"one hour one minute two hours two minutes twelve hours thirty minutes","category":"en_time","source":"review-regression"}
+{"input":"1 kg 2 km","language":"en","expected":"one kilogram two kilometers","category":"en_measurement","source":"review-regression"}
+{"input":"__TTS_PROTECTED_A__ RTX 4090","language":"en","expected":"__TTS_PROTECTED_A__ RTX 4090","category":"protected_marker_collision","source":"review-regression"}

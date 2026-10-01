@@ -17,4 +17,4 @@ Pipeline выполняется один раз в фиксированном п
 
 Для `Language::Auto` наличие кириллицы выбирает Russian, отсутствие кириллицы — English; mixed Cyrillic/Latin получает `AmbiguousNormalization` и обрабатывается как Russian. Emoji и типографская пунктуация сами по себе язык не переключают.
 
-Phrase entries требуют полных token boundaries, выбирается longest match, duplicate `(pattern, match)` отклоняется. Dictionary JSON загружается fail-closed: ошибка не меняет уже загруженные записи.
+Phrase entries — это exact token sequences: разделители между токенами могут отличаться, выбирается longest match, duplicate `(pattern, match)` отклоняется. Dictionary JSON загружается fail-closed: синтаксическая ошибка, duplicate keys, invalid UTF-8 или неверная schema не меняют уже загруженные записи. Programmatic `add_*` возвращают `bool` и не добавляют invalid/duplicate entry.

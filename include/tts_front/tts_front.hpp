@@ -28,6 +28,8 @@ struct WordPronunciation {
   std::string pronunciation;
   /// Byte offset into normalized_text (only an offset, never a stress index).
   std::size_t source_offset = 0;
+  /// Index into TextFrontendResult::dictionary_replacements when this token is covered.
+  std::optional<std::size_t> dictionary_replacement;
   /// Ordinal of the stressed vowel (zero-based), not a UTF-8 byte/code-point offset.
   std::optional<std::size_t> stressed_vowel;
   bool from_dictionary = false;
@@ -58,12 +60,13 @@ public:
     std::optional<std::size_t> stressed_vowel;
   };
 
-  void add_entry(Entry entry);
-  void add_token(std::string token, std::string pronunciation,
+  /// Return false when an entry is invalid or duplicates an existing key.
+  bool add_entry(Entry entry);
+  bool add_token(std::string token, std::string pronunciation,
                  std::optional<std::size_t> stressed_vowel = std::nullopt);
-  void add_case_insensitive_token(std::string token, std::string pronunciation,
+  bool add_case_insensitive_token(std::string token, std::string pronunciation,
                                   std::optional<std::size_t> stressed_vowel = std::nullopt);
-  void add_phrase(std::string phrase, std::string pronunciation,
+  bool add_phrase(std::string phrase, std::string pronunciation,
                   std::optional<std::size_t> stressed_vowel = std::nullopt);
   bool load_file(const std::string& path, std::vector<TextWarning>* warnings = nullptr);
   const Entry* find_token(std::string_view token) const noexcept;

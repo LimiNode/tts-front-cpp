@@ -1,11 +1,25 @@
 #include "tts_front/tts_front.hpp"
 
 #include <cctype>
+#include <cstdint>
 #include <fstream>
 #include <sstream>
+#include <unordered_set>
 
 namespace tts_front {
 namespace {
+
+bool valid_utf8(std::string_view text) {
+  for (std::size_t i = 0; i < text.size();) {
+    const auto c = static_cast<unsigned char>(text[i]); std::size_t length = c < 0x80 ? 1 : (c & 0xe0) == 0xc0 ? 2 : (c & 0xf0) == 0xe0 ? 3 : (c & 0xf8) == 0xf0 ? 4 : 0;
+    if (length == 0 || i + length > text.size()) return false;
+    std::uint32_t value = c & (length == 2 ? 0x1f : length == 3 ? 0x0f : length == 4 ? 0x07 : 0x7f);
+    for (std::size_t j = 1; j < length; ++j) { const auto next = static_cast<unsigned char>(text[i + j]); if ((next & 0xc0) != 0x80) return false; value = (value << 6) | (next & 0x3f); }
+    if ((length == 2 && value < 0x80) || (length == 3 && value < 0x800) || (length == 4 && value < 0x10000) || value > 0x10ffff || (value >= 0xd800 && value <= 0xdfff)) return false;
+    i += length;
+  }
+  return true;
+}
 
 std::size_t count_vowels(std::string_view text) {
   std::size_t count = 0;
@@ -18,7 +32,19 @@ std::size_t count_vowels(std::string_view text) {
   }
   return count;
 }
-std::string lower_ascii(std::string value) { for (char& c : value) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c))); return value; }
+std::string lower_unicode_ru_en(std::string value) {
+  std::string output; output.reserve(value.size());
+  for (std::size_t i = 0; i < value.size();) {
+    const auto c = static_cast<unsigned char>(value[i]); const std::size_t length = c < 0x80 ? 1 : (c & 0xe0) == 0xc0 ? 2 : (c & 0xf0) == 0xe0 ? 3 : 4;
+    if (length == 1) output.push_back(static_cast<char>(std::tolower(c)));
+    else if (length == 2 && static_cast<unsigned char>(value[i]) == 0xd0 && static_cast<unsigned char>(value[i + 1]) >= 0x90 && static_cast<unsigned char>(value[i + 1]) <= 0x9f) { output.push_back(static_cast<char>(0xd0)); output.push_back(static_cast<char>(static_cast<unsigned char>(value[i + 1]) + 0x20)); }
+    else if (length == 2 && static_cast<unsigned char>(value[i]) == 0xd0 && static_cast<unsigned char>(value[i + 1]) >= 0xa0 && static_cast<unsigned char>(value[i + 1]) <= 0xaf) { output.push_back(static_cast<char>(0xd1)); output.push_back(static_cast<char>(static_cast<unsigned char>(value[i + 1]) - 0x20)); }
+    else if (length == 2 && static_cast<unsigned char>(value[i]) == 0xd0 && static_cast<unsigned char>(value[i + 1]) == 0x81) { output += "ё"; }
+    else output.append(value, i, length);
+    i += length;
+  }
+  return output;
+}
 
 class JsonParser {
 public:
@@ -49,8 +75,10 @@ private:
     bool force_phrase = false;
     skip_space();
     if (consume('}')) return fail(error, "empty entry");
+    std::unordered_set<std::string> keys;
     while (true) {
       std::string key; if (!parse_string(key, error) || !consume(':')) return false;
+      if (!keys.insert(key).second) return fail(error, "duplicate object key");
       if (key == "pattern" || key == "token" || key == "phrase") { if (!parse_string(entry.pattern, error)) return false; has_pattern = true; force_phrase = force_phrase || key == "phrase"; }
       else if (key == "pronunciation" || key == "replacement") { if (!parse_string(entry.pronunciation, error)) return false; has_pronunciation = true; }
       else if (key == "match") { std::string match; if (!parse_string(match, error)) return false; if (match == "exact_token") entry.match = PronunciationDictionary::Match::ExactToken; else if (match == "case_sensitive") entry.match = PronunciationDictionary::Match::CaseSensitiveToken; else if (match == "case_insensitive") entry.match = PronunciationDictionary::Match::CaseInsensitiveToken; else if (match == "phrase") entry.match = PronunciationDictionary::Match::ExactPhrase; else return fail(error, "unknown match value"); }
@@ -96,29 +124,39 @@ private:
     skip_space(); if (m_position >= m_source.size()) return fail(error, "missing value");
     if (m_source[m_position] == '"') { std::string ignored; return parse_string(ignored, error); }
     if (m_source[m_position] == '{' || m_source[m_position] == '[') { const char open = m_source[m_position++]; const char close = open == '{' ? '}' : ']'; int depth = 1; bool quoted = false; while (m_position < m_source.size() && depth > 0) { const char c = m_source[m_position++]; if (c == '\\' && quoted) { if (m_position < m_source.size()) ++m_position; continue; } if (c == '"') quoted = !quoted; else if (!quoted && c == open) ++depth; else if (!quoted && c == close) --depth; } return depth == 0 ? true : fail(error, "unterminated value"); }
-    while (m_position < m_source.size() && m_source[m_position] != ',' && m_source[m_position] != '}') ++m_position;
-    return true;
+    if (m_source.compare(m_position, 4, "true") == 0) { m_position += 4; return true; }
+    if (m_source.compare(m_position, 5, "false") == 0) { m_position += 5; return true; }
+    if (m_source.compare(m_position, 4, "null") == 0) { m_position += 4; return true; }
+    const auto begin = m_position; if (m_source[m_position] == '-') ++m_position;
+    if (m_position >= m_source.size() || !std::isdigit(static_cast<unsigned char>(m_source[m_position]))) return fail(error, "invalid JSON scalar");
+    if (m_source[m_position] == '0') ++m_position; else while (m_position < m_source.size() && std::isdigit(static_cast<unsigned char>(m_source[m_position]))) ++m_position;
+    if (m_position < m_source.size() && m_source[m_position] == '.') { ++m_position; if (m_position >= m_source.size() || !std::isdigit(static_cast<unsigned char>(m_source[m_position]))) return fail(error, "invalid JSON number"); while (m_position < m_source.size() && std::isdigit(static_cast<unsigned char>(m_source[m_position]))) ++m_position; }
+    if (m_position < m_source.size() && (m_source[m_position] == 'e' || m_source[m_position] == 'E')) { ++m_position; if (m_position < m_source.size() && (m_source[m_position] == '+' || m_source[m_position] == '-')) ++m_position; if (m_position >= m_source.size() || !std::isdigit(static_cast<unsigned char>(m_source[m_position]))) return fail(error, "invalid JSON exponent"); while (m_position < m_source.size() && std::isdigit(static_cast<unsigned char>(m_source[m_position]))) ++m_position; }
+    return m_position > begin;
   }
   std::string_view m_source; std::size_t m_position = 0;
 };
 }
 
-void PronunciationDictionary::add_entry(Entry entry) {
-  if (entry.pattern.empty() || entry.pronunciation.empty()) return;
-  if (entry.stressed_vowel && *entry.stressed_vowel >= count_vowels(entry.pronunciation)) return;
-  for (const auto& existing : m_entries) if (existing.pattern == entry.pattern && existing.match == entry.match) return;
+bool PronunciationDictionary::add_entry(Entry entry) {
+  if (entry.pattern.empty() || entry.pronunciation.empty()) return false;
+  if (!valid_utf8(entry.pattern) || !valid_utf8(entry.pronunciation)) return false;
+  if (entry.stressed_vowel && *entry.stressed_vowel >= count_vowels(entry.pronunciation)) return false;
+  for (const auto& existing : m_entries) if (existing.pattern == entry.pattern && existing.match == entry.match) return false;
   m_entries.push_back(std::move(entry));
+  return true;
 }
-void PronunciationDictionary::add_token(std::string token, std::string pronunciation, std::optional<std::size_t> stress) { add_entry({std::move(token), std::move(pronunciation), Match::ExactToken, stress}); }
-void PronunciationDictionary::add_case_insensitive_token(std::string token, std::string pronunciation, std::optional<std::size_t> stress) { add_entry({std::move(token), std::move(pronunciation), Match::CaseInsensitiveToken, stress}); }
-void PronunciationDictionary::add_phrase(std::string phrase, std::string pronunciation, std::optional<std::size_t> stress) { add_entry({std::move(phrase), std::move(pronunciation), Match::ExactPhrase, stress}); }
+bool PronunciationDictionary::add_token(std::string token, std::string pronunciation, std::optional<std::size_t> stress) { return add_entry({std::move(token), std::move(pronunciation), Match::ExactToken, stress}); }
+bool PronunciationDictionary::add_case_insensitive_token(std::string token, std::string pronunciation, std::optional<std::size_t> stress) { return add_entry({std::move(token), std::move(pronunciation), Match::CaseInsensitiveToken, stress}); }
+bool PronunciationDictionary::add_phrase(std::string phrase, std::string pronunciation, std::optional<std::size_t> stress) { return add_entry({std::move(phrase), std::move(pronunciation), Match::ExactPhrase, stress}); }
 const PronunciationDictionary::Entry* PronunciationDictionary::find_token(std::string_view token) const noexcept {
-  for (const auto& entry : m_entries) { if (entry.match == Match::ExactPhrase) continue; if (entry.match == Match::CaseInsensitiveToken ? lower_ascii(entry.pattern) == lower_ascii(std::string(token)) : entry.pattern == token) return &entry; }
+  for (const auto& entry : m_entries) { if (entry.match == Match::ExactPhrase) continue; if (entry.match == Match::CaseInsensitiveToken ? lower_unicode_ru_en(entry.pattern) == lower_unicode_ru_en(std::string(token)) : entry.pattern == token) return &entry; }
   return nullptr;
 }
 bool PronunciationDictionary::load_file(const std::string& path, std::vector<TextWarning>* warnings) {
   std::ifstream file(path, std::ios::binary); if (!file) { if (warnings) warnings->push_back({WarningCode::DictionaryParseError, "Cannot open pronunciation dictionary: " + path}); return false; }
-  std::ostringstream buffer; buffer << file.rdbuf(); const std::string json = buffer.str(); std::vector<Entry> parsed; std::string error; JsonParser parser(json);
+  std::ostringstream buffer; buffer << file.rdbuf(); const std::string json = buffer.str(); if (!valid_utf8(json)) { if (warnings) warnings->push_back({WarningCode::DictionaryParseError, "Dictionary file is not valid UTF-8"}); return false; }
+  std::vector<Entry> parsed; std::string error; JsonParser parser(json);
   if (!parser.parse(parsed, error)) { if (warnings) warnings->push_back({WarningCode::DictionaryParseError, "Invalid pronunciation dictionary: " + error}); return false; }
   for (std::size_t i = 0; i < parsed.size(); ++i) for (std::size_t j = i + 1; j < parsed.size(); ++j) if (parsed[i].pattern == parsed[j].pattern && parsed[i].match == parsed[j].match) { if (warnings) warnings->push_back({WarningCode::DictionaryParseError, "Duplicate pronunciation dictionary entry"}); return false; }
   for (const auto& candidate : parsed) for (const auto& existing : m_entries) if (candidate.pattern == existing.pattern && candidate.match == existing.match) { if (warnings) warnings->push_back({WarningCode::DictionaryParseError, "Duplicate pronunciation dictionary entry"}); return false; }

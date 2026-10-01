@@ -1,6 +1,6 @@
 # Source survey
 
-Этот документ фиксирует provenance правил, использованных в `tts-front-cpp` 0.1. В core не включён код или runtime из перечисленных проектов; используются только публичные поведенческие идеи. Текущий committed corpus содержит 13 локальных rule fixtures (`tests/fixtures/basic.jsonl`); адаптированные vectors из upstream пока не заявляются и будут добавлены отдельным provenance-reviewed commit.
+Этот документ фиксирует provenance правил, использованных в `tts-front-cpp` 0.1. В core не включён код или runtime из перечисленных проектов; используются только публичные поведенческие идеи. Текущий committed corpus содержит 23 machine-readable fixtures (`tests/fixtures/basic.jsonl`): 14 RU и 9 EN, включая review regressions; адаптированные vectors из upstream пока не заявляются и будут добавлены отдельным provenance-reviewed commit.
 
 | Source | Revision / license | Используем | Не переносим |
 |---|---|---|---|

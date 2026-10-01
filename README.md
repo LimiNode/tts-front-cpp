@@ -2,7 +2,7 @@
 
 TTS-agnostic C++17 text frontend для подготовки текста перед синтезом речи.
 
-Версия 0.1 предоставляет детерминированную нормализацию русского и английского текста, подключаемый словарь произношения, semantic stress representation и диагностические предупреждения. В executable corpus зафиксированы числа, grouped/negative values, проценты, десятичные дроби, время, даты/годы, базовые валюты и единицы, а также protected technical spans (`RTX 4090`, `CUDA 13.3`, versions, IPv4, `C++`, `C#`, `HTTP/2`). Библиотека не зависит от Python, PyTorch, Qwen или конкретного TTS runtime.
+Версия 0.1 предоставляет детерминированную нормализацию русского и английского текста, подключаемый словарь произношения, semantic stress representation и диагностические предупреждения. В executable corpus зафиксированы числа, grouped/negative values, проценты, десятичные дроби, время, даты/годы, базовые валюты и единицы для RU/EN, а также protected technical spans (`RTX 4090`, `CUDA 13.3`, versions, IPv4, `C++`, `C#`, `HTTP/2`). Библиотека не зависит от Python, PyTorch, Qwen или конкретного TTS runtime.
 
 ## Быстрый старт
 
@@ -19,6 +19,8 @@ const auto result = frontend.process("В 2026 г. API готов.", options);
 Установка экспортирует пакет `TtsFront::tts_front`; потребитель может использовать `find_package(TtsFront CONFIG REQUIRED)`.
 
 Automatic context-sensitive Russian stress намеренно не включён: `StressMode::Automatic` выдаёт явное предупреждение до parity-проверки native/ONNX backend. Это не блокирует normalization и dictionary-only stress.
+
+`StressMode::Disabled` и `resolve_stress=false` полностью отключают semantic stress; dictionary pronunciation replacement при этом продолжает работать. `StressMode::Automatic` использует доступные dictionary decisions и добавляет `AutomaticStressUnavailable`, пока parity-proven backend не появится.
 
 Намеренно не поддерживаются в v0.1: произвольная семантическая disambiguation дат/чисел, полноценная Unicode NFC normalization, phone/URL spoken rendering и neural context-sensitive stress. Неоднозначные/неподдержанные случаи сохраняются или сопровождаются warning, а не угадываются молча.
 
