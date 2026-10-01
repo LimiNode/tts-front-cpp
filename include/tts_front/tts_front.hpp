@@ -25,7 +25,6 @@ enum class StressMode {
 /// \brief Category of a diagnostic emitted by the frontend.
 enum class WarningCode {
     InvalidUtf8,                ///< Input or dictionary text is not valid UTF-8.
-    UnsupportedLanguage,        ///< The selected language is not implemented.
     AmbiguousNormalization,     ///< Normalization could not be resolved deterministically.
     UnresolvedNumber,           ///< A numeric token could not be normalized.
     AutomaticStressUnavailable, ///< Automatic stress requires an unavailable backend.
@@ -71,7 +70,6 @@ class PronunciationDictionary {
     /// Matching policy for an entry pattern.
     enum class Match {
         ExactToken,           ///< Match one token exactly.
-        CaseSensitiveToken,   ///< Match one token with case sensitivity.
         CaseInsensitiveToken, ///< Match one token using RU/EN case folding.
         ExactPhrase           ///< Match a complete token sequence.
     };
@@ -114,7 +112,7 @@ class PronunciationDictionary {
 struct TextFrontendOptions {
     Language language = Language::Auto;                  ///< Requested language or auto-detection.
     StressMode stress_mode = StressMode::DictionaryOnly; ///< Stress resolution policy.
-    bool cleanup_unicode = true;  ///< Collapse whitespace and punctuation spacing.
+    bool cleanup_spacing = true;  ///< Collapse ASCII whitespace and punctuation spacing.
     bool normalize = true;        ///< Apply deterministic language normalization.
     bool apply_dictionary = true; ///< Apply the non-owning dictionary when present.
     bool resolve_stress = true;   ///< Resolve semantic stress.

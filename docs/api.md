@@ -13,7 +13,7 @@
 
 Те же записи можно добавлять через `add_token`, `add_case_insensitive_token` и `add_phrase`.
 
-Pipeline выполняется один раз в фиксированном порядке: валидатор UTF-8 → optional whitespace/punctuation cleanup → language normalization с protected technical spans → dictionary → semantic stress diagnostics. При `cleanup_unicode=false` stage cleanup действительно пропускается; Unicode NFC normalization намеренно не заявляется. В core нет сетевых вызовов, Python runtime или зависимости от TTS engine.
+Pipeline выполняется один раз в фиксированном порядке: валидатор UTF-8 → optional whitespace/punctuation cleanup → language normalization с protected technical spans → dictionary → semantic stress diagnostics. При `cleanup_spacing=false` stage cleanup действительно пропускается; Unicode NFC normalization намеренно не заявляется. В core нет сетевых вызовов, Python runtime или зависимости от TTS engine.
 
 Для `Language::Auto` наличие кириллицы выбирает Russian, отсутствие кириллицы — English; mixed Cyrillic/Latin получает `AmbiguousNormalization` и обрабатывается как Russian. Emoji и типографская пунктуация сами по себе язык не переключают.
 
