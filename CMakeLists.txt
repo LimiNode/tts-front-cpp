@@ -4,7 +4,7 @@ project(tts-front-cpp VERSION 0.1.0 LANGUAGES CXX)
 option(TTS_FRONT_BUILD_TESTS "Build tests" ON)
 option(TTS_FRONT_BUILD_EXAMPLES "Build examples" ON)
 option(TTS_FRONT_BUILD_BENCHMARKS "Build benchmarks" ON)
-set(TTS_FRONT_CLANG_FORMAT "" CACHE FILEPATH "Path to clang-format for format targets")
+set(TTS_FRONT_CLANG_FORMAT "" CACHE STRING "clang-format executable for format targets")
 
 file(GLOB_RECURSE TTS_FRONT_FORMAT_SOURCES CONFIGURE_DEPENDS
   "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h"
