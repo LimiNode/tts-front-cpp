@@ -8,96 +8,78 @@
 
 namespace tts_front {
 
-/// rief Language used by the normalization pipeline.
+/// \brief Language used by the normalization pipeline.
 enum class Language {
-    /// Detect language from the input; mixed Cyrillic/Latin uses Russian policy.
-    Auto,
-    Russian,
-    English
+    Auto,    ///< Detect language from the input; mixed Cyrillic/Latin uses Russian policy.
+    Russian, ///< Normalize using Russian rules.
+    English  ///< Normalize using English rules.
 };
 
-/// rief Controls how semantic stress information is resolved.
+/// \brief Controls how semantic stress information is resolved.
 enum class StressMode {
-    /// Do not produce stress values or stress decisions.
-    Disabled,
-    /// Resolve stress only from explicit pronunciation-dictionary entries.
-    DictionaryOnly,
-    /// Request automatic stress; currently reports unavailable-backend warning.
-    Automatic
+    Disabled,       ///< Do not produce stress values or stress decisions.
+    DictionaryOnly, ///< Resolve stress only from pronunciation-dictionary entries.
+    Automatic       ///< Request automatic stress; currently reports unavailable-backend warning.
 };
 
-/// rief Category of a diagnostic emitted by the frontend.
+/// \brief Category of a diagnostic emitted by the frontend.
 enum class WarningCode {
-    InvalidUtf8,
-    UnsupportedLanguage,
-    AmbiguousNormalization,
-    UnresolvedNumber,
-    AutomaticStressUnavailable,
-    DictionaryParseError
+    InvalidUtf8,                ///< Input or dictionary text is not valid UTF-8.
+    UnsupportedLanguage,        ///< The selected language is not implemented.
+    AmbiguousNormalization,     ///< Normalization could not be resolved deterministically.
+    UnresolvedNumber,           ///< A numeric token could not be normalized.
+    AutomaticStressUnavailable, ///< Automatic stress requires an unavailable backend.
+    DictionaryParseError        ///< The pronunciation dictionary is invalid.
 };
 
-/// rief Diagnostic associated with an input or normalization operation.
+/// \brief Diagnostic associated with an input or normalization operation.
 struct TextWarning {
-    /// Warning category.
-    WarningCode code;
-    /// Human-readable diagnostic message.
-    std::string message;
-    /// UTF-8 byte offset in the corresponding input text.
-    std::size_t offset = 0;
-    /// Length in UTF-8 bytes.
-    std::size_t length = 0;
+    WarningCode code;       ///< Warning category.
+    std::string message;    ///< Human-readable diagnostic message.
+    std::size_t offset = 0; ///< UTF-8 byte offset in the corresponding input text.
+    std::size_t length = 0; ///< Length in UTF-8 bytes.
 };
 
-/// rief Pronunciation and semantic metadata for one normalized token.
+/// \brief Pronunciation and semantic metadata for one normalized token.
 struct WordPronunciation {
-    /// Surface token from normalized_text.
-    std::string surface;
-    /// Model-neutral rendered pronunciation for this token; empty means unchanged.
-    std::string pronunciation;
-    /// Byte offset into normalized_text (only an offset, never a stress index).
-    std::size_t source_offset = 0;
-    /// Index into TextFrontendResult::dictionary_replacements when this token is covered.
-    std::optional<std::size_t> dictionary_replacement;
-    /// Ordinal of the stressed vowel (zero-based), not a UTF-8 byte/code-point offset.
-    std::optional<std::size_t> stressed_vowel;
-    bool from_dictionary = false;
+    std::string surface;           ///< Surface token from normalized_text.
+    std::string pronunciation;     ///< Rendered pronunciation; empty means unchanged.
+    std::size_t source_offset = 0; ///< Byte offset into normalized_text.
+    std::optional<std::size_t> dictionary_replacement; ///< Index of the covered replacement.
+    std::optional<std::size_t> stressed_vowel;         ///< Zero-based vowel ordinal.
+    bool from_dictionary = false; ///< Whether pronunciation came from the dictionary.
 };
 
-/// rief One dictionary replacement applied to pronunciation_text.
+/// \brief One dictionary replacement applied to pronunciation_text.
 struct DictionaryReplacement {
-    /// Source token or phrase.
-    std::string input;
-    /// Replacement pronunciation.
-    std::string output;
-    /// UTF-8 byte offset in normalized_text.
-    std::size_t offset = 0;
+    std::string input;      ///< Source token or phrase.
+    std::string output;     ///< Replacement pronunciation.
+    std::size_t offset = 0; ///< UTF-8 byte offset in normalized_text.
 };
 
-/// rief Explain one semantic stress decision.
+/// \brief Explain one semantic stress decision.
 struct StressDecision {
-    /// Token or phrase for which the decision was made.
-    std::string word;
-    /// Zero-based vowel ordinal, not a UTF-8 byte/code-point offset.
-    std::optional<std::size_t> stressed_vowel;
-    /// Whether the decision came from the pronunciation dictionary.
-    bool from_dictionary = false;
-    /// Human-readable decision source.
-    std::string reason;
+    std::string word;                          ///< Token or phrase for the decision.
+    std::optional<std::size_t> stressed_vowel; ///< Zero-based vowel ordinal.
+    bool from_dictionary = false;              ///< Whether the decision came from the dictionary.
+    std::string reason;                        ///< Human-readable decision source.
 };
 
 /// \brief Deterministic, user-configurable pronunciation overrides.
 class PronunciationDictionary {
   public:
     /// Matching policy for an entry pattern.
-    enum class Match { ExactToken, CaseSensitiveToken, CaseInsensitiveToken, ExactPhrase };
+    enum class Match {
+        ExactToken,           ///< Match one token exactly.
+        CaseSensitiveToken,   ///< Match one token with case sensitivity.
+        CaseInsensitiveToken, ///< Match one token using RU/EN case folding.
+        ExactPhrase           ///< Match a complete token sequence.
+    };
     /// One pronunciation replacement and optional stress ordinal.
     struct Entry {
-        /// Token or phrase pattern.
-        std::string pattern;
-        /// Model-neutral replacement pronunciation.
-        std::string pronunciation;
-        /// Matching policy.
-        Match match = Match::ExactToken;
+        std::string pattern;             ///< Token or phrase pattern.
+        std::string pronunciation;       ///< Model-neutral replacement pronunciation.
+        Match match = Match::ExactToken; ///< Matching policy.
         /// Zero-based vowel ordinal in the pronunciation. Invalid ordinals are rejected.
         std::optional<std::size_t> stressed_vowel;
     };
@@ -128,38 +110,29 @@ class PronunciationDictionary {
     std::vector<Entry> m_entries;
 };
 
-/// rief Options for one frontend processing call.
+/// \brief Options for one frontend processing call.
 struct TextFrontendOptions {
-    /// Requested language or automatic language detection.
-    Language language = Language::Auto;
-    /// Stress resolution policy.
-    StressMode stress_mode = StressMode::DictionaryOnly;
-    /// Collapse Unicode whitespace and spacing around punctuation.
-    bool cleanup_unicode = true;
-    /// Apply deterministic language normalization rules.
-    bool normalize = true;
-    /// Apply the non-owning dictionary pointer when present.
-    bool apply_dictionary = true;
-    /// Resolve semantic stress according to stress_mode.
-    bool resolve_stress = true;
-    /// Emit decisions for tokens without dictionary replacements.
-    bool diagnostics = false;
+    Language language = Language::Auto;                  ///< Requested language or auto-detection.
+    StressMode stress_mode = StressMode::DictionaryOnly; ///< Stress resolution policy.
+    bool cleanup_unicode = true;  ///< Collapse whitespace and punctuation spacing.
+    bool normalize = true;        ///< Apply deterministic language normalization.
+    bool apply_dictionary = true; ///< Apply the non-owning dictionary when present.
+    bool resolve_stress = true;   ///< Resolve semantic stress.
+    bool diagnostics = false;     ///< Emit decisions without replacements.
     /// Non-owning dictionary; caller must keep it alive for the call.
     const PronunciationDictionary* dictionary = nullptr;
 };
 
-/// rief All text stages, replacements, token metadata, and diagnostics.
+/// \brief All text stages, replacements, token metadata, and diagnostics.
 struct TextFrontendResult {
-    /// Original UTF-8 input text.
-    std::string original_text;
-    /// Deterministically normalized UTF-8 text.
-    std::string normalized_text;
-    /// Text after pronunciation dictionary replacement.
-    std::string pronunciation_text;
-    std::vector<WordPronunciation> words;
-    std::vector<DictionaryReplacement> dictionary_replacements;
-    std::vector<StressDecision> stress_decisions;
-    std::vector<TextWarning> warnings;
+    std::string original_text;            ///< Original UTF-8 input text.
+    std::string normalized_text;          ///< Deterministically normalized UTF-8 text.
+    std::string pronunciation_text;       ///< Text after dictionary replacement.
+    std::vector<WordPronunciation> words; ///< Token-level pronunciation metadata.
+    std::vector<DictionaryReplacement>
+        dictionary_replacements;                  ///< Applied dictionary replacements.
+    std::vector<StressDecision> stress_decisions; ///< Semantic stress decisions.
+    std::vector<TextWarning> warnings;            ///< Diagnostics emitted by processing.
     /// Return true when warnings indicate an ambiguous or unresolved result.
     bool has_uncertainty() const noexcept;
 };
