@@ -15,6 +15,7 @@
 {"input":"7.5%","language":"en","expected":"seven point five percent","category":"en_percent_decimal","source":"local-rule"}
 {"input":"$12.50 $12.05 $12.5 $1 $2","language":"en","expected":"twelve dollars fifty cents twelve dollars five cents twelve dollars fifty cents one dollar two dollars","category":"en_currency","source":"local-rule"}
 {"input":"There are 12 GPUs.","language":"en","expected":"There are twelve GPUs.","category":"en_integer","source":"local-rule"}
+{"input":"1st 2nd 3rd 4th 11th 12th 13th 21st 42nd 100th 101st","language":"en","expected":"first second third fourth eleventh twelfth thirteenth twenty first forty second one hundredth one hundred first","category":"en_ordinal","source":"local-rule"}
 {"input":"RTX 4090 CUDA 13.3 v2.1.0","language":"en","expected":"RTX 4090 CUDA 13.3 v2.1.0","category":"en_technical","source":"local-rule"}
 {"input":"café 😊","language":"en","expected":"café 😊","category":"en_unicode","source":"local-rule"}
 {"input":"7.05 7.50","language":"en","expected":"seven point zero five seven point five zero","category":"en_decimal_digits","source":"review-regression"}

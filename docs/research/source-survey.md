@@ -20,4 +20,10 @@ category/grammar; это не утверждение о наличии тако�
 
 ## Текущий scope
 
-RU и EN deterministic normalization покрывают базовые числа, проценты, время, валюты, единицы, whitespace/punctuation cleanup и технические токены. Corpus expansion добавляет provenance-reviewed boundary cases для согласования единиц, ведущих нулей, десятичных дробей, сокращений и protected technical spans. Контекстные омографы Silero и ONNX feasibility study — следующий milestone; до него библиотека не утверждает parity или production-ready automatic stress.
+RU и EN deterministic normalization покрывают базовые числа, английские порядковые
+числительные, проценты, время, валюты, единицы, whitespace/punctuation cleanup и
+технические токены. Corpus expansion добавляет provenance-reviewed boundary cases для
+согласования единиц, ведущих нулей, десятичных дробей, сокращений и protected
+technical spans. Контекстные омографы Silero и ONNX feasibility study — отдельный
+следующий milestone; до него библиотека не утверждает parity или production-ready
+automatic stress.

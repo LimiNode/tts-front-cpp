@@ -313,6 +313,13 @@ int main() {
         CHECK(preserved_with_valid_neighbor.warnings.front().length == 7);
     }
     {
+        const auto malformed_ordinal = frontend.process("11st 2nd", en);
+        CHECK(malformed_ordinal.normalized_text == "11st second");
+        CHECK(malformed_ordinal.warnings.size() == 1);
+        CHECK(malformed_ordinal.warnings.front().offset == 0);
+        CHECK(malformed_ordinal.warnings.front().length == 4);
+    }
+    {
         const std::string huge_number(80, '9');
         const auto too_large = frontend.process(huge_number, en);
         CHECK(too_large.normalized_text == huge_number);
