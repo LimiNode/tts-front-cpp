@@ -49,6 +49,11 @@ yo, and both Phase 2 homograph contexts. This first step establishes a
 version-pinned execution adapter without adding ONNX Runtime to the library
 target; `full_native_call_parity` remains false.
 
+The first local receipt (`silero-native-ort-receipt.json`) records native
+execution against ORT 1.30.0 for all four cases: stress, yo, and both
+homosolver contexts. Output shapes and argmax decisions match the Python
+reference; the observed max absolute error is `0.0` for each case.
+
 The native ORT CI job also generates a tiny opset-17 Identity graph and runs
 the probe end-to-end. This validates runtime loading and tensor transport
 without committing model artifacts; it is a smoke check, not Silero parity.
