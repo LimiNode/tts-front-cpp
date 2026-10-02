@@ -164,9 +164,8 @@ void add_warning_without_suffix(WarningSink& warnings,
                                 std::size_t suffix_group) {
     const auto full = match.str();
     const auto suffix = match.str(suffix_group);
-    warnings.add(code,
-                 std::move(message),
-                 std::string_view(full).substr(0, full.size() - suffix.size()));
+    warnings.add(
+        code, std::move(message), std::string_view(full).substr(0, full.size() - suffix.size()));
 }
 
 void add_warning(std::vector<TextWarning>& warnings,
@@ -665,10 +664,10 @@ std::string normalize_ru(std::string text, WarningSink& warnings) {
             if (!try_parse_long(match[1].str(), integer) ||
                 !try_parse_long(match[2].str(), fraction) || match[2].str().size() > 3) {
                 add_warning_without_suffix(warnings,
-                                            WarningCode::UnresolvedNumber,
-                                            "Unable to parse Russian decimal percent",
-                                            match,
-                                            3);
+                                           WarningCode::UnresolvedNumber,
+                                           "Unable to parse Russian decimal percent",
+                                           match,
+                                           3);
                 return match.str();
             }
             return ru_decimal(integer, match[2].str()) + " процента" + match[3].str();
@@ -690,10 +689,10 @@ std::string normalize_ru(std::string text, WarningSink& warnings) {
             long long n = 0;
             if (!try_parse_long(match[1].str(), n)) {
                 add_warning_without_suffix(warnings,
-                                            WarningCode::UnresolvedNumber,
-                                            "Unable to parse Russian currency",
-                                            match,
-                                            3);
+                                           WarningCode::UnresolvedNumber,
+                                           "Unable to parse Russian currency",
+                                           match,
+                                           3);
                 return match.str();
             }
             return ru_number(n) + " " + ru_form(n, "рубль", "рубля", "рублей") + match[3].str();
@@ -716,10 +715,10 @@ std::string normalize_ru(std::string text, WarningSink& warnings) {
             if (!try_parse_long(match[1].str(), integer) ||
                 !try_parse_long(match[2].str(), fraction) || match[2].str().size() > 3) {
                 add_warning_without_suffix(warnings,
-                                            WarningCode::UnresolvedNumber,
-                                            "Unable to parse Russian decimal",
-                                            match,
-                                            3);
+                                           WarningCode::UnresolvedNumber,
+                                           "Unable to parse Russian decimal",
+                                           match,
+                                           3);
                 return match.str();
             }
             return ru_decimal(integer, match[2].str()) + match[3].str();
@@ -729,10 +728,10 @@ std::string normalize_ru(std::string text, WarningSink& warnings) {
             long long n = 0;
             if (!try_parse_long(match[1].str(), n)) {
                 add_warning_without_suffix(warnings,
-                                            WarningCode::UnresolvedNumber,
-                                            "Unable to parse Russian measurement",
-                                            match,
-                                            3);
+                                           WarningCode::UnresolvedNumber,
+                                           "Unable to parse Russian measurement",
+                                           match,
+                                           3);
                 return match.str();
             }
             const auto source = match[2].str();
@@ -846,10 +845,10 @@ std::string normalize_en(std::string text, WarningSink& warnings) {
             long long n = 0;
             if (!try_parse_long(match[1].str(), n)) {
                 add_warning_without_suffix(warnings,
-                                            WarningCode::UnresolvedNumber,
-                                            "Unable to parse English measurement",
-                                            match,
-                                            3);
+                                           WarningCode::UnresolvedNumber,
+                                           "Unable to parse English measurement",
+                                           match,
+                                           3);
                 return match.str();
             }
             const auto unit = match[2].str();
