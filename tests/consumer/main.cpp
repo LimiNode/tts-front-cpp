@@ -1,5 +1,5 @@
 #include <iostream>
-#include <tts_front/tts_front.hpp>
+#include <tts_front.hpp>
 int main() {
     tts_front::TextFrontendOptions options;
     options.language = tts_front::Language::English;
