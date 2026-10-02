@@ -2,7 +2,7 @@
 
 TTS-agnostic C++17 text frontend для подготовки текста перед синтезом речи.
 
-Версия 0.1 предоставляет детерминированную нормализацию русского и английского текста, подключаемый словарь произношения, semantic stress representation и диагностические предупреждения. В executable corpus зафиксированы числа, grouped/negative values, проценты, десятичные дроби, время, даты/годы, базовые валюты и единицы для RU/EN, а также protected technical spans (`RTX 4090`, `CUDA 13.3`, versions, IPv4, `C++`, `C#`, `HTTP/2`). Библиотека не зависит от Python, PyTorch, Qwen или конкретного TTS runtime.
+Версия 0.1 предоставляет детерминированную нормализацию русского и английского текста, подключаемый словарь произношения, semantic stress representation и диагностические предупреждения. В executable corpus зафиксированы числа, английские порядковые числительные, grouped/negative values, проценты, десятичные дроби, время, даты/годы, базовые валюты и единицы для RU/EN, а также protected technical spans (`RTX 4090`, `CUDA 13.3`, versions, IPv4, `C++`, `C#`, `HTTP/2`). Библиотека не зависит от Python, PyTorch, Qwen или конкретного TTS runtime.
 
 ## Быстрый старт
 

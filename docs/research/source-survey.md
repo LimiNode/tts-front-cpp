@@ -1,6 +1,6 @@
 # Source survey
 
-Этот документ фиксирует provenance правил, использованных в `tts-front-cpp` 0.1. В core не включён код или runtime из перечисленных проектов; используются только публичные поведенческие идеи. Текущий committed corpus содержит 50 machine-readable fixtures: 38 baseline vectors в `tests/fixtures/basic.jsonl` (26 RU и 12 EN, включая review regressions) и 12 provenance-reviewed vectors в `tests/fixtures/upstream_adapted.jsonl` (6 RU и 6 EN).
+Этот документ фиксирует provenance правил, использованных в `tts-front-cpp` 0.1. В core не включён код или runtime из перечисленных проектов; используются только публичные поведенческие идеи. Текущий committed corpus содержит 51 machine-readable fixture: 39 baseline vectors в `tests/fixtures/basic.jsonl` (26 RU и 13 EN, включая review regressions) и 12 provenance-reviewed vectors в `tests/fixtures/upstream_adapted.jsonl` (6 RU и 6 EN).
 
 | Source | Revision / license | Используем | Не переносим |
 |---|---|---|---|
@@ -20,4 +20,10 @@ category/grammar; это не утверждение о наличии тако�
 
 ## Текущий scope
 
-RU и EN deterministic normalization покрывают базовые числа, проценты, время, валюты, единицы, whitespace/punctuation cleanup и технические токены. Corpus expansion добавляет provenance-reviewed boundary cases для согласования единиц, ведущих нулей, десятичных дробей, сокращений и protected technical spans. Контекстные омографы Silero и ONNX feasibility study — следующий milestone; до него библиотека не утверждает parity или production-ready automatic stress.
+RU и EN deterministic normalization покрывают базовые числа, английские порядковые
+числительные, проценты, время, валюты, единицы, whitespace/punctuation cleanup и
+технические токены. Corpus expansion добавляет provenance-reviewed boundary cases для
+согласования единиц, ведущих нулей, десятичных дробей, сокращений и protected
+technical spans. Контекстные омографы Silero и ONNX feasibility study — отдельный
+следующий milestone; до него библиотека не утверждает parity или production-ready
+automatic stress.

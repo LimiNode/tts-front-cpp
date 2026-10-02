@@ -313,6 +313,28 @@ int main() {
         CHECK(preserved_with_valid_neighbor.warnings.front().length == 7);
     }
     {
+        const auto malformed_ordinal = frontend.process("11st 2nd", en);
+        CHECK(malformed_ordinal.normalized_text == "11st second");
+        CHECK(malformed_ordinal.warnings.size() == 1);
+        CHECK(malformed_ordinal.warnings.front().offset == 0);
+        CHECK(malformed_ordinal.warnings.front().length == 4);
+    }
+    {
+        const auto signed_ordinal = frontend.process("-1st 2nd", en);
+        CHECK(signed_ordinal.normalized_text == "-1st second");
+        CHECK(signed_ordinal.warnings.size() == 1);
+        CHECK(signed_ordinal.warnings.front().offset == 0);
+        CHECK(signed_ordinal.warnings.front().length == 4);
+    }
+    {
+        const std::string oversized_ordinal = "999999999999999999999th";
+        const auto result = frontend.process(oversized_ordinal, en);
+        CHECK(result.normalized_text == oversized_ordinal);
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().offset == 0);
+        CHECK(result.warnings.front().length == oversized_ordinal.size());
+    }
+    {
         const std::string huge_number(80, '9');
         const auto too_large = frontend.process(huge_number, en);
         CHECK(too_large.normalized_text == huge_number);
