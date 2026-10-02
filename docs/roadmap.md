@@ -64,6 +64,8 @@ regression fixture.
 ### 4. Silero Stress / ONNX feasibility
 
 Это отдельный исследовательский слой, не изменение текущего `tts_front` core.
+Рабочий research contract зафиксирован в
+[docs/research/silero-stress-plan.md](research/silero-stress-plan.md).
 Цель формулируется как **reproduce the Silero Stress inference contract in native
 C++**, а ONNX остаётся промежуточным/reference этапом:
 
