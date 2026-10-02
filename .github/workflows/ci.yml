@@ -101,3 +101,9 @@ jobs:
           cmake -S research/silero-native -B build-native-ort `
             -DSILERO_NATIVE_ORT_ROOT="$PWD/onnxruntime-win-x64-1.30.0"
           cmake --build build-native-ort --config Release --target silero_native_ort_probe --parallel
+      - name: Run native ONNX Runtime smoke
+        shell: pwsh
+        run: |
+          python -m pip install onnx
+          python tools/silero_native_ort_smoke.py `
+            --probe build-native-ort/Release/silero_native_ort_probe.exe

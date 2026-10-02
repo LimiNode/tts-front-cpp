@@ -48,3 +48,7 @@ The runner requires output-shape, float-error, and argmax parity for stress,
 yo, and both Phase 2 homograph contexts. This first step establishes a
 version-pinned execution adapter without adding ONNX Runtime to the library
 target; `full_native_call_parity` remains false.
+
+The native ORT CI job also generates a tiny opset-17 Identity graph and runs
+the probe end-to-end. This validates runtime loading and tensor transport
+without committing model artifacts; it is a smoke check, not Silero parity.
