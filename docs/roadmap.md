@@ -27,6 +27,8 @@ v0.1. Этапы намеренно разделены: corpus и deterministic 
   `.temp/` workspace policy и небольшие allocation/branch cleanup.
 - **Silero Stress Phase 1** — pinned Python reference receipt добавлен в
   `docs/research/silero-phase1.md`; ONNX/native parity и benchmark gates ещё не пройдены.
+- **Silero Stress Phase 2** — graph-level ONNX parity для `homosolver.model`
+  воспроизведена; full-call parity, accentor export и benchmark остаются открытыми.
 
 ## Порядок этапов
 
@@ -71,6 +73,8 @@ regression fixture.
 Phase 1 receipt и deterministic vectors находятся в
 [docs/research/silero-phase1.md](research/silero-phase1.md) и
 [docs/research/silero-phase1-vectors.jsonl](research/silero-phase1-vectors.jsonl).
+Graph-level ONNX parity зафиксирована в
+[docs/research/silero-phase2-onnx.md](research/silero-phase2-onnx.md).
 Цель формулируется как **reproduce the Silero Stress inference contract in native
 C++**, а ONNX остаётся промежуточным/reference этапом:
 
