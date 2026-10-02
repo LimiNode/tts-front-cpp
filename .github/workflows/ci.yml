@@ -73,6 +73,7 @@ jobs:
         run: |
           cmake -S research/silero-native -B build-native -DCMAKE_BUILD_TYPE=Release
           cmake --build build-native --parallel
+          ctest --test-dir build-native --output-on-failure
 
   native-research-windows:
     runs-on: windows-latest
@@ -82,3 +83,4 @@ jobs:
         run: |
           cmake -S research/silero-native -B build-native
           cmake --build build-native --config Release --parallel
+          ctest --test-dir build-native -C Release --output-on-failure

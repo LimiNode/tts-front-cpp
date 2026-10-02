@@ -1,12 +1,15 @@
 cmake_minimum_required(VERSION 3.20)
 project(silero_native_preprocess LANGUAGES CXX)
 
+enable_testing()
+
 add_executable(silero_native_preprocess native_preprocess.cpp)
 target_compile_features(silero_native_preprocess PRIVATE cxx_std_17)
 add_executable(silero_native_wordpiece native_wordpiece.cpp)
 target_compile_features(silero_native_wordpiece PRIVATE cxx_std_17)
 add_executable(silero_native_utf8_smoke utf8_smoke.cpp)
 target_compile_features(silero_native_utf8_smoke PRIVATE cxx_std_17)
+add_test(NAME silero_native_utf8_smoke COMMAND silero_native_utf8_smoke)
 if(MSVC)
     target_compile_options(silero_native_preprocess PRIVATE /W4 /utf-8)
     target_compile_options(silero_native_wordpiece PRIVATE /W4 /utf-8)

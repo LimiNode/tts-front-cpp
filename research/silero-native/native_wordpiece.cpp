@@ -109,8 +109,9 @@ std::vector<int> wordpiece(const Vocabulary& vocab, const std::string& token) {
         int found_id = vocab.unk;
         while (start < end) {
             std::string candidate = start == 0 ? "" : "##";
-            for (std::size_t i = start; i < end; ++i)
+            for (std::size_t i = start; i < end; ++i) {
                 silero_native::append_utf8(candidate, chars[i]);
+            }
             const auto it = vocab.ids.find(candidate);
             if (it != vocab.ids.end()) {
                 found = candidate;

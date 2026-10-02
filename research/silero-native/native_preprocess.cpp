@@ -113,8 +113,9 @@ std::vector<float> embed(const AssetTable& assets, const std::string& word) {
             throw std::runtime_error("ngram id outside weights");
         }
         const auto offset = found->second * assets.dimension;
-        for (std::size_t i = 0; i < assets.dimension; ++i)
+        for (std::size_t i = 0; i < assets.dimension; ++i) {
             output[i] += assets.weights[offset + i];
+        }
         ++count;
     }
     if (count == 0) {
@@ -126,12 +127,14 @@ std::vector<float> embed(const AssetTable& assets, const std::string& word) {
             throw std::runtime_error("UNK ngram id outside weights");
         }
         const auto offset = found->second * assets.dimension;
-        for (std::size_t i = 0; i < assets.dimension; ++i)
+        for (std::size_t i = 0; i < assets.dimension; ++i) {
             output[i] = assets.weights[offset + i];
+        }
         return output;
     }
-    for (auto& value : output)
+    for (auto& value : output) {
         value /= static_cast<float>(count);
+    }
     return output;
 }
 
@@ -153,8 +156,9 @@ int main(int argc, char** argv) {
             const auto vector = embed(assets, word);
             std::cout << word;
             std::cout << std::setprecision(9);
-            for (const auto value : vector)
+            for (const auto value : vector) {
                 std::cout << '\t' << value;
+            }
             std::cout << '\n';
         }
         return 0;
