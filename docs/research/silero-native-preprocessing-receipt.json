@@ -132,5 +132,6 @@
   "embedding_parity": true,
   "wordpiece_parity": true,
   "strict_utf8_rejection": true,
+  "encoder_surrogate_rejection": true,
   "full_native_call_parity": false
 }

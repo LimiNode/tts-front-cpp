@@ -56,18 +56,21 @@ std::vector<std::string> word_ngrams(const std::string& word) {
 
 AssetTable
 load_assets(const std::string& ngram_path, const std::string& weights_path, std::size_t dimension) {
-    if (dimension == 0)
+    if (dimension == 0) {
         throw std::runtime_error("embedding dimension must be non-zero");
+    }
     AssetTable assets;
     assets.dimension = dimension;
     std::ifstream ngrams(ngram_path, std::ios::binary);
-    if (!ngrams)
+    if (!ngrams) {
         throw std::runtime_error("cannot open ngrams.tsv");
+    }
     std::string line;
     while (std::getline(ngrams, line)) {
         const auto tab = line.find('\t');
-        if (tab == std::string::npos)
+        if (tab == std::string::npos) {
             throw std::runtime_error("malformed ngram line");
+        }
         const auto id_text = line.substr(0, tab);
         if (id_text.empty() ||
             std::any_of(id_text.begin(), id_text.end(), [](const char value) {
@@ -76,21 +79,25 @@ load_assets(const std::string& ngram_path, const std::string& weights_path, std:
             throw std::runtime_error("malformed ngram id");
         std::size_t consumed = 0;
         const auto id = std::stoull(id_text, &consumed);
-        if (consumed != id_text.size() || id > std::numeric_limits<std::size_t>::max())
+        if (consumed != id_text.size() || id > std::numeric_limits<std::size_t>::max()) {
             throw std::runtime_error("malformed ngram id");
+        }
         assets.ids[line.substr(tab + 1)] = static_cast<std::size_t>(id);
     }
     std::ifstream weights(weights_path, std::ios::binary);
-    if (!weights)
+    if (!weights) {
         throw std::runtime_error("cannot open embedding.f32");
+    }
     std::vector<char> bytes{std::istreambuf_iterator<char>(weights),
                             std::istreambuf_iterator<char>()};
-    if (bytes.size() % sizeof(float) != 0)
+    if (bytes.size() % sizeof(float) != 0) {
         throw std::runtime_error("weights are not float32");
+    }
     assets.weights.resize(bytes.size() / sizeof(float));
     std::memcpy(assets.weights.data(), bytes.data(), bytes.size());
-    if (assets.weights.size() % dimension != 0)
+    if (assets.weights.size() % dimension != 0) {
         throw std::runtime_error("weights do not match dimension");
+    }
     return assets;
 }
 
@@ -99,10 +106,12 @@ std::vector<float> embed(const AssetTable& assets, const std::string& word) {
     std::size_t count = 0;
     for (const auto& gram : word_ngrams(word)) {
         const auto found = assets.ids.find(gram);
-        if (found == assets.ids.end())
+        if (found == assets.ids.end()) {
             continue;
-        if (found->second >= assets.weights.size() / assets.dimension)
+        }
+        if (found->second >= assets.weights.size() / assets.dimension) {
             throw std::runtime_error("ngram id outside weights");
+        }
         const auto offset = found->second * assets.dimension;
         for (std::size_t i = 0; i < assets.dimension; ++i)
             output[i] += assets.weights[offset + i];
@@ -110,10 +119,12 @@ std::vector<float> embed(const AssetTable& assets, const std::string& word) {
     }
     if (count == 0) {
         const auto found = assets.ids.find("UNK");
-        if (found == assets.ids.end())
+        if (found == assets.ids.end()) {
             throw std::runtime_error("missing UNK ngram");
-        if (found->second >= assets.weights.size() / assets.dimension)
+        }
+        if (found->second >= assets.weights.size() / assets.dimension) {
             throw std::runtime_error("UNK ngram id outside weights");
+        }
         const auto offset = found->second * assets.dimension;
         for (std::size_t i = 0; i < assets.dimension; ++i)
             output[i] = assets.weights[offset + i];
@@ -136,8 +147,9 @@ int main(int argc, char** argv) {
         const auto assets = load_assets(argv[2], argv[4], 16);
         std::string word;
         while (std::getline(std::cin, word)) {
-            if (word.empty())
+            if (word.empty()) {
                 continue;
+            }
             const auto vector = embed(assets, word);
             std::cout << word;
             std::cout << std::setprecision(9);

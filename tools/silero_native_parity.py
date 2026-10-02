@@ -33,6 +33,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--assets", required=True, type=Path)
     parser.add_argument("--preprocess-exe", required=True, type=Path)
     parser.add_argument("--wordpiece-exe", required=True, type=Path)
+    parser.add_argument("--utf8-smoke-exe", required=True, type=Path)
     parser.add_argument("--receipt", required=True, type=Path)
     return parser.parse_args()
 
@@ -123,6 +124,15 @@ def main() -> int:
             }
         )
 
+    smoke = subprocess.run(
+        [str(args.utf8_smoke_exe.resolve())],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if smoke.returncode != 0:
+        raise SystemExit("UTF-8 encoder surrogate rejection failed")
+
     receipt = {
         "record_type": "silero_native_preprocessing_parity",
         "source_revision": manifest["source_revision"],
@@ -137,6 +147,7 @@ def main() -> int:
         "embedding_parity": True,
         "wordpiece_parity": True,
         "strict_utf8_rejection": True,
+        "encoder_surrogate_rejection": True,
         "full_native_call_parity": False,
     }
     args.receipt.parent.mkdir(parents=True, exist_ok=True)

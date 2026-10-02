@@ -30,13 +30,15 @@ struct Vocabulary {
 Vocabulary load(const std::string& path) {
     Vocabulary vocab;
     std::ifstream input(path, std::ios::binary);
-    if (!input)
+    if (!input) {
         throw std::runtime_error("cannot open bert-vocab.tsv");
+    }
     std::string line;
     while (std::getline(input, line)) {
         const auto tab = line.find('\t');
-        if (tab == std::string::npos)
+        if (tab == std::string::npos) {
             throw std::runtime_error("malformed vocab line");
+        }
         vocab.ids[line.substr(tab + 1)] = std::stoi(line.substr(0, tab));
     }
     return vocab;
@@ -117,8 +119,9 @@ std::vector<int> wordpiece(const Vocabulary& vocab, const std::string& token) {
             }
             --end;
         }
-        if (found.empty())
+        if (found.empty()) {
             return {vocab.unk};
+        }
         ids.push_back(found_id);
         start = end;
     }
@@ -146,13 +149,15 @@ int main(int argc, char** argv) {
         const auto vocab = load(argv[2]);
         std::string line;
         while (std::getline(std::cin, line)) {
-            if (line.empty())
+            if (line.empty()) {
                 continue;
+            }
             const auto ids = encode(vocab, line);
             std::cout << line << '\t';
             for (std::size_t i = 0; i < ids.size(); ++i) {
-                if (i != 0)
+                if (i != 0) {
                     std::cout << ',';
+                }
                 std::cout << ids[i];
             }
             std::cout << '\n';

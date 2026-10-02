@@ -30,6 +30,7 @@ python tools/silero_native_parity.py \
   --assets .temp/silero-native-assets \
   --preprocess-exe .temp/silero-native-build/silero_native_preprocess.exe \
   --wordpiece-exe .temp/silero-native-build/silero_native_wordpiece.exe \
+  --utf8-smoke-exe .temp/silero-native-build/silero_native_utf8_smoke.exe \
   --receipt .temp/silero-native-assets/parity-receipt.json
 ```
 
