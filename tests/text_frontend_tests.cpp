@@ -153,7 +153,11 @@ int main() {
     TextFrontendOptions automatic;
     automatic.language = Language::Russian;
     automatic.stress_mode = StressMode::Automatic;
-    CHECK(frontend.process("тест", automatic).warnings.size() == 1);
+    const auto automatic_result = frontend.process("тест", automatic);
+    CHECK(automatic_result.warnings.size() == 1);
+    CHECK(automatic_result.warnings.front().code == WarningCode::AutomaticStressUnavailable);
+    CHECK(automatic_result.warnings.front().offset == 0);
+    CHECK(automatic_result.warnings.front().length == 0);
     automatic.resolve_stress = false;
     CHECK(frontend.process("тест", automatic).warnings.empty());
     TextFrontendOptions unsupported;
@@ -161,6 +165,8 @@ int main() {
     const auto unsupported_result = frontend.process("test", unsupported);
     CHECK(unsupported_result.warnings.size() == 1);
     CHECK(unsupported_result.warnings.front().code == WarningCode::UnsupportedLanguage);
+    CHECK(unsupported_result.warnings.front().offset == 0);
+    CHECK(unsupported_result.warnings.front().length == 0);
     TextFrontendOptions no_cleanup;
     no_cleanup.language = Language::English;
     no_cleanup.cleanup_spacing = false;
@@ -168,6 +174,16 @@ int main() {
     CHECK(frontend.process("café 😊", en).normalized_text == "café 😊");
     const auto mixed = frontend.process("Привет API", TextFrontendOptions{});
     CHECK(mixed.has_uncertainty());
+    {
+        const std::string mixed_invalid_input = "Привет hello 99:99";
+        const auto mixed_invalid = frontend.process(mixed_invalid_input, TextFrontendOptions{});
+        CHECK(mixed_invalid.warnings.size() == 2);
+        CHECK(mixed_invalid.warnings[0].code == WarningCode::AmbiguousNormalization);
+        CHECK(mixed_invalid.warnings[0].offset == 0);
+        CHECK(mixed_invalid.warnings[0].length == mixed_invalid_input.size());
+        CHECK(mixed_invalid.warnings[1].offset == std::string("Привет hello ").size());
+        CHECK(mixed_invalid.warnings[1].length == 5);
+    }
     CHECK(frontend.process("__TTS_PROTECTED_A__ RTX 4090", en).normalized_text ==
           "__TTS_PROTECTED_A__ RTX 4090");
     const std::string huge(80, '9');
@@ -196,21 +212,91 @@ int main() {
         CHECK(invalid_time.normalized_text == "24:00 99:99");
         CHECK(invalid_time.warnings.size() == 2);
         CHECK(invalid_time.warnings[0].offset == 0);
-        CHECK(invalid_time.warnings[0].length == 0);
-        CHECK(invalid_time.warnings[1].offset == 0);
-        CHECK(invalid_time.warnings[1].length == 0);
+        CHECK(invalid_time.warnings[0].length == 5);
+        CHECK(invalid_time.warnings[1].offset == 6);
+        CHECK(invalid_time.warnings[1].length == 5);
     }
-    for (const auto& input : {std::string("1% 99:99"),
-                              std::string("RTX 4090 99:99"),
-                              std::string("a   99:99"),
-                              std::string("1 234 99:99")}) {
-        const auto transformed = frontend.process(input, en);
-        for (const auto& warning : transformed.warnings) {
-            CHECK(warning.offset == 0);
-            CHECK(warning.length == 0);
-        }
+    {
+        const auto transformed = frontend.process("1% 99:99", en);
+        CHECK(transformed.normalized_text == "one percent 99:99");
+        CHECK(transformed.warnings.size() == 1);
+        CHECK(transformed.warnings.front().offset == 3);
+        CHECK(transformed.warnings.front().length == 5);
+    }
+    {
+        const auto transformed = frontend.process("RTX 4090 99:99", en);
+        CHECK(transformed.normalized_text == "RTX 4090 99:99");
+        CHECK(transformed.warnings.size() == 1);
+        CHECK(transformed.warnings.front().offset == 9);
+        CHECK(transformed.warnings.front().length == 5);
+    }
+    {
+        const auto transformed = frontend.process("a   99:99", en);
+        CHECK(transformed.normalized_text == "a 99:99");
+        CHECK(transformed.warnings.size() == 1);
+        CHECK(transformed.warnings.front().offset == 4);
+        CHECK(transformed.warnings.front().length == 5);
+    }
+    {
+        const auto transformed = frontend.process("1 234 99:99", en);
+        CHECK(transformed.normalized_text == "one thousand two hundred thirty four 99:99");
+        CHECK(transformed.warnings.size() == 1);
+        CHECK(transformed.warnings.front().offset == 6);
+        CHECK(transformed.warnings.front().length == 5);
+    }
+    {
+        const auto transformed = frontend.process("тест 99:99", en);
+        CHECK(transformed.warnings.size() == 1);
+        CHECK(transformed.warnings.front().offset == std::string("тест ").size());
+        CHECK(transformed.warnings.front().length == 5);
+    }
+    {
+        const auto transformed = frontend.process("99:99 24:99", en);
+        CHECK(transformed.warnings.size() == 2);
+        CHECK(transformed.warnings[0].offset == 0);
+        CHECK(transformed.warnings[0].length == 5);
+        CHECK(transformed.warnings[1].offset == 6);
+        CHECK(transformed.warnings[1].length == 5);
+    }
+    {
+        const auto protected_invalid = frontend.process("https://example.com 99:99", en);
+        CHECK(protected_invalid.normalized_text == "https://example.com 99:99");
+        CHECK(protected_invalid.warnings.size() == 1);
+        CHECK(protected_invalid.warnings.front().offset ==
+              protected_invalid.original_text.find("99:99"));
+        CHECK(protected_invalid.warnings.front().length == 5);
+    }
+    {
+        const auto multi_transform = frontend.process("1% 1.5 99:99", en);
+        CHECK(multi_transform.normalized_text == "one percent one point five 99:99");
+        CHECK(multi_transform.warnings.size() == 1);
+        CHECK(multi_transform.warnings.front().offset ==
+              multi_transform.original_text.find("99:99"));
+        CHECK(multi_transform.warnings.front().length == 5);
+    }
+    {
+        const auto unsupported_decimal = frontend.process("$12.345", en);
+        CHECK(unsupported_decimal.normalized_text == "$12.345");
+        CHECK(unsupported_decimal.warnings.size() == 1);
+        CHECK(unsupported_decimal.warnings.front().offset == 0);
+        CHECK(unsupported_decimal.warnings.front().length == 7);
+    }
+    {
+        const std::string huge_number(80, '9');
+        const auto too_large = frontend.process(huge_number, en);
+        CHECK(too_large.normalized_text == huge_number);
+        CHECK(too_large.warnings.size() == 1);
+        CHECK(too_large.warnings.front().offset == 0);
+        CHECK(too_large.warnings.front().length == huge_number.size());
     }
     CHECK(frontend.process("99.99.2026", ru).normalized_text == "99.99.2026");
+    {
+        const auto malformed_date = frontend.process("99.99.2026", ru);
+        CHECK(malformed_date.normalized_text == "99.99.2026");
+        CHECK(malformed_date.warnings.size() == 1);
+        CHECK(malformed_date.warnings.front().offset == 0);
+        CHECK(malformed_date.warnings.front().length == std::string("99.99.2026").size());
+    }
     std::string many_protected;
     for (int i = 0; i < 35; ++i) {
         if (!many_protected.empty())

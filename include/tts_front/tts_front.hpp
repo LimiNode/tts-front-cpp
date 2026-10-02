@@ -36,8 +36,8 @@ enum class WarningCode {
 struct TextWarning {
     WarningCode code;       ///< Warning category.
     std::string message;    ///< Human-readable diagnostic message.
-    std::size_t offset = 0; ///< Source byte offset when available; zero otherwise.
-    std::size_t length = 0; ///< Source byte length when available; zero otherwise.
+    std::size_t offset = 0; ///< UTF-8 byte offset into original_text; zero for global diagnostics.
+    std::size_t length = 0; ///< UTF-8 byte length in original_text; zero means no source span.
 };
 
 /// \brief Pronunciation and semantic metadata for one normalized token.

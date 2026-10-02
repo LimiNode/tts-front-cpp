@@ -112,14 +112,61 @@ const RegexPatterns& regex_patterns() {
     return patterns;
 }
 
-void add_warning(std::vector<TextWarning>& warnings,
+struct WarningSink {
+    std::vector<TextWarning>& warnings;
+    std::string_view original_text;
+    std::vector<std::pair<std::size_t, std::size_t>> used_ranges;
+
+    void add_range(WarningCode code, std::string message, std::size_t offset, std::size_t length) {
+        warnings.push_back({code, std::move(message), offset, length});
+    }
+
+    void add(WarningCode code, std::string message, std::string_view fragment) {
+        for (std::size_t search_offset = 0;;) {
+            const auto offset = original_text.find(fragment, search_offset);
+            if (offset == std::string_view::npos)
+                break;
+            const auto end = offset + fragment.size();
+            const bool overlaps = std::any_of(
+                used_ranges.begin(), used_ranges.end(), [offset, end](const auto& range) {
+                    return offset < range.second && range.first < end;
+                });
+            if (!overlaps) {
+                warnings.push_back({code, std::move(message), offset, fragment.size()});
+                used_ranges.emplace_back(offset, end);
+                return;
+            }
+            search_offset = offset + 1;
+        }
+        warnings.push_back({code, std::move(message), 0, 0});
+    }
+};
+
+void add_warning(WarningSink& warnings,
                  WarningCode code,
                  std::string message,
                  const std::smatch& match) {
-    (void)match;
-    // Normalization operates on transformed/protected text. Until a source map is introduced,
-    // exposing intermediate coordinates as source offsets would be misleading.
-    warnings.push_back({code, std::move(message), 0, 0});
+    warnings.add(code, std::move(message), match.str());
+}
+
+void add_warning(WarningSink& warnings,
+                 WarningCode code,
+                 std::string message,
+                 const std::smatch& match,
+                 std::size_t group) {
+    warnings.add(code, std::move(message), match.str(group));
+}
+
+void add_warning_without_suffix(WarningSink& warnings,
+                                WarningCode code,
+                                std::string message,
+                                const std::smatch& match,
+                                std::size_t suffix_group) {
+    const auto full = match.str();
+    const auto suffix = match.str(suffix_group);
+    warnings.add(code,
+                 std::move(message),
+                 std::string_view(full).substr(0, full.size() - suffix.size()));
 }
 
 void add_warning(std::vector<TextWarning>& warnings,
@@ -254,11 +301,10 @@ bool try_parse_long(std::string_view token, long long& value) {
         return false;
     }
 }
-std::string
-number_or_original(const std::string& token, bool russian, std::vector<TextWarning>& warnings) {
+std::string number_or_original(const std::string& token, bool russian, WarningSink& warnings) {
     long long value = 0;
     if (!try_parse_long(token, value)) {
-        add_warning(warnings, WarningCode::UnresolvedNumber, "Unable to parse number", 0, 0);
+        warnings.add(WarningCode::UnresolvedNumber, "Unable to parse number", token);
         return token;
     }
     return russian ? ru_number(value) : en_number(value);
@@ -570,7 +616,7 @@ std::string collapse_grouped_numbers(std::string text) {
         });
 }
 
-std::string normalize_ru(std::string text, std::vector<TextWarning>& warnings) {
+std::string normalize_ru(std::string text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
     text = protect_technical(std::move(text), protected_spans);
     text = collapse_grouped_numbers(std::move(text));
@@ -618,10 +664,11 @@ std::string normalize_ru(std::string text, std::vector<TextWarning>& warnings) {
             long long integer = 0, fraction = 0;
             if (!try_parse_long(match[1].str(), integer) ||
                 !try_parse_long(match[2].str(), fraction) || match[2].str().size() > 3) {
-                add_warning(warnings,
-                            WarningCode::UnresolvedNumber,
-                            "Unable to parse Russian decimal percent",
-                            match);
+                add_warning_without_suffix(warnings,
+                                            WarningCode::UnresolvedNumber,
+                                            "Unable to parse Russian decimal percent",
+                                            match,
+                                            3);
                 return match.str();
             }
             return ru_decimal(integer, match[2].str()) + " процента" + match[3].str();
@@ -642,10 +689,11 @@ std::string normalize_ru(std::string text, std::vector<TextWarning>& warnings) {
         std::move(text), regex_patterns().ru_currency, [&](const std::smatch& match) {
             long long n = 0;
             if (!try_parse_long(match[1].str(), n)) {
-                add_warning(warnings,
-                            WarningCode::UnresolvedNumber,
-                            "Unable to parse Russian currency",
-                            match);
+                add_warning_without_suffix(warnings,
+                                            WarningCode::UnresolvedNumber,
+                                            "Unable to parse Russian currency",
+                                            match,
+                                            3);
                 return match.str();
             }
             return ru_number(n) + " " + ru_form(n, "рубль", "рубля", "рублей") + match[3].str();
@@ -667,10 +715,11 @@ std::string normalize_ru(std::string text, std::vector<TextWarning>& warnings) {
             long long integer = 0, fraction = 0;
             if (!try_parse_long(match[1].str(), integer) ||
                 !try_parse_long(match[2].str(), fraction) || match[2].str().size() > 3) {
-                add_warning(warnings,
-                            WarningCode::UnresolvedNumber,
-                            "Unable to parse Russian decimal",
-                            match);
+                add_warning_without_suffix(warnings,
+                                            WarningCode::UnresolvedNumber,
+                                            "Unable to parse Russian decimal",
+                                            match,
+                                            3);
                 return match.str();
             }
             return ru_decimal(integer, match[2].str()) + match[3].str();
@@ -679,10 +728,11 @@ std::string normalize_ru(std::string text, std::vector<TextWarning>& warnings) {
         std::move(text), regex_patterns().ru_measurement, [&](const std::smatch& match) {
             long long n = 0;
             if (!try_parse_long(match[1].str(), n)) {
-                add_warning(warnings,
-                            WarningCode::UnresolvedNumber,
-                            "Unable to parse Russian measurement",
-                            match);
+                add_warning_without_suffix(warnings,
+                                            WarningCode::UnresolvedNumber,
+                                            "Unable to parse Russian measurement",
+                                            match,
+                                            3);
                 return match.str();
             }
             const auto source = match[2].str();
@@ -713,7 +763,7 @@ std::string normalize_ru(std::string text, std::vector<TextWarning>& warnings) {
     return restore_technical(std::move(text), protected_spans);
 }
 
-std::string normalize_en(std::string text, std::vector<TextWarning>& warnings) {
+std::string normalize_en(std::string text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
     text = protect_technical(std::move(text), protected_spans);
     text = collapse_grouped_numbers(std::move(text));
@@ -784,7 +834,8 @@ std::string normalize_en(std::string text, std::vector<TextWarning>& warnings) {
                 add_warning(warnings,
                             WarningCode::UnresolvedNumber,
                             "Unable to parse English decimal",
-                            match);
+                            match,
+                            2);
                 return match.str();
             }
             return match[1].str() + en_number(integer) + " point " +
@@ -794,10 +845,11 @@ std::string normalize_en(std::string text, std::vector<TextWarning>& warnings) {
         std::move(text), regex_patterns().en_measurement, [&](const std::smatch& match) {
             long long n = 0;
             if (!try_parse_long(match[1].str(), n)) {
-                add_warning(warnings,
-                            WarningCode::UnresolvedNumber,
-                            "Unable to parse English measurement",
-                            match);
+                add_warning_without_suffix(warnings,
+                                            WarningCode::UnresolvedNumber,
+                                            "Unable to parse English measurement",
+                                            match,
+                                            3);
                 return match.str();
             }
             const auto unit = match[2].str();
@@ -876,6 +928,7 @@ TextFrontendResult TextFrontend::process(std::string_view input,
             result.warnings, WarningCode::InvalidUtf8, "Input is not valid UTF-8", 0, input.size());
         return result;
     }
+    WarningSink warning_sink{result.warnings, input, {}};
     std::string text(input);
     if (options.cleanup_spacing)
         text = cleanup_text(std::move(text));
@@ -885,11 +938,10 @@ TextFrontendResult TextFrontend::process(std::string_view input,
     if (language == Language::Auto)
         language = detect_language(text, has_cyrillic, has_latin);
     if (options.language == Language::Auto && has_cyrillic && has_latin)
-        add_warning(result.warnings,
-                    WarningCode::AmbiguousNormalization,
-                    "Mixed Cyrillic/Latin input uses Russian normalization by policy",
-                    0,
-                    text.size());
+        warning_sink.add_range(WarningCode::AmbiguousNormalization,
+                               "Mixed Cyrillic/Latin input uses Russian normalization by policy",
+                               0,
+                               input.size());
     if (language != Language::Russian && language != Language::English) {
         result.warnings.push_back({WarningCode::UnsupportedLanguage, "Unsupported language", 0, 0});
         return result;
@@ -897,10 +949,10 @@ TextFrontendResult TextFrontend::process(std::string_view input,
     if (options.normalize) {
         switch (language) {
         case Language::Russian:
-            text = normalize_ru(std::move(text), result.warnings);
+            text = normalize_ru(std::move(text), warning_sink);
             break;
         case Language::English:
-            text = normalize_en(std::move(text), result.warnings);
+            text = normalize_en(std::move(text), warning_sink);
             break;
         case Language::Auto:
             break;
