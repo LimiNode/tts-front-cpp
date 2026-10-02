@@ -1,5 +1,5 @@
 #include "detail/utf8.hpp"
-#include "tts_front/tts_front.hpp"
+#include "tts_front.hpp"
 
 #include <cctype>
 #include <cstdint>

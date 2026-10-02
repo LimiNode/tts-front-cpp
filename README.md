@@ -7,7 +7,7 @@ TTS-agnostic C++17 text frontend для подготовки текста пер
 ## Быстрый старт
 
 ```cpp
-#include <tts_front/tts_front.hpp>
+#include <tts_front.hpp>
 tts_front::TextFrontend frontend;
 tts_front::TextFrontendOptions options;
 options.language = tts_front::Language::Russian;

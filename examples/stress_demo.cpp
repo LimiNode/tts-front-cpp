@@ -1,4 +1,4 @@
-#include "tts_front/tts_front.hpp"
+#include "tts_front.hpp"
 
 #include <iostream>
 int main() {

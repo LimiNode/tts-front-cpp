@@ -10,7 +10,7 @@ Repository-specific instructions for coding agents working on `tts-front-cpp`.
 - The canonical public include is:
 
   ```cpp
-  #include <tts_front/tts_front.hpp>
+  #include <tts_front.hpp>
   ```
 
 - Do not add empty forwarding headers or speculative public abstractions.
