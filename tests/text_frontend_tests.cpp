@@ -306,6 +306,13 @@ int main() {
         CHECK(unsupported_decimal.warnings.front().length == 7);
     }
     {
+        const auto preserved_with_valid_neighbor = frontend.process("$12.345 2 kg", en);
+        CHECK(preserved_with_valid_neighbor.normalized_text == "$12.345 two kilograms");
+        CHECK(preserved_with_valid_neighbor.warnings.size() == 1);
+        CHECK(preserved_with_valid_neighbor.warnings.front().offset == 0);
+        CHECK(preserved_with_valid_neighbor.warnings.front().length == 7);
+    }
+    {
         const std::string huge_number(80, '9');
         const auto too_large = frontend.process(huge_number, en);
         CHECK(too_large.normalized_text == huge_number);

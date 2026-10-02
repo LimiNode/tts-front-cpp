@@ -17,11 +17,11 @@ Whole-input invalid UTF-8 keeps the known range `0..original_text.size()`.
 | Stage | Length-changing? | Provenance handling |
 |---|---:|---|
 | UTF-8 validation | no | invalid input is directly the whole original byte range |
-| spacing cleanup | yes | warning fragments are resolved against the original bytes |
+| spacing cleanup | yes | mapped runs carry collapsed whitespace back to its original byte span |
 | language detection | no | mixed-language diagnostic is explicitly whole-input |
-| technical protection | yes internally | protected spans are restored; warnings resolve against original bytes |
-| grouped-number collapse | yes | invalid fragments remain source-identical and are located in original bytes |
-| normalization replacements | yes | warnings are emitted only for unchanged source fragments |
+| technical protection | yes internally | marker runs retain the protected source interval through restore |
+| grouped-number collapse | yes | collapsed runs retain the original grouped-number interval |
+| normalization replacements | yes | generated runs retain the complete consumed source interval |
 | dictionary/stress metadata | no warning source mapping | global diagnostics remain no-range |
 
 The private `MappedText` representation stores sorted output runs. Directly copied
