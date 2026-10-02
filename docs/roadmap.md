@@ -25,6 +25,8 @@ v0.1. Этапы намеренно разделены: corpus и deterministic 
   реальными RU/EN vectors с pinned source revision и датой адаптации.
 - **Remaining scaffolding cleanup** — отдельный PR #4: canonical public header,
   `.temp/` workspace policy и небольшие allocation/branch cleanup.
+- **Silero Stress Phase 1** — pinned Python reference receipt добавлен в
+  `docs/research/silero-phase1.md`; ONNX/native parity и benchmark gates ещё не пройдены.
 
 ## Порядок этапов
 
@@ -66,6 +68,9 @@ regression fixture.
 Это отдельный исследовательский слой, не изменение текущего `tts_front` core.
 Рабочий research contract зафиксирован в
 [docs/research/silero-stress-plan.md](research/silero-stress-plan.md).
+Phase 1 receipt и deterministic vectors находятся в
+[docs/research/silero-phase1.md](research/silero-phase1.md) и
+[docs/research/silero-phase1-vectors.jsonl](research/silero-phase1-vectors.jsonl).
 Цель формулируется как **reproduce the Silero Stress inference contract in native
 C++**, а ONNX остаётся промежуточным/reference этапом:
 
