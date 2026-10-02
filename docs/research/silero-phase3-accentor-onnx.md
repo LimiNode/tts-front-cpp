@@ -10,12 +10,13 @@ Instead, the pass exports two small ONNX graphs:
 - `stress_clf`: 16-dimensional n-gram embedding to stress logits;
 - `yo_clf`: 16-dimensional n-gram embedding to yo logits.
 
-Both graphs have a dynamic `word_count` axis. Six words from the Phase 1
-corpus are passed through the exact upstream embedding implementation before
-the graph boundary. CPU ONNX Runtime matches PyTorch argmax decisions for all
-words; the maximum raw-logit error is `0.03125` (the yo head has logits around
-`2.8e5`, so this remains sub-ppm relative error). The receipt stores both
-artifact hashes, outputs summaries, and per-head errors.
+Both graphs have a dynamic `word_count` axis. The same exported artifacts are
+exercised at `word_count = 1` and `word_count = 7` using words from the Phase 1
+corpus, including the positive `ё` case `елка`. CPU ONNX Runtime matches
+PyTorch argmax decisions for every word and both heads; the maximum raw-logit
+error is `0.03125` (the yo head has logits around `2.8e5`, so this remains
+sub-ppm relative error). The receipt stores per-case word lists, per-word
+argmax decisions, artifact hashes, and per-head errors.
 
 Run with temporary exports under `.temp/`:
 
@@ -25,6 +26,9 @@ python tools/silero_phase3_accentor_onnx.py \
   --work-dir .temp/silero-phase3 \
   --receipt docs/research/silero-phase3-accentor-receipt.json
 ```
+
+The committed receipt records the exact source/model hashes and the two
+dynamic-shape cases. `full_call_parity` remains `false`.
 
 ## Remaining boundary
 

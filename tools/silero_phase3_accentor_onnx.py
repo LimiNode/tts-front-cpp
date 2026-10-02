@@ -24,7 +24,7 @@ from silero_phase1 import (
 )
 
 
-WORDS = ("мама", "мыла", "раму", "квантолик", "село", "большое")
+WORDS = ("мама", "мыла", "раму", "квантолик", "село", "большое", "елка")
 # The yo head contains logits around 2.8e5; this absolute bound is still
 # sub-ppm relative error while avoiding false failures from float32 export.
 TOLERANCE = 1.0e-1
@@ -76,9 +76,6 @@ def main() -> int:
     yo_graph = upstream_model.yo_clf.eval()
     stress_artifact = work_dir / "accentor-stress.onnx"
     yo_artifact = work_dir / "accentor-yo.onnx"
-    with torch.no_grad():
-        reference_stress = stress_graph(embeddings)
-        reference_yo = yo_graph(embeddings)
     torch.onnx.export(
         stress_graph,
         (embeddings,),
@@ -103,13 +100,49 @@ def main() -> int:
     onnx.checker.check_model(onnx.load(yo_artifact))
     stress_session = ort.InferenceSession(str(stress_artifact), providers=["CPUExecutionProvider"])
     yo_session = ort.InferenceSession(str(yo_artifact), providers=["CPUExecutionProvider"])
-    actual_stress = stress_session.run(None, {"input_embeddings": embeddings.numpy()})[0]
-    actual_yo = yo_session.run(None, {"input_embeddings": embeddings.numpy()})[0]
-    stress_error = float(np.max(np.abs(reference_stress.numpy() - actual_stress)))
-    yo_error = float(np.max(np.abs(reference_yo.numpy() - actual_yo)))
-    max_abs_error = max(stress_error, yo_error)
-    if max_abs_error > TOLERANCE:
-        raise SystemExit(f"accentor classifier parity failed: {max_abs_error}")
+    cases = []
+    global_max_abs_error = 0.0
+    for case_id, words in (("word_count_1", WORDS[:1]), ("word_count_7", WORDS)):
+        case_embeddings = upstream_model.embedding(list(words)).detach()
+        with torch.no_grad():
+            case_reference_stress = stress_graph(case_embeddings).numpy()
+            case_reference_yo = yo_graph(case_embeddings).numpy()
+        case_actual_stress = stress_session.run(
+            None, {"input_embeddings": case_embeddings.numpy()}
+        )[0]
+        case_actual_yo = yo_session.run(None, {"input_embeddings": case_embeddings.numpy()})[0]
+        stress_error = float(np.max(np.abs(case_reference_stress - case_actual_stress)))
+        yo_error = float(np.max(np.abs(case_reference_yo - case_actual_yo)))
+        case_max_error = max(stress_error, yo_error)
+        global_max_abs_error = max(global_max_abs_error, case_max_error)
+        if case_max_error > TOLERANCE:
+            raise SystemExit(f"accentor classifier parity failed for {case_id}: {case_max_error}")
+        cases.append(
+            {
+                "id": case_id,
+                "word_count": len(words),
+                "words": list(words),
+                "per_word": [
+                    {
+                        "word": word,
+                        "stress_argmax_reference": int(stress.argmax()),
+                        "stress_argmax_onnx": int(actual_stress.argmax()),
+                        "yo_argmax_reference": int(yo.argmax()),
+                        "yo_argmax_onnx": int(yo.argmax()),
+                    }
+                    for word, stress, actual_stress, yo, actual_yo in zip(
+                        words,
+                        case_reference_stress,
+                        case_actual_stress,
+                        case_reference_yo,
+                        case_actual_yo,
+                    )
+                ],
+                "stress_max_abs_error": stress_error,
+                "yo_max_abs_error": yo_error,
+                "max_abs_error": case_max_error,
+            }
+        )
 
     resolved_model_path = (
         str(model.relative_to(source)).replace("\\", "/")
@@ -150,13 +183,8 @@ def main() -> int:
         "onnxruntime": ort.__version__,
         "platform": platform.platform(),
         "providers": ["CPUExecutionProvider"],
-        "stress_argmax_reference": reference_stress.argmax(1).tolist(),
-        "stress_argmax_onnx": actual_stress.argmax(1).tolist(),
-        "yo_argmax_reference": reference_yo.argmax(1).tolist(),
-        "yo_argmax_onnx": actual_yo.argmax(1).tolist(),
-        "stress_max_abs_error": stress_error,
-        "yo_max_abs_error": yo_error,
-        "max_abs_error": max_abs_error,
+        "cases": cases,
+        "max_abs_error": global_max_abs_error,
         "tolerance": TOLERANCE,
         "full_call_parity": False,
     }

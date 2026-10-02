@@ -13,10 +13,11 @@
     "\u0440\u0430\u043c\u0443",
     "\u043a\u0432\u0430\u043d\u0442\u043e\u043b\u0438\u043a",
     "\u0441\u0435\u043b\u043e",
-    "\u0431\u043e\u043b\u044c\u0448\u043e\u0435"
+    "\u0431\u043e\u043b\u044c\u0448\u043e\u0435",
+    "\u0435\u043b\u043a\u0430"
   ],
   "embedding_shape": [
-    6,
+    7,
     16
   ],
   "dynamic_axes": {
@@ -53,40 +54,50 @@
   "providers": [
     "CPUExecutionProvider"
   ],
-  "stress_argmax_reference": [
-    0,
-    0,
-    0,
-    1,
-    1,
-    1
+  "cases": [
+    {
+      "id": "word_count_1",
+      "word_count": 1,
+      "words": ["\u043c\u0430\u043c\u0430"],
+      "per_word": [
+        {
+          "word": "\u043c\u0430\u043c\u0430",
+          "stress_argmax_reference": 0,
+          "stress_argmax_onnx": 0,
+          "yo_argmax_reference": 0,
+          "yo_argmax_onnx": 0
+        }
+      ],
+      "stress_max_abs_error": 0.000244140625,
+      "yo_max_abs_error": 0.0078125,
+      "max_abs_error": 0.0078125
+    },
+    {
+      "id": "word_count_7",
+      "word_count": 7,
+      "words": [
+        "\u043c\u0430\u043c\u0430",
+        "\u043c\u044b\u043b\u0430",
+        "\u0440\u0430\u043c\u0443",
+        "\u043a\u0432\u0430\u043d\u0442\u043e\u043b\u0438\u043a",
+        "\u0441\u0435\u043b\u043e",
+        "\u0431\u043e\u043b\u044c\u0448\u043e\u0435",
+        "\u0435\u043b\u043a\u0430"
+      ],
+      "per_word": [
+        {"word": "\u043c\u0430\u043c\u0430", "stress_argmax_reference": 0, "stress_argmax_onnx": 0, "yo_argmax_reference": 0, "yo_argmax_onnx": 0},
+        {"word": "\u043c\u044b\u043b\u0430", "stress_argmax_reference": 0, "stress_argmax_onnx": 0, "yo_argmax_reference": 0, "yo_argmax_onnx": 0},
+        {"word": "\u0440\u0430\u043c\u0443", "stress_argmax_reference": 0, "stress_argmax_onnx": 0, "yo_argmax_reference": 0, "yo_argmax_onnx": 0},
+        {"word": "\u043a\u0432\u0430\u043d\u0442\u043e\u043b\u0438\u043a", "stress_argmax_reference": 1, "stress_argmax_onnx": 1, "yo_argmax_reference": 0, "yo_argmax_onnx": 0},
+        {"word": "\u0441\u0435\u043b\u043e", "stress_argmax_reference": 1, "stress_argmax_onnx": 1, "yo_argmax_reference": 0, "yo_argmax_onnx": 0},
+        {"word": "\u0431\u043e\u043b\u044c\u0448\u043e\u0435", "stress_argmax_reference": 1, "stress_argmax_onnx": 1, "yo_argmax_reference": 0, "yo_argmax_onnx": 0},
+        {"word": "\u0435\u043b\u043a\u0430", "stress_argmax_reference": 0, "stress_argmax_onnx": 0, "yo_argmax_reference": 1, "yo_argmax_onnx": 1}
+      ],
+      "stress_max_abs_error": 0.00146484375,
+      "yo_max_abs_error": 0.03125,
+      "max_abs_error": 0.03125
+    }
   ],
-  "stress_argmax_onnx": [
-    0,
-    0,
-    0,
-    1,
-    1,
-    1
-  ],
-  "yo_argmax_reference": [
-    0,
-    0,
-    0,
-    0,
-    0,
-    0
-  ],
-  "yo_argmax_onnx": [
-    0,
-    0,
-    0,
-    0,
-    0,
-    0
-  ],
-  "stress_max_abs_error": 0.0,
-  "yo_max_abs_error": 0.03125,
   "max_abs_error": 0.03125,
   "tolerance": 0.1,
   "full_call_parity": false
