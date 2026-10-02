@@ -221,6 +221,7 @@ struct RegexPatterns {
     const std::regex ru_abbreviation_tp{R"((^|[^A-Za-zА-Яа-яЁё])т\.п\.)"};
     const std::regex en_currency_decimal{R"(\$([0-9]+)\.([0-9]{1,}))"};
     const std::regex en_currency_integer{R"(\$([0-9]+)(?![0-9]|\.[0-9]))"};
+    const std::regex en_ordinal{R"((^|[^A-Za-z0-9-])(-?[0-9]+)(st|nd|rd|th)\b)"};
     const std::regex en_percent{R"((-?[0-9]+(?:\.[0-9]+)?)\s*%)"};
     const std::regex en_time{R"(\b(\d{1,2}):(\d{2})\b)"};
     const std::regex en_decimal{R"((^|[^$A-Za-z0-9])(-?\d+\.\d+))"};
@@ -266,6 +267,19 @@ void add_warning(WarningSink& warnings,
                  std::size_t group) {
     const auto begin = static_cast<std::size_t>(match.position(group));
     warnings.add(code, std::move(message), text.source_range(begin, begin + match.length(group)));
+}
+
+void add_warning_span(WarningSink& warnings,
+                      WarningCode code,
+                      std::string message,
+                      const MappedText& text,
+                      const std::smatch& match,
+                      std::size_t begin_group,
+                      std::size_t end_group) {
+    const auto begin = static_cast<std::size_t>(match.position(begin_group));
+    const auto end = static_cast<std::size_t>(match.position(end_group)) +
+                     static_cast<std::size_t>(match.length(end_group));
+    warnings.add(code, std::move(message), text.source_range(begin, end));
 }
 
 void add_warning_without_suffix(WarningSink& warnings,
@@ -400,6 +414,56 @@ std::string en_number(long long n) {
     if (n < 1000000000)
         return en_number(n / 1000000) + " million" +
                (n % 1000000 ? " " + en_number(n % 1000000) : "");
+    return std::to_string(n);
+}
+const char* en_ordinal_suffix(long long n) {
+    const auto last_two = n % 100;
+    if (last_two >= 11 && last_two <= 13)
+        return "th";
+    switch (n % 10) {
+    case 1:
+        return "st";
+    case 2:
+        return "nd";
+    case 3:
+        return "rd";
+    default:
+        return "th";
+    }
+}
+std::string en_ordinal(long long n) {
+    if (n < 0)
+        return "minus " + en_ordinal(-n);
+    if (n == 0)
+        return "zeroth";
+    static const char* const under_twenty[] = {
+        "",          "first",     "second",      "third",      "fourth",
+        "fifth",     "sixth",     "seventh",     "eighth",     "ninth",
+        "tenth",     "eleventh",  "twelfth",     "thirteenth", "fourteenth",
+        "fifteenth", "sixteenth", "seventeenth", "eighteenth", "nineteenth"};
+    static const char* const tens[] = {"",
+                                       "",
+                                       "twentieth",
+                                       "thirtieth",
+                                       "fortieth",
+                                       "fiftieth",
+                                       "sixtieth",
+                                       "seventieth",
+                                       "eightieth",
+                                       "ninetieth"};
+    if (n < 20)
+        return under_twenty[n];
+    if (n < 100)
+        return n % 10 == 0 ? tens[n / 10] : en_number(n / 10 * 10) + " " + under_twenty[n % 10];
+    if (n < 1000)
+        return n % 100 == 0 ? en_number(n / 100) + " hundredth"
+                            : en_number(n / 100) + " hundred " + en_ordinal(n % 100);
+    if (n < 1000000)
+        return n % 1000 == 0 ? en_number(n / 1000) + " thousandth"
+                             : en_number(n / 1000) + " thousand " + en_ordinal(n % 1000);
+    if (n < 1000000000)
+        return n % 1000000 == 0 ? en_number(n / 1000000) + " millionth"
+                                : en_number(n / 1000000) + " million " + en_ordinal(n % 1000000);
     return std::to_string(n);
 }
 bool try_parse_long(std::string_view token, long long& value) {
@@ -958,6 +1022,22 @@ MappedText normalize_en(MappedText text, WarningSink& warnings) {
                                }
                                return en_number(dollars) + (dollars == 1 ? " dollar" : " dollars");
                            });
+    text = replace_matches(
+        text, regex_patterns().en_ordinal, [&](const std::smatch& match, const MappedText& source) {
+            long long value = 0;
+            const auto suffix = match[3].str();
+            if (!try_parse_long(match[2].str(), value) || suffix != en_ordinal_suffix(value)) {
+                add_warning_span(warnings,
+                                 WarningCode::UnresolvedNumber,
+                                 "Unable to parse English ordinal",
+                                 source,
+                                 match,
+                                 2,
+                                 3);
+                return match.str();
+            }
+            return match[1].str() + en_ordinal(value);
+        });
     text = replace_matches(
         text, regex_patterns().en_percent, [&](const std::smatch& match, const MappedText& source) {
             const auto value = match[1].str();
