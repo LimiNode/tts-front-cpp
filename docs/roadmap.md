@@ -29,6 +29,8 @@ v0.1. Этапы намеренно разделены: corpus и deterministic 
   `docs/research/silero-phase1.md`; ONNX/native parity и benchmark gates ещё не пройдены.
 - **Silero Stress Phase 2** — graph-level ONNX parity для `homosolver.model`
   воспроизведена; full-call parity, accentor export и benchmark остаются открытыми.
+- **Silero Stress Phase 3** — classifier-level ONNX parity для stress/yo heads
+  воспроизведена после exact upstream n-gram embedding; embedding boundary и full-call parity ещё открыты.
 
 ## Порядок этапов
 
@@ -75,6 +77,8 @@ Phase 1 receipt и deterministic vectors находятся в
 [docs/research/silero-phase1-vectors.jsonl](research/silero-phase1-vectors.jsonl).
 Graph-level ONNX parity зафиксирована в
 [docs/research/silero-phase2-onnx.md](research/silero-phase2-onnx.md).
+Classifier-level accentor parity зафиксирована в
+[docs/research/silero-phase3-accentor-onnx.md](research/silero-phase3-accentor-onnx.md).
 Цель формулируется как **reproduce the Silero Stress inference contract in native
 C++**, а ONNX остаётся промежуточным/reference этапом:
 
