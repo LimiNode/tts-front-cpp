@@ -124,6 +124,11 @@ The sentence-level orchestration gate is captured in
 [docs/research/silero-phase4-fullcall.md](research/silero-phase4-fullcall.md):
 the Python/ONNX hybrid now matches all Phase 1 final sentences exactly.
 
+The first native preprocessing prototype is documented in
+[docs/research/silero-native-prototype.md](research/silero-native-prototype.md).
+It matches the n-gram embeddings and pinned homosolver WordPiece IDs; ONNX
+Runtime C++ execution and full native sentence parity remain open.
+
 ### 6. Benchmark-driven optimizations
 
 Только после функционального corpus pass измерять реальные hotspots:

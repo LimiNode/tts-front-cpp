@@ -1,0 +1,98 @@
+{
+  "record_type": "silero_native_preprocessing_parity",
+  "source_revision": "d38096cae9bf3ac846bbb88705428f3ed3801b96",
+  "model_sha256": "aecb207df9db34a079de2ba91edba2a9333839ad24de0cf17e7bc82424876786",
+  "asset_manifest": {
+    "record_type": "silero_native_asset_manifest",
+    "source_revision": "d38096cae9bf3ac846bbb88705428f3ed3801b96",
+    "model_sha256": "aecb207df9db34a079de2ba91edba2a9333839ad24de0cf17e7bc82424876786",
+    "embedding_dictionary_entries": 126523,
+    "embedding_dimension": 16,
+    "embedding_rows": 126523,
+    "bert_vocab_entries": 83830,
+    "special_token_ids": {
+      "pad": 0,
+      "unk": 1,
+      "cls": 2,
+      "sep": 3,
+      "homo_start": 83828,
+      "homo_end": 83829
+    },
+    "assets": {
+      "ngrams.tsv": {
+        "sha256": "415d1be5c2cef7916e8b4af4f652ba146039cb597d7d6d0a64c19e9696d71219",
+        "bytes": 1862053
+      },
+      "embedding.f32": {
+        "sha256": "91481afa43af2d07ea82daa95a957258878d54a906a679ae62ca200f18cef593",
+        "bytes": 8097472
+      },
+      "bert-vocab.tsv": {
+        "sha256": "d3cc77e970aa42a7c2ee640e492a4f6970cb2a132084d720e04960b9e26fc08a",
+        "bytes": 1572552
+      },
+      "homodict.json": {
+        "sha256": "5ee39e993114f75c9f03aef0ba4c2ddadebe11bed641e688e6c4b30aa2ef7121",
+        "bytes": 333147
+      }
+    },
+    "phrase_rules": "upstream compiled phrase rules remain a separate native-port gate"
+  },
+  "embedding_words": [
+    "\u043c\u0430\u043c\u0430",
+    "\u043c\u044b\u043b\u0430",
+    "\u0440\u0430\u043c\u0443",
+    "\u043a\u0432\u0430\u043d\u0442\u043e\u043b\u0438\u043a",
+    "\u0441\u0435\u043b\u043e",
+    "\u0431\u043e\u043b\u044c\u0448\u043e\u0435",
+    "\u0435\u043b\u043a\u0430"
+  ],
+  "embedding_shape": [
+    7,
+    16
+  ],
+  "embedding_max_abs_error": 7.152557373046875e-07,
+  "embedding_tolerance": 1e-05,
+  "wordpiece_cases": [
+    {
+      "id": "homograph_selo_verb",
+      "tokenizer_ids": [
+        2,
+        40227,
+        1806,
+        18,
+        3
+      ],
+      "parity": true
+    },
+    {
+      "id": "homograph_selo_noun",
+      "tokenizer_ids": [
+        2,
+        5130,
+        15640,
+        1806,
+        18,
+        3
+      ],
+      "parity": true
+    },
+    {
+      "id": "marked_mel",
+      "tokenizer_ids": [
+        2,
+        37499,
+        16,
+        83828,
+        30468,
+        83829,
+        5,
+        3
+      ],
+      "parity": true
+    }
+  ],
+  "embedding_parity": true,
+  "wordpiece_parity": true,
+  "full_native_call_parity": false
+}
