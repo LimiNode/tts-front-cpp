@@ -49,6 +49,17 @@ def run(executable: Path, arguments: list[str], lines: list[str]) -> list[str]:
     return completed.stdout.splitlines()
 
 
+def expect_rejected(executable: Path, arguments: list[str], payload: bytes) -> bool:
+    completed = subprocess.run(
+        [str(executable), *arguments],
+        input=payload,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    return completed.returncode != 0
+
+
 def main() -> int:
     args = parse_args()
     manifest = json.loads((args.assets / "manifest.json").read_text(encoding="utf-8"))
@@ -83,6 +94,35 @@ def main() -> int:
             raise SystemExit(f"native WordPiece parity failed for {case[0]}: {actual}")
         token_results.append({"id": case[0], "tokenizer_ids": actual, "parity": equal})
 
+    malformed_cases = {
+        "truncated_2_byte": b"\xc2\n",
+        "truncated_3_byte": b"\xe2\x82\n",
+        "truncated_4_byte": b"\xf0\x9f\x92\n",
+        "bad_continuation": b"\xd0 \n",
+        "overlong_2_byte": b"\xc0\x80\n",
+        "surrogate": b"\xed\xa0\x80\n",
+        "above_unicode_max": b"\xf4\x90\x80\x80\n",
+    }
+    malformed_results = []
+    for case_id, payload in malformed_cases.items():
+        preprocess_rejected = expect_rejected(
+            args.preprocess_exe.resolve(),
+            ["--ngrams", str(args.assets / "ngrams.tsv"), "--weights", str(args.assets / "embedding.f32")],
+            payload,
+        )
+        wordpiece_rejected = expect_rejected(
+            args.wordpiece_exe.resolve(), ["--vocab", str(args.assets / "bert-vocab.tsv")], payload
+        )
+        if not preprocess_rejected or not wordpiece_rejected:
+            raise SystemExit(f"malformed UTF-8 was accepted: {case_id}")
+        malformed_results.append(
+            {
+                "id": case_id,
+                "preprocess_rejected": preprocess_rejected,
+                "wordpiece_rejected": wordpiece_rejected,
+            }
+        )
+
     receipt = {
         "record_type": "silero_native_preprocessing_parity",
         "source_revision": manifest["source_revision"],
@@ -93,8 +133,10 @@ def main() -> int:
         "embedding_max_abs_error": embedding_error,
         "embedding_tolerance": TOLERANCE,
         "wordpiece_cases": token_results,
+        "malformed_utf8_cases": malformed_results,
         "embedding_parity": True,
         "wordpiece_parity": True,
+        "strict_utf8_rejection": True,
         "full_native_call_parity": False,
     }
     args.receipt.parent.mkdir(parents=True, exist_ok=True)

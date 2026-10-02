@@ -92,7 +92,45 @@
       "parity": true
     }
   ],
+  "malformed_utf8_cases": [
+    {
+      "id": "truncated_2_byte",
+      "preprocess_rejected": true,
+      "wordpiece_rejected": true
+    },
+    {
+      "id": "truncated_3_byte",
+      "preprocess_rejected": true,
+      "wordpiece_rejected": true
+    },
+    {
+      "id": "truncated_4_byte",
+      "preprocess_rejected": true,
+      "wordpiece_rejected": true
+    },
+    {
+      "id": "bad_continuation",
+      "preprocess_rejected": true,
+      "wordpiece_rejected": true
+    },
+    {
+      "id": "overlong_2_byte",
+      "preprocess_rejected": true,
+      "wordpiece_rejected": true
+    },
+    {
+      "id": "surrogate",
+      "preprocess_rejected": true,
+      "wordpiece_rejected": true
+    },
+    {
+      "id": "above_unicode_max",
+      "preprocess_rejected": true,
+      "wordpiece_rejected": true
+    }
+  ],
   "embedding_parity": true,
   "wordpiece_parity": true,
+  "strict_utf8_rejection": true,
   "full_native_call_parity": false
 }

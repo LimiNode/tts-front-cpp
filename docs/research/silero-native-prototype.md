@@ -11,6 +11,10 @@ The asset exporter writes only to `.temp/` and records hashes for the pinned
 model, n-gram dictionary, embedding weights, BERT vocabulary, and homograph
 dictionary. No model or generated asset is committed.
 
+Both native executables share a strict UTF-8 decoder. Truncated sequences,
+invalid continuation bytes, overlong encodings, surrogate code points, and
+values above `U+10FFFF` fail closed with a non-zero exit status.
+
 Build and run the preprocessing prototype:
 
 ```text
@@ -35,6 +39,13 @@ Observed native parity:
 - `Солнце село.` tokenizer IDs: `[2, 40227, 1806, 18, 3]`;
 - `Это большое село.` tokenizer IDs: `[2, 5130, 15640, 1806, 18, 3]`;
 - marked `[HOMO] мел [/HOMO]` IDs also match the pinned reference exactly.
+- malformed UTF-8 rejection is covered for truncated 2/3/4-byte sequences,
+  invalid continuation bytes, overlong encodings, surrogate code points, and
+  values above `U+10FFFF`.
+
+The repository CI builds this research CMake project on GCC, Clang, and MSVC;
+the Python parity receipt remains a local research gate because model assets
+are intentionally not checked into the repository.
 
 ## Remaining native gates
 

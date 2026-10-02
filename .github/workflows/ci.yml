@@ -54,3 +54,31 @@ jobs:
           cmake -S tests/consumer -B consumer-build -DCMAKE_PREFIX_PATH="$PWD/stage"
           cmake --build consumer-build --config ${{ matrix.build_type }} --parallel
           .\consumer-build\${{ matrix.build_type }}\tts_front_consumer.exe
+
+  native-research-linux:
+    strategy:
+      matrix:
+        compiler: [gcc, clang]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select compiler
+        shell: bash
+        run: |
+          if [ "${{ matrix.compiler }}" = "clang" ]; then
+            echo "CC=clang" >> "$GITHUB_ENV"
+            echo "CXX=clang++" >> "$GITHUB_ENV"
+          fi
+      - name: Build native research prototype
+        run: |
+          cmake -S research/silero-native -B build-native -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-native --parallel
+
+  native-research-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build native research prototype
+        run: |
+          cmake -S research/silero-native -B build-native
+          cmake --build build-native --config Release --parallel
