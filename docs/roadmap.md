@@ -120,6 +120,10 @@ It independently reproduces tokenization and n-gram embedding and checks
 classifier argmax parity on all Phase 1 vectors. Homograph resolution and
 full-call parity remain explicitly open.
 
+The sentence-level orchestration gate is captured in
+[docs/research/silero-phase4-fullcall.md](research/silero-phase4-fullcall.md):
+the Python/ONNX hybrid now matches all Phase 1 final sentences exactly.
+
 ### 6. Benchmark-driven optimizations
 
 Только после функционального corpus pass измерять реальные hotspots:

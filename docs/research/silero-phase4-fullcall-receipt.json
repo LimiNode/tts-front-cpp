@@ -1,0 +1,85 @@
+{
+  "record_type": "accentor_sentence_orchestration_parity",
+  "project": "snakers4/silero-stress",
+  "source_revision": "d38096cae9bf3ac846bbb88705428f3ed3801b96",
+  "model_sha256": "aecb207df9db34a079de2ba91edba2a9333839ad24de0cf17e7bc82424876786",
+  "stress_onnx_sha256": "6c2d4807120e3eca64e183ed1da914781e21aa5a8517233deaa102d389033a6e",
+  "yo_onnx_sha256": "ea9b5a1e58be408476fb53b1bc2d3dcb62003addfa01ebeee9aff888d5f5664f",
+  "homosolver_onnx_sha256": "846181b2c76f9769eee6656ace32f11e91293bee81cfd8b6f0fdd93892ed7048",
+  "homograph_tokenizer": "pinned upstream SimpleBertTokenizer",
+  "upstream_boundary_dependencies": [
+    "SimpleBertTokenizer",
+    "compiled homograph phrase rules"
+  ],
+  "parity_scope": "Python/ONNX hybrid final sentence output",
+  "cases": [
+    {
+      "id": "exception_lookup",
+      "input": "\u041c\u0430\u043c\u0430 \u043c\u044b\u043b\u0430 \u0440\u0430\u043c\u0443.",
+      "reference_output": "\u041c+\u0430\u043c\u0430 \u043c+\u044b\u043b\u0430 \u0440+\u0430\u043c\u0443.",
+      "hybrid_output": "\u041c+\u0430\u043c\u0430 \u043c+\u044b\u043b\u0430 \u0440+\u0430\u043c\u0443.",
+      "exact_output_parity": true,
+      "homograph_decisions": []
+    },
+    {
+      "id": "oov",
+      "input": "\u041a\u0432\u0430\u043d\u0442\u043e\u043b\u0438\u043a.",
+      "reference_output": "\u041a\u0432\u0430\u043d\u0442+\u043e\u043b\u0438\u043a.",
+      "hybrid_output": "\u041a\u0432\u0430\u043d\u0442+\u043e\u043b\u0438\u043a.",
+      "exact_output_parity": true,
+      "homograph_decisions": []
+    },
+    {
+      "id": "homograph_selo_verb",
+      "input": "\u0421\u043e\u043b\u043d\u0446\u0435 \u0441\u0435\u043b\u043e.",
+      "reference_output": "\u0421+\u043e\u043b\u043d\u0446\u0435 \u0441+\u0435\u043b\u043e.",
+      "hybrid_output": "\u0421+\u043e\u043b\u043d\u0446\u0435 \u0441+\u0435\u043b\u043e.",
+      "exact_output_parity": true,
+      "homograph_decisions": [
+        {
+          "word": "\u0441\u0435\u043b\u043e",
+          "variant": "\u0441+\u0435\u043b\u043e",
+          "path": "phrase_rule"
+        }
+      ]
+    },
+    {
+      "id": "homograph_selo_noun",
+      "input": "\u042d\u0442\u043e \u0431\u043e\u043b\u044c\u0448\u043e\u0435 \u0441\u0435\u043b\u043e.",
+      "reference_output": "+\u042d\u0442\u043e \u0431\u043e\u043b\u044c\u0448+\u043e\u0435 \u0441\u0435\u043b+\u043e.",
+      "hybrid_output": "+\u042d\u0442\u043e \u0431\u043e\u043b\u044c\u0448+\u043e\u0435 \u0441\u0435\u043b+\u043e.",
+      "exact_output_parity": true,
+      "homograph_decisions": [
+        {
+          "word": "\u0441\u0435\u043b\u043e",
+          "variant": "\u0441\u0435\u043b+\u043e",
+          "path": "homosolver_onnx"
+        }
+      ]
+    },
+    {
+      "id": "yo_case",
+      "input": "\u0415\u043b\u043a\u0430 \u0451\u043b\u043a\u0430.",
+      "reference_output": "+\u0401\u043b\u043a\u0430 +\u0451\u043b\u043a\u0430.",
+      "hybrid_output": "+\u0401\u043b\u043a\u0430 +\u0451\u043b\u043a\u0430.",
+      "exact_output_parity": true,
+      "homograph_decisions": []
+    },
+    {
+      "id": "punctuation_boundaries",
+      "input": "\u00ab\u041c\u0430\u043c\u0430\u00bb, \u2014 \u043c\u0435\u043b!",
+      "reference_output": "\u00ab\u041c+\u0430\u043c\u0430\u00bb, \u2014 \u043c+\u0451\u043b!",
+      "hybrid_output": "\u00ab\u041c+\u0430\u043c\u0430\u00bb, \u2014 \u043c+\u0451\u043b!",
+      "exact_output_parity": true,
+      "homograph_decisions": [
+        {
+          "word": "\u043c\u0435\u043b",
+          "variant": "\u043c+\u0435\u043b",
+          "path": "homosolver_onnx"
+        }
+      ]
+    }
+  ],
+  "exact_output_parity": true,
+  "full_call_parity": true
+}
