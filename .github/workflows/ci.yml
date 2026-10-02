@@ -84,3 +84,20 @@ jobs:
           cmake -S research/silero-native -B build-native
           cmake --build build-native --config Release --parallel
           ctest --test-dir build-native -C Release --output-on-failure
+
+  native-ort-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download pinned ONNX Runtime SDK
+        shell: pwsh
+        run: |
+          $url = "https://github.com/microsoft/onnxruntime/releases/download/v1.30.0/onnxruntime-win-x64-1.30.0.zip"
+          Invoke-WebRequest -Uri $url -OutFile ort.zip
+          Expand-Archive -Path ort.zip -DestinationPath .
+      - name: Build native ONNX Runtime probe
+        shell: pwsh
+        run: |
+          cmake -S research/silero-native -B build-native-ort `
+            -DSILERO_NATIVE_ORT_ROOT="$PWD/onnxruntime-win-x64-1.30.0"
+          cmake --build build-native-ort --config Release --target silero_native_ort_probe --parallel
