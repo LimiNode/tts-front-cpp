@@ -6,11 +6,15 @@ core.
 
 ## Result
 
-The pinned `homosolver.model` graph exports with the legacy TorchScript ONNX
-exporter and passes CPU ONNX Runtime parity on the representative
-`Солнце село.` span. The committed receipt records the exact model hash, input
-IDs, span IDs, artifact hash, runtime versions, both outputs, and maximum
-absolute error.
+The pinned `homosolver.model` graph exports with dynamic sequence and
+homograph-count axes and passes CPU ONNX Runtime parity on both semantic
+homograph cases from Phase 1:
+
+- `Солнце село.` — verb reading;
+- `Это большое село.` — settlement noun reading.
+
+The receipt records per-case inputs, span IDs, outputs, errors, and the global
+maximum error. The current global maximum is below `1e-4`.
 
 Run it with all generated artifacts below `.temp/`:
 
@@ -23,16 +27,20 @@ python tools/silero_phase2_onnx.py \
 
 The harness checks the pinned source revision, loads the explicitly resolved
 artifact through `torch.package.PackageImporter`, runs PyTorch first, exports
-the graph, validates the ONNX model, runs ONNX Runtime on CPU, and fails if
-the maximum absolute error exceeds `1e-4`.
+the graph with dynamic axes, validates the ONNX model, runs ONNX Runtime on
+CPU for both cases, and fails if any per-case error exceeds `1e-4`.
 
-## Scope boundary
+## Span provenance and scope boundary
 
-This is graph-level parity, not full `SileroStress.__call__` parity. The
+The `homo_start_ids` and `homo_end_ids` are reference-prepared inputs derived
+from the upstream homosolver model contract. They are recorded explicitly in
+each case; reproducing the tokenizer and homograph lookup pipeline that
+produces them is a later gate.
+
+This is still graph-level parity, not full `SileroStress.__call__` parity. The
 upstream tokenizer, n-gram accentor, homograph dictionaries, phrase/regex
 rules, `+` marker projection, and sentence-level cascade remain outside the
-exported graph. Full reference parity must not be claimed until those layers
-are represented and checked as well.
+exported graph.
 
 The next gates are therefore:
 

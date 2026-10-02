@@ -24,8 +24,21 @@ from silero_phase1 import (
 )
 
 
-SENTENCE = "\u0421\u043e\u043b\u043d\u0446\u0435 \u0441\u0435\u043b\u043e."
 TOLERANCE = 1.0e-4
+CASES = (
+    {
+        "id": "homograph_selo_verb",
+        "sentence": "\u0421\u043e\u043b\u043d\u0446\u0435 \u0441\u0435\u043b\u043e.",
+        "homo_start": 1,
+        "homo_end": 3,
+    },
+    {
+        "id": "homograph_selo_noun",
+        "sentence": "\u042d\u0442\u043e \u0431\u043e\u043b\u044c\u0448\u043e\u0435 \u0441\u0435\u043b\u043e.",
+        "homo_start": 2,
+        "homo_end": 4,
+    },
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -80,16 +93,17 @@ def main() -> int:
     accentor = load_accentor(torch, model)
     graph = accentor.homosolver.model.eval()
 
-    # The upstream homosolver uses a marker position immediately before the
-    # selected word.  For "Солнце село." the tokenizer is [CLS, Солнце, село,
-    # ., SEP], hence marker index 1 and exclusive end index 3.
-    input_ids = torch.tensor([accentor.homosolver.tokenizer(SENTENCE)], dtype=torch.long)
-    homo_start_ids = torch.tensor([1], dtype=torch.long)
-    homo_end_ids = torch.tensor([3], dtype=torch.long)
-    artifact = work_dir / "homosolver.onnx"
+    prepared_cases = []
+    for case in CASES:
+        input_ids = torch.tensor([accentor.homosolver.tokenizer(case["sentence"])], dtype=torch.long)
+        homo_start_ids = torch.tensor([case["homo_start"]], dtype=torch.long)
+        homo_end_ids = torch.tensor([case["homo_end"]], dtype=torch.long)
+        prepared_cases.append((case, input_ids, homo_start_ids, homo_end_ids))
 
-    with torch.no_grad():
-        reference = graph(input_ids, homo_start_ids, homo_end_ids).cpu().numpy()
+    # These are reference-prepared graph inputs following the upstream model
+    # contract. Tokenizer and homograph lookup reproduction is a later gate.
+    _, input_ids, homo_start_ids, homo_end_ids = prepared_cases[0]
+    artifact = work_dir / "homosolver.onnx"
     torch.onnx.export(
         graph,
         (input_ids, homo_start_ids, homo_end_ids),
@@ -98,20 +112,45 @@ def main() -> int:
         dynamo=False,
         input_names=["input_ids", "homo_start_ids", "homo_end_ids"],
         output_names=["logits"],
+        dynamic_axes={
+            "input_ids": {0: "homograph_count", 1: "sequence_length"},
+            "homo_start_ids": {0: "homograph_count"},
+            "homo_end_ids": {0: "homograph_count"},
+            "logits": {0: "homograph_count"},
+        },
     )
     onnx.checker.check_model(onnx.load(artifact))
     session = ort.InferenceSession(str(artifact), providers=["CPUExecutionProvider"])
-    actual = session.run(
-        None,
-        {
-            "input_ids": input_ids.numpy(),
-            "homo_start_ids": homo_start_ids.numpy(),
-            "homo_end_ids": homo_end_ids.numpy(),
-        },
-    )[0]
-    max_abs_error = float(np.max(np.abs(reference - actual)))
-    if max_abs_error > TOLERANCE:
-        raise SystemExit(f"ONNX parity failed: max_abs_error={max_abs_error}")
+    case_receipts = []
+    global_max_abs_error = 0.0
+    for case, input_ids, homo_start_ids, homo_end_ids in prepared_cases:
+        with torch.no_grad():
+            reference = graph(input_ids, homo_start_ids, homo_end_ids).cpu().numpy()
+        actual = session.run(
+            None,
+            {
+                "input_ids": input_ids.numpy(),
+                "homo_start_ids": homo_start_ids.numpy(),
+                "homo_end_ids": homo_end_ids.numpy(),
+            },
+        )[0]
+        max_abs_error = float(np.max(np.abs(reference - actual)))
+        global_max_abs_error = max(global_max_abs_error, max_abs_error)
+        if max_abs_error > TOLERANCE:
+            raise SystemExit(f"ONNX parity failed for {case['id']}: {max_abs_error}")
+        case_receipts.append(
+            {
+                "id": case["id"],
+                "sentence": case["sentence"],
+                "tokenizer_ids": input_ids[0].tolist(),
+                "homo_start_ids": homo_start_ids.tolist(),
+                "homo_end_ids": homo_end_ids.tolist(),
+                "span_origin": "reference-prepared upstream homosolver graph inputs",
+                "reference_output": reference.tolist(),
+                "onnx_output": actual.tolist(),
+                "max_abs_error": max_abs_error,
+            }
+        )
 
     resolved_model_path = (
         str(model.relative_to(source)).replace("\\", "/")
@@ -126,10 +165,12 @@ def main() -> int:
         "model_sha256": sha256(model),
         "model_loader": "torch.package.PackageImporter",
         "graph_scope": "homosolver.model only; tokenizer and lookup tables remain outside graph",
-        "sentence": SENTENCE,
-        "tokenizer_ids": input_ids[0].tolist(),
-        "homo_start_ids": homo_start_ids.tolist(),
-        "homo_end_ids": homo_end_ids.tolist(),
+        "dynamic_axes": {
+            "input_ids": ["homograph_count", "sequence_length"],
+            "homo_start_ids": ["homograph_count"],
+            "homo_end_ids": ["homograph_count"],
+            "logits": ["homograph_count"],
+        },
         "opset": 17,
         "onnx_artifact": artifact.name,
         "onnx_sha256": sha256(artifact),
@@ -139,9 +180,8 @@ def main() -> int:
         "onnxruntime": ort.__version__,
         "platform": platform.platform(),
         "providers": session.get_providers(),
-        "reference_output": reference.tolist(),
-        "onnx_output": actual.tolist(),
-        "max_abs_error": max_abs_error,
+        "cases": case_receipts,
+        "max_abs_error": global_max_abs_error,
         "tolerance": TOLERANCE,
         "full_call_parity": False,
     }
