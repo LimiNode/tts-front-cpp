@@ -30,6 +30,9 @@ def main() -> int:
         opset_imports=[helper.make_opsetid("", 17)],
         producer_name="tts-front-cpp",
     )
+    # Keep the generated fixture within the ONNX Runtime 1.30 compatibility
+    # envelope even when the CI-installed onnx package emits a newer IR.
+    model.ir_version = 10
     with tempfile.TemporaryDirectory(prefix="silero-native-ort-smoke-") as temporary:
         root = Path(temporary)
         graph_path = root / "identity.onnx"
