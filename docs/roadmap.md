@@ -8,6 +8,10 @@
 > dependency graph; focused functional PRs may move an item when its contract and gate
 > criteria remain explicit.
 
+> Status: invalid-span preservation and the first source-coordinate contract are now
+> implemented in the source-mapping PR. The private mapping remains intentionally
+> narrow; it is not a generic transformation framework.
+
 Этот документ фиксирует порядок развития `tts-front-cpp` после закрытия baseline
 v0.1. Этапы намеренно разделены: corpus и deterministic rules не должны незаметно
 превратиться в source-map или neural-runtime рефакторинг.
@@ -38,18 +42,17 @@ v0.1. Этапы намеренно разделены: corpus и deterministic 
 
 Переход дальше возможен только при воспроизводимых fixture-тестах и зелёном CI.
 
-### 2. Invalid-span preservation / source mapping
+### 2. Invalid-span preservation / source mapping — implemented
 
-Сначала определить контракт, затем реализацию:
+Контракт и минимальная реализация теперь зафиксированы:
 
-1. invalid/ambiguous span должен сохраняться через все последующие regex passes;
-2. добавить regression cases на сохранение исходного текста;
-3. описать mapping между `original_text` и length-changing stages;
-4. только после этого публиковать точные `TextWarning::offset/length`.
+1. invalid/ambiguous span сохраняется через последующие regex passes;
+2. warning fragments разрешаются в UTF-8 byte ranges исходного `original_text`;
+3. cleanup, technical protection, grouped-number collapse и length-changing replacements
+   не публикуют промежуточные координаты;
+4. generated text без надёжного source fragment mapping получает `0/0`.
 
-До появления полноценного mapping normalization warnings остаются `0/0`; точные
-координаты допустимы только там, где исходный диапазон известен напрямую, например
-для whole-input invalid UTF-8.
+Это намеренно узкая implementation detail, а не полноценный generic transformation map.
 
 ### 3. Более широкая deterministic normalization
 
