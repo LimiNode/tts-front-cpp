@@ -16,6 +16,7 @@ import argparse
 import hashlib
 import json
 import platform
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -26,7 +27,7 @@ DEFAULT_MODEL_RELATIVE_PATH = "src/silero_stress/data/accentor.pt"
 
 VECTORS = (
     {
-        "id": "known_vocabulary",
+        "id": "exception_lookup",
         "category": "known_vocabulary",
         "input": "\u041c\u0430\u043c\u0430 \u043c\u044b\u043b\u0430 \u0440\u0430\u043c\u0443.",
     },
@@ -36,14 +37,18 @@ VECTORS = (
         "input": "\u041a\u0432\u0430\u043d\u0442\u043e\u043b\u0438\u043a.",
     },
     {
-        "id": "homograph_selo_subject",
+        "id": "homograph_selo_verb",
         "category": "homograph_context",
-        "input": "\u042d\u0442\u043e \u0441\u0435\u043b\u043e.",
+        "input": "\u0421\u043e\u043b\u043d\u0446\u0435 \u0441\u0435\u043b\u043e.",
+        "expected_sense": "verb_past_neuter",
+        "expected_stressed_vowel": 0,
     },
     {
-        "id": "homograph_selo_object",
+        "id": "homograph_selo_noun",
         "category": "homograph_context",
-        "input": "\u042f \u0432\u0438\u0436\u0443 \u0441\u0435\u043b\u043e.",
+        "input": "\u042d\u0442\u043e \u0431\u043e\u043b\u044c\u0448\u043e\u0435 \u0441\u0435\u043b\u043e.",
+        "expected_sense": "noun_settlement",
+        "expected_stressed_vowel": 1,
     },
     {
         "id": "yo_case",
@@ -56,6 +61,9 @@ VECTORS = (
         "input": "\u00ab\u041c\u0430\u043c\u0430\u00bb, \u2014 \u043c\u0435\u043b!",
     },
 )
+
+VOWELS = frozenset("АЕЁИОУЫЭЮЯаеёиоуыэюя")
+WORD_PATTERN = re.compile(r"[А-Яа-яЁё+]+")
 
 
 def sha256(path: Path) -> str:
@@ -93,6 +101,74 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def load_accentor(torch, model: Path):
+    """Load exactly *model*, mirroring upstream load_accentor post-processing."""
+    with model.open("rb") as model_file:
+        accentor = torch.package.PackageImporter(model_file).load_pickle(
+            "accentor_models", "accentor"
+        )
+    quantized_weight = accentor.homosolver.model.bert.embeddings.word_embeddings.weight.data.clone()
+    restored_weights = accentor.homosolver.model.bert.scale * (
+        quantized_weight - accentor.homosolver.model.bert.zero_point
+    )
+    accentor.homosolver.model.bert.embeddings.word_embeddings.weight.data = restored_weights
+    return accentor
+
+
+def token_observations(accentor, text: str):
+    raw_tokens, clean_tokens, prediction_mask = accentor.accentor._tokenize(text, set())
+    observations = []
+    cursor = 0
+    homographs = set(accentor.homosolver.homodict) | set(accentor.homosolver.yohomodict)
+    exceptions = accentor.accentor.exceptions
+    for raw, clean, should_process in zip(raw_tokens, clean_tokens, prediction_mask):
+        if not text.startswith(raw, cursor):
+            raise RuntimeError(f"upstream tokenizer lost token boundary near offset {cursor}")
+        start, end = cursor, cursor + len(raw)
+        cursor = end
+        if not clean:
+            path = "separator"
+        elif clean in homographs:
+            path = "homograph_lookup"
+        elif clean in exceptions:
+            path = "exception_lookup"
+        elif should_process:
+            path = "accentor_model"
+        else:
+            path = "skipped"
+        observations.append(
+            {
+                "raw": raw,
+                "clean": clean,
+                "process": bool(should_process),
+                "path": path,
+                "exception_hit": bool(clean and clean in exceptions),
+                "homograph_hit": bool(clean and clean in homographs),
+                "char_start": start,
+                "char_end": end,
+                "byte_start": len(text[:start].encode("utf-8")),
+                "byte_end": len(text[:end].encode("utf-8")),
+            }
+        )
+    if cursor != len(text):
+        raise RuntimeError("upstream tokenizer did not cover the complete input")
+    return observations
+
+
+def add_neutral_stress(observations, output: str):
+    word_matches = list(WORD_PATTERN.finditer(output))
+    word_observations = [item for item in observations if item["clean"]]
+    if len(word_matches) != len(word_observations):
+        raise RuntimeError("could not align upstream output words to input tokens")
+    for observation, match in zip(word_observations, word_matches):
+        marked_word = match.group(0)
+        marker = marked_word.find("+")
+        observation["model_word"] = marked_word
+        observation["stressed_vowel"] = (
+            None if marker < 0 else sum(char in VOWELS for char in marked_word[:marker])
+        )
+
+
 def main() -> int:
     args = parse_args()
     source = args.source.resolve()
@@ -111,23 +187,23 @@ def main() -> int:
     sys.path.insert(0, str(source_src))
     try:
         import torch
-        from silero_stress import load_accentor
     except ImportError as error:
         raise SystemExit("install the pinned Silero Python dependencies (torch)") from error
 
     torch.set_num_threads(1)
     torch.set_num_interop_threads(1)
-    accentor = load_accentor("ru")
+    accentor = load_accentor(torch, model)
 
     records = [
         {
             "record_type": "metadata",
             "project": "snakers4/silero-stress",
             "source_revision": revision,
-            "model_relative_path": str(model.relative_to(source)).replace("\\", "/")
+            "resolved_model_path": str(model.relative_to(source)).replace("\\", "/")
             if model.is_relative_to(source)
-            else None,
+            else str(model),
             "model_sha256": sha256(model),
+            "model_loader": "torch.package.PackageImporter",
             "python": platform.python_version(),
             "torch": torch.__version__,
             "platform": platform.platform(),
@@ -135,11 +211,22 @@ def main() -> int:
             "torch_num_interop_threads": torch.get_num_interop_threads(),
             "stress_marker": "+",
             "output_contract": "SileroStress.__call__ output with + stress markers",
+            "neutral_stress_contract": "per-token zero-based stressed_vowel ordinal",
+            "determinism_repeats": 2,
         }
     ]
-    for vector in VECTORS:
-        output = accentor(vector["input"])
-        records.append({**vector, "record_type": "vector", "output": output})
+    captures = []
+    for _ in range(2):
+        current = []
+        for vector in VECTORS:
+            output = accentor(vector["input"])
+            observations = token_observations(accentor, vector["input"])
+            add_neutral_stress(observations, output)
+            current.append({**vector, "record_type": "vector", "output": output, "tokens": observations})
+        captures.append(current)
+    if captures[0] != captures[1]:
+        raise SystemExit("Silero reference output was not deterministic across two repeats")
+    records.extend(captures[0])
 
     serialized = "".join(
         json.dumps(record, ensure_ascii=True, sort_keys=True) + "\n" for record in records
