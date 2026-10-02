@@ -28,6 +28,8 @@ Encoding contract: all public `std::string`/`std::string_view` text is UTF-8, an
 
 Исследовательские решения и provenance источников описаны в [docs/research/source-survey.md](docs/research/source-survey.md).
 
+Silero Stress Phase 1 reference receipt: [docs/research/silero-phase1.md](docs/research/silero-phase1.md).
+
 Порядок следующих функциональных этапов и критерии перехода зафиксированы в [docs/roadmap.md](docs/roadmap.md).
 
 ## Разработка
