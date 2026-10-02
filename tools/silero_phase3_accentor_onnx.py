@@ -111,6 +111,12 @@ def main() -> int:
             None, {"input_embeddings": case_embeddings.numpy()}
         )[0]
         case_actual_yo = yo_session.run(None, {"input_embeddings": case_embeddings.numpy()})[0]
+        if not np.array_equal(
+            case_reference_stress.argmax(1), case_actual_stress.argmax(1)
+        ):
+            raise SystemExit(f"stress argmax parity failed for {case_id}")
+        if not np.array_equal(case_reference_yo.argmax(1), case_actual_yo.argmax(1)):
+            raise SystemExit(f"yo argmax parity failed for {case_id}")
         stress_error = float(np.max(np.abs(case_reference_stress - case_actual_stress)))
         yo_error = float(np.max(np.abs(case_reference_yo - case_actual_yo)))
         case_max_error = max(stress_error, yo_error)
@@ -128,7 +134,7 @@ def main() -> int:
                         "stress_argmax_reference": int(stress.argmax()),
                         "stress_argmax_onnx": int(actual_stress.argmax()),
                         "yo_argmax_reference": int(yo.argmax()),
-                        "yo_argmax_onnx": int(yo.argmax()),
+                        "yo_argmax_onnx": int(actual_yo.argmax()),
                     }
                     for word, stress, actual_stress, yo, actual_yo in zip(
                         words,
