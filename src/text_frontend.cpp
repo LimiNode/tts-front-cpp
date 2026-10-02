@@ -95,8 +95,8 @@ struct RegexPatterns {
     const std::regex ru_measurement{
         R"((-?\d+)\s*(километров|километра|километр|км|килограммов|килограмма|килограмм|кг|сантиметров|сантиметра|сантиметр|см|миллиметров|миллиметра|миллиметр|мм|ГБ|МБ|м)([^А-Яа-яЁёA-Za-z0-9]|$))"};
     const std::regex generic_ru_number{R"((^|[^A-Za-z0-9_,.:])(-?\d+)(?![0-9]*[.,:][0-9]))"};
-    const std::regex ru_abbreviation_td{R"(\bт\.д\.)"};
-    const std::regex ru_abbreviation_tp{R"(\bт\.п\.)"};
+    const std::regex ru_abbreviation_td{R"((^|[^A-Za-zА-Яа-яЁё])т\.д\.)"};
+    const std::regex ru_abbreviation_tp{R"((^|[^A-Za-zА-Яа-яЁё])т\.п\.)"};
     const std::regex en_currency_decimal{R"(\$([0-9]+)\.([0-9]{1,}))"};
     const std::regex en_currency_integer{R"(\$([0-9]+)(?![0-9]|\.[0-9]))"};
     const std::regex en_percent{R"((-?[0-9]+(?:\.[0-9]+)?)\s*%)"};
@@ -704,8 +704,12 @@ std::string normalize_ru(std::string text, std::vector<TextWarning>& warnings) {
         std::move(text), regex_patterns().generic_ru_number, [&](const std::smatch& match) {
             return match[1].str() + number_or_original(match[2].str(), true, warnings);
         });
-    text = std::regex_replace(text, regex_patterns().ru_abbreviation_td, "так далее");
-    text = std::regex_replace(text, regex_patterns().ru_abbreviation_tp, "тому подобное");
+    text = replace_matches(std::move(text),
+                           regex_patterns().ru_abbreviation_td,
+                           [](const auto& match) { return match[1].str() + "так далее"; });
+    text = replace_matches(std::move(text),
+                           regex_patterns().ru_abbreviation_tp,
+                           [](const auto& match) { return match[1].str() + "тому подобное"; });
     return restore_technical(std::move(text), protected_spans);
 }
 

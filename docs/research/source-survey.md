@@ -1,6 +1,6 @@
 # Source survey
 
-Этот документ фиксирует provenance правил, использованных в `tts-front-cpp` 0.1. В core не включён код или runtime из перечисленных проектов; используются только публичные поведенческие идеи. Текущий committed corpus содержит 38 machine-readable fixtures (`tests/fixtures/basic.jsonl`): 26 RU и 12 EN, включая review regressions; адаптированные vectors из upstream пока не заявляются и будут добавлены отдельным provenance-reviewed commit.
+Этот документ фиксирует provenance правил, использованных в `tts-front-cpp` 0.1. В core не включён код или runtime из перечисленных проектов; используются только публичные поведенческие идеи. Текущий committed corpus содержит 50 machine-readable fixtures: 38 baseline vectors в `tests/fixtures/basic.jsonl` (26 RU и 12 EN, включая review regressions) и 12 provenance-reviewed vectors в `tests/fixtures/upstream_adapted.jsonl` (6 RU и 6 EN).
 
 | Source | Revision / license | Используем | Не переносим |
 |---|---|---|---|
@@ -10,8 +10,14 @@
 
 ## Правила provenance
 
-Встроенные C++ правила написаны заново и не являются механической копией исходников. Повторяемые vectors хранятся в `tests/fixtures/basic.jsonl` и исполняются `tts_front_fixture_tests`; при добавлении corpus fixture следует указывать `category`, `source` и дату адаптации. MIT/Apache attribution сохраняется в этом файле и не меняет лицензию самого проекта.
+Встроенные C++ правила написаны заново и не являются механической копией исходников. Повторяемые vectors хранятся в `tests/fixtures/basic.jsonl` и `tests/fixtures/upstream_adapted.jsonl` и исполняются `tts_front_fixture_tests`; baseline fixtures сохраняют исторический формат, а каждый новый provenance-reviewed fixture обязан указывать `category`, точный `source` revision, дату в формате `YYYY-MM-DD` в поле `adapted` и классификацию `provenance`. MIT/Apache attribution сохраняется в этом файле и не меняет лицензию самого проекта.
+
+`provenance: "adapted_vector"` означает, что поведенческий пример или тестовый
+vector воспроизводится в указанной upstream revision (при этом ожидаемый текст может
+быть адаптирован к semantic contract этого проекта). `provenance: "category_derived"`
+означает локально составленный vector, выбранный по upstream normalization
+category/grammar; это не утверждение о наличии такой exact строки в upstream tests.
 
 ## Текущий scope
 
-RU и EN deterministic normalization покрывают базовые числа, проценты, время, валюты, единицы, whitespace/punctuation cleanup и технические токены. Контекстные омографы Silero и ONNX feasibility study — следующий milestone; до него библиотека не утверждает parity или production-ready automatic stress.
+RU и EN deterministic normalization покрывают базовые числа, проценты, время, валюты, единицы, whitespace/punctuation cleanup и технические токены. Corpus expansion добавляет provenance-reviewed boundary cases для согласования единиц, ведущих нулей, десятичных дробей, сокращений и protected technical spans. Контекстные омографы Silero и ONNX feasibility study — следующий milestone; до него библиотека не утверждает parity или production-ready automatic stress.
