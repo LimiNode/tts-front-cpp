@@ -15,8 +15,11 @@ The harness reproduces:
 The receipt pins the model and source hashes, the n-gram dictionary hash, the
 embedding weight hash, and both ONNX artifact hashes. All six Phase 1 vectors
 are exercised. The independent tokenizer matches upstream for every vector,
-the maximum embedding error is `7.152557373046875e-07`, and stress/yo argmax
-parity holds for every token batch.
+the maximum embedding error is `7.152557373046875e-07` against a strict
+`1e-5` tolerance, and stress/yo argmax parity holds for every token batch.
+The harness fails immediately on any tokenization, argmax, or embedding
+threshold violation. Targeted cases also exercise hyphenated words, the
+special `-то` mask, and `words_to_ignore`.
 
 Run it with the exact Phase 3 artifacts under `.temp/`:
 

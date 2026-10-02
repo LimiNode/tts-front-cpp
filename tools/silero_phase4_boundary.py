@@ -25,6 +25,16 @@ import silero_phase1
 PINNED_SOURCE_REVISION = silero_phase1.PINNED_SOURCE_REVISION
 WORD_SPLIT = re.compile(r"([\s.,!?;:<>=()/\\]+)")
 RE_COND = re.compile(r"[^А-Яа-яёЁ]")
+EMBEDDING_TOLERANCE = 1.0e-5
+TARGETED_TOKENIZATION_CASES = (
+    {"id": "hyphenated_word", "input": "\u043a\u0442\u043e-\u043b\u0438\u0431\u043e", "words_to_ignore": []},
+    {"id": "hyphen_to", "input": "\u0447\u0442\u043e-\u0442\u043e", "words_to_ignore": []},
+    {
+        "id": "words_to_ignore",
+        "input": "\u043c\u0430\u043c\u0430 \u043f\u0430\u043f\u0430",
+        "words_to_ignore": ["\u043c\u0430\u043c\u0430"],
+    },
+)
 
 
 def sha256(path: Path) -> str:
@@ -137,15 +147,35 @@ def main() -> int:
     homographs = set(accentor.homosolver.homodict) | set(accentor.homosolver.yohomodict)
     exceptions = accentor.accentor.exceptions
     cases = []
+    targeted_cases = []
     max_embedding_error = 0.0
     all_classifier_argmax_equal = True
     all_tokenization_equal = True
+
+    for targeted in TARGETED_TOKENIZATION_CASES:
+        ignored = set(targeted["words_to_ignore"])
+        own = own_tokenize(targeted["input"], ignored)
+        reference = accentor.accentor._tokenize(targeted["input"], ignored)
+        equal = own == reference
+        if not equal:
+            raise SystemExit(f"targeted tokenization parity failed for {targeted['id']}")
+        targeted_cases.append(
+            {
+                **targeted,
+                "tokenization_equal": equal,
+                "raw_tokens": own[0],
+                "clean_tokens": own[1],
+                "prediction_mask": own[2],
+            }
+        )
 
     for vector in vectors:
         sentence = vector["input"]
         own_raw, own_clean, own_mask = own_tokenize(sentence)
         ref_raw, ref_clean, ref_mask = accentor.accentor._tokenize(sentence, None)
         tokenization_equal = (own_raw, own_clean, own_mask) == (ref_raw, ref_clean, ref_mask)
+        if not tokenization_equal:
+            raise SystemExit(f"tokenization parity failed for {vector['id']}")
         all_tokenization_equal &= tokenization_equal
         own = own_embeddings(own_clean, ngram_dict, weight)
         with torch.no_grad():
@@ -157,6 +187,14 @@ def main() -> int:
         embedding_error = float(np.max(np.abs(reference - own)))
         stress_equal = np.array_equal(reference_stress.argmax(1), actual_stress.argmax(1))
         yo_equal = np.array_equal(reference_yo.argmax(1), actual_yo.argmax(1))
+        if not stress_equal:
+            raise SystemExit(f"stress argmax parity failed for {vector['id']}")
+        if not yo_equal:
+            raise SystemExit(f"yo argmax parity failed for {vector['id']}")
+        if embedding_error > EMBEDDING_TOLERANCE:
+            raise SystemExit(
+                f"embedding parity failed for {vector['id']}: {embedding_error}"
+            )
         all_classifier_argmax_equal &= stress_equal and yo_equal
         max_embedding_error = max(max_embedding_error, embedding_error)
         paths = []
@@ -212,8 +250,11 @@ def main() -> int:
         "platform": platform.platform(),
         "providers": ["CPUExecutionProvider"],
         "tokenization_parity": all_tokenization_equal,
+        "targeted_tokenization_parity": True,
+        "targeted_tokenization_cases": targeted_cases,
         "classifier_argmax_parity": all_classifier_argmax_equal,
         "max_embedding_abs_error": max_embedding_error,
+        "embedding_tolerance": EMBEDDING_TOLERANCE,
         "full_call_parity": False,
         "homograph_resolution": "delegated_to_upstream_reference",
         "cases": cases,

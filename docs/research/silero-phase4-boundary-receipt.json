@@ -30,8 +30,71 @@
     "CPUExecutionProvider"
   ],
   "tokenization_parity": true,
+  "targeted_tokenization_parity": true,
+  "targeted_tokenization_cases": [
+    {
+      "id": "hyphenated_word",
+      "input": "\u043a\u0442\u043e-\u043b\u0438\u0431\u043e",
+      "words_to_ignore": [],
+      "tokenization_equal": true,
+      "raw_tokens": [
+        "\u043a\u0442\u043e-",
+        "\u043b\u0438\u0431\u043e"
+      ],
+      "clean_tokens": [
+        "\u043a\u0442\u043e",
+        "\u043b\u0438\u0431\u043e"
+      ],
+      "prediction_mask": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "hyphen_to",
+      "input": "\u0447\u0442\u043e-\u0442\u043e",
+      "words_to_ignore": [],
+      "tokenization_equal": true,
+      "raw_tokens": [
+        "\u0447\u0442\u043e-",
+        "\u0442\u043e"
+      ],
+      "clean_tokens": [
+        "\u0447\u0442\u043e",
+        "\u0442\u043e"
+      ],
+      "prediction_mask": [
+        true,
+        false
+      ]
+    },
+    {
+      "id": "words_to_ignore",
+      "input": "\u043c\u0430\u043c\u0430 \u043f\u0430\u043f\u0430",
+      "words_to_ignore": [
+        "\u043c\u0430\u043c\u0430"
+      ],
+      "tokenization_equal": true,
+      "raw_tokens": [
+        "\u043c\u0430\u043c\u0430",
+        " ",
+        "\u043f\u0430\u043f\u0430"
+      ],
+      "clean_tokens": [
+        "\u043c\u0430\u043c\u0430",
+        "",
+        "\u043f\u0430\u043f\u0430"
+      ],
+      "prediction_mask": [
+        false,
+        false,
+        true
+      ]
+    }
+  ],
   "classifier_argmax_parity": true,
   "max_embedding_abs_error": 7.152557373046875e-07,
+  "embedding_tolerance": 1e-05,
   "full_call_parity": false,
   "homograph_resolution": "delegated_to_upstream_reference",
   "cases": [
