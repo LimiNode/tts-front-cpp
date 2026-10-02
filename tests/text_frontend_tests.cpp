@@ -267,12 +267,36 @@ int main() {
         CHECK(protected_invalid.warnings.front().length == 5);
     }
     {
+        const std::string protected_duplicate = "https://example.com/99:99 99:99";
+        const auto result = frontend.process(protected_duplicate, en);
+        CHECK(result.normalized_text == protected_duplicate);
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().offset == result.original_text.rfind("99:99"));
+        CHECK(result.warnings.front().length == 5);
+    }
+    {
         const auto multi_transform = frontend.process("1% 1.5 99:99", en);
         CHECK(multi_transform.normalized_text == "one percent one point five 99:99");
         CHECK(multi_transform.warnings.size() == 1);
         CHECK(multi_transform.warnings.front().offset ==
               multi_transform.original_text.find("99:99"));
         CHECK(multi_transform.warnings.front().length == 5);
+    }
+    {
+        const std::string grouped_before_invalid = "1   234 99:99";
+        const auto result = frontend.process(grouped_before_invalid, en);
+        CHECK(result.normalized_text == "one thousand two hundred thirty four 99:99");
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().offset == result.original_text.rfind("99:99"));
+        CHECK(result.warnings.front().length == 5);
+    }
+    {
+        const std::string oversized_measurement = std::string(21, '9') + "   kg";
+        const auto result = frontend.process(oversized_measurement, en);
+        CHECK(result.normalized_text == std::string(21, '9') + " kg");
+        CHECK(!result.warnings.empty());
+        CHECK(result.warnings.front().offset == 0);
+        CHECK(result.warnings.front().length == oversized_measurement.size());
     }
     {
         const auto unsupported_decimal = frontend.process("$12.345", en);

@@ -24,13 +24,16 @@ Whole-input invalid UTF-8 keeps the known range `0..original_text.size()`.
 | normalization replacements | yes | warnings are emitted only for unchanged source fragments |
 | dictionary/stress metadata | no warning source mapping | global diagnostics remain no-range |
 
-The current normalizers produce span warnings only when a recognizer rejects an
-unchanged source fragment (`99:99`, malformed date, oversized number, and similar
-cases). `WarningSink` resolves that fragment in `original_text`, reserves the matched
-source range, and fails closed to `0/0` if the fragment cannot be found. Reserved
-ranges prevent duplicate warning instances from being mapped to the same occurrence.
+The private `MappedText` representation stores sorted output runs. Directly copied
+runs retain exact byte correspondence; generated replacements retain the complete
+source interval they consumed. Cleanup whitespace, grouped-number collapse, technical
+markers, and regex replacements all create or copy runs rather than searching the
+original text. `WarningSink` receives the current match range and converts it through
+those runs. Invalid warning ranges are also registered as preserved spans, so later
+regex passes skip them instead of relying on incidental regex exclusions.
+
 This is sufficient for the current fixed pipeline without introducing a generic rope,
-transformation graph, byte-per-byte map, or public mapping API.
+transformation graph, byte-per-byte public map, or serialization API.
 
 ## Regression coverage
 

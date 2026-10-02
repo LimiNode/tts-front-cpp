@@ -33,44 +33,166 @@ bool is_word_codepoint(std::uint32_t cp) {
     return is_letter(cp) || is_digit(cp) || cp == '+' || cp == '#' || cp == '_' || cp == '.';
 }
 
-std::string cleanup_text(std::string text) {
-    std::string result;
-    result.reserve(text.size());
+struct SourceRange {
+    std::size_t offset = 0;
+    std::size_t length = 0;
+};
+
+struct MappedRun {
+    std::size_t output_begin = 0;
+    std::size_t output_end = 0;
+    SourceRange source;
+    bool direct_copy = false;
+};
+
+struct MappedText {
+    std::string text;
+    std::vector<MappedRun> runs;
+    const std::vector<SourceRange>* preserved_ranges = nullptr;
+
+    static MappedText from_original(std::string_view original,
+                                    const std::vector<SourceRange>* preserved_ranges) {
+        MappedText result;
+        result.text = std::string(original);
+        result.preserved_ranges = preserved_ranges;
+        if (!original.empty())
+            result.runs.push_back({0, original.size(), {0, original.size()}, true});
+        return result;
+    }
+
+    SourceRange source_range(std::size_t begin, std::size_t end) const {
+        SourceRange result;
+        bool has_source = false;
+        auto run = std::lower_bound(
+            runs.begin(), runs.end(), begin, [](const MappedRun& candidate, std::size_t position) {
+                return candidate.output_end <= position;
+            });
+        for (; run != runs.end() && run->output_begin < end; ++run) {
+            const auto overlap_begin = std::max(begin, run->output_begin);
+            const auto overlap_end = std::min(end, run->output_end);
+            if (overlap_begin >= overlap_end)
+                continue;
+            SourceRange source = run->source;
+            if (run->direct_copy) {
+                source.offset += overlap_begin - run->output_begin;
+                source.length = overlap_end - overlap_begin;
+            }
+            if (!has_source) {
+                result = source;
+                has_source = true;
+            } else {
+                const auto source_end =
+                    std::max(result.offset + result.length, source.offset + source.length);
+                result.offset = std::min(result.offset, source.offset);
+                result.length = source_end - result.offset;
+            }
+        }
+        return result;
+    }
+
+    void append_copy(const MappedText& source, std::size_t begin, std::size_t end) {
+        auto run = std::lower_bound(source.runs.begin(),
+                                    source.runs.end(),
+                                    begin,
+                                    [](const MappedRun& candidate, std::size_t position) {
+                                        return candidate.output_end <= position;
+                                    });
+        for (; run != source.runs.end() && run->output_begin < end; ++run) {
+            const auto overlap_begin = std::max(begin, run->output_begin);
+            const auto overlap_end = std::min(end, run->output_end);
+            if (overlap_begin >= overlap_end)
+                continue;
+            SourceRange origin = run->source;
+            if (run->direct_copy) {
+                origin.offset += overlap_begin - run->output_begin;
+                origin.length = overlap_end - overlap_begin;
+            }
+            append(source.text.substr(overlap_begin, overlap_end - overlap_begin),
+                   origin,
+                   run->direct_copy);
+        }
+    }
+
+    void append_generated(const MappedText& source,
+                          std::size_t begin,
+                          std::size_t end,
+                          std::string_view replacement) {
+        append(replacement, source.source_range(begin, end), false);
+    }
+
+  private:
+    void append(std::string_view value, SourceRange source, bool direct_copy) {
+        if (value.empty())
+            return;
+        const auto output_begin = text.size();
+        text += value;
+        const auto output_end = text.size();
+        if (direct_copy && !runs.empty() && runs.back().direct_copy &&
+            runs.back().output_end == output_begin &&
+            runs.back().source.offset + runs.back().source.length == source.offset) {
+            runs.back().output_end = output_end;
+            runs.back().source.length += source.length;
+            return;
+        }
+        runs.push_back({output_begin, output_end, source, direct_copy});
+    }
+};
+
+MappedText cleanup_text(const MappedText& input) {
+    MappedText result;
+    result.preserved_ranges = input.preserved_ranges;
+    result.text.reserve(input.text.size());
     std::vector<CodePoint> points;
-    if (!decode_utf8(text, points))
-        return text;
+    if (!decode_utf8(input.text, points))
+        return input;
     bool pending_space = false;
+    std::size_t space_begin = 0;
     for (const auto& point : points) {
         const bool space =
             point.value == ' ' || point.value == '\t' || point.value == '\n' || point.value == '\r';
         if (space) {
-            pending_space = !result.empty();
+            if (!pending_space && !result.text.empty())
+                space_begin = point.offset;
+            pending_space = !result.text.empty();
             continue;
         }
         const bool punctuation = point.value == ',' || point.value == '.' || point.value == ';' ||
                                  point.value == ':' || point.value == '!' || point.value == '?';
-        if (pending_space && !punctuation && !result.empty())
-            result.push_back(' ');
+        if (pending_space && !punctuation && !result.text.empty())
+            result.append_generated(input, space_begin, point.offset, " ");
         pending_space = false;
-        result.append(text, point.offset, point.length);
+        result.append_copy(input, point.offset, point.offset + point.length);
     }
-    while (!result.empty() && result.back() == ' ')
-        result.pop_back();
     return result;
 }
 
 template <typename Formatter>
-std::string replace_matches(std::string text, const std::regex& pattern, Formatter formatter) {
-    std::string output;
+MappedText
+replace_matches(const MappedText& input, const std::regex& pattern, Formatter formatter) {
+    MappedText output;
+    output.preserved_ranges = input.preserved_ranges;
     std::size_t cursor = 0;
-    for (std::sregex_iterator it(text.begin(), text.end(), pattern), end; it != end; ++it) {
+    for (std::sregex_iterator it(input.text.begin(), input.text.end(), pattern), end; it != end;
+         ++it) {
         const auto begin = static_cast<std::size_t>(it->position());
         const auto finish = begin + static_cast<std::size_t>(it->length());
-        output.append(text, cursor, begin - cursor);
-        output += formatter(*it);
+        output.append_copy(input, cursor, begin);
+        const auto source = input.source_range(begin, finish);
+        if (input.preserved_ranges &&
+            std::any_of(input.preserved_ranges->begin(),
+                        input.preserved_ranges->end(),
+                        [source](const SourceRange& preserved) {
+                            return source.offset < preserved.offset + preserved.length &&
+                                   preserved.offset < source.offset + source.length;
+                        })) {
+            output.append_copy(input, begin, finish);
+            cursor = finish;
+            continue;
+        }
+        output.append_generated(input, begin, finish, formatter(*it, input));
         cursor = finish;
     }
-    output += text.substr(cursor);
+    output.append_copy(input, cursor, input.text.size());
     return output;
 }
 
@@ -114,58 +236,47 @@ const RegexPatterns& regex_patterns() {
 
 struct WarningSink {
     std::vector<TextWarning>& warnings;
-    std::string_view original_text;
-    std::vector<std::pair<std::size_t, std::size_t>> used_ranges;
+    std::vector<SourceRange> preserved_ranges;
 
     void add_range(WarningCode code, std::string message, std::size_t offset, std::size_t length) {
         warnings.push_back({code, std::move(message), offset, length});
     }
 
-    void add(WarningCode code, std::string message, std::string_view fragment) {
-        for (std::size_t search_offset = 0;;) {
-            const auto offset = original_text.find(fragment, search_offset);
-            if (offset == std::string_view::npos)
-                break;
-            const auto end = offset + fragment.size();
-            const bool overlaps = std::any_of(
-                used_ranges.begin(), used_ranges.end(), [offset, end](const auto& range) {
-                    return offset < range.second && range.first < end;
-                });
-            if (!overlaps) {
-                warnings.push_back({code, std::move(message), offset, fragment.size()});
-                used_ranges.emplace_back(offset, end);
-                return;
-            }
-            search_offset = offset + 1;
-        }
-        warnings.push_back({code, std::move(message), 0, 0});
+    void add(WarningCode code, std::string message, SourceRange source) {
+        if (source.length != 0)
+            preserved_ranges.push_back(source);
+        add_range(code, std::move(message), source.offset, source.length);
     }
 };
 
 void add_warning(WarningSink& warnings,
                  WarningCode code,
                  std::string message,
+                 const MappedText& text,
                  const std::smatch& match) {
-    warnings.add(code, std::move(message), match.str());
+    const auto begin = static_cast<std::size_t>(match.position());
+    warnings.add(code, std::move(message), text.source_range(begin, begin + match.length()));
 }
 
 void add_warning(WarningSink& warnings,
                  WarningCode code,
                  std::string message,
+                 const MappedText& text,
                  const std::smatch& match,
                  std::size_t group) {
-    warnings.add(code, std::move(message), match.str(group));
+    const auto begin = static_cast<std::size_t>(match.position(group));
+    warnings.add(code, std::move(message), text.source_range(begin, begin + match.length(group)));
 }
 
 void add_warning_without_suffix(WarningSink& warnings,
                                 WarningCode code,
                                 std::string message,
+                                const MappedText& text,
                                 const std::smatch& match,
                                 std::size_t suffix_group) {
-    const auto full = match.str();
-    const auto suffix = match.str(suffix_group);
-    warnings.add(
-        code, std::move(message), std::string_view(full).substr(0, full.size() - suffix.size()));
+    const auto begin = static_cast<std::size_t>(match.position());
+    const auto length = static_cast<std::size_t>(match.length() - match.length(suffix_group));
+    warnings.add(code, std::move(message), text.source_range(begin, begin + length));
 }
 
 void add_warning(std::vector<TextWarning>& warnings,
@@ -300,10 +411,13 @@ bool try_parse_long(std::string_view token, long long& value) {
         return false;
     }
 }
-std::string number_or_original(const std::string& token, bool russian, WarningSink& warnings) {
+std::string number_or_original(const std::string& token,
+                               bool russian,
+                               WarningSink& warnings,
+                               SourceRange source) {
     long long value = 0;
     if (!try_parse_long(token, value)) {
-        warnings.add(WarningCode::UnresolvedNumber, "Unable to parse number", token);
+        warnings.add(WarningCode::UnresolvedNumber, "Unable to parse number", source);
         return token;
     }
     return russian ? ru_number(value) : en_number(value);
@@ -546,13 +660,13 @@ struct ProtectedSpan {
     std::string marker;
     std::string value;
 };
-std::string marker_for(const std::string& text, std::size_t index) {
+std::string marker_for(std::string_view text, std::size_t index) {
     std::string marker = "\x01tts_front_protected_" + std::to_string(index) + "\x02";
     while (text.find(marker) != std::string::npos)
         marker.insert(marker.size() - 1, "x");
     return marker;
 }
-std::string protect_technical(std::string text, std::vector<ProtectedSpan>& protected_spans) {
+MappedText protect_technical(MappedText text, std::vector<ProtectedSpan>& protected_spans) {
     const auto& patterns = regex_patterns();
     const std::array<const std::regex*, 8> technical_patterns = {&patterns.technical_url,
                                                                  &patterns.technical_email,
@@ -563,28 +677,34 @@ std::string protect_technical(std::string text, std::vector<ProtectedSpan>& prot
                                                                  &patterns.technical_cpp,
                                                                  &patterns.technical_csharp};
     for (const auto* pattern : technical_patterns) {
-        std::string output;
+        MappedText output;
+        output.preserved_ranges = text.preserved_ranges;
         std::size_t cursor = 0;
-        for (std::sregex_iterator it(text.begin(), text.end(), *pattern), end; it != end; ++it) {
+        for (std::sregex_iterator it(text.text.begin(), text.text.end(), *pattern), end; it != end;
+             ++it) {
             const auto begin = static_cast<std::size_t>(it->position());
             const auto finish = begin + static_cast<std::size_t>(it->length());
-            output.append(text, cursor, begin - cursor);
-            const auto marker = marker_for(text, protected_spans.size());
+            output.append_copy(text, cursor, begin);
+            const auto marker = marker_for(text.text, protected_spans.size());
             protected_spans.push_back({marker, it->str()});
-            output += marker;
+            output.append_generated(text, begin, finish, marker);
             cursor = finish;
         }
-        output += text.substr(cursor);
+        output.append_copy(text, cursor, text.text.size());
         text = std::move(output);
     }
     return text;
 }
-std::string restore_technical(std::string text, const std::vector<ProtectedSpan>& protected_spans) {
+MappedText restore_technical(MappedText text, const std::vector<ProtectedSpan>& protected_spans) {
     for (const auto& span : protected_spans) {
-        std::size_t at = text.find(span.marker);
-        while (at != std::string::npos) {
-            text.replace(at, span.marker.size(), span.value);
-            at = text.find(span.marker, at + span.value.size());
+        for (std::size_t at = text.text.find(span.marker); at != std::string::npos;
+             at = text.text.find(span.marker, at + span.value.size())) {
+            MappedText output;
+            output.preserved_ranges = text.preserved_ranges;
+            output.append_copy(text, 0, at);
+            output.append_generated(text, at, at + span.marker.size(), span.value);
+            output.append_copy(text, at + span.marker.size(), text.text.size());
+            text = std::move(output);
         }
     }
     return text;
@@ -600,27 +720,37 @@ bool valid_date(int day, int month, int year) {
     return day <= limit;
 }
 
-std::string collapse_grouped_numbers(std::string text) {
-    return replace_matches(
-        std::move(text), regex_patterns().grouped_number, [](const std::smatch& match) {
-            std::string result = match.str();
-            const auto number_start = match[1].length();
-            std::string prefix = result.substr(0, number_start);
-            result.erase(0, number_start);
-            result.erase(std::remove_if(result.begin(),
-                                        result.end(),
-                                        [](unsigned char c) { return std::isspace(c) != 0; }),
-                         result.end());
-            return prefix + result;
-        });
+MappedText collapse_grouped_numbers(const MappedText& input) {
+    MappedText output;
+    output.preserved_ranges = input.preserved_ranges;
+    std::size_t cursor = 0;
+    for (std::sregex_iterator
+             it(input.text.begin(), input.text.end(), regex_patterns().grouped_number),
+         end;
+         it != end;
+         ++it) {
+        const auto begin = static_cast<std::size_t>(it->position());
+        const auto finish = begin + static_cast<std::size_t>(it->length());
+        const auto number_begin = begin + it->length(1);
+        output.append_copy(input, cursor, number_begin);
+        std::string number = it->str().substr(it->length(1));
+        number.erase(std::remove_if(number.begin(),
+                                    number.end(),
+                                    [](unsigned char c) { return std::isspace(c) != 0; }),
+                     number.end());
+        output.append_generated(input, number_begin, finish, number);
+        cursor = finish;
+    }
+    output.append_copy(input, cursor, input.text.size());
+    return output;
 }
 
-std::string normalize_ru(std::string text, WarningSink& warnings) {
+MappedText normalize_ru(MappedText text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
     text = protect_technical(std::move(text), protected_spans);
     text = collapse_grouped_numbers(std::move(text));
-    text =
-        replace_matches(std::move(text), regex_patterns().ru_date, [&](const std::smatch& match) {
+    text = replace_matches(
+        text, regex_patterns().ru_date, [&](const std::smatch& match, const MappedText& source) {
             long long day = 0, month = 0, year = 0;
             if (!try_parse_long(match[1].str(), day) || !try_parse_long(match[2].str(), month) ||
                 !try_parse_long(match[3].str(), year) ||
@@ -629,6 +759,7 @@ std::string normalize_ru(std::string text, WarningSink& warnings) {
                 add_warning(warnings,
                             WarningCode::UnresolvedNumber,
                             "Invalid Russian calendar date",
+                            source,
                             match);
                 return match.str();
             }
@@ -648,24 +779,30 @@ std::string normalize_ru(std::string text, WarningSink& warnings) {
             return ru_ordinal_day(static_cast<int>(day)) + " " + months[month] + " " +
                    ru_year_genitive(static_cast<int>(year)) + " года";
         });
-    text =
-        replace_matches(std::move(text), regex_patterns().ru_year, [&](const std::smatch& match) {
+    text = replace_matches(
+        text, regex_patterns().ru_year, [&](const std::smatch& match, const MappedText& source) {
             long long year = 0;
             if (!try_parse_long(match[1].str(), year)) {
-                add_warning(
-                    warnings, WarningCode::UnresolvedNumber, "Unable to parse Russian year", match);
+                add_warning(warnings,
+                            WarningCode::UnresolvedNumber,
+                            "Unable to parse Russian year",
+                            source,
+                            match);
                 return match.str();
             }
             return ru_year_locative(static_cast<int>(year)) + " году";
         });
     text = replace_matches(
-        std::move(text), regex_patterns().ru_decimal_percent, [&](const std::smatch& match) {
+        text,
+        regex_patterns().ru_decimal_percent,
+        [&](const std::smatch& match, const MappedText& source) {
             long long integer = 0, fraction = 0;
             if (!try_parse_long(match[1].str(), integer) ||
                 !try_parse_long(match[2].str(), fraction) || match[2].str().size() > 3) {
                 add_warning_without_suffix(warnings,
                                            WarningCode::UnresolvedNumber,
                                            "Unable to parse Russian decimal percent",
+                                           source,
                                            match,
                                            3);
                 return match.str();
@@ -673,130 +810,156 @@ std::string normalize_ru(std::string text, WarningSink& warnings) {
             return ru_decimal(integer, match[2].str()) + " процента" + match[3].str();
         });
     text = replace_matches(
-        std::move(text), regex_patterns().ru_percent, [&](const std::smatch& match) {
+        text, regex_patterns().ru_percent, [&](const std::smatch& match, const MappedText& source) {
             long long n = 0;
             if (!try_parse_long(match[1].str(), n)) {
                 add_warning(warnings,
                             WarningCode::UnresolvedNumber,
                             "Unable to parse Russian percent",
+                            source,
                             match);
                 return match.str();
             }
             return ru_number(n) + " " + ru_form(n, "процент", "процента", "процентов");
         });
+    text = replace_matches(text,
+                           regex_patterns().ru_currency,
+                           [&](const std::smatch& match, const MappedText& source) {
+                               long long n = 0;
+                               if (!try_parse_long(match[1].str(), n)) {
+                                   add_warning_without_suffix(warnings,
+                                                              WarningCode::UnresolvedNumber,
+                                                              "Unable to parse Russian currency",
+                                                              source,
+                                                              match,
+                                                              3);
+                                   return match.str();
+                               }
+                               return ru_number(n) + " " + ru_form(n, "рубль", "рубля", "рублей") +
+                                      match[3].str();
+                           });
     text = replace_matches(
-        std::move(text), regex_patterns().ru_currency, [&](const std::smatch& match) {
-            long long n = 0;
-            if (!try_parse_long(match[1].str(), n)) {
-                add_warning_without_suffix(warnings,
-                                           WarningCode::UnresolvedNumber,
-                                           "Unable to parse Russian currency",
-                                           match,
-                                           3);
-                return match.str();
-            }
-            return ru_number(n) + " " + ru_form(n, "рубль", "рубля", "рублей") + match[3].str();
-        });
-    text =
-        replace_matches(std::move(text), regex_patterns().ru_time, [&](const std::smatch& match) {
+        text, regex_patterns().ru_time, [&](const std::smatch& match, const MappedText& source) {
             long long h = 0, m = 0;
             if (!try_parse_long(match[1].str(), h) || !try_parse_long(match[2].str(), m) ||
                 h > 23 || m > 59) {
-                add_warning(
-                    warnings, WarningCode::UnresolvedNumber, "Invalid Russian clock time", match);
+                add_warning(warnings,
+                            WarningCode::UnresolvedNumber,
+                            "Invalid Russian clock time",
+                            source,
+                            match);
                 return match.str();
             }
             return ru_number(h) + " " + ru_form(h, "час", "часа", "часов") + " " +
                    ru_feminine_number(m) + " " + ru_form(m, "минута", "минуты", "минут");
         });
     text = replace_matches(
-        std::move(text), regex_patterns().ru_decimal, [&](const std::smatch& match) {
+        text, regex_patterns().ru_decimal, [&](const std::smatch& match, const MappedText& source) {
             long long integer = 0, fraction = 0;
             if (!try_parse_long(match[1].str(), integer) ||
                 !try_parse_long(match[2].str(), fraction) || match[2].str().size() > 3) {
                 add_warning_without_suffix(warnings,
                                            WarningCode::UnresolvedNumber,
                                            "Unable to parse Russian decimal",
+                                           source,
                                            match,
                                            3);
                 return match.str();
             }
             return ru_decimal(integer, match[2].str()) + match[3].str();
         });
+    text =
+        replace_matches(text,
+                        regex_patterns().ru_measurement,
+                        [&](const std::smatch& match, const MappedText& source) {
+                            long long n = 0;
+                            if (!try_parse_long(match[1].str(), n)) {
+                                add_warning_without_suffix(warnings,
+                                                           WarningCode::UnresolvedNumber,
+                                                           "Unable to parse Russian measurement",
+                                                           source,
+                                                           match,
+                                                           3);
+                                return match.str();
+                            }
+                            const auto unit_source = match[2].str();
+                            const std::string unit =
+                                unit_source.find("кг") == 0 || unit_source.find("килограмм") == 0
+                                    ? ru_form(n, "килограмм", "килограмма", "килограммов")
+                                : unit_source.find("км") == 0 || unit_source.find("километр") == 0
+                                    ? ru_form(n, "километр", "километра", "километров")
+                                : unit_source.find("см") == 0 || unit_source.find("сантиметр") == 0
+                                    ? ru_form(n, "сантиметр", "сантиметра", "сантиметров")
+                                : unit_source.find("мм") == 0 || unit_source.find("миллиметр") == 0
+                                    ? ru_form(n, "миллиметр", "миллиметра", "миллиметров")
+                                : unit_source == "м" ? ru_form(n, "метр", "метра", "метров")
+                                : unit_source == "ГБ"
+                                    ? ru_form(n, "гигабайт", "гигабайта", "гигабайт")
+                                    : ru_form(n, "мегабайт", "мегабайта", "мегабайт");
+                            return ru_number(n) + " " + unit + match[3].str();
+                        });
     text = replace_matches(
-        std::move(text), regex_patterns().ru_measurement, [&](const std::smatch& match) {
-            long long n = 0;
-            if (!try_parse_long(match[1].str(), n)) {
-                add_warning_without_suffix(warnings,
-                                           WarningCode::UnresolvedNumber,
-                                           "Unable to parse Russian measurement",
-                                           match,
-                                           3);
-                return match.str();
-            }
-            const auto source = match[2].str();
-            const std::string unit = source.find("кг") == 0 || source.find("килограмм") == 0
-                                         ? ru_form(n, "килограмм", "килограмма", "килограммов")
-                                     : source.find("км") == 0 || source.find("километр") == 0
-                                         ? ru_form(n, "километр", "километра", "километров")
-                                     : source.find("см") == 0 || source.find("сантиметр") == 0
-                                         ? ru_form(n, "сантиметр", "сантиметра", "сантиметров")
-                                     : source.find("мм") == 0 || source.find("миллиметр") == 0
-                                         ? ru_form(n, "миллиметр", "миллиметра", "миллиметров")
-                                     : source == "м" ? ru_form(n, "метр", "метра", "метров")
-                                     : source == "ГБ"
-                                         ? ru_form(n, "гигабайт", "гигабайта", "гигабайт")
-                                         : ru_form(n, "мегабайт", "мегабайта", "мегабайт");
-            return ru_number(n) + " " + unit + match[3].str();
+        text,
+        regex_patterns().generic_ru_number,
+        [&](const std::smatch& match, const MappedText& source) {
+            const auto number_begin = static_cast<std::size_t>(match.position(2));
+            const auto number_end = number_begin + static_cast<std::size_t>(match.length(2));
+            return match[1].str() +
+                   number_or_original(match[2].str(),
+                                      true,
+                                      warnings,
+                                      source.source_range(number_begin, number_end));
         });
     text = replace_matches(
-        std::move(text), regex_patterns().generic_ru_number, [&](const std::smatch& match) {
-            return match[1].str() + number_or_original(match[2].str(), true, warnings);
-        });
-    text = replace_matches(std::move(text),
-                           regex_patterns().ru_abbreviation_td,
-                           [](const auto& match) { return match[1].str() + "так далее"; });
-    text = replace_matches(std::move(text),
-                           regex_patterns().ru_abbreviation_tp,
-                           [](const auto& match) { return match[1].str() + "тому подобное"; });
+        std::move(text),
+        regex_patterns().ru_abbreviation_td,
+        [](const auto& match, const MappedText&) { return match[1].str() + "так далее"; });
+    text = replace_matches(
+        std::move(text),
+        regex_patterns().ru_abbreviation_tp,
+        [](const auto& match, const MappedText&) { return match[1].str() + "тому подобное"; });
     return restore_technical(std::move(text), protected_spans);
 }
 
-std::string normalize_en(std::string text, WarningSink& warnings) {
+MappedText normalize_en(MappedText text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
     text = protect_technical(std::move(text), protected_spans);
     text = collapse_grouped_numbers(std::move(text));
+    text = replace_matches(text,
+                           regex_patterns().en_currency_decimal,
+                           [&](const std::smatch& match, const MappedText& source) {
+                               long long dollars = 0, cents = 0;
+                               const auto fraction = match[2].str();
+                               if (!try_parse_long(match[1].str(), dollars) ||
+                                   fraction.size() > 2 || !try_parse_long(fraction, cents)) {
+                                   add_warning(warnings,
+                                               WarningCode::UnresolvedNumber,
+                                               "Unable to parse English currency",
+                                               source,
+                                               match);
+                                   return match.str();
+                               }
+                               if (fraction.size() == 1)
+                                   cents *= 10;
+                               return en_number(dollars) + (dollars == 1 ? " dollar" : " dollars") +
+                                      " " + en_number(cents) + (cents == 1 ? " cent" : " cents");
+                           });
+    text = replace_matches(text,
+                           regex_patterns().en_currency_integer,
+                           [&](const std::smatch& match, const MappedText& source) {
+                               long long dollars = 0;
+                               if (!try_parse_long(match[1].str(), dollars)) {
+                                   add_warning(warnings,
+                                               WarningCode::UnresolvedNumber,
+                                               "Unable to parse English currency",
+                                               source,
+                                               match);
+                                   return match.str();
+                               }
+                               return en_number(dollars) + (dollars == 1 ? " dollar" : " dollars");
+                           });
     text = replace_matches(
-        std::move(text), regex_patterns().en_currency_decimal, [&](const std::smatch& match) {
-            long long dollars = 0, cents = 0;
-            const auto fraction = match[2].str();
-            if (!try_parse_long(match[1].str(), dollars) || fraction.size() > 2 ||
-                !try_parse_long(fraction, cents)) {
-                add_warning(warnings,
-                            WarningCode::UnresolvedNumber,
-                            "Unable to parse English currency",
-                            match);
-                return match.str();
-            }
-            if (fraction.size() == 1)
-                cents *= 10;
-            return en_number(dollars) + (dollars == 1 ? " dollar" : " dollars") + " " +
-                   en_number(cents) + (cents == 1 ? " cent" : " cents");
-        });
-    text = replace_matches(
-        std::move(text), regex_patterns().en_currency_integer, [&](const std::smatch& match) {
-            long long dollars = 0;
-            if (!try_parse_long(match[1].str(), dollars)) {
-                add_warning(warnings,
-                            WarningCode::UnresolvedNumber,
-                            "Unable to parse English currency",
-                            match);
-                return match.str();
-            }
-            return en_number(dollars) + (dollars == 1 ? " dollar" : " dollars");
-        });
-    text = replace_matches(
-        std::move(text), regex_patterns().en_percent, [&](const std::smatch& match) {
+        text, regex_patterns().en_percent, [&](const std::smatch& match, const MappedText& source) {
             const auto value = match[1].str();
             const auto dot = value.find('.');
             long long integer = 0;
@@ -804,6 +967,7 @@ std::string normalize_en(std::string text, WarningSink& warnings) {
                 add_warning(warnings,
                             WarningCode::UnresolvedNumber,
                             "Unable to parse English percent",
+                            source,
                             match);
                 return match.str();
             }
@@ -812,20 +976,23 @@ std::string normalize_en(std::string text, WarningSink& warnings) {
                         : en_number(integer) + " point " + en_digits(value.substr(dot + 1))) +
                    " percent";
         });
-    text =
-        replace_matches(std::move(text), regex_patterns().en_time, [&](const std::smatch& match) {
+    text = replace_matches(
+        text, regex_patterns().en_time, [&](const std::smatch& match, const MappedText& source) {
             long long h = 0, m = 0;
             if (!try_parse_long(match[1].str(), h) || !try_parse_long(match[2].str(), m) ||
                 h > 23 || m > 59) {
-                add_warning(
-                    warnings, WarningCode::UnresolvedNumber, "Invalid English clock time", match);
+                add_warning(warnings,
+                            WarningCode::UnresolvedNumber,
+                            "Invalid English clock time",
+                            source,
+                            match);
                 return match.str();
             }
             return en_number(h) + (h == 1 ? " hour " : " hours ") + en_number(m) +
                    (m == 1 ? " minute" : " minutes");
         });
     text = replace_matches(
-        std::move(text), regex_patterns().en_decimal, [&](const std::smatch& match) {
+        text, regex_patterns().en_decimal, [&](const std::smatch& match, const MappedText& source) {
             const auto value = match[2].str();
             const auto dot = value.find('.');
             long long integer = 0;
@@ -833,6 +1000,7 @@ std::string normalize_en(std::string text, WarningSink& warnings) {
                 add_warning(warnings,
                             WarningCode::UnresolvedNumber,
                             "Unable to parse English decimal",
+                            source,
                             match,
                             2);
                 return match.str();
@@ -840,36 +1008,47 @@ std::string normalize_en(std::string text, WarningSink& warnings) {
             return match[1].str() + en_number(integer) + " point " +
                    en_digits(value.substr(dot + 1));
         });
+    text = replace_matches(text,
+                           regex_patterns().en_measurement,
+                           [&](const std::smatch& match, const MappedText& source) {
+                               long long n = 0;
+                               if (!try_parse_long(match[1].str(), n)) {
+                                   add_warning_without_suffix(warnings,
+                                                              WarningCode::UnresolvedNumber,
+                                                              "Unable to parse English measurement",
+                                                              source,
+                                                              match,
+                                                              3);
+                                   return match.str();
+                               }
+                               const auto unit = match[2].str();
+                               const bool singular = n == 1;
+                               const std::string spoken =
+                                   unit == "kg" || unit.find("kilogram") == 0
+                                       ? (singular ? "kilogram" : "kilograms")
+                                   : unit == "km" || unit.find("kilomet") == 0
+                                       ? (singular ? "kilometer" : "kilometers")
+                                   : unit == "m" || unit == "meters" || unit == "metres"
+                                       ? (singular ? "meter" : "meters")
+                                   : unit == "cm" || unit.find("centimet") == 0
+                                       ? (singular ? "centimeter" : "centimeters")
+                                   : unit == "mm" || unit.find("millimet") == 0
+                                       ? (singular ? "millimeter" : "millimeters")
+                                   : unit == "MB" ? (singular ? "megabyte" : "megabytes")
+                                                  : (singular ? "gigabyte" : "gigabytes");
+                               return en_number(n) + " " + spoken + match[3].str();
+                           });
     text = replace_matches(
-        std::move(text), regex_patterns().en_measurement, [&](const std::smatch& match) {
-            long long n = 0;
-            if (!try_parse_long(match[1].str(), n)) {
-                add_warning_without_suffix(warnings,
-                                           WarningCode::UnresolvedNumber,
-                                           "Unable to parse English measurement",
-                                           match,
-                                           3);
-                return match.str();
-            }
-            const auto unit = match[2].str();
-            const bool singular = n == 1;
-            const std::string spoken = unit == "kg" || unit.find("kilogram") == 0
-                                           ? (singular ? "kilogram" : "kilograms")
-                                       : unit == "km" || unit.find("kilomet") == 0
-                                           ? (singular ? "kilometer" : "kilometers")
-                                       : unit == "m" || unit == "meters" || unit == "metres"
-                                           ? (singular ? "meter" : "meters")
-                                       : unit == "cm" || unit.find("centimet") == 0
-                                           ? (singular ? "centimeter" : "centimeters")
-                                       : unit == "mm" || unit.find("millimet") == 0
-                                           ? (singular ? "millimeter" : "millimeters")
-                                       : unit == "MB" ? (singular ? "megabyte" : "megabytes")
-                                                      : (singular ? "gigabyte" : "gigabytes");
-            return en_number(n) + " " + spoken + match[3].str();
-        });
-    text = replace_matches(
-        std::move(text), regex_patterns().generic_en_number, [&](const std::smatch& match) {
-            return match[1].str() + number_or_original(match[2].str(), false, warnings);
+        text,
+        regex_patterns().generic_en_number,
+        [&](const std::smatch& match, const MappedText& source) {
+            const auto number_begin = static_cast<std::size_t>(match.position(2));
+            const auto number_end = number_begin + static_cast<std::size_t>(match.length(2));
+            return match[1].str() +
+                   number_or_original(match[2].str(),
+                                      false,
+                                      warnings,
+                                      source.source_range(number_begin, number_end));
         });
     return restore_technical(std::move(text), protected_spans);
 }
@@ -927,15 +1106,15 @@ TextFrontendResult TextFrontend::process(std::string_view input,
             result.warnings, WarningCode::InvalidUtf8, "Input is not valid UTF-8", 0, input.size());
         return result;
     }
-    WarningSink warning_sink{result.warnings, input, {}};
-    std::string text(input);
+    WarningSink warning_sink{result.warnings, {}};
+    MappedText text = MappedText::from_original(input, &warning_sink.preserved_ranges);
     if (options.cleanup_spacing)
-        text = cleanup_text(std::move(text));
+        text = cleanup_text(text);
     bool has_cyrillic = false;
     bool has_latin = false;
     Language language = options.language;
     if (language == Language::Auto)
-        language = detect_language(text, has_cyrillic, has_latin);
+        language = detect_language(text.text, has_cyrillic, has_latin);
     if (options.language == Language::Auto && has_cyrillic && has_latin)
         warning_sink.add_range(WarningCode::AmbiguousNormalization,
                                "Mixed Cyrillic/Latin input uses Russian normalization by policy",
@@ -958,16 +1137,16 @@ TextFrontendResult TextFrontend::process(std::string_view input,
         }
     }
     if (options.cleanup_spacing)
-        text = cleanup_text(std::move(text));
-    result.normalized_text = text;
-    result.pronunciation_text = text;
+        text = cleanup_text(text);
+    result.normalized_text = text.text;
+    result.pronunciation_text = text.text;
     const bool stress_enabled =
         options.resolve_stress && options.stress_mode != StressMode::Disabled;
 
     // Dictionary phrases are matched on complete token sequences, longest first, without rescanning output.
     std::vector<const PronunciationDictionary::Entry*> matched_entries;
     if (options.apply_dictionary && options.dictionary) {
-        const auto spans = token_spans(text);
+        const auto spans = token_spans(text.text);
         struct PhraseCandidate {
             const PronunciationDictionary::Entry* entry = nullptr;
             std::vector<Span> spans;
@@ -990,7 +1169,8 @@ TextFrontendResult TextFrontend::process(std::string_view input,
                     continue;
                 bool match = true;
                 for (std::size_t j = 0; j < phrase_spans.size(); ++j) {
-                    if (text.substr(spans[i + j].begin, spans[i + j].end - spans[i + j].begin) !=
+                    if (text.text.substr(spans[i + j].begin,
+                                         spans[i + j].end - spans[i + j].begin) !=
                         entry.pattern.substr(phrase_spans[j].begin,
                                              phrase_spans[j].end - phrase_spans[j].begin)) {
                         match = false;
@@ -1002,14 +1182,14 @@ TextFrontendResult TextFrontend::process(std::string_view input,
                     best_end = i + phrase_spans.size();
                 }
             }
-            const auto token = text.substr(spans[i].begin, spans[i].end - spans[i].begin);
+            const auto token = text.text.substr(spans[i].begin, spans[i].end - spans[i].begin);
             if (best) {
                 for (std::size_t j = i; j < best_end; ++j)
                     matched_entries[j] = best;
-                rendered.append(text, cursor, spans[i].begin - cursor);
+                rendered.append(text.text, cursor, spans[i].begin - cursor);
                 rendered += best->pronunciation;
                 const auto phrase_surface =
-                    text.substr(spans[i].begin, spans[best_end - 1].end - spans[i].begin);
+                    text.text.substr(spans[i].begin, spans[best_end - 1].end - spans[i].begin);
                 result.dictionary_replacements.push_back(
                     {phrase_surface, best->pronunciation, spans[i].begin});
                 if (options.resolve_stress && options.stress_mode != StressMode::Disabled &&
@@ -1022,7 +1202,7 @@ TextFrontendResult TextFrontend::process(std::string_view input,
                 i = best_end;
                 continue;
             }
-            rendered.append(text, cursor, spans[i].begin - cursor);
+            rendered.append(text.text, cursor, spans[i].begin - cursor);
             if (const auto* entry = options.dictionary->find_token(token)) {
                 matched_entries[i] = entry;
                 rendered += entry->pronunciation;
@@ -1034,7 +1214,7 @@ TextFrontendResult TextFrontend::process(std::string_view input,
             cursor = spans[i].end;
             ++i;
         }
-        rendered += text.substr(cursor);
+        rendered += text.text.substr(cursor);
         result.pronunciation_text = std::move(rendered);
     }
 
