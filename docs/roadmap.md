@@ -112,6 +112,14 @@ exact model + weights
 реализованный enum value должен завершаться явным `UnsupportedLanguage`; не добавлять
 спекулятивную частичную поддержку.
 
+### Silero Stress Phase 4 — preprocessing boundary
+
+The first Phase 4 boundary gate is implemented in
+[docs/research/silero-phase4-boundary.md](research/silero-phase4-boundary.md).
+It independently reproduces tokenization and n-gram embedding and checks
+classifier argmax parity on all Phase 1 vectors. Homograph resolution and
+full-call parity remain explicitly open.
+
 ### 6. Benchmark-driven optimizations
 
 Только после функционального corpus pass измерять реальные hotspots:
