@@ -110,3 +110,26 @@ jobs:
           python -m pip install onnx
           python tools/silero_native_ort_smoke.py `
             --probe build-native-ort/Release/silero_native_ort_probe.exe
+      - name: Build production ONNX-enabled root
+        shell: pwsh
+        run: |
+          cmake -S . -B build-production-ort `
+            -DTTS_FRONT_ENABLE_ONNX_STRESS=ON `
+            -DTTS_FRONT_ONNX_RUNTIME_ROOT="$PWD/onnxruntime-win-x64-1.30.0" `
+            -DTTS_FRONT_BUILD_TESTS=ON `
+            -DTTS_FRONT_BUILD_EXAMPLES=ON `
+            -DTTS_FRONT_BUILD_BENCHMARKS=OFF
+          cmake --build build-production-ort --config Release --parallel
+          ctest --test-dir build-production-ort -C Release --output-on-failure
+      - name: Install production ONNX package
+        shell: pwsh
+        run: |
+          cmake --install build-production-ort --config Release --prefix stage-production-ort
+      - name: Build production ONNX install consumer
+        shell: pwsh
+        run: |
+          cmake -S tests/consumer -B consumer-production-ort `
+            -DCMAKE_PREFIX_PATH="$PWD/stage-production-ort"
+          cmake --build consumer-production-ort --config Release --parallel
+          $env:PATH = "$PWD/onnxruntime-win-x64-1.30.0/lib;$env:PATH"
+          .\consumer-production-ort\Release\tts_front_consumer.exe
