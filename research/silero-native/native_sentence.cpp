@@ -845,12 +845,13 @@ int main(int argc, char** argv) {
         const bool phrase_probe = argc == 4 && std::string(argv[1]) == "--assets" &&
                                   std::string(argv[3]) == "--phrase-probe-stdin";
         const bool trace = argc == 10 && std::string(argv[9]) == "--trace";
-        const bool standard_args = (argc == 9 || trace) && std::string(argv[1]) == "--assets" &&
+        const bool stream = argc == 10 && std::string(argv[9]) == "--stream";
+        const bool standard_args = (argc == 9 || trace || stream) && std::string(argv[1]) == "--assets" &&
                                     std::string(argv[3]) == "--stress" && std::string(argv[5]) == "--yo" &&
                                     std::string(argv[7]) == "--homo";
         if (!phrase_probe && !standard_args) {
             if (!phrase_probe) {
-                std::cerr << "usage: silero_native_sentence --assets DIR --stress FILE --yo FILE --homo FILE [--trace]\n"
+                std::cerr << "usage: silero_native_sentence --assets DIR --stress FILE --yo FILE --homo FILE [--trace|--stream]\n"
                              "       silero_native_sentence --assets DIR --phrase-probe-stdin\n";
             }
             return 2;
@@ -884,11 +885,7 @@ int main(int argc, char** argv) {
         Ort::Session yo_session(environment, yo_path.c_str(), options);
         Ort::Session homo_session(environment, homo_path.c_str(), options);
         Ort::MemoryInfo memory = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
-        const std::string input((std::istreambuf_iterator<char>(std::cin)), std::istreambuf_iterator<char>());
-        std::size_t line_begin = 0;
-        while (line_begin < input.size()) {
-            const auto line_end = input.find('\n', line_begin);
-            std::string sentence = input.substr(line_begin, line_end == std::string::npos ? line_end : line_end - line_begin);
+        const auto process_line = [&](std::string sentence) {
             if (!sentence.empty() && sentence.back() == '\r') {
                 sentence.pop_back();
             }
@@ -992,14 +989,29 @@ int main(int argc, char** argv) {
             }
             std::cout.write(output.data(), static_cast<std::streamsize>(output.size()));
             std::cout.put('\n');
+            std::cout.flush();
             if (trace) {
                 std::cerr << "TRACE model=" << model_route << ";exception=" << exception_route
                           << ";phrase=" << phrase_route << ";homosolver=" << homosolver_route << '\n';
             }
-            if (line_end == std::string::npos) {
-                break;
+        };
+        if (stream) {
+            std::string sentence;
+            while (std::getline(std::cin, sentence)) {
+                process_line(std::move(sentence));
             }
-            line_begin = line_end + 1;
+        } else {
+            const std::string input((std::istreambuf_iterator<char>(std::cin)), std::istreambuf_iterator<char>());
+            std::size_t line_begin = 0;
+            while (line_begin < input.size()) {
+                const auto line_end = input.find('\n', line_begin);
+                process_line(input.substr(line_begin,
+                                          line_end == std::string::npos ? line_end : line_end - line_begin));
+                if (line_end == std::string::npos) {
+                    break;
+                }
+                line_begin = line_end + 1;
+            }
         }
         return 0;
     } catch (const Ort::Exception& error) {
