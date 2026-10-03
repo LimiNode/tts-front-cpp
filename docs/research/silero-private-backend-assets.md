@@ -13,7 +13,8 @@ It hashes assets incrementally, so a large graph is not materialized as one
 rejects invalid chunk sizes.
 
 The native research executable continues to own its complete parity harness.
-The next private-backend step will build a bundle loader around this utility,
-then add optional ONNX Runtime session ownership and sentence orchestration.
-Neither that backend nor ONNX Runtime is exposed by `tts_front.hpp` or enabled
-by the default `tts_front` build in this change.
+The private production boundary now builds a manifest-verified bundle loader
+around this utility and an optional ONNX Runtime session owner. Neither that
+backend nor ONNX Runtime is exposed by `tts_front.hpp` or enabled by the
+default `tts_front` build. Sentence orchestration is deliberately still a
+follow-up slice so that its semantic result contract can be reviewed separately.

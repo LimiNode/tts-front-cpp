@@ -4,6 +4,8 @@ project(tts-front-cpp VERSION 0.1.0 LANGUAGES CXX)
 option(TTS_FRONT_BUILD_TESTS "Build tests" ON)
 option(TTS_FRONT_BUILD_EXAMPLES "Build examples" ON)
 option(TTS_FRONT_BUILD_BENCHMARKS "Build benchmarks" ON)
+option(TTS_FRONT_ENABLE_ONNX_STRESS "Build the private Silero ONNX backend" OFF)
+set(TTS_FRONT_ONNX_RUNTIME_ROOT "" CACHE PATH "ONNX Runtime C/C++ package root")
 set(TTS_FRONT_CLANG_FORMAT "" CACHE STRING "clang-format executable for format targets")
 
 file(GLOB_RECURSE TTS_FRONT_FORMAT_SOURCES CONFIGURE_DEPENDS
@@ -47,6 +49,8 @@ add_library(tts_front
     src/pronunciation_dictionary.cpp
     src/detail/utf8.cpp
     src/detail/silero_asset_hash.cpp
+    src/detail/silero_bundle.cpp
+    src/detail/silero_stress_backend.cpp
 )
 add_library(TtsFront::tts_front ALIAS tts_front)
 target_compile_features(tts_front PUBLIC cxx_std_17)
@@ -57,6 +61,29 @@ if(MSVC)
   target_compile_options(tts_front PRIVATE /W4 /permissive- /utf-8)
 else()
   target_compile_options(tts_front PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+if(TTS_FRONT_ENABLE_ONNX_STRESS)
+  if(NOT TTS_FRONT_ONNX_RUNTIME_ROOT)
+    message(FATAL_ERROR
+            "TTS_FRONT_ENABLE_ONNX_STRESS requires TTS_FRONT_ONNX_RUNTIME_ROOT")
+  endif()
+  find_path(TTS_FRONT_ONNX_RUNTIME_INCLUDE_DIR
+            NAMES onnxruntime_cxx_api.h
+            PATHS "${TTS_FRONT_ONNX_RUNTIME_ROOT}/include"
+            NO_DEFAULT_PATH)
+  find_library(TTS_FRONT_ONNX_RUNTIME_LIBRARY
+               NAMES onnxruntime
+               PATHS "${TTS_FRONT_ONNX_RUNTIME_ROOT}/lib"
+               NO_DEFAULT_PATH)
+  if(NOT TTS_FRONT_ONNX_RUNTIME_INCLUDE_DIR OR NOT TTS_FRONT_ONNX_RUNTIME_LIBRARY)
+    message(FATAL_ERROR
+            "TTS_FRONT_ONNX_RUNTIME_ROOT must contain include/onnxruntime_cxx_api.h and lib/onnxruntime")
+  endif()
+  target_sources(tts_front PRIVATE src/detail/silero_ort_session_owner.cpp)
+  target_compile_definitions(tts_front PRIVATE TTS_FRONT_ENABLE_ONNX_STRESS=1)
+  target_include_directories(tts_front PRIVATE "${TTS_FRONT_ONNX_RUNTIME_INCLUDE_DIR}")
+  target_link_libraries(tts_front PRIVATE "${TTS_FRONT_ONNX_RUNTIME_LIBRARY}")
 endif()
 
 function(tts_front_configure_target target)
@@ -102,6 +129,11 @@ if(TTS_FRONT_BUILD_TESTS)
   target_include_directories(tts_front_silero_asset_hash_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
   target_link_libraries(tts_front_silero_asset_hash_tests PRIVATE TtsFront::tts_front)
   add_test(NAME tts_front_silero_asset_hash_tests COMMAND tts_front_silero_asset_hash_tests)
+  add_executable(tts_front_silero_bundle_tests tests/silero_bundle_tests.cpp)
+  tts_front_configure_target(tts_front_silero_bundle_tests)
+  target_include_directories(tts_front_silero_bundle_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  target_link_libraries(tts_front_silero_bundle_tests PRIVATE TtsFront::tts_front)
+  add_test(NAME tts_front_silero_bundle_tests COMMAND tts_front_silero_bundle_tests)
 endif()
 if(TTS_FRONT_BUILD_EXAMPLES)
   foreach(example normalize_ru normalize_en pronunciation_dictionary stress_demo)
