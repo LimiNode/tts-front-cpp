@@ -1272,16 +1272,12 @@ TextFrontendResult TextFrontend::process(std::string_view input,
                 const auto& phrase_spans = phrase.spans;
                 if (phrase_spans.empty() || i + phrase_spans.size() > spans.size())
                     continue;
-                bool match = true;
-                for (std::size_t j = 0; j < phrase_spans.size(); ++j) {
-                    if (text.text.substr(spans[i + j].begin,
-                                         spans[i + j].end - spans[i + j].begin) !=
-                        entry.pattern.substr(phrase_spans[j].begin,
-                                             phrase_spans[j].end - phrase_spans[j].begin)) {
-                        match = false;
-                        break;
-                    }
-                }
+                const auto input_phrase = text.text.substr(
+                    spans[i].begin, spans[i + phrase_spans.size() - 1].end - spans[i].begin);
+                const auto pattern_phrase =
+                    entry.pattern.substr(phrase_spans.front().begin,
+                                         phrase_spans.back().end - phrase_spans.front().begin);
+                const bool match = input_phrase == pattern_phrase;
                 if (match && (!best || phrase_spans.size() > best_end - i)) {
                     best = &entry;
                     best_end = i + phrase_spans.size();

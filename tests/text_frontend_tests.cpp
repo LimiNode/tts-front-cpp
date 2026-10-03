@@ -139,6 +139,20 @@ int main() {
     CHECK(rewrite_result.automatic_rewrites.empty());
     CHECK(frontend.process("ООО Ромашка", rewrite_options).pronunciation_text == "phrase acronym");
 
+    PronunciationDictionary phrase_only_dictionary;
+    CHECK(phrase_only_dictionary.add_phrase("Visual Studio", "phrase"));
+    CHECK(phrase_only_dictionary.add_phrase("ООО Ромашка", "phrase acronym"));
+    TextFrontendOptions phrase_options = rewrite_options;
+    phrase_options.dictionary = &phrase_only_dictionary;
+    phrase_options.expand_initialisms = false;
+    const auto opaque_phrase = frontend.process("Visual🙂Studio", phrase_options);
+    CHECK(opaque_phrase.pronunciation_text == "Visual🙂Studio");
+    CHECK(frontend.process("Visual—Studio", phrase_options).pronunciation_text == "Visual—Studio");
+    CHECK(frontend.process("Visual / Studio", phrase_options).pronunciation_text ==
+          "Visual / Studio");
+    CHECK(frontend.process("ООО🙂Ромашка", phrase_options).pronunciation_text == "ООО🙂Ромашка");
+    CHECK(frontend.process("ООО ❤️ Ромашка", phrase_options).pronunciation_text == "ООО ❤️ Ромашка");
+
     PronunciationDictionary overlapping_dictionary;
     CHECK(overlapping_dictionary.add_token("New", "single-token"));
     CHECK(overlapping_dictionary.add_phrase("New York", "phrase-pronunciation"));
