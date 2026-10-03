@@ -457,17 +457,28 @@ std::vector<Ort::Value> run_outputs(Ort::Session& session, std::vector<Ort::Valu
                        output_ptrs.data(), output_ptrs.size());
 }
 
-std::vector<float> run_accentor(Ort::Session& session, const std::vector<float>& values, std::size_t rows,
-                                std::size_t columns, Ort::MemoryInfo& memory) {
-    const std::array<std::int64_t, 2> shape{static_cast<std::int64_t>(rows), static_cast<std::int64_t>(columns)};
+std::vector<float> run_classifier(Ort::Session& session, const std::vector<float>& values, std::size_t rows,
+                                  std::size_t columns, std::size_t expected_output_columns,
+                                  Ort::MemoryInfo& memory) {
+    const std::array<std::int64_t, 2> input_shape{static_cast<std::int64_t>(rows), static_cast<std::int64_t>(columns)};
     std::vector<Ort::Value> inputs;
     inputs.emplace_back(Ort::Value::CreateTensor<float>(memory, const_cast<float*>(values.data()), values.size(),
-                                                        shape.data(), shape.size()));
+                                                        input_shape.data(), input_shape.size()));
     Ort::AllocatorWithDefaultOptions allocator;
     const auto names = session_input_names(session, allocator);
     auto outputs = run_outputs(session, inputs, names);
-    return std::vector<float>(outputs.at(0).GetTensorData<float>(),
-                              outputs.at(0).GetTensorData<float>() + rows * 10);
+    if (outputs.empty()) {
+        throw std::runtime_error("classifier returned no outputs");
+    }
+    const auto info = outputs.at(0).GetTensorTypeAndShapeInfo();
+    const auto output_shape = info.GetShape();
+    if (output_shape.size() != 2 || output_shape[0] != static_cast<std::int64_t>(rows) ||
+        output_shape[1] != static_cast<std::int64_t>(expected_output_columns)) {
+        throw std::runtime_error("unexpected classifier output shape");
+    }
+    const auto count = info.GetElementCount();
+    const auto* data = outputs.at(0).GetTensorData<float>();
+    return std::vector<float>(data, data + count);
 }
 
 std::vector<float> run_homograph(Ort::Session& session, const std::vector<std::int64_t>& ids,
@@ -768,8 +779,8 @@ int main(int argc, char** argv) {
                 const auto row = embed(bundle, word);
                 embeddings.insert(embeddings.end(), row.begin(), row.end());
             }
-            const auto stress = run_accentor(stress_session, embeddings, words.size(), bundle.dimension, memory);
-            const auto yo = run_accentor(yo_session, embeddings, words.size(), bundle.dimension, memory);
+            const auto stress = run_classifier(stress_session, embeddings, words.size(), bundle.dimension, 10, memory);
+            const auto yo = run_classifier(yo_session, embeddings, words.size(), bundle.dimension, 7, memory);
             std::string output;
             std::size_t row = 0;
             for (const auto& token : tokens) {
