@@ -46,6 +46,7 @@ add_library(tts_front
     src/text_frontend.cpp
     src/pronunciation_dictionary.cpp
     src/detail/utf8.cpp
+    src/detail/silero_asset_hash.cpp
 )
 add_library(TtsFront::tts_front ALIAS tts_front)
 target_compile_features(tts_front PUBLIC cxx_std_17)
@@ -96,6 +97,11 @@ if(TTS_FRONT_BUILD_TESTS)
   target_link_libraries(tts_front_header_self_test PRIVATE TtsFront::tts_front)
   target_compile_definitions(tts_front_header_self_test PRIVATE TTS_FRONT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
   add_test(NAME tts_front_header_self_test COMMAND tts_front_header_self_test)
+  add_executable(tts_front_silero_asset_hash_tests tests/silero_asset_hash_tests.cpp)
+  tts_front_configure_target(tts_front_silero_asset_hash_tests)
+  target_include_directories(tts_front_silero_asset_hash_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  target_link_libraries(tts_front_silero_asset_hash_tests PRIVATE TtsFront::tts_front)
+  add_test(NAME tts_front_silero_asset_hash_tests COMMAND tts_front_silero_asset_hash_tests)
 endif()
 if(TTS_FRONT_BUILD_EXAMPLES)
   foreach(example normalize_ru normalize_en pronunciation_dictionary stress_demo)
