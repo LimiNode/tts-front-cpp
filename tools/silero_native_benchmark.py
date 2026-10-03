@@ -99,7 +99,7 @@ def memory_bytes(pid: int) -> int | None:
             counters.cb = ctypes.sizeof(counters)
             if not ctypes.windll.psapi.GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb):
                 return None
-            return int(counters.WorkingSetSize)
+            return int(counters.PeakWorkingSetSize)
         finally:
             ctypes.windll.kernel32.CloseHandle(handle)
     status = Path(f"/proc/{pid}/status")
@@ -130,13 +130,23 @@ def run_cold(cmd: list[str], sentence: str) -> float:
     return elapsed
 
 
-def run_warm(cmd: list[str], sentences: list[str]) -> tuple[list[float], int | None]:
+def run_warm(cmd: list[str], warmup_sentence: str, sentences: list[str], warmup_runs: int) -> tuple[list[float], int | None]:
     process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     samples: list[float] = []
     peak_memory = memory_bytes(process.pid)
     try:
         assert process.stdin is not None
         assert process.stdout is not None
+        assert process.stderr is not None
+        ready = process.stderr.readline()
+        if ready.rstrip(b"\r\n") != b"READY":
+            raise RuntimeError(f"native benchmark readiness failed: {ready!r}")
+        for _ in range(warmup_runs):
+            process.stdin.write((warmup_sentence + "\n").encode("utf-8"))
+            process.stdin.flush()
+            output = process.stdout.readline()
+            if not output.endswith(b"\n"):
+                raise RuntimeError("native benchmark warmup returned malformed output")
         for sentence in sentences:
             started = time.perf_counter_ns()
             process.stdin.write((sentence + "\n").encode("utf-8"))
@@ -187,10 +197,11 @@ def main() -> int:
     parser.add_argument("--homo", required=True)
     parser.add_argument("--cold-runs", type=int, default=5)
     parser.add_argument("--warm-runs", type=int, default=30)
+    parser.add_argument("--warmup-runs", type=int, default=2)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    if args.cold_runs < 1 or args.warm_runs < 2:
-        raise SystemExit("cold-runs must be >= 1 and warm-runs must be >= 2")
+    if args.cold_runs < 1 or args.warm_runs < 2 or args.warmup_runs < 1:
+        raise SystemExit("cold-runs >= 1, warm-runs >= 2, and warmup-runs >= 1 are required")
 
     root = Path(args.assets)
     graph_paths = [Path(args.stress), Path(args.yo), Path(args.homo)]
@@ -208,7 +219,9 @@ def main() -> int:
     warm: dict[str, dict[str, float]] = {}
     peak_memory: int | None = None
     for name, sentence in CASES.items():
-        samples, observed_memory = run_warm(command(args, "--stream"), [sentence] * args.warm_runs)
+        samples, observed_memory = run_warm(
+            command(args, "--stream"), sentence, [sentence] * args.warm_runs, args.warmup_runs
+        )
         warm[name] = summarize(samples)
         if observed_memory is not None:
             peak_memory = max(peak_memory or 0, observed_memory)
@@ -220,6 +233,10 @@ def main() -> int:
         "threads": 1,
         "cold_runs": args.cold_runs,
         "warm_runs": args.warm_runs,
+        "warmup_runs": args.warmup_runs,
+        "measurement_clock": "perf_counter_ns",
+        "percentile_method": "nearest-rank",
+        "working_set_metric": "PeakWorkingSetSize" if os.name == "nt" else "max_sampled_VmRSS",
         "bundle_size_bytes": bundle_size,
         "asset_count": len(asset_hashes),
         "asset_sha256": asset_hashes,

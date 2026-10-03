@@ -860,12 +860,14 @@ int main(int argc, char** argv) {
             return 2;
         }
         const auto startup_begin = std::chrono::steady_clock::now();
+        auto stage_begin = startup_begin;
         const auto report_startup = [&](const char* stage) {
             if (startup_trace) {
                 const auto elapsed = std::chrono::duration<double, std::milli>(
-                    std::chrono::steady_clock::now() - startup_begin);
+                    std::chrono::steady_clock::now() - stage_begin);
                 std::cerr << "STARTUP " << stage << "=" << elapsed.count() << "\n";
             }
+            stage_begin = std::chrono::steady_clock::now();
         };
         const auto bundle = load_bundle(argv[2]);
         report_startup("bundle_load_ms");
@@ -903,6 +905,10 @@ int main(int argc, char** argv) {
         Ort::Session homo_session(environment, homo_path.c_str(), options);
         report_startup("homosolver_session_ms");
         Ort::MemoryInfo memory = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+        if (stream) {
+            std::cerr << "READY\n";
+            std::cerr.flush();
+        }
         const auto process_line = [&](std::string sentence) {
             if (!sentence.empty() && sentence.back() == '\r') {
                 sentence.pop_back();
