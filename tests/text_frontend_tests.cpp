@@ -118,6 +118,8 @@ int main() {
     CHECK(initialism_result.words[0].surface == "ВК");
     CHECK(initialism_result.words[0].pronunciation == "вэ ка");
     CHECK(initialism_result.words[0].from_automatic_rewrite);
+    CHECK(frontend.process("ФСБ МФЦ ИП", initialisms).pronunciation_text ==
+          "эф эс бэ эм эф цэ и пэ");
     CHECK(frontend.process("ВК вк Вк", initialisms).pronunciation_text == "вэ ка вк Вк");
     CHECK(frontend.process("НАТО МИД ЗАГС", initialisms).pronunciation_text == "НАТО МИД ЗАГС");
     CHECK(frontend.process("ВК🙂 🙂ВК ООО❤️", initialisms).pronunciation_text ==
@@ -125,14 +127,17 @@ int main() {
 
     PronunciationDictionary rewrite_dictionary;
     CHECK(rewrite_dictionary.add_token("ВК", "явный override"));
+    CHECK(rewrite_dictionary.add_token("ООО", "word"));
     CHECK(rewrite_dictionary.add_token("Visual", "word"));
     CHECK(rewrite_dictionary.add_phrase("Visual Studio", "phrase"));
+    CHECK(rewrite_dictionary.add_phrase("ООО Ромашка", "phrase acronym"));
     TextFrontendOptions rewrite_options = initialisms;
     rewrite_options.language = Language::English;
     rewrite_options.dictionary = &rewrite_dictionary;
     const auto rewrite_result = frontend.process("ВК Visual Studio", rewrite_options);
     CHECK(rewrite_result.pronunciation_text == "явный override phrase");
     CHECK(rewrite_result.automatic_rewrites.empty());
+    CHECK(frontend.process("ООО Ромашка", rewrite_options).pronunciation_text == "phrase acronym");
 
     PronunciationDictionary overlapping_dictionary;
     CHECK(overlapping_dictionary.add_token("New", "single-token"));
