@@ -37,9 +37,9 @@ python tools/silero_native_bundle_negative.py \
   --assets .temp/silero-native-assets-fullcall
 ```
 
-The phrase rules in this prototype are deliberately corpus-scoped exports from
-the pinned Phase 1 vectors. They are not yet a complete upstream phrase
-resource. Consequently this closes the research correctness gate, not the
-production asset/distribution contract. ONNX Runtime remains an optional
-research dependency; benchmark, bundle packaging, and `StressMode::Automatic`
-integration are separate follow-up work.
+The phrase resource is exported from all literal alternatives in the pinned
+upstream `compiled_phrases` table (37,375 deterministic rules), rather than
+from only the six parity vectors. The exporter intentionally rejects regex
+constructs that cannot be represented by this literal native format. ONNX
+Runtime remains an optional research dependency; benchmark and
+`StressMode::Automatic` integration are separate follow-up work.

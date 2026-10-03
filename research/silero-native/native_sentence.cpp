@@ -54,7 +54,7 @@ struct Bundle {
     std::unordered_map<std::string, int> vocab;
     std::unordered_map<std::string, std::pair<int, int>> exceptions;
     std::unordered_map<std::string, std::array<std::string, 2>> homographs;
-    std::vector<PhraseRule> phrase_rules;
+    std::unordered_map<std::string, std::vector<PhraseRule>> phrase_rules;
     std::size_t dimension = 0;
     int pad_id = 0;
     int unk_id = 1;
@@ -243,7 +243,9 @@ Bundle load_bundle(const std::filesystem::path& root) {
     bundle.vocab = load_vocab(root / "bert-vocab.tsv");
     bundle.exceptions = load_exceptions(root / "exceptions.tsv");
     bundle.homographs = load_homographs(root / "homodict.tsv");
-    bundle.phrase_rules = load_phrase_rules(root / "phrase-rules.tsv");
+    for (const auto& rule : load_phrase_rules(root / "phrase-rules.tsv")) {
+        bundle.phrase_rules[rule.word].push_back(rule);
+    }
     auto weights = open_required(root / "embedding.f32");
     std::vector<char> bytes{std::istreambuf_iterator<char>(weights), std::istreambuf_iterator<char>()};
     if (bytes.size() % sizeof(float) != 0) {
@@ -647,6 +649,36 @@ std::string clean_context(const std::string& text, bool start) {
     return collapsed;
 }
 
+bool phrase_boundary_codepoint(std::uint32_t codepoint) {
+    return (codepoint >= 0x410 && codepoint <= 0x44f) || codepoint == 0x401 || codepoint == 0x451 ||
+           codepoint == '-';
+}
+
+bool phrase_rule_matches(const std::string& marked, const std::string& rule) {
+    std::size_t offset = 0;
+    while (true) {
+        const auto position = marked.find(rule, offset);
+        if (position == std::string::npos) {
+            return false;
+        }
+        bool left_ok = true;
+        if (position != 0) {
+            const auto left = silero_native::decode_utf8(marked.substr(0, position));
+            left_ok = left.empty() || !phrase_boundary_codepoint(left.back());
+        }
+        bool right_ok = true;
+        const auto end = position + rule.size();
+        if (end != marked.size()) {
+            const auto right = silero_native::decode_utf8(marked.substr(end));
+            right_ok = right.empty() || !phrase_boundary_codepoint(right.front());
+        }
+        if (left_ok && right_ok) {
+            return true;
+        }
+        offset = position + 1;
+    }
+}
+
 std::string marked_context(const std::string& sentence, const Token& token) {
     const auto left = clean_context(sentence.substr(0, token.byte_start), true);
     const auto right = clean_context(sentence.substr(token.byte_end), false);
@@ -827,11 +859,15 @@ int main(int argc, char** argv) {
                     continue;
                 }
                 const auto marked = marked_context(sentence, token);
+                const auto marked_lower = lower_ru(marked);
                 std::string variant;
-                for (const auto& rule : bundle.phrase_rules) {
-                    if (rule.word == token.clean && rule.marked == marked) {
-                        variant = rule.variant;
-                        break;
+                const auto phrase_rules = bundle.phrase_rules.find(token.clean);
+                if (phrase_rules != bundle.phrase_rules.end()) {
+                    for (const auto& rule : phrase_rules->second) {
+                        if (phrase_rule_matches(marked_lower, lower_ru(rule.marked))) {
+                            variant = rule.variant;
+                            break;
+                        }
                     }
                 }
                 if (variant.empty()) {

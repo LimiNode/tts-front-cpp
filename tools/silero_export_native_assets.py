@@ -10,12 +10,13 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
 
 import silero_phase1
-from silero_phase4_fullcall import find_homographs, load_vectors, phrase_prediction
+from silero_phase4_fullcall import load_vectors
 
 
 def digest(path: Path) -> str:
@@ -26,6 +27,113 @@ def digest(path: Path) -> str:
     return h.hexdigest()
 
 
+def matching_parenthesis(text: str, start: int) -> int:
+    depth = 0
+    character_class = False
+    escaped = False
+    for index in range(start, len(text)):
+        char = text[index]
+        if escaped:
+            escaped = False
+            continue
+        if char == "\\":
+            escaped = True
+            continue
+        if character_class:
+            if char == "]":
+                character_class = False
+            continue
+        if char == "[":
+            character_class = True
+        elif char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth == 0:
+                return index
+    raise ValueError("unbalanced phrase regex")
+
+
+def split_alternatives(text: str) -> list[str]:
+    result = []
+    begin = 0
+    depth = 0
+    character_class = False
+    escaped = False
+    for index, char in enumerate(text):
+        if escaped:
+            escaped = False
+            continue
+        if char == "\\":
+            escaped = True
+            continue
+        if character_class:
+            if char == "]":
+                character_class = False
+            continue
+        if char == "[":
+            character_class = True
+        elif char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+        elif char == "|" and depth == 0:
+            result.append(text[begin:index])
+            begin = index + 1
+    result.append(text[begin:])
+    return result
+
+
+def compiled_phrase_rules(compiled_phrases: dict) -> list[tuple[str, str, str]]:
+    rows: set[tuple[str, str, str]] = set()
+    for word, pattern in compiled_phrases.items():
+        source = pattern.pattern
+        cursor = 0
+        while True:
+            group_start = source.find("(?P<", cursor)
+            if group_start == -1:
+                break
+            name_end = source.find(">", group_start + 4)
+            if name_end == -1:
+                raise ValueError("malformed named phrase group")
+            group_end = matching_parenthesis(source, group_start)
+            variant_name = source[group_start + 4 : name_end]
+            inner = source[name_end + 1 : group_end]
+            if inner.startswith("(?<!"):
+                boundary_end = matching_parenthesis(inner, 0)
+                inner = inner[boundary_end + 1 :]
+            lookahead = inner.rfind("(?!")
+            if lookahead != -1 and matching_parenthesis(inner, lookahead) == len(inner) - 1:
+                inner = inner[:lookahead]
+            if inner.startswith("(?:") and matching_parenthesis(inner, 0) == len(inner) - 1:
+                inner = inner[3:-1]
+            stressed = next(
+                (
+                    variant_name[:index] + "+" + variant_name[index:].lower()
+                    for index, char in enumerate(variant_name)
+                    if char.isupper()
+                ),
+                None,
+            )
+            if stressed is not None:
+                for alternative in split_alternatives(inner):
+                    escaped = False
+                    for char in alternative:
+                        if escaped:
+                            escaped = False
+                        elif char == "\\":
+                            escaped = True
+                        elif char in "()[]?*+{}^$|":
+                            raise ValueError("unsupported non-literal compiled phrase construct")
+                    literal = re.sub(r"\\(.)", r"\1", alternative)
+                    match = pattern.search(literal)
+                    selected = [] if match is None else [name for name in pattern.groupindex if match.group(name) is not None]
+                    if literal and selected == [variant_name]:
+                        rows.add((word, literal, stressed))
+            cursor = group_end + 1
+    return sorted(rows)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True, type=Path)
@@ -34,11 +142,6 @@ def main() -> int:
     parser.add_argument("--stress-onnx", required=True, type=Path)
     parser.add_argument("--yo-onnx", required=True, type=Path)
     parser.add_argument("--homosolver-onnx", required=True, type=Path)
-    parser.add_argument(
-        "--vectors",
-        type=Path,
-        default=Path("docs/research/silero-phase1-vectors.jsonl"),
-    )
     args = parser.parse_args()
     source = args.source.resolve()
     output = args.output.resolve()
@@ -97,17 +200,9 @@ def main() -> int:
         newline="\n",
     )
     phrase_rules = output / "phrase-rules.tsv"
-    phrase_rows: dict[tuple[str, str], str] = {}
-    for vector in load_vectors(args.vectors.resolve()):
-        for _, _, _, lower, marked in find_homographs(
-            vector["input"], accentor.homosolver.homodict, set()
-        ):
-            pattern = accentor.homosolver.compiled_phrases.get(lower)
-            predicted = phrase_prediction(pattern, marked) if pattern else None
-            if predicted is not None:
-                phrase_rows[(lower, marked)] = predicted
+    phrase_rows = compiled_phrase_rules(accentor.homosolver.compiled_phrases)
     phrase_rules.write_text(
-        "".join(f"{word}\t{marked}\t{variant}\n" for (word, marked), variant in sorted(phrase_rows.items())),
+        "".join(f"{word}\t{marked}\t{variant}\n" for word, marked, variant in phrase_rows),
         encoding="utf-8",
         newline="\n",
     )
@@ -131,6 +226,7 @@ def main() -> int:
         "embedding_dimension": int(embedding.weight.shape[1]),
         "embedding_rows": int(embedding.weight.shape[0]),
         "bert_vocab_entries": len(accentor.homosolver.tokenizer.vocab),
+        "phrase_rule_entries": len(phrase_rows),
         "special_token_ids": {
             "pad": int(accentor.homosolver.tokenizer.pad_token_id),
             "unk": int(accentor.homosolver.tokenizer.unk_token_id),
@@ -154,7 +250,7 @@ def main() -> int:
                 output / "homosolver.onnx",
             )
         },
-        "phrase_rules": "corpus-scoped exported decisions from the pinned Phase 1 vectors",
+        "phrase_rules": "full literal alternatives exported from pinned upstream compiled phrases",
     }
     (output / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=True, indent=2) + "\n", encoding="utf-8", newline="\n"
