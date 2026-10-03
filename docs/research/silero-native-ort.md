@@ -5,7 +5,9 @@ It is deliberately outside the `tts_front` core and is enabled only when
 `SILERO_NATIVE_ORT_ROOT` points to a pinned ONNX Runtime C/C++ package.
 
 The current research pin is ONNX Runtime `1.30.0`, matching the Phase 2/3
-receipts. The probe supports the two graph input contracts already proven in
+receipts. The Windows SDK archive is pinned by SHA-256:
+`c6ba983baf5681af108599675d2a89c2d145512d02de28aed0bff177cd0ba949`.
+The probe supports the two graph input contracts already proven in
 Python:
 
 - `accentor`: a text file containing `rows columns` followed by float32

@@ -94,6 +94,9 @@ jobs:
         run: |
           $url = "https://github.com/microsoft/onnxruntime/releases/download/v1.30.0/onnxruntime-win-x64-1.30.0.zip"
           Invoke-WebRequest -Uri $url -OutFile ort.zip
+          $expected = "c6ba983baf5681af108599675d2a89c2d145512d02de28aed0bff177cd0ba949"
+          $actual = (Get-FileHash ort.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) { throw "ONNX Runtime SDK SHA-256 mismatch: $actual" }
           Expand-Archive -Path ort.zip -DestinationPath .
       - name: Build native ONNX Runtime probe
         shell: pwsh
