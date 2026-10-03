@@ -1,9 +1,5 @@
 #include <onnxruntime_cxx_api.h>
 
-#ifdef _WIN32
-#include <windows.h>
-#endif
-
 #include <array>
 #include <cstdint>
 #include <filesystem>
@@ -59,20 +55,7 @@ InputData read_accentor_input(const std::string& path) {
 }
 
 std::filesystem::path model_path(const char* path) {
-#ifdef _WIN32
-    const int required = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, nullptr, 0);
-    if (required <= 0) {
-        throw std::runtime_error("model path is not valid UTF-8");
-    }
-    std::wstring wide(static_cast<std::size_t>(required), L'\0');
-    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, wide.data(), required) <= 0) {
-        throw std::runtime_error("model path UTF-8 conversion failed");
-    }
-    wide.resize(static_cast<std::size_t>(required - 1));
-    return std::filesystem::path(wide);
-#else
-    return std::filesystem::path(path);
-#endif
+    return std::filesystem::u8path(std::string(path));
 }
 
 HomographData read_homograph_input(const std::string& path) {
