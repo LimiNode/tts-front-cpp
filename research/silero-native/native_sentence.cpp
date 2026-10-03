@@ -128,10 +128,16 @@ struct AssetManifest {
 AssetManifest load_manifest(const std::filesystem::path& path) {
     auto manifest = open_required(path);
     const std::string content((std::istreambuf_iterator<char>(manifest)), {});
+    const auto source_revision = manifest_string_field(content, "source_revision");
+    const auto model_sha256 = manifest_string_field(content, "model_sha256");
     if (manifest_string_field(content, "record_type") != "silero_native_asset_manifest" ||
         manifest_string_field(content, "schema_version") != "1" ||
         manifest_string_field(content, "bundle_version") != "silero-native-phase1-v1" ||
-        manifest_string_field(content, "ort_version") != OrtGetApiBase()->GetVersionString()) {
+        manifest_string_field(content, "ort_version") != OrtGetApiBase()->GetVersionString() ||
+        source_revision.size() != 40 ||
+        source_revision.find_first_not_of("0123456789abcdefABCDEF") != std::string::npos ||
+        model_sha256.size() != 64 ||
+        model_sha256.find_first_not_of("0123456789abcdefABCDEF") != std::string::npos) {
         throw std::runtime_error("invalid native asset manifest");
     }
     AssetManifest result;
