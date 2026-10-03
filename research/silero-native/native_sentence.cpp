@@ -38,6 +38,7 @@ struct Token {
     std::string raw;
     std::string clean;
     bool process = false;
+    bool classifier_input = true;
     std::size_t byte_start = 0;
     std::size_t byte_end = 0;
 };
@@ -313,56 +314,68 @@ bool delimiter(std::uint32_t codepoint) {
            codepoint == '\\';
 }
 
+bool word_codepoint(std::uint32_t codepoint) {
+    return (codepoint >= 0x410 && codepoint <= 0x44f) || codepoint == 0x401 || codepoint == 0x451 ||
+           codepoint == '+';
+}
+
 std::vector<Token> tokenize(const std::string& sentence) {
     std::vector<Token> result;
     const auto codepoints = silero_native::decode_utf8(sentence);
-    std::size_t byte_offset = 0;
-    std::size_t begin = 0;
-    std::string current;
-    auto flush_word = [&](std::size_t end) {
-        if (current.empty()) {
+    std::vector<std::size_t> byte_offsets(codepoints.size() + 1, 0);
+    for (std::size_t index = 0; index < codepoints.size(); ++index) {
+        std::string encoded;
+        silero_native::append_utf8(encoded, codepoints[index]);
+        byte_offsets[index + 1] = byte_offsets[index] + encoded.size();
+    }
+    const auto emit = [&](std::size_t begin, std::size_t end, bool process, bool classifier_input) {
+        if (begin == end) {
             return;
         }
-        std::vector<std::string> parts;
-        std::size_t part_begin = 0;
-        while (true) {
-            const auto dash = current.find('-', part_begin);
-            parts.push_back(current.substr(part_begin, dash == std::string::npos ? dash : dash - part_begin));
-            if (dash == std::string::npos) {
-                break;
-            }
-            part_begin = dash + 1;
-        }
-        std::size_t local = begin;
-        for (std::size_t index = 0; index < parts.size(); ++index) {
-            std::string raw = parts[index];
-            if (index + 1 < parts.size()) {
-                raw.push_back('-');
-            }
-            const auto clean = clean_word(raw);
-            result.push_back({raw, clean, !clean.empty() && (index + 1 < parts.size() || clean != "то"), local,
-                              local + raw.size()});
-            local += raw.size();
-        }
-        current.clear();
-        begin = end;
+        const auto byte_begin = byte_offsets[begin];
+        const auto byte_end = byte_offsets[end];
+        const auto raw = sentence.substr(byte_begin, byte_end - byte_begin);
+        result.push_back({raw, process ? clean_word(raw) : "", process, classifier_input, byte_begin, byte_end});
     };
-    for (const auto codepoint : codepoints) {
-        std::string encoded;
-        silero_native::append_utf8(encoded, codepoint);
-        if (delimiter(codepoint)) {
-            flush_word(byte_offset);
-            result.push_back({encoded, "", false, byte_offset, byte_offset + encoded.size()});
-            begin = byte_offset + encoded.size();
-        } else {
-            if (current.empty()) {
-                begin = byte_offset;
-            }
-            current += encoded;
+    std::size_t index = 0;
+    while (index < codepoints.size()) {
+        if (delimiter(codepoints[index])) {
+            emit(index, index + 1, false, true);
+            ++index;
+            continue;
         }
-        byte_offset += encoded.size();
+        const auto segment_begin = index;
+        while (index < codepoints.size() && !delimiter(codepoints[index])) {
+            ++index;
+        }
+        const auto segment_end = index;
+        std::size_t cursor = segment_begin;
+        while (cursor < segment_end) {
+            if (word_codepoint(codepoints[cursor])) {
+                const auto word_begin = cursor;
+                while (cursor < segment_end && word_codepoint(codepoints[cursor])) {
+                    ++cursor;
+                }
+                const bool has_following_word = cursor + 1 < segment_end && codepoints[cursor] == '-' &&
+                                                 word_codepoint(codepoints[cursor + 1]);
+                if (has_following_word) {
+                    ++cursor;
+                    emit(word_begin, cursor, true, true);
+                    continue;
+                }
+                const auto raw = sentence.substr(byte_offsets[word_begin],
+                                                 byte_offsets[cursor] - byte_offsets[word_begin]);
+                const auto clean = clean_word(raw);
+                emit(word_begin, cursor, !clean.empty() && clean != "то", true);
+                continue;
+            }
+            const auto opaque_begin = cursor;
+            while (cursor < segment_end && !word_codepoint(codepoints[cursor])) {
+                ++cursor;
+            }
+            emit(opaque_begin, cursor, false, false);
+        }
     }
-    flush_word(sentence.size());
     return result;
 }
 
@@ -930,21 +943,35 @@ int main(int argc, char** argv) {
             }
             const auto tokens = tokenize(sentence);
             std::vector<std::string> words;
-            for (const auto& token : tokens) words.push_back(token.clean);
+            std::vector<std::size_t> token_rows(tokens.size(), std::numeric_limits<std::size_t>::max());
+            for (std::size_t token_index = 0; token_index < tokens.size(); ++token_index) {
+                if (!tokens[token_index].classifier_input) {
+                    continue;
+                }
+                token_rows[token_index] = words.size();
+                words.push_back(tokens[token_index].clean);
+            }
             std::vector<float> embeddings;
             for (const auto& word : words) {
                 const auto row = embed(bundle, word);
                 embeddings.insert(embeddings.end(), row.begin(), row.end());
             }
-            const auto stress = run_classifier(stress_session, embeddings, words.size(), bundle.dimension, 10, memory);
-            const auto yo = run_classifier(yo_session, embeddings, words.size(), bundle.dimension, 7, memory);
+            std::vector<float> stress;
+            std::vector<float> yo;
+            if (!words.empty()) {
+                stress = run_classifier(stress_session, embeddings, words.size(), bundle.dimension, 10, memory);
+                yo = run_classifier(yo_session, embeddings, words.size(), bundle.dimension, 7, memory);
+            }
             std::string output;
-            std::size_t row = 0;
-            for (const auto& token : tokens) {
+            for (std::size_t token_index = 0; token_index < tokens.size(); ++token_index) {
+                const auto& token = tokens[token_index];
                 if (!token.process) {
                     output += token.raw;
-                    ++row;
                     continue;
+                }
+                const auto row = token_rows[token_index];
+                if (row == std::numeric_limits<std::size_t>::max()) {
+                    throw std::runtime_error("processable token has no classifier row");
                 }
                 const auto stress_begin = stress.begin() + static_cast<std::ptrdiff_t>(row * 10);
                 const auto yo_begin = yo.begin() + static_cast<std::ptrdiff_t>(row * 7);
@@ -962,7 +989,6 @@ int main(int argc, char** argv) {
                                                          std::vector<float>(stress_begin, stress_begin + 10),
                                                          std::vector<float>(yo_begin, yo_begin + 7));
                 output += encode(transformed);
-                ++row;
             }
             std::cout.write(output.data(), static_cast<std::streamsize>(output.size()));
             std::cout.put('\n');

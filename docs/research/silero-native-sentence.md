@@ -24,6 +24,21 @@ receipt sets `full_native_call_parity` to `true` only after every output and
 route check succeeds. It also records hashes for the executable, all three
 graphs, and the exported native asset manifest.
 
+Non-word UTF-8 runs are represented as opaque spans. They are excluded from
+embedding/classifier rows and copied byte-for-byte during reconstruction, so
+attached emoji sequences (including variation selectors, modifiers, and ZWJ
+families) cannot be consumed by a word or homograph replacement. The focused
+regression check is:
+
+```text
+python tools/silero_native_opaque_unicode.py \
+  --executable .temp/silero-native-fullcall-build/silero_native_sentence.exe \
+  --assets .temp/silero-native-assets-fullcall \
+  --stress .temp/silero-native-assets-fullcall/stress.onnx \
+  --yo .temp/silero-native-assets-fullcall/yo.onnx \
+  --homo .temp/silero-native-assets-fullcall/homosolver.onnx
+```
+
 At startup the native loader verifies the manifest schema/bundle/ORT version
 and recomputes SHA-256 for every runtime asset before loading it. Missing,
 truncated, modified, or schema-incompatible bundles fail closed.
