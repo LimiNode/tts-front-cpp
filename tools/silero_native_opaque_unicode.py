@@ -8,13 +8,16 @@ import sys
 
 
 CASES = (
-    ("spaces", "Мама 🙂 мыла раму.", ("🙂",)),
-    ("attached_suffix", "Мама🙂", ("🙂",)),
-    ("homograph_suffix", "Это большое село🙂.", ("🙂",)),
-    ("attached_prefix", "🙂село", ("🙂",)),
-    ("variation_selector", "ёлка❤️", ("❤️",)),
-    ("skin_tone", "👍🏽 мама", ("👍🏽",)),
-    ("zwj_sequence", "семья 👨‍👩‍👧‍👦 дома", ("👨‍👩‍👧‍👦",)),
+    ("spaces", "\u041c\u0430\u043c\u0430 \U0001f642 \u043c\u044b\u043b\u0430 \u0440\u0430\u043c\u0443.",
+     "\u041c+\u0430\u043c\u0430 \U0001f642 \u043c+\u044b\u043b\u0430 \u0440+\u0430\u043c\u0443."),
+    ("attached_suffix", "\u041c\u0430\u043c\u0430\U0001f642", "\u041c+\u0430\u043c\u0430\U0001f642"),
+    ("homograph_suffix", "\u042d\u0442\u043e \u0431\u043e\u043b\u044c\u0448\u043e\u0435 \u0441\u0435\u043b\u043e\U0001f642.",
+     "+\u042d\u0442\u043e \u0431\u043e\u043b\u044c\u0448+\u043e\u0435 \u0441\u0435\u043b+\u043e\U0001f642."),
+    ("attached_prefix", "\U0001f642\u0441\u0435\u043b\u043e", "\U0001f642\u0441\u0435\u043b+\u043e"),
+    ("variation_selector", "\u0451\u043b\u043a\u0430\u2764\ufe0f", "+\u0451\u043b\u043a\u0430\u2764\ufe0f"),
+    ("skin_tone", "\U0001f44d\U0001f3fd \u043c\u0430\u043c\u0430", "\U0001f44d\U0001f3fd \u043c+\u0430\u043c\u0430"),
+    ("zwj_sequence", "\u0441\u0435\u043c\u044c\u044f \U0001f468\u200d\U0001f469\u200d\U0001f467\u200d\U0001f466 \u0434\u043e\u043c\u0430",
+     "\u0441\u0435\u043c\u044c+\u044f \U0001f468\u200d\U0001f469\u200d\U0001f467\u200d\U0001f466 \u0434+\u043e\u043c\u0430"),
 )
 
 
@@ -47,10 +50,9 @@ def main() -> int:
     outputs = completed.stdout.decode("utf-8").splitlines()
     if len(outputs) != len(CASES):
         raise SystemExit(f"expected {len(CASES)} outputs, got {len(outputs)}")
-    for (case_id, _sentence, opaque), output in zip(CASES, outputs):
-        for span in opaque:
-            if span not in output:
-                raise SystemExit(f"opaque span lost for {case_id}: {span!r}")
+    for (case_id, _sentence, expected), output in zip(CASES, outputs):
+        if output.encode("utf-8") != expected.encode("utf-8"):
+            raise SystemExit(f"exact output mismatch for {case_id}: {output!r} != {expected!r}")
     print(f"opaque Unicode parity passed: cases={len(CASES)}")
     return 0
 
