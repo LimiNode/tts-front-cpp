@@ -1,4 +1,5 @@
 #include "utf8.hpp"
+#include "sha256.hpp"
 
 #include <onnxruntime_cxx_api.h>
 
@@ -79,13 +80,75 @@ std::ifstream open_required(const std::filesystem::path& path) {
     return stream;
 }
 
-void require_manifest(const std::filesystem::path& path) {
+std::string manifest_string_field(const std::string& content, const std::string& name) {
+    const auto key = content.find("\"" + name + "\"");
+    if (key == std::string::npos) {
+        throw std::runtime_error("native asset manifest is missing field: " + name);
+    }
+    const auto colon = content.find(':', key);
+    const auto begin = content.find('"', colon == std::string::npos ? colon : colon + 1);
+    if (colon == std::string::npos || begin == std::string::npos) {
+        throw std::runtime_error("malformed native asset manifest field: " + name);
+    }
+    const auto end = content.find('"', begin + 1);
+    if (end == std::string::npos || end == begin + 1) {
+        throw std::runtime_error("malformed native asset manifest value: " + name);
+    }
+    return content.substr(begin + 1, end - begin - 1);
+}
+
+std::string manifest_asset_hash(const std::string& content, const std::string& name) {
+    const auto assets = content.find("\"assets\"");
+    const auto key = content.find("\"" + name + "\"", assets == std::string::npos ? assets : assets + 1);
+    if (assets == std::string::npos || key == std::string::npos) {
+        throw std::runtime_error("native asset manifest is missing asset: " + name);
+    }
+    const auto object_end = content.find('}', key);
+    const auto sha = content.find("\"sha256\"", key);
+    if (sha == std::string::npos || object_end == std::string::npos || sha > object_end) {
+        throw std::runtime_error("native asset manifest is missing asset hash: " + name);
+    }
+    const auto colon = content.find(':', sha);
+    const auto begin = content.find('"', colon == std::string::npos ? colon : colon + 1);
+    const auto end = begin == std::string::npos ? begin : content.find('"', begin + 1);
+    if (colon == std::string::npos || begin == std::string::npos || end == std::string::npos || end == begin + 1) {
+        throw std::runtime_error("malformed native asset hash: " + name);
+    }
+    const auto result = content.substr(begin + 1, end - begin - 1);
+    if (result.size() != 64 || result.find_first_not_of("0123456789abcdefABCDEF") != std::string::npos) {
+        throw std::runtime_error("invalid native asset hash: " + name);
+    }
+    return result;
+}
+
+struct AssetManifest {
+    std::unordered_map<std::string, std::string> hashes;
+};
+
+AssetManifest load_manifest(const std::filesystem::path& path) {
     auto manifest = open_required(path);
     const std::string content((std::istreambuf_iterator<char>(manifest)), {});
-    if (content.find("silero_native_asset_manifest") == std::string::npos ||
-        content.find("source_revision") == std::string::npos ||
-        content.find("sha256") == std::string::npos) {
+    if (manifest_string_field(content, "record_type") != "silero_native_asset_manifest" ||
+        manifest_string_field(content, "schema_version") != "1" ||
+        manifest_string_field(content, "bundle_version") != "silero-native-phase1-v1" ||
+        manifest_string_field(content, "ort_version") != OrtGetApiBase()->GetVersionString()) {
         throw std::runtime_error("invalid native asset manifest");
+    }
+    AssetManifest result;
+    for (const auto& name : {"ngrams.tsv", "embedding.f32", "bert-vocab.tsv", "homodict.tsv", "exceptions.tsv",
+                             "phrase-rules.tsv"}) {
+        result.hashes.emplace(name, manifest_asset_hash(content, name));
+    }
+    return result;
+}
+
+void verify_asset_hashes(const std::filesystem::path& root, const AssetManifest& manifest) {
+    for (const auto& [name, expected] : manifest.hashes) {
+        auto asset = open_required(root / name);
+        const std::string content((std::istreambuf_iterator<char>(asset)), {});
+        if (silero_native::sha256_hex(content) != expected) {
+            throw std::runtime_error("native asset SHA-256 mismatch: " + name);
+        }
     }
 }
 
@@ -164,7 +227,8 @@ std::vector<PhraseRule> load_phrase_rules(const std::filesystem::path& path) {
 }
 
 Bundle load_bundle(const std::filesystem::path& root) {
-    require_manifest(root / "manifest.json");
+    const auto manifest = load_manifest(root / "manifest.json");
+    verify_asset_hashes(root, manifest);
     Bundle bundle;
     bundle.ngram_ids = load_ids(root / "ngrams.tsv");
     bundle.vocab = load_vocab(root / "bert-vocab.tsv");

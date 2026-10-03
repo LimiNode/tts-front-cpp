@@ -109,6 +109,9 @@ def main() -> int:
     )
     manifest = {
         "record_type": "silero_native_asset_manifest",
+        "schema_version": "1",
+        "bundle_version": "silero-native-phase1-v1",
+        "ort_version": "1.30.0",
         "source_revision": silero_phase1.PINNED_SOURCE_REVISION,
         "model_sha256": digest(model),
         "embedding_dictionary_entries": len(embedding.ngram_dict),

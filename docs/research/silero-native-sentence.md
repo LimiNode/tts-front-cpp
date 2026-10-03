@@ -24,6 +24,10 @@ receipt sets `full_native_call_parity` to `true` only after every output and
 route check succeeds. It also records hashes for the executable, all three
 graphs, and the exported native asset manifest.
 
+At startup the native loader verifies the manifest schema/bundle/ORT version
+and recomputes SHA-256 for every runtime asset before loading it. Missing,
+truncated, modified, or schema-incompatible bundles fail closed.
+
 The phrase rules in this prototype are deliberately corpus-scoped exports from
 the pinned Phase 1 vectors. They are not yet a complete upstream phrase
 resource. Consequently this closes the research correctness gate, not the
