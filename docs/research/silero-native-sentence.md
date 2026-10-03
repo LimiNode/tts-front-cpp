@@ -28,6 +28,15 @@ At startup the native loader verifies the manifest schema/bundle/ORT version
 and recomputes SHA-256 for every runtime asset before loading it. Missing,
 truncated, modified, or schema-incompatible bundles fail closed.
 
+Provenance regressions for changing only `source_revision` or only
+`model_sha256` are exercised by:
+
+```text
+python tools/silero_native_bundle_negative.py \
+  --executable .temp/silero-native-fullcall-build/silero_native_sentence.exe \
+  --assets .temp/silero-native-assets-fullcall
+```
+
 The phrase rules in this prototype are deliberately corpus-scoped exports from
 the pinned Phase 1 vectors. They are not yet a complete upstream phrase
 resource. Consequently this closes the research correctness gate, not the

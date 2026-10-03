@@ -21,11 +21,15 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
 namespace {
+
+constexpr std::string_view kExpectedSourceRevision = "d38096cae9bf3ac846bbb88705428f3ed3801b96";
+constexpr std::string_view kExpectedModelSha256 = "aecb207df9db34a079de2ba91edba2a9333839ad24de0cf17e7bc82424876786";
 
 using Codepoints = std::vector<std::uint32_t>;
 
@@ -135,10 +139,7 @@ AssetManifest load_manifest(const std::filesystem::path& path) {
         manifest_string_field(content, "schema_version") != "1" ||
         manifest_string_field(content, "bundle_version") != "silero-native-phase1-v1" ||
         manifest_string_field(content, "ort_version") != OrtGetApiBase()->GetVersionString() ||
-        source_revision.size() != 40 ||
-        source_revision.find_first_not_of("0123456789abcdefABCDEF") != std::string::npos ||
-        model_sha256.size() != 64 ||
-        model_sha256.find_first_not_of("0123456789abcdefABCDEF") != std::string::npos) {
+        source_revision != kExpectedSourceRevision || model_sha256 != kExpectedModelSha256) {
         throw std::runtime_error("invalid native asset manifest");
     }
     AssetManifest result;
