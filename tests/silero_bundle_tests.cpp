@@ -73,9 +73,11 @@ int main() {
     CHECK(bundle.asset_sha256.size() == kAssets.size());
     CHECK(bundle.asset("stress.onnx") == root / "stress.onnx");
     CHECK(throws_runtime_error([&] { (void)bundle.asset("undeclared.bin"); }));
+#if !defined(TTS_FRONT_ENABLE_ONNX_STRESS)
     tts_front::detail::SileroStressBackend backend({root, "1.30.0", 1});
     CHECK(backend.bundle_validated());
     CHECK(!backend.sessions_ready());
+#endif
 
     CHECK(throws_runtime_error(
         [&] { (void)tts_front::detail::load_silero_bundle(root, "1.29.0", 1); }));
