@@ -496,6 +496,15 @@ std::vector<float> run_homograph(Ort::Session& session, const std::vector<std::i
     Ort::AllocatorWithDefaultOptions allocator;
     const auto names = session_input_names(session, allocator);
     auto outputs = run_outputs(session, inputs, names);
+    if (outputs.empty()) {
+        throw std::runtime_error("homosolver returned no outputs");
+    }
+    const auto info = outputs.at(0).GetTensorTypeAndShapeInfo();
+    const auto shape = info.GetShape();
+    if (info.GetElementType() != ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT || shape.size() != 2 || shape[0] != 1 ||
+        shape[1] != 1 || info.GetElementCount() != 1) {
+        throw std::runtime_error("unexpected homosolver output shape");
+    }
     const auto* data = outputs.at(0).GetTensorData<float>();
     return {data[0]};
 }
