@@ -42,7 +42,7 @@ def summarize(samples: list[float]) -> dict[str, float]:
     }
 
 
-def command(args: argparse.Namespace, stream: bool = False) -> list[str]:
+def command(args: argparse.Namespace, mode: str | None = None) -> list[str]:
     result = [
         args.executable,
         "--assets",
@@ -54,8 +54,8 @@ def command(args: argparse.Namespace, stream: bool = False) -> list[str]:
         "--homo",
         args.homo,
     ]
-    if stream:
-        result.append("--stream")
+    if mode:
+        result.append(mode)
     return result
 
 
@@ -157,6 +157,27 @@ def run_warm(cmd: list[str], sentences: list[str]) -> tuple[list[float], int | N
     return samples, peak_memory
 
 
+def startup_breakdown(args: argparse.Namespace) -> dict[str, float]:
+    started = time.perf_counter_ns()
+    completed = subprocess.run(
+        command(args, "--startup-trace"),
+        input=b"\n",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=180,
+        check=False,
+    )
+    if completed.returncode != 0:
+        raise RuntimeError(completed.stderr.decode("utf-8", errors="replace"))
+    values: dict[str, float] = {}
+    for line in completed.stderr.decode("utf-8", errors="replace").splitlines():
+        if line.startswith("STARTUP ") and "=" in line:
+            name, value = line[8:].split("=", 1)
+            values[name] = float(value)
+    values["process_total_ms"] = (time.perf_counter_ns() - started) / 1_000_000
+    return values
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--executable", required=True)
@@ -179,6 +200,7 @@ def main() -> int:
     cmd = command(args)
 
     cold_init = summarize([run_cold(cmd, "") for _ in range(args.cold_runs)])
+    startup = startup_breakdown(args)
     cold_first = {
         name: summarize([run_cold(cmd, sentence) for _ in range(args.cold_runs)])
         for name, sentence in CASES.items()
@@ -186,7 +208,7 @@ def main() -> int:
     warm: dict[str, dict[str, float]] = {}
     peak_memory: int | None = None
     for name, sentence in CASES.items():
-        samples, observed_memory = run_warm(command(args, stream=True), [sentence] * args.warm_runs)
+        samples, observed_memory = run_warm(command(args, "--stream"), [sentence] * args.warm_runs)
         warm[name] = summarize(samples)
         if observed_memory is not None:
             peak_memory = max(peak_memory or 0, observed_memory)
@@ -204,6 +226,7 @@ def main() -> int:
         "executable_sha256": executable_hashes[Path(args.executable).name],
         "executable_hash_elapsed_ms": executable_hash_ms,
         "hash_verification": {"elapsed_ms": hash_ms},
+        "startup_breakdown": startup,
         "cold_initialization": cold_init,
         "cold_first_sentence": cold_first,
         "warm_sentence": warm,

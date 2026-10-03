@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <cmath>
 #include <cstring>
@@ -846,17 +847,28 @@ int main(int argc, char** argv) {
                                   std::string(argv[3]) == "--phrase-probe-stdin";
         const bool trace = argc == 10 && std::string(argv[9]) == "--trace";
         const bool stream = argc == 10 && std::string(argv[9]) == "--stream";
-        const bool standard_args = (argc == 9 || trace || stream) && std::string(argv[1]) == "--assets" &&
+        const bool startup_trace = argc == 10 && std::string(argv[9]) == "--startup-trace";
+        const bool standard_args = (argc == 9 || trace || stream || startup_trace) &&
+                                    std::string(argv[1]) == "--assets" &&
                                     std::string(argv[3]) == "--stress" && std::string(argv[5]) == "--yo" &&
                                     std::string(argv[7]) == "--homo";
         if (!phrase_probe && !standard_args) {
             if (!phrase_probe) {
-                std::cerr << "usage: silero_native_sentence --assets DIR --stress FILE --yo FILE --homo FILE [--trace|--stream]\n"
+                std::cerr << "usage: silero_native_sentence --assets DIR --stress FILE --yo FILE --homo FILE [--trace|--stream|--startup-trace]\n"
                              "       silero_native_sentence --assets DIR --phrase-probe-stdin\n";
             }
             return 2;
         }
+        const auto startup_begin = std::chrono::steady_clock::now();
+        const auto report_startup = [&](const char* stage) {
+            if (startup_trace) {
+                const auto elapsed = std::chrono::duration<double, std::milli>(
+                    std::chrono::steady_clock::now() - startup_begin);
+                std::cerr << "STARTUP " << stage << "=" << elapsed.count() << "\n";
+            }
+        };
         const auto bundle = load_bundle(argv[2]);
+        report_startup("bundle_load_ms");
         if (phrase_probe) {
             std::string line;
             while (std::getline(std::cin, line)) {
@@ -879,11 +891,17 @@ int main(int argc, char** argv) {
         const auto yo_path = std::filesystem::u8path(std::string(argv[6]));
         const auto homo_path = std::filesystem::u8path(std::string(argv[8]));
         verify_external_asset(stress_path, bundle.asset_hashes.at("stress.onnx"));
+        report_startup("stress_hash_ms");
         verify_external_asset(yo_path, bundle.asset_hashes.at("yo.onnx"));
+        report_startup("yo_hash_ms");
         verify_external_asset(homo_path, bundle.asset_hashes.at("homosolver.onnx"));
+        report_startup("homosolver_hash_ms");
         Ort::Session stress_session(environment, stress_path.c_str(), options);
+        report_startup("stress_session_ms");
         Ort::Session yo_session(environment, yo_path.c_str(), options);
+        report_startup("yo_session_ms");
         Ort::Session homo_session(environment, homo_path.c_str(), options);
+        report_startup("homosolver_session_ms");
         Ort::MemoryInfo memory = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
         const auto process_line = [&](std::string sentence) {
             if (!sentence.empty() && sentence.back() == '\r') {
