@@ -119,8 +119,7 @@ int main() {
     CHECK(initialism_result.words[0].pronunciation == "вэ ка");
     CHECK(initialism_result.words[0].from_automatic_rewrite);
     CHECK(frontend.process("ВК вк Вк", initialisms).pronunciation_text == "вэ ка вк Вк");
-    CHECK(frontend.process("НАТО МИД ЗАГС", initialisms).pronunciation_text ==
-          "НАТО МИД ЗАГС");
+    CHECK(frontend.process("НАТО МИД ЗАГС", initialisms).pronunciation_text == "НАТО МИД ЗАГС");
     CHECK(frontend.process("ВК🙂 🙂ВК ООО❤️", initialisms).pronunciation_text ==
           "вэ ка🙂 🙂вэ ка о о о❤️");
 

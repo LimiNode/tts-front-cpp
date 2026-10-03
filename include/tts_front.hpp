@@ -47,7 +47,7 @@ struct WordPronunciation {
     std::size_t source_offset = 0; ///< Byte offset into normalized_text.
     std::optional<std::size_t> dictionary_replacement; ///< Index of the covered replacement.
     std::optional<std::size_t> stressed_vowel;         ///< Zero-based vowel ordinal.
-    bool from_dictionary = false; ///< Whether pronunciation came from the dictionary.
+    bool from_dictionary = false;        ///< Whether pronunciation came from the dictionary.
     bool from_automatic_rewrite = false; ///< Whether an opt-in deterministic rewrite was applied.
 };
 
@@ -60,11 +60,11 @@ struct DictionaryReplacement {
 
 /// \brief One deterministic, non-dictionary pronunciation rewrite.
 struct PronunciationRewrite {
-    std::string input;       ///< Original token being rewritten.
-    std::string output;      ///< Model-neutral pronunciation replacement.
-    std::size_t offset = 0;  ///< UTF-8 byte offset in normalized_text.
-    std::string reason;      ///< Stable reason for the rewrite.
-    bool automatic = true;   ///< True for built-in deterministic rules.
+    std::string input;      ///< Original token being rewritten.
+    std::string output;     ///< Model-neutral pronunciation replacement.
+    std::size_t offset = 0; ///< UTF-8 byte offset in normalized_text.
+    std::string reason;     ///< Stable reason for the rewrite.
+    bool automatic = true;  ///< True for built-in deterministic rules.
 };
 
 /// \brief Explain one semantic stress decision.
@@ -123,11 +123,11 @@ class PronunciationDictionary {
 struct TextFrontendOptions {
     Language language = Language::Auto;                  ///< Requested language or auto-detection.
     StressMode stress_mode = StressMode::DictionaryOnly; ///< Stress resolution policy.
-    bool cleanup_spacing = true;  ///< Collapse ASCII whitespace and punctuation spacing.
-    bool normalize = true;        ///< Apply deterministic language normalization.
-    bool apply_dictionary = true; ///< Apply the non-owning dictionary when present.
-    bool resolve_stress = true;   ///< Resolve semantic stress.
-    bool diagnostics = false;     ///< Emit decisions without replacements.
+    bool cleanup_spacing = true;     ///< Collapse ASCII whitespace and punctuation spacing.
+    bool normalize = true;           ///< Apply deterministic language normalization.
+    bool apply_dictionary = true;    ///< Apply the non-owning dictionary when present.
+    bool resolve_stress = true;      ///< Resolve semantic stress.
+    bool diagnostics = false;        ///< Emit decisions without replacements.
     bool expand_initialisms = false; ///< Expand the conservative Russian allowlist.
     /// Non-owning dictionary; caller must keep it alive for the call.
     const PronunciationDictionary* dictionary = nullptr;
@@ -140,10 +140,10 @@ struct TextFrontendResult {
     std::string pronunciation_text;       ///< Text after dictionary replacement.
     std::vector<WordPronunciation> words; ///< Token-level pronunciation metadata.
     std::vector<DictionaryReplacement>
-        dictionary_replacements;                  ///< Applied dictionary replacements.
+        dictionary_replacements;                          ///< Applied dictionary replacements.
     std::vector<PronunciationRewrite> automatic_rewrites; ///< Applied built-in rewrites.
-    std::vector<StressDecision> stress_decisions; ///< Semantic stress decisions.
-    std::vector<TextWarning> warnings;            ///< Diagnostics emitted by processing.
+    std::vector<StressDecision> stress_decisions;         ///< Semantic stress decisions.
+    std::vector<TextWarning> warnings;                    ///< Diagnostics emitted by processing.
     /// Return true when warnings indicate an ambiguous or unresolved result.
     bool has_uncertainty() const noexcept;
 };
