@@ -38,8 +38,17 @@ python tools/silero_native_bundle_negative.py \
 ```
 
 The phrase resource is exported from all literal alternatives in the pinned
-upstream `compiled_phrases` table (37,375 deterministic rules), rather than
-from only the six parity vectors. The exporter intentionally rejects regex
-constructs that cannot be represented by this literal native format. ONNX
-Runtime remains an optional research dependency; benchmark and
+upstream `compiled_phrases` table. The manifest records 37,445 upstream
+literal candidates, 37,375 exported rules, 70 precedence overlaps, and zero
+mismatches. The exporter intentionally rejects regex constructs that cannot be
+represented by this literal native format. Full native phrase matching is
+audited with:
+
+```text
+python tools/silero_native_phrase_parity.py \
+  --executable .temp/silero-native-fullcall-build/silero_native_sentence.exe \
+  --assets .temp/silero-native-assets-fullcall
+```
+
+ONNX Runtime remains an optional research dependency; benchmark and
 `StressMode::Automatic` integration are separate follow-up work.

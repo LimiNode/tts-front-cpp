@@ -18,6 +18,7 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -654,12 +655,12 @@ bool phrase_boundary_codepoint(std::uint32_t codepoint) {
            codepoint == '-';
 }
 
-bool phrase_rule_matches(const std::string& marked, const std::string& rule) {
+std::optional<std::size_t> phrase_rule_position(const std::string& marked, const std::string& rule) {
     std::size_t offset = 0;
     while (true) {
         const auto position = marked.find(rule, offset);
         if (position == std::string::npos) {
-            return false;
+            return std::nullopt;
         }
         bool left_ok = true;
         if (position != 0) {
@@ -673,10 +674,28 @@ bool phrase_rule_matches(const std::string& marked, const std::string& rule) {
             right_ok = right.empty() || !phrase_boundary_codepoint(right.front());
         }
         if (left_ok && right_ok) {
-            return true;
+            return position;
         }
         offset = position + 1;
     }
+}
+
+std::string phrase_variant(const Bundle& bundle, const std::string& word, const std::string& marked) {
+    const auto rules = bundle.phrase_rules.find(word);
+    if (rules == bundle.phrase_rules.end()) {
+        return {};
+    }
+    const auto marked_lower = lower_ru(marked);
+    std::optional<std::size_t> best_position;
+    std::string result;
+    for (const auto& rule : rules->second) {
+        const auto position = phrase_rule_position(marked_lower, lower_ru(rule.marked));
+        if (position && (!best_position || *position < *best_position)) {
+            best_position = position;
+            result = rule.variant;
+        }
+    }
+    return result;
 }
 
 std::string marked_context(const std::string& sentence, const Token& token) {
@@ -810,14 +829,33 @@ int main(int argc, char** argv) {
         _setmode(_fileno(stdin), _O_BINARY);
         _setmode(_fileno(stdout), _O_BINARY);
 #endif
+        const bool phrase_probe = argc == 4 && std::string(argv[1]) == "--assets" &&
+                                  std::string(argv[3]) == "--phrase-probe-stdin";
         const bool trace = argc == 10 && std::string(argv[9]) == "--trace";
-        if ((argc != 9 && !trace) || std::string(argv[1]) != "--assets" ||
-            std::string(argv[3]) != "--stress" || std::string(argv[5]) != "--yo" ||
-            std::string(argv[7]) != "--homo") {
-            std::cerr << "usage: silero_native_sentence --assets DIR --stress FILE --yo FILE --homo FILE [--trace]\n";
+        const bool standard_args = (argc == 9 || trace) && std::string(argv[1]) == "--assets" &&
+                                    std::string(argv[3]) == "--stress" && std::string(argv[5]) == "--yo" &&
+                                    std::string(argv[7]) == "--homo";
+        if (!phrase_probe && !standard_args) {
+            if (!phrase_probe) {
+                std::cerr << "usage: silero_native_sentence --assets DIR --stress FILE --yo FILE --homo FILE [--trace]\n"
+                             "       silero_native_sentence --assets DIR --phrase-probe-stdin\n";
+            }
             return 2;
         }
         const auto bundle = load_bundle(argv[2]);
+        if (phrase_probe) {
+            std::string line;
+            while (std::getline(std::cin, line)) {
+                const auto separator = line.find('\t');
+                if (separator == std::string::npos || line.find('\t', separator + 1) != std::string::npos) {
+                    throw std::runtime_error("malformed phrase probe input");
+                }
+                const auto variant = phrase_variant(bundle, line.substr(0, separator), line.substr(separator + 1));
+                std::cout.write(variant.data(), static_cast<std::streamsize>(variant.size()));
+                std::cout.put('\n');
+            }
+            return 0;
+        }
         Ort::Env environment(ORT_LOGGING_LEVEL_WARNING, "silero-native-sentence");
         Ort::SessionOptions options;
         options.SetIntraOpNumThreads(1);
@@ -859,17 +897,7 @@ int main(int argc, char** argv) {
                     continue;
                 }
                 const auto marked = marked_context(sentence, token);
-                const auto marked_lower = lower_ru(marked);
-                std::string variant;
-                const auto phrase_rules = bundle.phrase_rules.find(token.clean);
-                if (phrase_rules != bundle.phrase_rules.end()) {
-                    for (const auto& rule : phrase_rules->second) {
-                        if (phrase_rule_matches(marked_lower, lower_ru(rule.marked))) {
-                            variant = rule.variant;
-                            break;
-                        }
-                    }
-                }
+                std::string variant = phrase_variant(bundle, token.clean, marked);
                 if (variant.empty()) {
                     ++homosolver_route;
                     const auto ids = wordpiece.encode(marked);

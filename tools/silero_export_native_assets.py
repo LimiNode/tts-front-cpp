@@ -84,8 +84,13 @@ def split_alternatives(text: str) -> list[str]:
     return result
 
 
-def compiled_phrase_rules(compiled_phrases: dict) -> list[tuple[str, str, str]]:
-    rows: set[tuple[str, str, str]] = set()
+def compiled_phrase_rules(compiled_phrases: dict) -> tuple[list[tuple[str, str, str]], dict[str, int]]:
+    seen: set[tuple[str, str, str]] = set()
+    ordered_rows: list[tuple[str, str, str]] = []
+    candidates = 0
+    mismatches = 0
+    precedence_overlaps = 0
+    overlap_examples: list[dict[str, str]] = []
     for word, pattern in compiled_phrases.items():
         source = pattern.pattern
         cursor = 0
@@ -117,6 +122,7 @@ def compiled_phrase_rules(compiled_phrases: dict) -> list[tuple[str, str, str]]:
             )
             if stressed is not None:
                 for alternative in split_alternatives(inner):
+                    candidates += 1
                     escaped = False
                     for char in alternative:
                         if escaped:
@@ -128,10 +134,43 @@ def compiled_phrase_rules(compiled_phrases: dict) -> list[tuple[str, str, str]]:
                     literal = re.sub(r"\\(.)", r"\1", alternative)
                     match = pattern.search(literal)
                     selected = [] if match is None else [name for name in pattern.groupindex if match.group(name) is not None]
-                    if literal and selected == [variant_name]:
-                        rows.add((word, literal, stressed))
+                    if match is None or not selected:
+                        mismatches += 1
+                        raise ValueError(f"compiled phrase literal does not match its source group: {word!r}")
+                    if selected != [variant_name]:
+                        precedence_overlaps += 1
+                        if len(overlap_examples) < 8:
+                            selected_name = selected[0]
+                            selected_stressed = next(
+                                (
+                                    selected_name[:index] + "+" + selected_name[index:].lower()
+                                    for index, char in enumerate(selected_name)
+                                    if char.isupper()
+                                ),
+                                "",
+                            )
+                            overlap_examples.append(
+                                {
+                                    "word": word,
+                                    "literal": literal,
+                                    "selected_variant": selected_stressed,
+                                    "skipped_variant": stressed,
+                                }
+                            )
+                        continue
+                    if literal:
+                        row = (word, literal, stressed)
+                        if row not in seen:
+                            seen.add(row)
+                            ordered_rows.append(row)
             cursor = group_end + 1
-    return sorted(rows)
+    return ordered_rows, {
+        "phrase_rule_candidates": candidates,
+        "phrase_rule_exported": len(ordered_rows),
+        "phrase_rule_mismatches": mismatches,
+        "phrase_rule_precedence_overlaps": precedence_overlaps,
+        "phrase_rule_overlap_examples": overlap_examples,
+    }
 
 
 def main() -> int:
@@ -200,7 +239,7 @@ def main() -> int:
         newline="\n",
     )
     phrase_rules = output / "phrase-rules.tsv"
-    phrase_rows = compiled_phrase_rules(accentor.homosolver.compiled_phrases)
+    phrase_rows, phrase_stats = compiled_phrase_rules(accentor.homosolver.compiled_phrases)
     phrase_rules.write_text(
         "".join(f"{word}\t{marked}\t{variant}\n" for word, marked, variant in phrase_rows),
         encoding="utf-8",
@@ -227,6 +266,7 @@ def main() -> int:
         "embedding_rows": int(embedding.weight.shape[0]),
         "bert_vocab_entries": len(accentor.homosolver.tokenizer.vocab),
         "phrase_rule_entries": len(phrase_rows),
+        **phrase_stats,
         "special_token_ids": {
             "pad": int(accentor.homosolver.tokenizer.pad_token_id),
             "unk": int(accentor.homosolver.tokenizer.unk_token_id),
