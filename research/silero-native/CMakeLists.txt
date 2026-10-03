@@ -29,19 +29,31 @@ if(SILERO_NATIVE_ORT_ROOT)
     target_compile_features(silero_native_ort_probe PRIVATE cxx_std_17)
     target_include_directories(silero_native_ort_probe PRIVATE "${SILERO_NATIVE_ORT_INCLUDE_DIR}")
     target_link_libraries(silero_native_ort_probe PRIVATE "${SILERO_NATIVE_ORT_LIBRARY}")
+    add_executable(silero_native_sentence native_sentence.cpp)
+    target_compile_features(silero_native_sentence PRIVATE cxx_std_17)
+    target_include_directories(silero_native_sentence PRIVATE "${SILERO_NATIVE_ORT_INCLUDE_DIR}")
+    target_link_libraries(silero_native_sentence PRIVATE "${SILERO_NATIVE_ORT_LIBRARY}")
     if(WIN32)
         add_custom_command(TARGET silero_native_ort_probe POST_BUILD
                            COMMAND ${CMAKE_COMMAND} -E copy_if_different
                                    "${SILERO_NATIVE_ORT_ROOT}/lib/onnxruntime.dll"
                                    "$<TARGET_FILE_DIR:silero_native_ort_probe>")
+        add_custom_command(TARGET silero_native_sentence POST_BUILD
+                           COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                                   "${SILERO_NATIVE_ORT_ROOT}/lib/onnxruntime.dll"
+                                   "$<TARGET_FILE_DIR:silero_native_sentence>")
     else()
         set_target_properties(silero_native_ort_probe PROPERTIES
+                              BUILD_RPATH "${SILERO_NATIVE_ORT_ROOT}/lib")
+        set_target_properties(silero_native_sentence PROPERTIES
                               BUILD_RPATH "${SILERO_NATIVE_ORT_ROOT}/lib")
     endif()
     if(MSVC)
         target_compile_options(silero_native_ort_probe PRIVATE /W4 /utf-8)
+        target_compile_options(silero_native_sentence PRIVATE /W4 /utf-8)
     else()
         target_compile_options(silero_native_ort_probe PRIVATE -Wall -Wextra -Wpedantic)
+        target_compile_options(silero_native_sentence PRIVATE -Wall -Wextra -Wpedantic)
     endif()
 endif()
 if(MSVC)

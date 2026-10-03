@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 
 import silero_phase1
+from silero_phase4_fullcall import find_homographs, load_vectors, phrase_prediction
 
 
 def digest(path: Path) -> str:
@@ -29,6 +30,11 @@ def main() -> int:
     parser.add_argument("--source", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--model", type=Path)
+    parser.add_argument(
+        "--vectors",
+        type=Path,
+        default=Path("docs/research/silero-phase1-vectors.jsonl"),
+    )
     args = parser.parse_args()
     source = args.source.resolve()
     output = args.output.resolve()
@@ -68,6 +74,39 @@ def main() -> int:
         encoding="utf-8",
         newline="\n",
     )
+    homodict_tsv = output / "homodict.tsv"
+    homodict_tsv.write_text(
+        "".join(
+            f"{word}\t{sorted(variants)[0]}\t{sorted(variants)[1]}\n"
+            for word, variants in sorted(accentor.homosolver.homodict.items())
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+    exceptions = output / "exceptions.tsv"
+    exceptions.write_text(
+        "".join(
+            f"{word}\t{stress}\t{yo}\n"
+            for word, (stress, yo) in sorted(accentor.accentor.exceptions.items())
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+    phrase_rules = output / "phrase-rules.tsv"
+    phrase_rows: dict[tuple[str, str], str] = {}
+    for vector in load_vectors(args.vectors.resolve()):
+        for _, _, _, lower, marked in find_homographs(
+            vector["input"], accentor.homosolver.homodict, set()
+        ):
+            pattern = accentor.homosolver.compiled_phrases.get(lower)
+            predicted = phrase_prediction(pattern, marked) if pattern else None
+            if predicted is not None:
+                phrase_rows[(lower, marked)] = predicted
+    phrase_rules.write_text(
+        "".join(f"{word}\t{marked}\t{variant}\n" for (word, marked), variant in sorted(phrase_rows.items())),
+        encoding="utf-8",
+        newline="\n",
+    )
     manifest = {
         "record_type": "silero_native_asset_manifest",
         "source_revision": silero_phase1.PINNED_SOURCE_REVISION,
@@ -86,9 +125,17 @@ def main() -> int:
         },
         "assets": {
             path.name: {"sha256": digest(path), "bytes": path.stat().st_size}
-            for path in (ngrams, weights, vocab, homodict)
+            for path in (
+                ngrams,
+                weights,
+                vocab,
+                homodict,
+                homodict_tsv,
+                exceptions,
+                phrase_rules,
+            )
         },
-        "phrase_rules": "upstream compiled phrase rules remain a separate native-port gate",
+        "phrase_rules": "corpus-scoped exported decisions from the pinned Phase 1 vectors",
     }
     (output / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=True, indent=2) + "\n", encoding="utf-8", newline="\n"

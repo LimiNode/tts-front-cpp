@@ -103,7 +103,7 @@ jobs:
         run: |
           cmake -S research/silero-native -B build-native-ort `
             -DSILERO_NATIVE_ORT_ROOT="$PWD/onnxruntime-win-x64-1.30.0"
-          cmake --build build-native-ort --config Release --target silero_native_ort_probe --parallel
+          cmake --build build-native-ort --config Release --target silero_native_ort_probe silero_native_sentence --parallel
       - name: Run native ONNX Runtime smoke
         shell: pwsh
         run: |
