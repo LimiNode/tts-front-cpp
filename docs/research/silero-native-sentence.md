@@ -12,9 +12,9 @@ The fail-closed auditor is:
 python tools/silero_native_sentence_parity.py \
   --executable .temp/silero-native-fullcall-build/silero_native_sentence.exe \
   --assets .temp/silero-native-assets-fullcall \
-  --stress .temp/silero-phase3/accentor-stress.onnx \
-  --yo .temp/silero-phase3/accentor-yo.onnx \
-  --homo .temp/silero-phase2-dynamic/homosolver.onnx \
+  --stress .temp/silero-native-assets-fullcall/stress.onnx \
+  --yo .temp/silero-native-assets-fullcall/yo.onnx \
+  --homo .temp/silero-native-assets-fullcall/homosolver.onnx \
   --receipt docs/research/silero-native-sentence-receipt.json
 ```
 

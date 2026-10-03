@@ -44,6 +44,7 @@ struct PhraseRule {
 };
 
 struct Bundle {
+    std::unordered_map<std::string, std::string> asset_hashes;
     std::unordered_map<std::string, std::size_t> ngram_ids;
     std::vector<float> weights;
     std::unordered_map<std::string, int> vocab;
@@ -142,7 +143,7 @@ AssetManifest load_manifest(const std::filesystem::path& path) {
     }
     AssetManifest result;
     for (const auto& name : {"ngrams.tsv", "embedding.f32", "bert-vocab.tsv", "homodict.tsv", "exceptions.tsv",
-                             "phrase-rules.tsv"}) {
+                             "phrase-rules.tsv", "stress.onnx", "yo.onnx", "homosolver.onnx"}) {
         result.hashes.emplace(name, manifest_asset_hash(content, name));
     }
     return result;
@@ -236,6 +237,7 @@ Bundle load_bundle(const std::filesystem::path& root) {
     const auto manifest = load_manifest(root / "manifest.json");
     verify_asset_hashes(root, manifest);
     Bundle bundle;
+    bundle.asset_hashes = manifest.hashes;
     bundle.ngram_ids = load_ids(root / "ngrams.tsv");
     bundle.vocab = load_vocab(root / "bert-vocab.tsv");
     bundle.exceptions = load_exceptions(root / "exceptions.tsv");
@@ -266,6 +268,14 @@ Bundle load_bundle(const std::filesystem::path& root) {
     bundle.homo_start_id = find_id("[HOMO]");
     bundle.homo_end_id = find_id("[/HOMO]");
     return bundle;
+}
+
+void verify_external_asset(const std::filesystem::path& path, const std::string& expected) {
+    auto input = open_required(path);
+    const std::string content((std::istreambuf_iterator<char>(input)), {});
+    if (silero_native::sha256_hex(content) != expected) {
+        throw std::runtime_error("runtime asset SHA-256 mismatch: " + path.string());
+    }
 }
 
 std::string lower_ru(const std::string& text) {
@@ -783,6 +793,9 @@ int main(int argc, char** argv) {
         const auto stress_path = std::filesystem::u8path(std::string(argv[4]));
         const auto yo_path = std::filesystem::u8path(std::string(argv[6]));
         const auto homo_path = std::filesystem::u8path(std::string(argv[8]));
+        verify_external_asset(stress_path, bundle.asset_hashes.at("stress.onnx"));
+        verify_external_asset(yo_path, bundle.asset_hashes.at("yo.onnx"));
+        verify_external_asset(homo_path, bundle.asset_hashes.at("homosolver.onnx"));
         Ort::Session stress_session(environment, stress_path.c_str(), options);
         Ort::Session yo_session(environment, yo_path.c_str(), options);
         Ort::Session homo_session(environment, homo_path.c_str(), options);

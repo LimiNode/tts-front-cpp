@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -30,6 +31,9 @@ def main() -> int:
     parser.add_argument("--source", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--model", type=Path)
+    parser.add_argument("--stress-onnx", required=True, type=Path)
+    parser.add_argument("--yo-onnx", required=True, type=Path)
+    parser.add_argument("--homosolver-onnx", required=True, type=Path)
     parser.add_argument(
         "--vectors",
         type=Path,
@@ -107,6 +111,15 @@ def main() -> int:
         encoding="utf-8",
         newline="\n",
     )
+    graph_sources = {
+        "stress.onnx": args.stress_onnx.resolve(),
+        "yo.onnx": args.yo_onnx.resolve(),
+        "homosolver.onnx": args.homosolver_onnx.resolve(),
+    }
+    for name, source_path in graph_sources.items():
+        if not source_path.is_file():
+            raise SystemExit(f"missing ONNX graph: {source_path}")
+        shutil.copyfile(source_path, output / name)
     manifest = {
         "record_type": "silero_native_asset_manifest",
         "schema_version": "1",
@@ -136,6 +149,9 @@ def main() -> int:
                 homodict_tsv,
                 exceptions,
                 phrase_rules,
+                output / "stress.onnx",
+                output / "yo.onnx",
+                output / "homosolver.onnx",
             )
         },
         "phrase_rules": "corpus-scoped exported decisions from the pinned Phase 1 vectors",

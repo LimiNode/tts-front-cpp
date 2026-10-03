@@ -20,7 +20,10 @@ Build and run the preprocessing prototype:
 ```text
 python tools/silero_export_native_assets.py \
   --source .temp/silero-source \
-  --output .temp/silero-native-assets
+  --output .temp/silero-native-assets \
+  --stress-onnx .temp/silero-phase3/accentor-stress.onnx \
+  --yo-onnx .temp/silero-phase3/accentor-yo.onnx \
+  --homosolver-onnx .temp/silero-phase2-dynamic/homosolver.onnx
 
 cmake -S research/silero-native -B .temp/silero-native-build
 cmake --build .temp/silero-native-build --config Release
