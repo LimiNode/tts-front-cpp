@@ -105,6 +105,36 @@ int main() {
     dictionary_options.resolve_stress = true;
     CHECK(frontend.process("New Yorkshire", dictionary_options).pronunciation_text ==
           "New Yorkshire");
+
+    // Automatic initialism expansion is opt-in and deliberately allowlisted.
+    TextFrontendOptions initialisms;
+    initialisms.language = Language::Russian;
+    initialisms.normalize = false;
+    initialisms.expand_initialisms = true;
+    const auto initialism_result = frontend.process("ВК ООО РФ МГУ", initialisms);
+    CHECK(initialism_result.pronunciation_text == "вэ ка о о о эр эф эм гэ у");
+    CHECK(initialism_result.automatic_rewrites.size() == 4);
+    CHECK(initialism_result.words.size() == 4);
+    CHECK(initialism_result.words[0].surface == "ВК");
+    CHECK(initialism_result.words[0].pronunciation == "вэ ка");
+    CHECK(initialism_result.words[0].from_automatic_rewrite);
+    CHECK(frontend.process("ВК вк Вк", initialisms).pronunciation_text == "вэ ка вк Вк");
+    CHECK(frontend.process("НАТО МИД ЗАГС", initialisms).pronunciation_text ==
+          "НАТО МИД ЗАГС");
+    CHECK(frontend.process("ВК🙂 🙂ВК ООО❤️", initialisms).pronunciation_text ==
+          "вэ ка🙂 🙂вэ ка о о о❤️");
+
+    PronunciationDictionary rewrite_dictionary;
+    CHECK(rewrite_dictionary.add_token("ВК", "явный override"));
+    CHECK(rewrite_dictionary.add_token("Visual", "word"));
+    CHECK(rewrite_dictionary.add_phrase("Visual Studio", "phrase"));
+    TextFrontendOptions rewrite_options = initialisms;
+    rewrite_options.language = Language::English;
+    rewrite_options.dictionary = &rewrite_dictionary;
+    const auto rewrite_result = frontend.process("ВК Visual Studio", rewrite_options);
+    CHECK(rewrite_result.pronunciation_text == "явный override phrase");
+    CHECK(rewrite_result.automatic_rewrites.empty());
+
     PronunciationDictionary overlapping_dictionary;
     CHECK(overlapping_dictionary.add_token("New", "single-token"));
     CHECK(overlapping_dictionary.add_phrase("New York", "phrase-pronunciation"));

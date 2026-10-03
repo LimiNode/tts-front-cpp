@@ -48,6 +48,7 @@ struct WordPronunciation {
     std::optional<std::size_t> dictionary_replacement; ///< Index of the covered replacement.
     std::optional<std::size_t> stressed_vowel;         ///< Zero-based vowel ordinal.
     bool from_dictionary = false; ///< Whether pronunciation came from the dictionary.
+    bool from_automatic_rewrite = false; ///< Whether an opt-in deterministic rewrite was applied.
 };
 
 /// \brief One dictionary replacement applied to pronunciation_text.
@@ -55,6 +56,15 @@ struct DictionaryReplacement {
     std::string input;      ///< Source token or phrase.
     std::string output;     ///< Replacement pronunciation.
     std::size_t offset = 0; ///< UTF-8 byte offset in normalized_text.
+};
+
+/// \brief One deterministic, non-dictionary pronunciation rewrite.
+struct PronunciationRewrite {
+    std::string input;       ///< Original token being rewritten.
+    std::string output;      ///< Model-neutral pronunciation replacement.
+    std::size_t offset = 0;  ///< UTF-8 byte offset in normalized_text.
+    std::string reason;      ///< Stable reason for the rewrite.
+    bool automatic = true;   ///< True for built-in deterministic rules.
 };
 
 /// \brief Explain one semantic stress decision.
@@ -118,6 +128,7 @@ struct TextFrontendOptions {
     bool apply_dictionary = true; ///< Apply the non-owning dictionary when present.
     bool resolve_stress = true;   ///< Resolve semantic stress.
     bool diagnostics = false;     ///< Emit decisions without replacements.
+    bool expand_initialisms = false; ///< Expand the conservative Russian allowlist.
     /// Non-owning dictionary; caller must keep it alive for the call.
     const PronunciationDictionary* dictionary = nullptr;
 };
@@ -130,6 +141,7 @@ struct TextFrontendResult {
     std::vector<WordPronunciation> words; ///< Token-level pronunciation metadata.
     std::vector<DictionaryReplacement>
         dictionary_replacements;                  ///< Applied dictionary replacements.
+    std::vector<PronunciationRewrite> automatic_rewrites; ///< Applied built-in rewrites.
     std::vector<StressDecision> stress_decisions; ///< Semantic stress decisions.
     std::vector<TextWarning> warnings;            ///< Diagnostics emitted by processing.
     /// Return true when warnings indicate an ambiguous or unresolved result.

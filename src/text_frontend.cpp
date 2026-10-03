@@ -1157,6 +1157,28 @@ std::vector<Span> token_spans(const std::string& text) {
         spans.push_back({begin, end});
     return spans;
 }
+
+// Automatic expansion is deliberately an allowlist.  Uppercase-looking text
+// is not enough evidence that a token should be spelled out letter by letter:
+// lexical acronyms such as НАТО, МИД and ЗАГС must remain unchanged unless a
+// caller supplies an explicit dictionary entry.
+std::optional<std::string> safe_russian_initialism(std::string_view token) {
+    if (token == "ВК")
+        return "вэ ка";
+    if (token == "ООО")
+        return "о о о";
+    if (token == "РФ")
+        return "эр эф";
+    if (token == "МГУ")
+        return "эм гэ у";
+    if (token == "ФСБ")
+        return "эф эс бэ";
+    if (token == "МФЦ")
+        return "эм эф цэ";
+    if (token == "ИП")
+        return "и пэ";
+    return std::nullopt;
+}
 Language detect_language(std::string_view text, bool& has_cyrillic, bool& has_latin) {
     std::vector<CodePoint> points;
     decode_utf8(text, points);
@@ -1225,18 +1247,21 @@ TextFrontendResult TextFrontend::process(std::string_view input,
 
     // Dictionary phrases are matched on complete token sequences, longest first, without rescanning output.
     std::vector<const PronunciationDictionary::Entry*> matched_entries;
-    if (options.apply_dictionary && options.dictionary) {
-        const auto spans = token_spans(text.text);
+    const auto spans = token_spans(text.text);
+    matched_entries.assign(spans.size(), nullptr);
+    std::vector<std::string> automatic_replacements(spans.size());
+    if ((options.apply_dictionary && options.dictionary) || options.expand_initialisms) {
         struct PhraseCandidate {
             const PronunciationDictionary::Entry* entry = nullptr;
             std::vector<Span> spans;
         };
         std::vector<PhraseCandidate> phrases;
-        for (const auto& entry : options.dictionary->entries()) {
-            if (entry.match == PronunciationDictionary::Match::ExactPhrase)
-                phrases.push_back({&entry, token_spans(entry.pattern)});
+        if (options.apply_dictionary && options.dictionary) {
+            for (const auto& entry : options.dictionary->entries()) {
+                if (entry.match == PronunciationDictionary::Match::ExactPhrase)
+                    phrases.push_back({&entry, token_spans(entry.pattern)});
+            }
         }
-        matched_entries.assign(spans.size(), nullptr);
         std::string rendered;
         std::size_t cursor = 0;
         for (std::size_t i = 0; i < spans.size();) {
@@ -1283,14 +1308,27 @@ TextFrontendResult TextFrontend::process(std::string_view input,
                 continue;
             }
             rendered.append(text.text, cursor, spans[i].begin - cursor);
-            if (const auto* entry = options.dictionary->find_token(token)) {
+            const auto* entry = options.apply_dictionary && options.dictionary
+                                    ? options.dictionary->find_token(token)
+                                    : nullptr;
+            if (entry) {
                 matched_entries[i] = entry;
                 rendered += entry->pronunciation;
                 if (entry->pronunciation != token)
                     result.dictionary_replacements.push_back(
                         {token, entry->pronunciation, spans[i].begin});
-            } else
+            } else if (options.expand_initialisms) {
+                if (const auto replacement = safe_russian_initialism(token)) {
+                    automatic_replacements[i] = *replacement;
+                    rendered += *replacement;
+                    result.automatic_rewrites.push_back(
+                        {token, *replacement, spans[i].begin, "safe Russian initialism", true});
+                } else {
+                    rendered += token;
+                }
+            } else {
                 rendered += token;
+            }
             cursor = spans[i].end;
             ++i;
         }
@@ -1329,6 +1367,11 @@ TextFrontendResult TextFrontend::process(std::string_view input,
                 if (options.resolve_stress && options.stress_mode != StressMode::Disabled)
                     word.stressed_vowel = matched_entry->stressed_vowel;
             }
+        }
+        if (!matched_entry && span_index < automatic_replacements.size() &&
+            !automatic_replacements[span_index].empty()) {
+            word.pronunciation = automatic_replacements[span_index];
+            word.from_automatic_rewrite = true;
         }
         result.words.push_back(word);
         if (stress_enabled && matched_entry &&
