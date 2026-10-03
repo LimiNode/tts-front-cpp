@@ -137,7 +137,7 @@ struct TextFrontendOptions {
 struct TextFrontendResult {
     std::string original_text;            ///< Original UTF-8 input text.
     std::string normalized_text;          ///< Deterministically normalized UTF-8 text.
-    std::string pronunciation_text;       ///< Text after dictionary replacement.
+    std::string pronunciation_text;       ///< Text after semantic dictionary/automatic rewrites.
     std::vector<WordPronunciation> words; ///< Token-level pronunciation metadata.
     std::vector<DictionaryReplacement>
         dictionary_replacements;                          ///< Applied dictionary replacements.
