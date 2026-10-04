@@ -25,6 +25,10 @@ The normalization pipeline preserves source provenance through cleanup, protecte
 technical spans, grouped-number collapse, and length-changing replacements before
 emitting span-based warnings.
 
+`TextFrontendResult::has_uncertainty()` is true whenever processing emitted a warning,
+including invalid UTF-8, unsupported language, unresolved numeric candidates, and an
+unavailable automatic stress backend.
+
 ## Dictionary
 
 Dictionary files use a dependency-free JSON array:

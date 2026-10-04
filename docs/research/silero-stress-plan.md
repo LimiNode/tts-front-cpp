@@ -61,6 +61,7 @@ Before any integration proposal, record:
 - Windows/MSVC build and execution result;
 - licenses and redistribution constraints for weights and runtime.
 
-`StressMode::Automatic` remains unavailable in the core until these gates pass
-and the dependency decision is explicitly reviewed. All downloads, exports,
-benchmarks, and generated artifacts belong under `.temp/`.
+These gates have now been completed for the optional ONNX backend, and
+`StressMode::Automatic` is integrated behind the verified bundle boundary.
+The default build remains dependency-free; all downloads, exports, benchmarks,
+and generated artifacts belong under `.temp/`.

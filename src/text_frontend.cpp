@@ -36,7 +36,15 @@ bool is_letter(std::uint32_t cp) {
     return is_cyrillic(cp) || is_latin(cp);
 }
 bool is_word_codepoint(std::uint32_t cp) {
-    return is_letter(cp) || is_digit(cp) || cp == '+' || cp == '#' || cp == '_' || cp == '.';
+    return is_letter(cp) || is_digit(cp) || cp == '+' || cp == '#' || cp == '_';
+}
+
+bool is_numeric_separator(std::uint32_t cp) {
+    return cp == '.' || cp == ',' || cp == ':' || cp == '%';
+}
+
+bool is_lexical_numeric_boundary(std::uint32_t cp) {
+    return is_letter(cp) || is_digit(cp) || cp == '_';
 }
 
 struct SourceRange {
@@ -154,8 +162,9 @@ MappedText cleanup_text(const MappedText& input) {
     bool pending_space = false;
     std::size_t space_begin = 0;
     for (const auto& point : points) {
-        const bool space =
-            point.value == ' ' || point.value == '\t' || point.value == '\n' || point.value == '\r';
+        const bool space = point.value == ' ' || point.value == '\t' || point.value == '\n' ||
+                           point.value == '\r' || point.value == '\v' || point.value == '\f' ||
+                           point.value == 0x00a0 || point.value == 0x202f;
         if (space) {
             if (!pending_space && !result.text.empty())
                 space_begin = point.offset;
@@ -202,15 +211,85 @@ replace_matches(const MappedText& input, const std::regex& pattern, Formatter fo
     return output;
 }
 
+bool numeric_match_has_valid_boundaries(std::string_view text, std::size_t begin, std::size_t end) {
+    std::vector<CodePoint> points;
+    if (!decode_utf8(text, points))
+        return false;
+
+    std::size_t first_digit = std::string::npos;
+    std::size_t last_digit = std::string::npos;
+    for (const auto& point : points) {
+        if (point.offset >= begin && point.offset < end && is_digit(point.value)) {
+            if (first_digit == std::string::npos)
+                first_digit = point.offset;
+            last_digit = point.offset;
+        }
+    }
+    if (first_digit == std::string::npos)
+        return true;
+
+    const CodePoint* previous = nullptr;
+    const CodePoint* before_previous = nullptr;
+    const CodePoint* next = nullptr;
+    const CodePoint* after_next = nullptr;
+    for (std::size_t index = 0; index < points.size(); ++index) {
+        if (points[index].offset < first_digit) {
+            before_previous = previous;
+            previous = &points[index];
+        }
+        if (points[index].offset >= end) {
+            if (next == nullptr)
+                next = &points[index];
+            else if (after_next == nullptr)
+                after_next = &points[index];
+        }
+    }
+
+    if (previous && is_lexical_numeric_boundary(previous->value))
+        return false;
+    if (previous && is_numeric_separator(previous->value) && before_previous &&
+        is_digit(before_previous->value))
+        return false;
+    if (previous && previous->value == '-' && before_previous &&
+        is_lexical_numeric_boundary(before_previous->value))
+        return false;
+    bool suffix_consumed = false;
+    for (const auto& point : points) {
+        if (point.offset > last_digit && point.offset < end && !is_digit(point.value)) {
+            suffix_consumed = true;
+            break;
+        }
+    }
+    if (next && is_lexical_numeric_boundary(next->value) && !suffix_consumed)
+        return false;
+    if (next && is_numeric_separator(next->value) && after_next && is_digit(after_next->value))
+        return false;
+    return true;
+}
+
+template <typename Formatter>
+MappedText
+replace_numeric_matches(const MappedText& input, const std::regex& pattern, Formatter formatter) {
+    return replace_matches(input, pattern, [&](const std::smatch& match, const MappedText& source) {
+        const auto begin = static_cast<std::size_t>(match.position());
+        const auto end = begin + static_cast<std::size_t>(match.length());
+        if (!numeric_match_has_valid_boundaries(source.text, begin, end))
+            return match.str();
+        return formatter(match, source);
+    });
+}
+
 struct RegexPatterns {
     const std::regex technical_url{R"(https?://[^\s]+)"};
     const std::regex technical_email{R"([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})"};
     const std::regex technical_ipv4{R"(\b\d{1,3}(?:\.\d{1,3}){3}\b)"};
-    const std::regex technical_version{R"(\bv\d+(?:\.\d+)+\b)"};
+    const std::regex technical_version{R"(\b[vV]\d+(?:\.\d+)+\b)"};
     const std::regex technical_http{R"(\bHTTP/\d+(?:\.\d+)?\b)"};
     const std::regex technical_gpu{R"(\b(?:RTX|CUDA|GPU|API)\s+\d+(?:\.\d+)?\b)"};
     const std::regex technical_cpp{R"(C\+\+)"};
     const std::regex technical_csharp{R"(C#)"};
+    const std::regex technical_identifier{
+        R"((?:#[0-9]+)|(?:[A-Za-z][A-Za-z0-9+._$#-]*[-+$][A-Za-z0-9._$#-]+))"};
     const std::regex grouped_number{R"((^|[^0-9])-?\d{1,3}(?:\s+\d{3})+)"};
     const std::regex ru_date{R"(\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b)"};
     const std::regex ru_year{R"(\b(\d{4})\s*г\.)"};
@@ -731,19 +810,25 @@ struct ProtectedSpan {
     std::string value;
 };
 std::string marker_for(std::string_view text, std::size_t index) {
-    std::string marker = "\x01tts_front_protected_" + std::to_string(index) + "\x02";
+    std::string suffix;
+    do {
+        suffix.push_back(static_cast<char>('a' + (index % 26)));
+        index = index / 26;
+    } while (index != 0);
+    std::string marker = "\x01tts_front_protected_" + suffix + "\x02";
     while (text.find(marker) != std::string::npos)
         marker.insert(marker.size() - 1, "x");
     return marker;
 }
 MappedText protect_technical(MappedText text, std::vector<ProtectedSpan>& protected_spans) {
     const auto& patterns = regex_patterns();
-    const std::array<const std::regex*, 8> technical_patterns = {&patterns.technical_url,
+    const std::array<const std::regex*, 9> technical_patterns = {&patterns.technical_url,
                                                                  &patterns.technical_email,
                                                                  &patterns.technical_ipv4,
                                                                  &patterns.technical_version,
                                                                  &patterns.technical_http,
                                                                  &patterns.technical_gpu,
+                                                                 &patterns.technical_identifier,
                                                                  &patterns.technical_cpp,
                                                                  &patterns.technical_csharp};
     for (const auto* pattern : technical_patterns) {
@@ -790,6 +875,113 @@ bool valid_date(int day, int month, int year) {
     return day <= limit;
 }
 
+MappedText protect_malformed_numeric_candidates(MappedText text,
+                                                WarningSink& warnings,
+                                                std::vector<ProtectedSpan>& protected_spans,
+                                                bool russian) {
+    std::vector<CodePoint> points;
+    if (!decode_utf8(text.text, points))
+        return text;
+
+    MappedText output;
+    output.preserved_ranges = text.preserved_ranges;
+    std::size_t cursor = 0;
+    for (std::size_t index = 0; index < points.size();) {
+        const auto marker_begin = text.text.rfind('\x01', points[index].offset);
+        const auto marker_end = text.text.rfind('\x02', points[index].offset);
+        if (marker_begin != std::string::npos && marker_begin > marker_end) {
+            while (index < points.size() && points[index].value != 0x02)
+                ++index;
+            if (index < points.size())
+                ++index;
+            continue;
+        }
+        const bool starts_number = is_digit(points[index].value) ||
+                                   (points[index].value == '-' && index + 1 < points.size() &&
+                                    is_digit(points[index + 1].value));
+        if (!starts_number) {
+            ++index;
+            continue;
+        }
+        const auto begin = points[index].offset;
+        std::size_t end_index = index + 1;
+        std::size_t separators = 0;
+        while (end_index < points.size()) {
+            const auto value = points[end_index].value;
+            if (is_numeric_separator(value)) {
+                if (value != '%')
+                    ++separators;
+                ++end_index;
+                continue;
+            }
+            if (is_digit(value)) {
+                ++end_index;
+                continue;
+            }
+            break;
+        }
+        const auto end =
+            end_index == 0 ? begin : points[end_index - 1].offset + points[end_index - 1].length;
+        const auto candidate = text.text.substr(begin, end - begin);
+        const auto tail = text.text.substr(end);
+        const bool comma_group_followed_by_word = [&] {
+            const auto comma = candidate.find(',');
+            if (comma == std::string::npos || candidate.find('.', comma + 1) != std::string::npos ||
+                candidate.find(':', comma + 1) != std::string::npos ||
+                candidate.size() - comma - 1 != 3 || tail.empty())
+                return false;
+            std::size_t whitespace = 0;
+            while (whitespace < tail.size() &&
+                   (tail[whitespace] == ' ' || tail[whitespace] == '\t' ||
+                    tail[whitespace] == '\n' || tail[whitespace] == '\r'))
+                ++whitespace;
+            if (whitespace == tail.size())
+                return false;
+            std::vector<CodePoint> tail_points;
+            if (!decode_utf8(tail.substr(whitespace), tail_points) || tail_points.empty())
+                return false;
+            return is_letter(tail_points.front().value);
+        }();
+        const bool embedded = index > 0 && (is_lexical_numeric_boundary(points[index - 1].value) ||
+                                            (points[index - 1].value == '-' && index > 1 &&
+                                             is_lexical_numeric_boundary(points[index - 2].value)));
+        bool valid_russian_date = false;
+        if (russian && separators == 2) {
+            const auto first_dot = candidate.find('.');
+            const auto second_dot = candidate.find('.', first_dot + 1);
+            if (first_dot != std::string::npos && second_dot != std::string::npos &&
+                candidate.find('.', second_dot + 1) == std::string::npos) {
+                long long day = 0, month = 0, year = 0;
+                valid_russian_date =
+                    try_parse_long(candidate.substr(0, first_dot), day) &&
+                    try_parse_long(candidate.substr(first_dot + 1, second_dot - first_dot - 1),
+                                   month) &&
+                    try_parse_long(candidate.substr(second_dot + 1), year) &&
+                    candidate.substr(0, first_dot).size() <= 2 &&
+                    candidate.substr(first_dot + 1, second_dot - first_dot - 1).size() <= 2 &&
+                    candidate.substr(second_dot + 1).size() == 4 &&
+                    valid_date(
+                        static_cast<int>(day), static_cast<int>(month), static_cast<int>(year));
+            }
+        }
+        if ((separators >= 2 || embedded || comma_group_followed_by_word) &&
+            !(valid_russian_date && !embedded)) {
+            output.append_copy(text, cursor, begin);
+            const auto source = text.source_range(begin, end);
+            warnings.add(WarningCode::UnresolvedNumber,
+                         "Unsupported numeric-like candidate preserved verbatim",
+                         source);
+            const auto marker = marker_for(text.text, protected_spans.size());
+            protected_spans.push_back({marker, candidate});
+            output.append_generated(text, begin, end, marker);
+            cursor = end;
+        }
+        index = end_index;
+    }
+    output.append_copy(text, cursor, text.text.size());
+    return output;
+}
+
 MappedText collapse_grouped_numbers(const MappedText& input) {
     MappedText output;
     output.preserved_ranges = input.preserved_ranges;
@@ -819,7 +1011,8 @@ MappedText normalize_ru(MappedText text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
     text = protect_technical(std::move(text), protected_spans);
     text = collapse_grouped_numbers(std::move(text));
-    text = replace_matches(
+    text = protect_malformed_numeric_candidates(std::move(text), warnings, protected_spans, true);
+    text = replace_numeric_matches(
         text, regex_patterns().ru_date, [&](const std::smatch& match, const MappedText& source) {
             long long day = 0, month = 0, year = 0;
             if (!try_parse_long(match[1].str(), day) || !try_parse_long(match[2].str(), month) ||
@@ -849,7 +1042,7 @@ MappedText normalize_ru(MappedText text, WarningSink& warnings) {
             return ru_ordinal_day(static_cast<int>(day)) + " " + months[month] + " " +
                    ru_year_genitive(static_cast<int>(year)) + " года";
         });
-    text = replace_matches(
+    text = replace_numeric_matches(
         text, regex_patterns().ru_year, [&](const std::smatch& match, const MappedText& source) {
             long long year = 0;
             if (!try_parse_long(match[1].str(), year)) {
@@ -862,7 +1055,7 @@ MappedText normalize_ru(MappedText text, WarningSink& warnings) {
             }
             return ru_year_locative(static_cast<int>(year)) + " году";
         });
-    text = replace_matches(
+    text = replace_numeric_matches(
         text,
         regex_patterns().ru_decimal_percent,
         [&](const std::smatch& match, const MappedText& source) {
@@ -879,7 +1072,7 @@ MappedText normalize_ru(MappedText text, WarningSink& warnings) {
             }
             return ru_decimal(integer, match[2].str()) + " процента" + match[3].str();
         });
-    text = replace_matches(
+    text = replace_numeric_matches(
         text, regex_patterns().ru_percent, [&](const std::smatch& match, const MappedText& source) {
             long long n = 0;
             if (!try_parse_long(match[1].str(), n)) {
@@ -892,23 +1085,23 @@ MappedText normalize_ru(MappedText text, WarningSink& warnings) {
             }
             return ru_number(n) + " " + ru_form(n, "процент", "процента", "процентов");
         });
-    text = replace_matches(text,
-                           regex_patterns().ru_currency,
-                           [&](const std::smatch& match, const MappedText& source) {
-                               long long n = 0;
-                               if (!try_parse_long(match[1].str(), n)) {
-                                   add_warning_without_suffix(warnings,
-                                                              WarningCode::UnresolvedNumber,
-                                                              "Unable to parse Russian currency",
-                                                              source,
-                                                              match,
-                                                              3);
-                                   return match.str();
-                               }
-                               return ru_number(n) + " " + ru_form(n, "рубль", "рубля", "рублей") +
-                                      match[3].str();
-                           });
-    text = replace_matches(
+    text = replace_numeric_matches(
+        text,
+        regex_patterns().ru_currency,
+        [&](const std::smatch& match, const MappedText& source) {
+            long long n = 0;
+            if (!try_parse_long(match[1].str(), n)) {
+                add_warning_without_suffix(warnings,
+                                           WarningCode::UnresolvedNumber,
+                                           "Unable to parse Russian currency",
+                                           source,
+                                           match,
+                                           3);
+                return match.str();
+            }
+            return ru_number(n) + " " + ru_form(n, "рубль", "рубля", "рублей") + match[3].str();
+        });
+    text = replace_numeric_matches(
         text, regex_patterns().ru_time, [&](const std::smatch& match, const MappedText& source) {
             long long h = 0, m = 0;
             if (!try_parse_long(match[1].str(), h) || !try_parse_long(match[2].str(), m) ||
@@ -923,7 +1116,7 @@ MappedText normalize_ru(MappedText text, WarningSink& warnings) {
             return ru_number(h) + " " + ru_form(h, "час", "часа", "часов") + " " +
                    ru_feminine_number(m) + " " + ru_form(m, "минута", "минуты", "минут");
         });
-    text = replace_matches(
+    text = replace_numeric_matches(
         text, regex_patterns().ru_decimal, [&](const std::smatch& match, const MappedText& source) {
             long long integer = 0, fraction = 0;
             if (!try_parse_long(match[1].str(), integer) ||
@@ -938,37 +1131,36 @@ MappedText normalize_ru(MappedText text, WarningSink& warnings) {
             }
             return ru_decimal(integer, match[2].str()) + match[3].str();
         });
-    text =
-        replace_matches(text,
-                        regex_patterns().ru_measurement,
-                        [&](const std::smatch& match, const MappedText& source) {
-                            long long n = 0;
-                            if (!try_parse_long(match[1].str(), n)) {
-                                add_warning_without_suffix(warnings,
-                                                           WarningCode::UnresolvedNumber,
-                                                           "Unable to parse Russian measurement",
-                                                           source,
-                                                           match,
-                                                           3);
-                                return match.str();
-                            }
-                            const auto unit_source = match[2].str();
-                            const std::string unit =
-                                unit_source.find("кг") == 0 || unit_source.find("килограмм") == 0
-                                    ? ru_form(n, "килограмм", "килограмма", "килограммов")
-                                : unit_source.find("км") == 0 || unit_source.find("километр") == 0
-                                    ? ru_form(n, "километр", "километра", "километров")
-                                : unit_source.find("см") == 0 || unit_source.find("сантиметр") == 0
-                                    ? ru_form(n, "сантиметр", "сантиметра", "сантиметров")
-                                : unit_source.find("мм") == 0 || unit_source.find("миллиметр") == 0
-                                    ? ru_form(n, "миллиметр", "миллиметра", "миллиметров")
-                                : unit_source == "м" ? ru_form(n, "метр", "метра", "метров")
-                                : unit_source == "ГБ"
-                                    ? ru_form(n, "гигабайт", "гигабайта", "гигабайт")
-                                    : ru_form(n, "мегабайт", "мегабайта", "мегабайт");
-                            return ru_number(n) + " " + unit + match[3].str();
-                        });
-    text = replace_matches(
+    text = replace_numeric_matches(
+        text,
+        regex_patterns().ru_measurement,
+        [&](const std::smatch& match, const MappedText& source) {
+            long long n = 0;
+            if (!try_parse_long(match[1].str(), n)) {
+                add_warning_without_suffix(warnings,
+                                           WarningCode::UnresolvedNumber,
+                                           "Unable to parse Russian measurement",
+                                           source,
+                                           match,
+                                           3);
+                return match.str();
+            }
+            const auto unit_source = match[2].str();
+            const std::string unit =
+                unit_source.find("кг") == 0 || unit_source.find("килограмм") == 0
+                    ? ru_form(n, "килограмм", "килограмма", "килограммов")
+                : unit_source.find("км") == 0 || unit_source.find("километр") == 0
+                    ? ru_form(n, "километр", "километра", "километров")
+                : unit_source.find("см") == 0 || unit_source.find("сантиметр") == 0
+                    ? ru_form(n, "сантиметр", "сантиметра", "сантиметров")
+                : unit_source.find("мм") == 0 || unit_source.find("миллиметр") == 0
+                    ? ru_form(n, "миллиметр", "миллиметра", "миллиметров")
+                : unit_source == "м" ? ru_form(n, "метр", "метра", "метров")
+                : unit_source == "ГБ" ? ru_form(n, "гигабайт", "гигабайта", "гигабайт")
+                                      : ru_form(n, "мегабайт", "мегабайта", "мегабайт");
+            return ru_number(n) + " " + unit + match[3].str();
+        });
+    text = replace_numeric_matches(
         text,
         regex_patterns().generic_ru_number,
         [&](const std::smatch& match, const MappedText& source) {
@@ -995,40 +1187,44 @@ MappedText normalize_en(MappedText text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
     text = protect_technical(std::move(text), protected_spans);
     text = collapse_grouped_numbers(std::move(text));
-    text = replace_matches(text,
-                           regex_patterns().en_currency_decimal,
-                           [&](const std::smatch& match, const MappedText& source) {
-                               long long dollars = 0, cents = 0;
-                               const auto fraction = match[2].str();
-                               if (!try_parse_long(match[1].str(), dollars) ||
-                                   fraction.size() > 2 || !try_parse_long(fraction, cents)) {
-                                   add_warning(warnings,
-                                               WarningCode::UnresolvedNumber,
-                                               "Unable to parse English currency",
-                                               source,
-                                               match);
-                                   return match.str();
-                               }
-                               if (fraction.size() == 1)
-                                   cents *= 10;
-                               return en_number(dollars) + (dollars == 1 ? " dollar" : " dollars") +
-                                      " " + en_number(cents) + (cents == 1 ? " cent" : " cents");
-                           });
-    text = replace_matches(text,
-                           regex_patterns().en_currency_integer,
-                           [&](const std::smatch& match, const MappedText& source) {
-                               long long dollars = 0;
-                               if (!try_parse_long(match[1].str(), dollars)) {
-                                   add_warning(warnings,
-                                               WarningCode::UnresolvedNumber,
-                                               "Unable to parse English currency",
-                                               source,
-                                               match);
-                                   return match.str();
-                               }
-                               return en_number(dollars) + (dollars == 1 ? " dollar" : " dollars");
-                           });
-    text = replace_matches(
+    text = protect_malformed_numeric_candidates(std::move(text), warnings, protected_spans, false);
+    text =
+        replace_numeric_matches(text,
+                                regex_patterns().en_currency_decimal,
+                                [&](const std::smatch& match, const MappedText& source) {
+                                    long long dollars = 0, cents = 0;
+                                    const auto fraction = match[2].str();
+                                    if (!try_parse_long(match[1].str(), dollars) ||
+                                        fraction.size() > 2 || !try_parse_long(fraction, cents)) {
+                                        add_warning(warnings,
+                                                    WarningCode::UnresolvedNumber,
+                                                    "Unable to parse English currency",
+                                                    source,
+                                                    match);
+                                        return match.str();
+                                    }
+                                    if (fraction.size() == 1)
+                                        cents *= 10;
+                                    return en_number(dollars) +
+                                           (dollars == 1 ? " dollar" : " dollars") + " " +
+                                           en_number(cents) + (cents == 1 ? " cent" : " cents");
+                                });
+    text = replace_numeric_matches(text,
+                                   regex_patterns().en_currency_integer,
+                                   [&](const std::smatch& match, const MappedText& source) {
+                                       long long dollars = 0;
+                                       if (!try_parse_long(match[1].str(), dollars)) {
+                                           add_warning(warnings,
+                                                       WarningCode::UnresolvedNumber,
+                                                       "Unable to parse English currency",
+                                                       source,
+                                                       match);
+                                           return match.str();
+                                       }
+                                       return en_number(dollars) +
+                                              (dollars == 1 ? " dollar" : " dollars");
+                                   });
+    text = replace_numeric_matches(
         text, regex_patterns().en_ordinal, [&](const std::smatch& match, const MappedText& source) {
             long long value = 0;
             const auto suffix = match[3].str();
@@ -1044,7 +1240,7 @@ MappedText normalize_en(MappedText text, WarningSink& warnings) {
             }
             return match[1].str() + en_ordinal(value);
         });
-    text = replace_matches(
+    text = replace_numeric_matches(
         text, regex_patterns().en_percent, [&](const std::smatch& match, const MappedText& source) {
             const auto value = match[1].str();
             const auto dot = value.find('.');
@@ -1062,7 +1258,7 @@ MappedText normalize_en(MappedText text, WarningSink& warnings) {
                         : en_number(integer) + " point " + en_digits(value.substr(dot + 1))) +
                    " percent";
         });
-    text = replace_matches(
+    text = replace_numeric_matches(
         text, regex_patterns().en_time, [&](const std::smatch& match, const MappedText& source) {
             long long h = 0, m = 0;
             if (!try_parse_long(match[1].str(), h) || !try_parse_long(match[2].str(), m) ||
@@ -1077,7 +1273,7 @@ MappedText normalize_en(MappedText text, WarningSink& warnings) {
             return en_number(h) + (h == 1 ? " hour " : " hours ") + en_number(m) +
                    (m == 1 ? " minute" : " minutes");
         });
-    text = replace_matches(
+    text = replace_numeric_matches(
         text, regex_patterns().en_decimal, [&](const std::smatch& match, const MappedText& source) {
             const auto value = match[2].str();
             const auto dot = value.find('.');
@@ -1094,37 +1290,37 @@ MappedText normalize_en(MappedText text, WarningSink& warnings) {
             return match[1].str() + en_number(integer) + " point " +
                    en_digits(value.substr(dot + 1));
         });
-    text = replace_matches(text,
-                           regex_patterns().en_measurement,
-                           [&](const std::smatch& match, const MappedText& source) {
-                               long long n = 0;
-                               if (!try_parse_long(match[1].str(), n)) {
-                                   add_warning_without_suffix(warnings,
-                                                              WarningCode::UnresolvedNumber,
-                                                              "Unable to parse English measurement",
-                                                              source,
-                                                              match,
-                                                              3);
-                                   return match.str();
-                               }
-                               const auto unit = match[2].str();
-                               const bool singular = n == 1;
-                               const std::string spoken =
-                                   unit == "kg" || unit.find("kilogram") == 0
-                                       ? (singular ? "kilogram" : "kilograms")
-                                   : unit == "km" || unit.find("kilomet") == 0
-                                       ? (singular ? "kilometer" : "kilometers")
-                                   : unit == "m" || unit == "meters" || unit == "metres"
-                                       ? (singular ? "meter" : "meters")
-                                   : unit == "cm" || unit.find("centimet") == 0
-                                       ? (singular ? "centimeter" : "centimeters")
-                                   : unit == "mm" || unit.find("millimet") == 0
-                                       ? (singular ? "millimeter" : "millimeters")
-                                   : unit == "MB" ? (singular ? "megabyte" : "megabytes")
-                                                  : (singular ? "gigabyte" : "gigabytes");
-                               return en_number(n) + " " + spoken + match[3].str();
-                           });
-    text = replace_matches(
+    text = replace_numeric_matches(
+        text,
+        regex_patterns().en_measurement,
+        [&](const std::smatch& match, const MappedText& source) {
+            long long n = 0;
+            if (!try_parse_long(match[1].str(), n)) {
+                add_warning_without_suffix(warnings,
+                                           WarningCode::UnresolvedNumber,
+                                           "Unable to parse English measurement",
+                                           source,
+                                           match,
+                                           3);
+                return match.str();
+            }
+            const auto unit = match[2].str();
+            const bool singular = n == 1;
+            const std::string spoken = unit == "kg" || unit.find("kilogram") == 0
+                                           ? (singular ? "kilogram" : "kilograms")
+                                       : unit == "km" || unit.find("kilomet") == 0
+                                           ? (singular ? "kilometer" : "kilometers")
+                                       : unit == "m" || unit == "meters" || unit == "metres"
+                                           ? (singular ? "meter" : "meters")
+                                       : unit == "cm" || unit.find("centimet") == 0
+                                           ? (singular ? "centimeter" : "centimeters")
+                                       : unit == "mm" || unit.find("millimet") == 0
+                                           ? (singular ? "millimeter" : "millimeters")
+                                       : unit == "MB" ? (singular ? "megabyte" : "megabytes")
+                                                      : (singular ? "gigabyte" : "gigabytes");
+            return en_number(n) + " " + spoken + match[3].str();
+        });
+    text = replace_numeric_matches(
         text,
         regex_patterns().generic_en_number,
         [&](const std::smatch& match, const MappedText& source) {
@@ -1145,12 +1341,17 @@ struct Span {
 };
 std::vector<Span> token_spans(const std::string& text) {
     std::vector<CodePoint> points;
-    decode_utf8(text, points);
+    if (!decode_utf8(text, points))
+        return {};
     std::vector<Span> spans;
     std::size_t begin = std::string::npos;
     std::size_t end = 0;
-    for (const auto& point : points) {
-        if (is_word_codepoint(point.value)) {
+    for (std::size_t index = 0; index < points.size(); ++index) {
+        const auto& point = points[index];
+        const bool embedded_dot = point.value == '.' && index > 0 && index + 1 < points.size() &&
+                                  is_digit(points[index - 1].value) &&
+                                  is_digit(points[index + 1].value);
+        if (is_word_codepoint(point.value) || embedded_dot) {
             if (begin == std::string::npos)
                 begin = point.offset;
             end = point.offset + point.length;
@@ -1231,10 +1432,7 @@ TextFrontend::TextFrontend() : impl_(std::make_shared<Impl>()) {}
 TextFrontend::~TextFrontend() = default;
 
 bool TextFrontendResult::has_uncertainty() const noexcept {
-    return std::any_of(warnings.begin(), warnings.end(), [](const TextWarning& warning) {
-        return warning.code == WarningCode::AmbiguousNormalization ||
-               warning.code == WarningCode::UnresolvedNumber;
-    });
+    return !warnings.empty();
 }
 
 TextFrontendResult TextFrontend::process(std::string_view input,
@@ -1352,7 +1550,7 @@ TextFrontendResult TextFrontend::process(std::string_view input,
                 if (entry->pronunciation != token)
                     result.dictionary_replacements.push_back(
                         {token, entry->pronunciation, spans[i].begin});
-            } else if (options.expand_initialisms) {
+            } else if (options.expand_initialisms && language == Language::Russian) {
                 if (const auto replacement = safe_russian_initialism(token)) {
                     automatic_replacements[i] = *replacement;
                     rendered += *replacement;

@@ -70,6 +70,21 @@ int main() {
         CHECK(invalid_time.warnings.size() == 2);
     }
     CHECK(frontend.process("There are 12 GPUs.", en).normalized_text == "There are twelve GPUs.");
+    CHECK(frontend.process("тест42 тест42% тест12:34", ru).normalized_text ==
+          "тест42 тест42% тест12:34");
+    CHECK(frontend.process("слово1.2.2026", ru).normalized_text == "слово1.2.2026");
+    CHECK(frontend.process("abc2 kg", en).normalized_text == "abc2 kg");
+    CHECK(frontend.process("x$12 RTX-4090 C++17 V2.1.0 #123", en).normalized_text ==
+          "x$12 RTX-4090 C++17 V2.1.0 #123");
+    CHECK(frontend.process("1.2.3 12:34:56 1,000.50 1.2.3%", en).normalized_text ==
+          "1.2.3 12:34:56 1,000.50 1.2.3%");
+    CHECK(frontend.process("1,234 руб.", ru).normalized_text == "1,234 руб.");
+    const std::string nbsp = "a\xc2\xa0"
+                             "b\xe2\x80\xaf"
+                             "c\x0b"
+                             "d\x0c"
+                             "e";
+    CHECK(frontend.process(nbsp, en).normalized_text == "a b c d e");
 
     PronunciationDictionary dictionary;
     CHECK(dictionary.add_token("замок", "замок", 1));
@@ -86,6 +101,7 @@ int main() {
     CHECK(dictionary_result.dictionary_replacements.size() == 2);
     CHECK(dictionary_result.words[1].dictionary_replacement.has_value());
     CHECK(dictionary_result.words[2].dictionary_replacement.has_value());
+    CHECK(frontend.process("QWEN.", dictionary_options).pronunciation_text == "квен.");
     CHECK(frontend.process("МОСКВА", dictionary_options).pronunciation_text == "москва");
     dictionary_options.language = Language::Russian;
     CHECK(frontend.process("замок", dictionary_options).words.front().stressed_vowel == 1);
@@ -118,6 +134,9 @@ int main() {
     CHECK(initialism_result.words[0].surface == "ВК");
     CHECK(initialism_result.words[0].pronunciation == "вэ ка");
     CHECK(initialism_result.words[0].from_automatic_rewrite);
+    TextFrontendOptions english_initialisms = initialisms;
+    english_initialisms.language = Language::English;
+    CHECK(frontend.process("ВК ООО", english_initialisms).pronunciation_text == "ВК ООО");
     CHECK(frontend.process("ФСБ МФЦ ИП", initialisms).pronunciation_text ==
           "эф эс бэ эм эф цэ и пэ");
     CHECK(frontend.process("ВК вк Вк", initialisms).pronunciation_text == "вэ ка вк Вк");
@@ -213,6 +232,7 @@ int main() {
     const auto unsupported_result = frontend.process("test", unsupported);
     CHECK(unsupported_result.warnings.size() == 1);
     CHECK(unsupported_result.warnings.front().code == WarningCode::UnsupportedLanguage);
+    CHECK(unsupported_result.has_uncertainty());
     CHECK(unsupported_result.warnings.front().offset == 0);
     CHECK(unsupported_result.warnings.front().length == 0);
     TextFrontendOptions no_cleanup;

@@ -18,7 +18,11 @@ const auto result = frontend.process("В 2026 г. API готов.", options);
 
 Установка экспортирует пакет `TtsFront::tts_front`; потребитель может использовать `find_package(TtsFront CONFIG REQUIRED)`.
 
-Automatic context-sensitive Russian stress намеренно не включён: `StressMode::Automatic` выдаёт явное предупреждение до parity-проверки native/ONNX backend. Это не блокирует normalization и dictionary-only stress.
+Automatic context-sensitive Russian stress is available when the optional ONNX backend is built
+and a verified Silero bundle is configured through `TextFrontendOptions::silero_bundle_path` or
+the `TTS_FRONT_SILERO_BUNDLE` environment variable. If no bundle is configured, the frontend
+preserves deterministic output and emits `AutomaticStressUnavailable`; it never searches a
+working-directory default, downloads a model, or accesses an external cache.
 
 Encoding contract: all public `std::string`/`std::string_view` text is UTF-8, and project source files are UTF-8. MSVC targets compile with `/utf-8`.
 
