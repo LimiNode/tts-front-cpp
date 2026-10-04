@@ -9,8 +9,6 @@ set(TTS_FRONT_ONNX_RUNTIME_ROOT "" CACHE PATH "ONNX Runtime C/C++ package root")
 set(TTS_FRONT_CLANG_FORMAT "" CACHE STRING "clang-format executable for format targets")
 
 file(GLOB_RECURSE TTS_FRONT_FORMAT_SOURCES CONFIGURE_DEPENDS
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h"
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
@@ -56,7 +54,7 @@ add_library(tts_front
 add_library(TtsFront::tts_front ALIAS tts_front)
 target_compile_features(tts_front PUBLIC cxx_std_17)
 target_include_directories(tts_front PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:include>)
 if(MSVC)
   target_compile_options(tts_front PRIVATE /W4 /permissive- /utf-8)
@@ -98,7 +96,7 @@ install(TARGETS tts_front EXPORT TtsFrontTargets
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(FILES src/tts_front.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install(EXPORT TtsFrontTargets NAMESPACE TtsFront:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/TtsFront)
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/TtsFrontConfigVersion.cmake

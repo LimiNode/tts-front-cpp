@@ -4,7 +4,7 @@
 #include <tts_front.hpp>
 
 int main() {
-    constexpr const char* relative_path = "include/tts_front.hpp";
+    constexpr const char* relative_path = "src/tts_front.hpp";
     std::ifstream file(std::string(TTS_FRONT_SOURCE_DIR) + "/" + relative_path, std::ios::binary);
     if (!file) {
         std::cerr << "Unable to read public header: " << relative_path << '\n';
