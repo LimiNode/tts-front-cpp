@@ -1202,10 +1202,6 @@ resolve_silero_bundle(const TextFrontendOptions& options) {
     if (const auto* environment = std::getenv("TTS_FRONT_SILERO_BUNDLE");
         environment != nullptr && *environment != '\0')
         return std::filesystem::path(environment);
-    std::error_code error;
-    const auto application_local = std::filesystem::current_path(error) / "silero-native-phase1-v1";
-    if (!error && std::filesystem::is_directory(application_local, error) && !error)
-        return application_local;
     return std::nullopt;
 }
 
@@ -1217,12 +1213,15 @@ struct TextFrontend::Impl {
 
     std::shared_ptr<detail::SileroStressBackend>
     backend_for(const std::filesystem::path& bundle_root) {
-        const auto key = bundle_root.lexically_normal().string();
+        std::error_code error;
+        const auto resolved_root = std::filesystem::absolute(bundle_root, error);
+        const auto stable_root = (error ? bundle_root : resolved_root).lexically_normal();
+        const auto key = stable_root.string();
         std::lock_guard lock(silero_mutex);
         if (const auto found = silero_backends.find(key); found != silero_backends.end())
             return found->second;
         auto backend = std::make_shared<detail::SileroStressBackend>(
-            detail::SileroStressBackendConfig{bundle_root});
+            detail::SileroStressBackendConfig{stable_root});
         silero_backends.emplace(key, backend);
         return backend;
     }
@@ -1434,6 +1433,8 @@ TextFrontendResult TextFrontend::process(std::string_view input,
                 "TextFrontendOptions::silero_bundle_path)");
         } else {
             const auto deterministic_pronunciation = result.pronunciation_text;
+            const auto deterministic_words = result.words;
+            const auto deterministic_stress_decisions = result.stress_decisions;
             try {
                 struct ProtectedRewrite {
                     std::size_t begin;
@@ -1477,6 +1478,8 @@ TextFrontendResult TextFrontend::process(std::string_view input,
 
                 const auto backend = impl_->backend_for(*bundle_root);
                 const auto semantic = backend->process(protected_input);
+                auto automatic_words = result.words;
+                auto automatic_stress_decisions = result.stress_decisions;
                 for (const auto& word : semantic.words) {
                     const auto span_index = std::find_if(
                         normalized_spans.begin(), normalized_spans.end(), [&](const Span span) {
@@ -1486,29 +1489,33 @@ TextFrontendResult TextFrontend::process(std::string_view input,
                         continue;
                     const auto index =
                         static_cast<std::size_t>(span_index - normalized_spans.begin());
-                    if (index >= result.words.size() || result.words[index].from_dictionary ||
-                        result.words[index].from_automatic_rewrite)
+                    if (index >= automatic_words.size() || automatic_words[index].from_dictionary ||
+                        automatic_words[index].from_automatic_rewrite)
                         continue;
-                    result.words[index].pronunciation = word.pronunciation;
-                    result.words[index].stressed_vowel = word.stressed_vowel;
-                    result.stress_decisions.push_back({result.words[index].surface,
-                                                       word.stressed_vowel,
-                                                       false,
-                                                       "silero " + word.reason});
+                    automatic_words[index].pronunciation = word.pronunciation;
+                    automatic_words[index].stressed_vowel = word.stressed_vowel;
+                    automatic_stress_decisions.push_back({automatic_words[index].surface,
+                                                          word.stressed_vowel,
+                                                          false,
+                                                          "silero " + word.reason});
                 }
-                result.pronunciation_text = semantic.pronunciation_text;
+                auto automatic_pronunciation = semantic.pronunciation_text;
                 std::size_t marker_cursor = 0;
                 for (const auto& rewrite : protected_rewrites) {
                     const auto marker = std::string(rewrite.end - rewrite.begin, '\x01');
                     const auto marker_position =
-                        result.pronunciation_text.find(marker, marker_cursor);
+                        automatic_pronunciation.find(marker, marker_cursor);
                     if (marker_position == std::string::npos)
                         throw std::runtime_error("Silero backend lost a protected rewrite span");
-                    result.pronunciation_text.replace(
-                        marker_position, marker.size(), rewrite.output);
+                    automatic_pronunciation.replace(marker_position, marker.size(), rewrite.output);
                     marker_cursor = marker_position + rewrite.output.size();
                 }
+                result.words = std::move(automatic_words);
+                result.stress_decisions = std::move(automatic_stress_decisions);
+                result.pronunciation_text = std::move(automatic_pronunciation);
             } catch (const std::exception& error) {
+                result.words = deterministic_words;
+                result.stress_decisions = deterministic_stress_decisions;
                 result.pronunciation_text = deterministic_pronunciation;
                 add_unavailable_warning(std::string("Automatic stress backend unavailable: ") +
                                         error.what());

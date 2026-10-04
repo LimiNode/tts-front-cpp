@@ -34,9 +34,9 @@ sessions once per backend instance and keeps them alive for reuse. ONNX Runtime
 is not linked when the option is `OFF`.
 
 The private sentence backend now performs tokenization, embeddings, phrase and
-homograph routing, inference, and model-neutral semantic stress mapping.
-`StressMode::Automatic` remains deliberately disconnected until this private
-contract is reviewed independently.
+homograph routing, inference, and model-neutral semantic stress mapping. It is
+connected to `StressMode::Automatic` only when the optional ONNX build is
+enabled and a verified bundle can be resolved.
 
 The private sentence result now preserves route provenance through replacement
 and re-tokenization. Each processed word is labeled `model`, `exception`,
@@ -65,8 +65,7 @@ application-owned and follows this order:
 
 1. `TextFrontendOptions::silero_bundle_path`;
 2. `TTS_FRONT_SILERO_BUNDLE`;
-3. an application-local `silero-native-phase1-v1` directory;
-4. `AutomaticStressUnavailable` when no verified bundle can be opened.
+3. `AutomaticStressUnavailable` when no verified bundle can be opened.
 
 The frontend never searches an HF cache and never downloads model files. An
 application or integration layer is responsible for provisioning the complete

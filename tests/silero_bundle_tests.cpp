@@ -180,6 +180,16 @@ int main() {
         CHECK(overridden.pronunciation_text == "Это большое CUSTOM");
         CHECK(overridden.words[2].from_dictionary);
         CHECK(overridden.words[2].stressed_vowel == 0);
+
+        automatic.silero_bundle_path =
+            (std::filesystem::path(asset_root) / "missing-bundle").string();
+        automatic.dictionary = nullptr;
+        const auto unavailable = frontend.process("Это большое село.", automatic);
+        CHECK(unavailable.warnings.size() == 1);
+        CHECK(unavailable.warnings.front().code ==
+              tts_front::WarningCode::AutomaticStressUnavailable);
+        CHECK(unavailable.pronunciation_text == "Это большое село.");
+        CHECK(unavailable.words[2].stressed_vowel == std::nullopt);
     }
 #endif
 
