@@ -2,6 +2,7 @@
 #include "detail/silero_bundle.hpp"
 #include "detail/silero_sentence.hpp"
 #include "detail/silero_stress_backend.hpp"
+#include "tts_front.hpp"
 
 #include <array>
 #include <cstdlib>
@@ -158,6 +159,27 @@ int main() {
         const auto opaque = backend.process("Это большое село🙂.");
         CHECK(opaque.pronunciation_text == "Это большое село🙂.");
         CHECK(throws_runtime_error([&] { (void)backend.process(std::string("\xFF", 1)); }));
+
+        tts_front::TextFrontend frontend;
+        tts_front::TextFrontendOptions automatic;
+        automatic.language = tts_front::Language::Russian;
+        automatic.stress_mode = tts_front::StressMode::Automatic;
+        automatic.silero_bundle_path = asset_root;
+        const auto automatic_result = frontend.process("Это большое село.", automatic);
+        CHECK(automatic_result.warnings.empty());
+        CHECK(automatic_result.pronunciation_text == "Это большое село.");
+        CHECK(automatic_result.words.size() == 3);
+        CHECK(automatic_result.words[2].stressed_vowel == 1);
+
+        tts_front::PronunciationDictionary dictionary;
+        CHECK(dictionary.add_token("село", "CUSTOM", 0));
+        CHECK(dictionary.find_token("село") != nullptr);
+        automatic.dictionary = &dictionary;
+        const auto overridden = frontend.process("Это большое село", automatic);
+        CHECK(overridden.warnings.empty());
+        CHECK(overridden.pronunciation_text == "Это большое CUSTOM");
+        CHECK(overridden.words[2].from_dictionary);
+        CHECK(overridden.words[2].stressed_vowel == 0);
     }
 #endif
 

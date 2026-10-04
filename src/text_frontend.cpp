@@ -1,3 +1,4 @@
+#include "detail/silero_stress_backend.hpp"
 #include "detail/utf8.hpp"
 #include "tts_front.hpp"
 
@@ -6,8 +7,13 @@
 #include <cctype>
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
+#include <memory>
+#include <mutex>
 #include <regex>
+#include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -1189,7 +1195,41 @@ Language detect_language(std::string_view text, bool& has_cyrillic, bool& has_la
     return has_cyrillic ? Language::Russian : Language::English;
 }
 
+[[maybe_unused]] std::optional<std::filesystem::path>
+resolve_silero_bundle(const TextFrontendOptions& options) {
+    if (!options.silero_bundle_path.empty())
+        return std::filesystem::path(options.silero_bundle_path);
+    if (const auto* environment = std::getenv("TTS_FRONT_SILERO_BUNDLE");
+        environment != nullptr && *environment != '\0')
+        return std::filesystem::path(environment);
+    std::error_code error;
+    const auto application_local = std::filesystem::current_path(error) / "silero-native-phase1-v1";
+    if (!error && std::filesystem::is_directory(application_local, error) && !error)
+        return application_local;
+    return std::nullopt;
+}
+
 } // namespace
+
+struct TextFrontend::Impl {
+    std::mutex silero_mutex;
+    std::unordered_map<std::string, std::shared_ptr<detail::SileroStressBackend>> silero_backends;
+
+    std::shared_ptr<detail::SileroStressBackend>
+    backend_for(const std::filesystem::path& bundle_root) {
+        const auto key = bundle_root.lexically_normal().string();
+        std::lock_guard lock(silero_mutex);
+        if (const auto found = silero_backends.find(key); found != silero_backends.end())
+            return found->second;
+        auto backend = std::make_shared<detail::SileroStressBackend>(
+            detail::SileroStressBackendConfig{bundle_root});
+        silero_backends.emplace(key, backend);
+        return backend;
+    }
+};
+
+TextFrontend::TextFrontend() : impl_(std::make_shared<Impl>()) {}
+TextFrontend::~TextFrontend() = default;
 
 bool TextFrontendResult::has_uncertainty() const noexcept {
     return std::any_of(warnings.begin(), warnings.end(), [](const TextWarning& warning) {
@@ -1381,10 +1421,104 @@ TextFrontendResult TextFrontend::process(std::string_view input,
                                                    ? "pronunciation dictionary"
                                                    : "no deterministic stress rule"});
     }
-    if (options.resolve_stress && options.stress_mode == StressMode::Automatic)
-        result.warnings.push_back(
-            {WarningCode::AutomaticStressUnavailable,
-             "Automatic stress is not available until a parity-proven backend is added"});
+    if (options.resolve_stress && options.stress_mode == StressMode::Automatic) {
+        const auto add_unavailable_warning = [&](std::string message) {
+            result.warnings.push_back(
+                {WarningCode::AutomaticStressUnavailable, std::move(message), 0, 0});
+        };
+#if defined(TTS_FRONT_ENABLE_ONNX_STRESS)
+        const auto bundle_root = resolve_silero_bundle(options);
+        if (!bundle_root) {
+            add_unavailable_warning(
+                "Automatic stress bundle is not configured (set TTS_FRONT_SILERO_BUNDLE or "
+                "TextFrontendOptions::silero_bundle_path)");
+        } else {
+            const auto deterministic_pronunciation = result.pronunciation_text;
+            try {
+                struct ProtectedRewrite {
+                    std::size_t begin;
+                    std::size_t end;
+                    std::string output;
+                };
+                std::vector<ProtectedRewrite> protected_rewrites;
+                for (std::size_t index = 0; index < normalized_spans.size();) {
+                    const auto* entry =
+                        index < matched_entries.size() ? matched_entries[index] : nullptr;
+                    if (entry) {
+                        std::size_t end = index + 1;
+                        if (entry->match == PronunciationDictionary::Match::ExactPhrase) {
+                            while (end < matched_entries.size() && matched_entries[end] == entry)
+                                ++end;
+                        }
+                        protected_rewrites.push_back({normalized_spans[index].begin,
+                                                      normalized_spans[end - 1].end,
+                                                      entry->pronunciation});
+                        index = end;
+                    } else if (index < automatic_replacements.size() &&
+                               !automatic_replacements[index].empty()) {
+                        protected_rewrites.push_back({normalized_spans[index].begin,
+                                                      normalized_spans[index].end,
+                                                      automatic_replacements[index]});
+                        ++index;
+                    } else {
+                        ++index;
+                    }
+                }
+
+                std::string protected_input;
+                std::size_t cursor = 0;
+                for (const auto& rewrite : protected_rewrites) {
+                    protected_input.append(result.normalized_text, cursor, rewrite.begin - cursor);
+                    protected_input.append(rewrite.end - rewrite.begin, '\x01');
+                    cursor = rewrite.end;
+                }
+                protected_input.append(
+                    result.normalized_text, cursor, result.normalized_text.size() - cursor);
+
+                const auto backend = impl_->backend_for(*bundle_root);
+                const auto semantic = backend->process(protected_input);
+                for (const auto& word : semantic.words) {
+                    const auto span_index = std::find_if(
+                        normalized_spans.begin(), normalized_spans.end(), [&](const Span span) {
+                            return span.begin == word.source_offset;
+                        });
+                    if (span_index == normalized_spans.end())
+                        continue;
+                    const auto index =
+                        static_cast<std::size_t>(span_index - normalized_spans.begin());
+                    if (index >= result.words.size() || result.words[index].from_dictionary ||
+                        result.words[index].from_automatic_rewrite)
+                        continue;
+                    result.words[index].pronunciation = word.pronunciation;
+                    result.words[index].stressed_vowel = word.stressed_vowel;
+                    result.stress_decisions.push_back({result.words[index].surface,
+                                                       word.stressed_vowel,
+                                                       false,
+                                                       "silero " + word.reason});
+                }
+                result.pronunciation_text = semantic.pronunciation_text;
+                std::size_t marker_cursor = 0;
+                for (const auto& rewrite : protected_rewrites) {
+                    const auto marker = std::string(rewrite.end - rewrite.begin, '\x01');
+                    const auto marker_position =
+                        result.pronunciation_text.find(marker, marker_cursor);
+                    if (marker_position == std::string::npos)
+                        throw std::runtime_error("Silero backend lost a protected rewrite span");
+                    result.pronunciation_text.replace(
+                        marker_position, marker.size(), rewrite.output);
+                    marker_cursor = marker_position + rewrite.output.size();
+                }
+            } catch (const std::exception& error) {
+                result.pronunciation_text = deterministic_pronunciation;
+                add_unavailable_warning(std::string("Automatic stress backend unavailable: ") +
+                                        error.what());
+            }
+        }
+#else
+        add_unavailable_warning(
+            "Automatic stress requires a build with TTS_FRONT_ENABLE_ONNX_STRESS=ON");
+#endif
+    }
     return result;
 }
 

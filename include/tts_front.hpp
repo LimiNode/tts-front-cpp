@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -19,7 +20,7 @@ enum class Language {
 enum class StressMode {
     Disabled,       ///< Do not produce stress values or stress decisions.
     DictionaryOnly, ///< Resolve stress only from pronunciation-dictionary entries.
-    Automatic       ///< Request automatic stress; currently reports unavailable-backend warning.
+    Automatic       ///< Request automatic stress from the optional Silero backend.
 };
 
 /// \brief Category of a diagnostic emitted by the frontend.
@@ -129,6 +130,9 @@ struct TextFrontendOptions {
     bool resolve_stress = true;      ///< Resolve semantic stress.
     bool diagnostics = false;        ///< Emit decisions without replacements.
     bool expand_initialisms = false; ///< Expand the conservative Russian allowlist.
+    /// Optional verified Silero bundle root. If empty, the backend resolver checks
+    /// TTS_FRONT_SILERO_BUNDLE and then the application-local default.
+    std::string silero_bundle_path;
     /// Non-owning dictionary; caller must keep it alive for the call.
     const PronunciationDictionary* dictionary = nullptr;
 };
@@ -151,13 +155,20 @@ struct TextFrontendResult {
 /// \brief Reusable, thread-safe text normalization pipeline.
 class TextFrontend {
   public:
-    TextFrontend() = default;
+    TextFrontend();
+    ~TextFrontend();
+    TextFrontend(const TextFrontend&) = default;
+    TextFrontend& operator=(const TextFrontend&) = default;
     /// \brief Process UTF-8 text according to the selected language and stages.
     /// \param text Input UTF-8 text.
     /// \param options Pipeline options and optional dictionary.
     /// \return All intermediate text and semantic diagnostics.
     TextFrontendResult process(std::string_view text,
                                const TextFrontendOptions& options = {}) const;
+
+  private:
+    struct Impl;
+    mutable std::shared_ptr<Impl> impl_;
 };
 
 /// Return the stable textual name of a language value.
