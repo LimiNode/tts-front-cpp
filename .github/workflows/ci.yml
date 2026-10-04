@@ -149,7 +149,28 @@ jobs:
       - name: Run production full-sentence parity
         shell: pwsh
         run: |
-          $env:PATH = "$PWD/onnxruntime-win-x64-1.30.0/lib;$env:PATH"
+          $runtimeDll = Get-ChildItem -Path onnxruntime-win-x64-1.30.0 -Recurse -Filter onnxruntime.dll |
+            Select-Object -First 1
+          if (-not $runtimeDll) { throw "Pinned onnxruntime.dll was not found" }
+          $runtimeDir = $runtimeDll.Directory.FullName
+          Write-Host "Pinned ORT runtime: $($runtimeDll.FullName)"
+          Get-ChildItem -Recurse onnxruntime-win-x64-1.30.0 -Filter onnxruntime.dll |
+            Select-Object FullName,Length
+          $targets = @(
+            "$PWD/build-production-ort/Release",
+            "$PWD/build-native-ort/Release"
+          )
+          foreach ($target in $targets) {
+            Copy-Item $runtimeDll.FullName (Join-Path $target "onnxruntime.dll") -Force
+            $provider = Get-ChildItem -Path $runtimeDir -Filter onnxruntime_providers_shared.dll |
+              Select-Object -First 1
+            if ($provider) {
+              Copy-Item $provider.FullName (Join-Path $target "onnxruntime_providers_shared.dll") -Force
+            }
+          }
+          $env:PATH = "$runtimeDir;$env:PATH"
+          Write-Host "ORT command resolution:"
+          Get-Command onnxruntime.dll -ErrorAction SilentlyContinue
           $env:TTS_FRONT_SILERO_TEST_BUNDLE = "$PWD/.temp/ci-silero-bundle"
           ctest --test-dir build-production-ort -C Release `
             -R tts_front_silero_bundle_tests --output-on-failure
