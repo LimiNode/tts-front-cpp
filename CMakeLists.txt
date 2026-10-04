@@ -50,6 +50,7 @@ add_library(tts_front
     src/detail/utf8.cpp
     src/detail/silero_asset_hash.cpp
     src/detail/silero_bundle.cpp
+    src/detail/silero_sentence.cpp
     src/detail/silero_stress_backend.cpp
 )
 add_library(TtsFront::tts_front ALIAS tts_front)
@@ -137,6 +138,13 @@ if(TTS_FRONT_BUILD_TESTS)
     target_compile_definitions(tts_front_silero_bundle_tests PRIVATE TTS_FRONT_ENABLE_ONNX_STRESS=1)
   endif()
   add_test(NAME tts_front_silero_bundle_tests COMMAND tts_front_silero_bundle_tests)
+  if(TTS_FRONT_ENABLE_ONNX_STRESS)
+    add_executable(tts_front_silero_sentence_probe tests/silero_sentence_probe.cpp)
+    tts_front_configure_target(tts_front_silero_sentence_probe)
+    target_include_directories(tts_front_silero_sentence_probe PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_link_libraries(tts_front_silero_sentence_probe PRIVATE TtsFront::tts_front)
+    target_compile_definitions(tts_front_silero_sentence_probe PRIVATE TTS_FRONT_ENABLE_ONNX_STRESS=1)
+  endif()
 endif()
 if(TTS_FRONT_BUILD_EXAMPLES)
   foreach(example normalize_ru normalize_en pronunciation_dictionary stress_demo)

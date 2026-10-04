@@ -17,10 +17,19 @@ class SileroOrtSessionOwner {
     Ort::Session& stress() noexcept {
         return *stress_;
     }
+    Ort::Session& stress() const noexcept {
+        return *stress_;
+    }
     Ort::Session& yo() noexcept {
         return *yo_;
     }
+    Ort::Session& yo() const noexcept {
+        return *yo_;
+    }
     Ort::Session& homosolver() noexcept {
+        return *homosolver_;
+    }
+    Ort::Session& homosolver() const noexcept {
         return *homosolver_;
     }
 
