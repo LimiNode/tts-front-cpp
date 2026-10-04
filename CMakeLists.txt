@@ -50,6 +50,7 @@ add_library(tts_front
     src/detail/utf8.cpp
     src/detail/silero_asset_hash.cpp
     src/detail/silero_bundle.cpp
+    src/detail/silero_sentence.cpp
     src/detail/silero_stress_backend.cpp
 )
 add_library(TtsFront::tts_front ALIAS tts_front)
