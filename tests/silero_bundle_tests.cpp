@@ -145,8 +145,8 @@ int main() {
                        : expected.routes[index] == std::string_view("homosolver")
                            ? tts_front::detail::SileroWordRoute::Homosolver
                            : tts_front::detail::SileroWordRoute::Model));
-                CHECK(result.words[index].from_exception == expected.routes[index] ==
-                      std::string_view("exception"));
+                CHECK(result.words[index].from_exception ==
+                      (expected.routes[index] == std::string_view("exception")));
                 CHECK(result.words[index].from_homograph ==
                       (expected.routes[index] == std::string_view("phrase") ||
                        expected.routes[index] == std::string_view("homosolver")));
