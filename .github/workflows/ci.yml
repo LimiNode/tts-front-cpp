@@ -121,6 +121,51 @@ jobs:
             -DTTS_FRONT_BUILD_BENCHMARKS=OFF
           cmake --build build-production-ort --config Release --parallel
           ctest --test-dir build-production-ort -C Release --output-on-failure
+      - name: Checkout pinned Silero source for parity assets
+        uses: actions/checkout@v4
+        with:
+          repository: snakers4/silero-stress
+          ref: d38096cae9bf3ac846bbb88705428f3ed3801b96
+          path: silero-source
+          lfs: true
+      - name: Export pinned parity bundle
+        shell: pwsh
+        run: |
+          python -m pip install torch onnx onnxruntime
+          python tools/silero_phase2_onnx.py `
+            --source silero-source `
+            --work-dir .temp/ci-phase2 `
+            --receipt .temp/ci-phase2-receipt.json
+          python tools/silero_phase3_accentor_onnx.py `
+            --source silero-source `
+            --work-dir .temp/ci-phase3 `
+            --receipt .temp/ci-phase3-receipt.json
+          python tools/silero_export_native_assets.py `
+            --source silero-source `
+            --output .temp/ci-silero-bundle `
+            --stress-onnx .temp/ci-phase3/accentor-stress.onnx `
+            --yo-onnx .temp/ci-phase3/accentor-yo.onnx `
+            --homosolver-onnx .temp/ci-phase2/homosolver.onnx
+      - name: Run production full-sentence parity
+        shell: pwsh
+        run: |
+          $env:PATH = "$PWD/onnxruntime-win-x64-1.30.0/lib;$env:PATH"
+          $env:TTS_FRONT_SILERO_TEST_BUNDLE = "$PWD/.temp/ci-silero-bundle"
+          ctest --test-dir build-production-ort -C Release `
+            -R tts_front_silero_bundle_tests --output-on-failure
+          python tools/silero_production_sentence_parity.py `
+            --production build-production-ort/Release/tts_front_silero_sentence_probe.exe `
+            --research build-native-ort/Release/silero_native_sentence.exe `
+            --assets .temp/ci-silero-bundle `
+            --stress .temp/ci-silero-bundle/stress.onnx `
+            --yo .temp/ci-silero-bundle/yo.onnx `
+            --homo .temp/ci-silero-bundle/homosolver.onnx `
+            --receipt .temp/ci-production-sentence-parity.json
+      - name: Upload production parity receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: silero-production-sentence-parity
+          path: .temp/ci-production-sentence-parity.json
       - name: Install production ONNX package
         shell: pwsh
         run: |

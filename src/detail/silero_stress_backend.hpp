@@ -21,6 +21,27 @@ struct SileroStressBackendConfig {
     std::size_t hash_chunk_size = 1U << 20;
 };
 
+enum class SileroWordRoute {
+    Exception,
+    Model,
+    Phrase,
+    Homosolver,
+};
+
+constexpr std::string_view silero_word_route_name(const SileroWordRoute route) noexcept {
+    switch (route) {
+    case SileroWordRoute::Exception:
+        return "exception";
+    case SileroWordRoute::Model:
+        return "model";
+    case SileroWordRoute::Phrase:
+        return "phrase";
+    case SileroWordRoute::Homosolver:
+        return "homosolver";
+    }
+    return "model";
+}
+
 struct SileroWordResult {
     std::string surface;                       ///< Original token bytes.
     std::string pronunciation;                 ///< Surface with opaque spans preserved.
@@ -28,7 +49,8 @@ struct SileroWordResult {
     std::optional<std::size_t> stressed_vowel; ///< Zero-based vowel ordinal.
     bool from_exception = false;               ///< Selected from exceptions.tsv.
     bool from_homograph = false;               ///< Token belongs to homograph.tsv.
-    std::string reason;                        ///< Stable internal route name.
+    SileroWordRoute route = SileroWordRoute::Model;
+    std::string reason; ///< Stable internal route name.
 };
 
 struct SileroSentenceResult {

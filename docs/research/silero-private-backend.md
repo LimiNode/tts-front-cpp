@@ -33,8 +33,29 @@ The runtime root must contain `include/onnxruntime_cxx_api.h` and the matching
 sessions once per backend instance and keeps them alive for reuse. ONNX Runtime
 is not linked when the option is `OFF`.
 
-The current batch establishes lifecycle and verification only. Sentence
-tokenization, embeddings, homograph routing, inference, and semantic stress
-result mapping remain the next private backend slice; `StressMode::Automatic`
-still reports its existing unavailable-backend warning until that contract is
-implemented and tested.
+The private sentence backend now performs tokenization, embeddings, phrase and
+homograph routing, inference, and model-neutral semantic stress mapping.
+`StressMode::Automatic` remains deliberately disconnected until this private
+contract is reviewed independently.
+
+The private sentence result now preserves route provenance through replacement
+and re-tokenization. Each processed word is labeled `model`, `exception`,
+`phrase`, or `homosolver`; the label is not inferred from the final spelling.
+With a verified bundle and both executables available, the production probe
+can be audited against the research executable with:
+
+```text
+python tools/silero_production_sentence_parity.py \
+  --production build-production-ort/Release/tts_front_silero_sentence_probe.exe \
+  --research build-native-ort/Release/silero_native_sentence.exe \
+  --assets .temp/ci-silero-bundle \
+  --stress .temp/ci-silero-bundle/stress.onnx \
+  --yo .temp/ci-silero-bundle/yo.onnx \
+  --homo .temp/ci-silero-bundle/homosolver.onnx \
+  --receipt .temp/ci-production-sentence-parity.json
+```
+
+The parity gate compares UTF-8 output after removing the research-only `+`
+stress marker, route counts, and stressed-vowel ordinals. The Windows CI job
+recreates the bundle from the pinned upstream checkout before running this
+gate; no model or graph bytes are committed to the repository.

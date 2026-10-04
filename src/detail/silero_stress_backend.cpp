@@ -278,6 +278,12 @@ SileroSentenceResult SileroStressBackend::process(const std::string_view sentenc
         std::size_t begin;
         std::size_t end;
         std::string value;
+        SileroWordRoute route;
+    };
+    struct RouteSpan {
+        std::size_t begin;
+        std::size_t end;
+        SileroWordRoute route;
     };
     std::vector<Replacement> replacements;
     const SileroWordPiece wordpiece(*runtime_data_);
@@ -287,7 +293,9 @@ SileroSentenceResult SileroStressBackend::process(const std::string_view sentenc
             continue;
         auto variant = silero_phrase_variant(
             *runtime_data_, token.clean, silero_marked_context(transformed, token));
+        auto route = SileroWordRoute::Phrase;
         if (!variant) {
+            route = SileroWordRoute::Homosolver;
             const auto ids = wordpiece.encode(silero_marked_context(transformed, token));
             const auto start = std::find(ids.begin(), ids.end(), runtime_data_->homo_start_id);
             const auto end = std::find(ids.begin(), ids.end(), runtime_data_->homo_end_id);
@@ -303,15 +311,18 @@ SileroSentenceResult SileroStressBackend::process(const std::string_view sentenc
             variant = homograph->second[prediction];
         }
         replacements.push_back(
-            {token.byte_start, token.byte_end, silero_preserve_case(token.raw, *variant)});
+            {token.byte_start, token.byte_end, silero_preserve_case(token.raw, *variant), route});
     }
+    std::vector<RouteSpan> route_spans;
     if (!replacements.empty()) {
         transformed.clear();
         std::size_t cursor = 0;
         const auto original = std::string(sentence);
         for (const auto& replacement : replacements) {
             transformed.append(original, cursor, replacement.begin - cursor);
+            const auto replacement_begin = transformed.size();
             transformed += replacement.value;
+            route_spans.push_back({replacement_begin, transformed.size(), replacement.route});
             cursor = replacement.end;
         }
         transformed.append(original, cursor, original.size() - cursor);
@@ -369,14 +380,25 @@ SileroSentenceResult SileroStressBackend::process(const std::string_view sentenc
                        std::vector<float>(yo_begin, yo_begin + 7));
         const auto pronunciation = encode_values(accent.values);
         result.pronunciation_text += pronunciation;
-        result.words.push_back(
-            {without_stress_markers(token.raw),
-             pronunciation,
-             token.byte_start,
-             accent.stressed_vowel,
-             exception != runtime_data_->exceptions.end(),
-             runtime_data_->homographs.find(token.clean) != runtime_data_->homographs.end(),
-             exception != runtime_data_->exceptions.end() ? "exception" : "model"});
+        auto route = SileroWordRoute::Model;
+        for (const auto& span : route_spans) {
+            if (token.byte_start >= span.begin && token.byte_end <= span.end) {
+                route = span.route;
+                break;
+            }
+        }
+        if (route == SileroWordRoute::Model && exception != runtime_data_->exceptions.end())
+            route = SileroWordRoute::Exception;
+        const auto homograph_route =
+            route == SileroWordRoute::Phrase || route == SileroWordRoute::Homosolver;
+        result.words.push_back({without_stress_markers(token.raw),
+                                pronunciation,
+                                token.byte_start,
+                                accent.stressed_vowel,
+                                route == SileroWordRoute::Exception,
+                                homograph_route,
+                                route,
+                                std::string(silero_word_route_name(route))});
     }
     return result;
 #endif

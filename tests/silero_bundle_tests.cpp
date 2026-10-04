@@ -116,19 +116,40 @@ int main() {
             const char* sentence;
             const char* pronunciation;
             std::vector<std::size_t> stressed_vowels;
+            std::vector<const char*> routes;
         };
-        for (const auto& expected :
-             std::array{Expected{"Мама мыла раму.", "Мама мыла раму.", {0, 0, 0}},
-                        Expected{"Квантолик.", "Квантолик.", {1}},
-                        Expected{"Солнце село.", "Солнце село.", {0, 0}},
-                        Expected{"Это большое село.", "Это большое село.", {0, 1, 1}},
-                        Expected{"Елка ёлка.", "Ёлка ёлка.", {0, 0}},
-                        Expected{"«Мама», — мел!", "«Мама», — мёл!", {0, 0}}}) {
+        for (const auto& expected : std::array{
+                 Expected{"Мама мыла раму.",
+                          "Мама мыла раму.",
+                          {0, 0, 0},
+                          {"model", "exception", "model"}},
+                 Expected{"Квантолик.", "Квантолик.", {1}, {"model"}},
+                 Expected{"Солнце село.", "Солнце село.", {0, 0}, {"model", "phrase"}},
+                 Expected{"Это большое село.",
+                          "Это большое село.",
+                          {0, 1, 1},
+                          {"model", "model", "homosolver"}},
+                 Expected{"Елка ёлка.", "Ёлка ёлка.", {0, 0}, {"model", "model"}},
+                 Expected{"«Мама», — мел!", "«Мама», — мёл!", {0, 0}, {"model", "homosolver"}}}) {
             const auto result = backend.process(expected.sentence);
             CHECK(result.pronunciation_text == expected.pronunciation);
             CHECK(result.words.size() == expected.stressed_vowels.size());
             for (std::size_t index = 0; index < result.words.size(); ++index) {
                 CHECK(result.words[index].stressed_vowel == expected.stressed_vowels[index]);
+                CHECK(result.words[index].reason == expected.routes[index]);
+                CHECK(result.words[index].route ==
+                      (expected.routes[index] == std::string_view("exception")
+                           ? tts_front::detail::SileroWordRoute::Exception
+                       : expected.routes[index] == std::string_view("phrase")
+                           ? tts_front::detail::SileroWordRoute::Phrase
+                       : expected.routes[index] == std::string_view("homosolver")
+                           ? tts_front::detail::SileroWordRoute::Homosolver
+                           : tts_front::detail::SileroWordRoute::Model));
+                CHECK(result.words[index].from_exception == expected.routes[index] ==
+                      std::string_view("exception"));
+                CHECK(result.words[index].from_homograph ==
+                      (expected.routes[index] == std::string_view("phrase") ||
+                       expected.routes[index] == std::string_view("homosolver")));
             }
             const auto repeated = backend.process(expected.sentence);
             CHECK(repeated.pronunciation_text == result.pronunciation_text);
