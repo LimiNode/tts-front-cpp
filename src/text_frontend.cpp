@@ -35,16 +35,22 @@ bool is_digit(std::uint32_t cp) {
 bool is_letter(std::uint32_t cp) {
     return is_cyrillic(cp) || is_latin(cp);
 }
+bool is_combining_mark(std::uint32_t cp) {
+    return (cp >= 0x0300 && cp <= 0x036f) || (cp >= 0x1ab0 && cp <= 0x1aff) ||
+           (cp >= 0x1dc0 && cp <= 0x1dff) || (cp >= 0x20d0 && cp <= 0x20ff) ||
+           (cp >= 0xfe20 && cp <= 0xfe2f);
+}
 bool is_word_codepoint(std::uint32_t cp) {
     return is_letter(cp) || is_digit(cp) || cp == '+' || cp == '#' || cp == '_';
 }
 
 bool is_numeric_separator(std::uint32_t cp) {
-    return cp == '.' || cp == ',' || cp == ':' || cp == '%' || cp == '-' || cp == '/';
+    return cp == '.' || cp == ',' || cp == ':' || cp == '%' || cp == '-' || cp == '/' ||
+           cp == '+' || cp == '=';
 }
 
 bool is_lexical_numeric_boundary(std::uint32_t cp) {
-    return is_letter(cp) || is_digit(cp) || cp == '_';
+    return is_letter(cp) || is_combining_mark(cp) || is_digit(cp) || cp == '_';
 }
 
 struct SourceRange {
@@ -211,39 +217,39 @@ replace_matches(const MappedText& input, const std::regex& pattern, Formatter fo
     return output;
 }
 
-bool numeric_match_has_valid_boundaries(std::string_view text, std::size_t begin, std::size_t end) {
-    std::vector<CodePoint> points;
-    if (!decode_utf8(text, points))
-        return false;
-
-    std::size_t first_digit = std::string::npos;
-    std::size_t last_digit = std::string::npos;
-    for (const auto& point : points) {
-        if (point.offset >= begin && point.offset < end && is_digit(point.value)) {
-            if (first_digit == std::string::npos)
-                first_digit = point.offset;
-            last_digit = point.offset;
+bool numeric_match_has_valid_boundaries(const std::vector<CodePoint>& points,
+                                        std::size_t begin,
+                                        std::size_t end) {
+    const auto first = std::lower_bound(
+        points.begin(), points.end(), begin, [](const CodePoint& point, std::size_t offset) {
+            return point.offset < offset;
+        });
+    const auto after = std::lower_bound(
+        points.begin(), points.end(), end, [](const CodePoint& point, std::size_t offset) {
+            return point.offset < offset;
+        });
+    auto first_digit = after;
+    for (auto point = first; point != after; ++point) {
+        if (is_digit(point->value)) {
+            first_digit = point;
+            break;
         }
     }
-    if (first_digit == std::string::npos)
+    if (first_digit == after)
         return true;
 
-    const CodePoint* previous = nullptr;
-    const CodePoint* before_previous = nullptr;
-    const CodePoint* next = nullptr;
-    const CodePoint* after_next = nullptr;
-    for (std::size_t index = 0; index < points.size(); ++index) {
-        if (points[index].offset < first_digit) {
-            before_previous = previous;
-            previous = &points[index];
-        }
-        if (points[index].offset >= end) {
-            if (next == nullptr)
-                next = &points[index];
-            else if (after_next == nullptr)
-                after_next = &points[index];
-        }
+    auto last_digit = first_digit;
+    for (auto point = first_digit; point != after; ++point) {
+        if (is_digit(point->value))
+            last_digit = point;
     }
+    const auto first_index = static_cast<std::size_t>(first_digit - points.begin());
+    const auto next_index = static_cast<std::size_t>(after - points.begin());
+    const CodePoint* previous = first_index == 0 ? nullptr : &points[first_index - 1];
+    const CodePoint* before_previous = first_index < 2 ? nullptr : &points[first_index - 2];
+    const CodePoint* next = next_index == points.size() ? nullptr : &points[next_index];
+    const CodePoint* after_next =
+        next_index + 1 >= points.size() ? nullptr : &points[next_index + 1];
 
     if (previous && is_lexical_numeric_boundary(previous->value))
         return false;
@@ -254,8 +260,8 @@ bool numeric_match_has_valid_boundaries(std::string_view text, std::size_t begin
         is_lexical_numeric_boundary(before_previous->value))
         return false;
     bool suffix_consumed = false;
-    for (const auto& point : points) {
-        if (point.offset > last_digit && point.offset < end && !is_digit(point.value)) {
+    for (auto point = last_digit + 1; point != after; ++point) {
+        if (!is_digit(point->value)) {
             suffix_consumed = true;
             break;
         }
@@ -270,10 +276,13 @@ bool numeric_match_has_valid_boundaries(std::string_view text, std::size_t begin
 template <typename Formatter>
 MappedText
 replace_numeric_matches(const MappedText& input, const std::regex& pattern, Formatter formatter) {
+    std::vector<CodePoint> points;
+    if (!decode_utf8(input.text, points))
+        return input;
     return replace_matches(input, pattern, [&](const std::smatch& match, const MappedText& source) {
         const auto begin = static_cast<std::size_t>(match.position());
         const auto end = begin + static_cast<std::size_t>(match.length());
-        if (!numeric_match_has_valid_boundaries(source.text, begin, end))
+        if (!numeric_match_has_valid_boundaries(points, begin, end))
             return match.str();
         return formatter(match, source);
     });
@@ -896,32 +905,62 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 ++index;
             continue;
         }
+        const bool starts_phone = points[index].value == '+' && index + 1 < points.size() &&
+                                  is_digit(points[index + 1].value);
         const bool starts_number = is_digit(points[index].value) ||
                                    (points[index].value == '-' && index + 1 < points.size() &&
                                     is_digit(points[index + 1].value));
-        if (!starts_number) {
+        if (!starts_number && !starts_phone) {
             ++index;
             continue;
         }
         const auto begin = points[index].offset;
         std::size_t end_index = index + 1;
         std::size_t separators = 0;
-        while (end_index < points.size()) {
-            const auto value = points[end_index].value;
-            if (is_numeric_separator(value)) {
-                if (value != '%')
+        if (starts_phone) {
+            while (end_index < points.size()) {
+                if (is_digit(points[end_index].value)) {
+                    ++end_index;
+                    continue;
+                }
+                if (points[end_index].value == '-' || points[end_index].value == '/') {
                     ++separators;
-                ++end_index;
-                continue;
+                    ++end_index;
+                    continue;
+                }
+                if (points[end_index].value == ' ' || points[end_index].value == '\t') {
+                    auto probe = end_index + 1;
+                    while (probe < points.size() &&
+                           (points[probe].value == ' ' || points[probe].value == '\t'))
+                        ++probe;
+                    if (probe < points.size() && is_digit(points[probe].value)) {
+                        end_index = probe;
+                        continue;
+                    }
+                }
+                break;
             }
-            if (is_digit(value)) {
-                ++end_index;
-                continue;
+        } else {
+            while (end_index < points.size()) {
+                const auto value = points[end_index].value;
+                if (is_numeric_separator(value)) {
+                    if (value != '%')
+                        ++separators;
+                    ++end_index;
+                    continue;
+                }
+                if (is_digit(value)) {
+                    ++end_index;
+                    continue;
+                }
+                break;
             }
-            break;
         }
+        const bool previous_is_connector =
+            index > 0 && (points[index - 1].value == '-' || points[index - 1].value == '/' ||
+                          points[index - 1].value == '+' || points[index - 1].value == '=');
         const bool embedded = index > 0 && (is_lexical_numeric_boundary(points[index - 1].value) ||
-                                            (points[index - 1].value == '-' && index > 1 &&
+                                            (previous_is_connector && index > 1 &&
                                              is_lexical_numeric_boundary(points[index - 2].value)));
         if (embedded) {
             std::size_t grouped_end = end_index;
@@ -934,7 +973,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 const auto group_begin = probe;
                 while (probe < points.size() && is_digit(points[probe].value))
                     ++probe;
-                if (probe - group_begin != 3)
+                if (probe == group_begin)
                     break;
                 grouped_end = probe;
             }
@@ -944,6 +983,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             end_index == 0 ? begin : points[end_index - 1].offset + points[end_index - 1].length;
         const auto candidate = text.text.substr(begin, end - begin);
         const auto tail = text.text.substr(end);
+        const bool attached_lexical_suffix = separators != 0 && end_index < points.size() &&
+                                             is_lexical_numeric_boundary(points[end_index].value);
         const bool comma_group_followed_by_word = [&] {
             const auto comma = candidate.find(',');
             if (comma == std::string::npos || candidate.find('.', comma + 1) != std::string::npos ||
@@ -978,15 +1019,18 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                     candidate.substr(first_dot + 1, second_dot - first_dot - 1).size() <= 2 &&
                     candidate.substr(second_dot + 1).size() == 4 &&
                     valid_date(
-                        static_cast<int>(day), static_cast<int>(month), static_cast<int>(year));
+                        static_cast<int>(day), static_cast<int>(month), static_cast<int>(year)) &&
+                    !attached_lexical_suffix;
             }
         }
         const auto hyphen_search_start = candidate.size() > 0 && candidate.front() == '-' ? 1 : 0;
         const bool unsupported_numeric_connector =
+            starts_phone || candidate.find('+') != std::string::npos ||
+            candidate.find('=') != std::string::npos ||
             candidate.find('-', hyphen_search_start) != std::string::npos ||
             candidate.find('/') != std::string::npos;
-        if ((separators >= 2 || embedded || comma_group_followed_by_word ||
-             unsupported_numeric_connector) &&
+        if ((separators >= 2 || embedded || attached_lexical_suffix ||
+             comma_group_followed_by_word || unsupported_numeric_connector) &&
             !(valid_russian_date && !embedded)) {
             output.append_copy(text, cursor, begin);
             const auto source = text.source_range(begin, end);

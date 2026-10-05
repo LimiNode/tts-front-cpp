@@ -83,6 +83,17 @@ int main() {
     CHECK(numeric_identifiers.normalized_text == "12-34 123-456 555-1234 12/34");
     CHECK(!numeric_identifiers.warnings.empty());
     CHECK(numeric_identifiers.warnings.front().code == WarningCode::UnresolvedNumber);
+    CHECK(frontend.process("abc1 23", en).normalized_text == "abc1 23");
+    CHECK(frontend.process("abc1 234 56", en).normalized_text == "abc1 234 56");
+    CHECK(frontend.process("1.2+3 1.2=3 abc/123 123+abc", en).normalized_text ==
+          "1.2+3 1.2=3 abc/123 123+abc");
+    CHECK(frontend.process("+7 999 123-45-67", en).normalized_text == "+7 999 123-45-67");
+    CHECK(frontend.process("1,2кг", ru).normalized_text == "1,2кг");
+    CHECK(frontend.process("1.2%word", en).normalized_text == "1.2%word");
+    CHECK(frontend.process("01.02.2026г.", ru).normalized_text == "01.02.2026г.");
+    const std::string decomposed_word = "e\xcc\x81"
+                                        "42";
+    CHECK(frontend.process(decomposed_word, en).normalized_text == decomposed_word);
     CHECK(frontend.process("x$12 RTX-4090 C++17 V2.1.0 #123", en).normalized_text ==
           "x$12 RTX-4090 C++17 V2.1.0 #123");
     CHECK(frontend.process("1.2.3 12:34:56 1,000.50 1.2.3%", en).normalized_text ==
