@@ -46,7 +46,7 @@ bool is_word_codepoint(std::uint32_t cp) {
 
 bool is_numeric_separator(std::uint32_t cp) {
     return cp == '.' || cp == ',' || cp == ':' || cp == '%' || cp == '-' || cp == '/' ||
-           cp == '+' || cp == '=';
+           cp == '+' || cp == '=' || (cp >= 0x2010 && cp <= 0x2015);
 }
 
 bool is_lexical_numeric_boundary(std::uint32_t cp) {
@@ -874,6 +874,87 @@ MappedText restore_technical(MappedText text, const std::vector<ProtectedSpan>& 
     return text;
 }
 
+// Technical shielding intentionally runs before the general numeric pass, but
+// numeric-leading scientific/encoded candidates must be admitted first.  If
+// they are hidden as (for example) `e+3` or `$3`, the generic normalizer can
+// rewrite only the leading numeric fragment.
+MappedText protect_numeric_technical_candidates(MappedText text,
+                                                WarningSink& warnings,
+                                                std::vector<ProtectedSpan>& protected_spans) {
+    std::vector<CodePoint> points;
+    if (!decode_utf8(text.text, points))
+        return text;
+
+    MappedText output;
+    output.preserved_ranges = text.preserved_ranges;
+    std::size_t cursor = 0;
+    for (std::size_t index = 0; index < points.size();) {
+        const bool starts_number = is_digit(points[index].value) ||
+                                   (points[index].value == '-' && index + 1 < points.size() &&
+                                    is_digit(points[index + 1].value));
+        if (!starts_number || (index > 0 && is_lexical_numeric_boundary(points[index - 1].value))) {
+            ++index;
+            continue;
+        }
+
+        std::size_t end_index = index + (points[index].value == '-' ? 1 : 0);
+        while (end_index < points.size() && is_digit(points[end_index].value))
+            ++end_index;
+        if (end_index < points.size() &&
+            (points[end_index].value == '.' || points[end_index].value == ',') &&
+            end_index + 1 < points.size() && is_digit(points[end_index + 1].value)) {
+            ++end_index;
+            while (end_index < points.size() && is_digit(points[end_index].value))
+                ++end_index;
+        }
+
+        std::size_t suffix_end = end_index;
+        bool encoded_suffix = false;
+        if (end_index < points.size() &&
+            (points[end_index].value == 'e' || points[end_index].value == 'E')) {
+            auto probe = end_index + 1;
+            if (probe < points.size() && (points[probe].value == '+' || points[probe].value == '-'))
+                ++probe;
+            const auto exponent_begin = probe;
+            while (probe < points.size() && is_digit(points[probe].value))
+                ++probe;
+            if (probe != exponent_begin) {
+                suffix_end = probe;
+                encoded_suffix = true;
+            }
+        } else if (end_index < points.size() &&
+                   (points[end_index].value == '#' || points[end_index].value == '$')) {
+            auto probe = end_index + 1;
+            const auto suffix_begin = probe;
+            while (probe < points.size() && is_digit(points[probe].value))
+                ++probe;
+            if (probe != suffix_begin) {
+                suffix_end = probe;
+                encoded_suffix = true;
+            }
+        }
+
+        if (!encoded_suffix) {
+            ++index;
+            continue;
+        }
+
+        const auto begin = points[index].offset;
+        const auto end = points[suffix_end - 1].offset + points[suffix_end - 1].length;
+        output.append_copy(text, cursor, begin);
+        warnings.add(WarningCode::UnresolvedNumber,
+                     "Unsupported numeric-like candidate preserved verbatim",
+                     text.source_range(begin, end));
+        const auto marker = marker_for(text.text, protected_spans.size());
+        protected_spans.push_back({marker, text.text.substr(begin, end - begin)});
+        output.append_generated(text, begin, end, marker);
+        cursor = end;
+        index = suffix_end;
+    }
+    output.append_copy(text, cursor, text.text.size());
+    return output;
+}
+
 bool valid_date(int day, int month, int year) {
     if (month < 1 || month > 12 || day < 1)
         return false;
@@ -917,6 +998,9 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         const auto begin = points[index].offset;
         std::size_t end_index = index + 1;
         std::size_t separators = 0;
+        bool has_percent = false;
+        bool percent_attached_to_numeric = false;
+        bool has_range_connector = false;
         if (starts_phone) {
             while (end_index < points.size()) {
                 if (is_digit(points[end_index].value)) {
@@ -928,11 +1012,25 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                     ++end_index;
                     continue;
                 }
+                if (points[end_index].value == '(' || points[end_index].value == ')') {
+                    ++end_index;
+                    continue;
+                }
                 if (points[end_index].value == ' ' || points[end_index].value == '\t') {
                     auto probe = end_index + 1;
                     while (probe < points.size() &&
                            (points[probe].value == ' ' || points[probe].value == '\t'))
                         ++probe;
+                    if (probe < points.size() && points[probe].value == '(') {
+                        auto digit_probe = probe + 1;
+                        while (digit_probe < points.size() && (points[digit_probe].value == ' ' ||
+                                                               points[digit_probe].value == '\t'))
+                            ++digit_probe;
+                        if (digit_probe < points.size() && is_digit(points[digit_probe].value)) {
+                            end_index = probe;
+                            continue;
+                        }
+                    }
                     if (probe < points.size() && is_digit(points[probe].value)) {
                         end_index = probe;
                         continue;
@@ -944,8 +1042,16 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             while (end_index < points.size()) {
                 const auto value = points[end_index].value;
                 if (is_numeric_separator(value)) {
-                    if (value != '%')
+                    if (value == '%') {
+                        has_percent = true;
+                        if (end_index + 1 < points.size() &&
+                            (is_lexical_numeric_boundary(points[end_index + 1].value) ||
+                             points[end_index + 1].value == '%'))
+                            percent_attached_to_numeric = true;
+                    } else
                         ++separators;
+                    if (value >= 0x2010 && value <= 0x2015)
+                        has_range_connector = true;
                     ++end_index;
                     continue;
                 }
@@ -985,6 +1091,10 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         const auto tail = text.text.substr(end);
         const bool attached_lexical_suffix = separators != 0 && end_index < points.size() &&
                                              is_lexical_numeric_boundary(points[end_index].value);
+        const bool invalid_percent =
+            has_percent &&
+            (percent_attached_to_numeric ||
+             (end_index < points.size() && is_lexical_numeric_boundary(points[end_index].value)));
         const bool comma_group_followed_by_word = [&] {
             const auto comma = candidate.find(',');
             if (comma == std::string::npos || candidate.find('.', comma + 1) != std::string::npos ||
@@ -1028,9 +1138,9 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             starts_phone || candidate.find('+') != std::string::npos ||
             candidate.find('=') != std::string::npos ||
             candidate.find('-', hyphen_search_start) != std::string::npos ||
-            candidate.find('/') != std::string::npos;
+            candidate.find('/') != std::string::npos || has_range_connector;
         if ((separators >= 2 || embedded || attached_lexical_suffix ||
-             comma_group_followed_by_word || unsupported_numeric_connector) &&
+             comma_group_followed_by_word || unsupported_numeric_connector || invalid_percent) &&
             !(valid_russian_date && !embedded)) {
             output.append_copy(text, cursor, begin);
             const auto source = text.source_range(begin, end);
@@ -1075,6 +1185,7 @@ MappedText collapse_grouped_numbers(const MappedText& input) {
 
 MappedText normalize_ru(MappedText text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
+    text = protect_numeric_technical_candidates(std::move(text), warnings, protected_spans);
     text = protect_technical(std::move(text), protected_spans);
     text = protect_malformed_numeric_candidates(std::move(text), warnings, protected_spans, true);
     text = collapse_grouped_numbers(std::move(text));
@@ -1251,6 +1362,7 @@ MappedText normalize_ru(MappedText text, WarningSink& warnings) {
 
 MappedText normalize_en(MappedText text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
+    text = protect_numeric_technical_candidates(std::move(text), warnings, protected_spans);
     text = protect_technical(std::move(text), protected_spans);
     text = protect_malformed_numeric_candidates(std::move(text), warnings, protected_spans, false);
     text = collapse_grouped_numbers(std::move(text));

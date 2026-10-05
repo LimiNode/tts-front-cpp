@@ -48,6 +48,23 @@ int main() {
     TextFrontendOptions en;
     en.language = Language::English;
     CHECK(frontend.process("7.5%", en).normalized_text == "seven point five percent");
+    {
+        const std::string unsupported_numeric[] = {"1%word",
+                                                   "1%2",
+                                                   "1e+3",
+                                                   "1.2e-3",
+                                                   "1.2#3",
+                                                   "1.2$3",
+                                                   std::string("10") + "\xE2\x80\x93" + "20",
+                                                   std::string("10") + "\xE2\x80\x94" + "20",
+                                                   "+7 (999) 123-45-67"};
+        for (const auto& input : unsupported_numeric) {
+            const auto result = frontend.process(input, en);
+            CHECK(result.normalized_text == input);
+            CHECK(!result.warnings.empty());
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        }
+    }
     CHECK(frontend.process("$12.50 $12.05 $12.5 $1 $2", en).normalized_text ==
           "twelve dollars fifty cents twelve dollars five cents twelve dollars fifty cents one "
           "dollar two dollars");
