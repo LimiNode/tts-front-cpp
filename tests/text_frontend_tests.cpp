@@ -91,6 +91,9 @@ int main() {
           "six hundred seventy eight");
     CHECK(frontend.process("1,234.56", en).normalized_text ==
           "one thousand two hundred thirty four point five six");
+    CHECK(frontend.process("1,234% 1,234.56%", en).normalized_text ==
+          "one thousand two hundred thirty four percent one thousand two hundred thirty four "
+          "point five six percent");
     CHECK(frontend.process("$1,234.56", en).normalized_text ==
           "one thousand two hundred thirty four dollars fifty six cents");
     CHECK(frontend.process("abc1,234 1,23 1,2345", en).normalized_text == "abc1,234 1,23 1,2345");

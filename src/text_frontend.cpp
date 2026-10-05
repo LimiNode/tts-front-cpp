@@ -315,6 +315,7 @@ struct RegexPatterns {
     const std::regex grouped_number{R"((^|[^0-9])-?\d{1,3}(?:\s+\d{3})+)"};
     const std::regex en_comma_grouped_number{R"((^|[^0-9])(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?))"};
     const std::regex en_comma_grouped_value{R"(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?)"};
+    const std::regex en_comma_grouped_percent{R"(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?%)"};
     const std::regex ru_date{R"(\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b)"};
     const std::regex ru_year{R"(\b(\d{4})\s*г\.)"};
     const std::regex ru_decimal_percent{R"((-?\d+),([0-9]+)\s*%([^0-9]|$))"};
@@ -1156,7 +1157,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         const bool attached_lexical_suffix = separators != 0 && end_index < points.size() &&
                                              is_lexical_numeric_boundary(points[end_index].value);
         const bool valid_english_comma_group =
-            !russian && std::regex_match(candidate, regex_patterns().en_comma_grouped_value);
+            !russian && (std::regex_match(candidate, regex_patterns().en_comma_grouped_value) ||
+                         std::regex_match(candidate, regex_patterns().en_comma_grouped_percent));
         const bool malformed_english_comma_group =
             !russian && candidate.find(',') != std::string::npos;
         const bool invalid_percent =
