@@ -187,6 +187,20 @@ int main() {
         CHECK(result.warnings.front().offset == 3);
         CHECK(result.warnings.front().length == embedded_numeric.size() - 3);
     }
+    for (const auto& input : {std::string("1,234.56!"),
+                              std::string("$1,234.56!"),
+                              std::string("1,234+abc"),
+                              std::string("1,234.56%word"),
+                              std::string("1.2!"),
+                              std::string("1.2?"),
+                              std::string("1.2)"),
+                              std::string("12:34!"),
+                              std::string("01.02.2026?")}) {
+        const auto result = frontend.process(input, en);
+        CHECK(result.normalized_text == input);
+        CHECK(!result.warnings.empty());
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+    }
     CHECK(frontend.process("1,234 руб.", ru).normalized_text == "1,234 руб.");
     const std::string nbsp = "a\xc2\xa0"
                              "b\xe2\x80\xaf"

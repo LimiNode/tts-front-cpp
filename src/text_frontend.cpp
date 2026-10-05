@@ -314,6 +314,7 @@ struct RegexPatterns {
         R"((?:#[0-9]+)|(?:[A-Za-z][A-Za-z0-9+._$#-]*[-+$][A-Za-z0-9._$#-]+))"};
     const std::regex grouped_number{R"((^|[^0-9])-?\d{1,3}(?:\s+\d{3})+)"};
     const std::regex en_comma_grouped_number{R"((^|[^0-9])(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?))"};
+    const std::regex en_comma_grouped_value{R"(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?)"};
     const std::regex ru_date{R"(\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b)"};
     const std::regex ru_year{R"(\b(\d{4})\s*г\.)"};
     const std::regex ru_decimal_percent{R"((-?\d+),([0-9]+)\s*%([^0-9]|$))"};
@@ -1154,6 +1155,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         const auto candidate = text.text.substr(begin, end - begin);
         const bool attached_lexical_suffix = separators != 0 && end_index < points.size() &&
                                              is_lexical_numeric_boundary(points[end_index].value);
+        const bool valid_english_comma_group =
+            !russian && std::regex_match(candidate, regex_patterns().en_comma_grouped_value);
         const bool malformed_english_comma_group =
             !russian && candidate.find(',') != std::string::npos;
         const bool invalid_percent =
@@ -1203,9 +1206,10 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             candidate.find('/') != std::string::npos || has_range_connector ||
             has_unsupported_numeric_connector;
         if ((separators >= 2 || embedded || attached_lexical_suffix ||
-             comma_group_followed_by_word || unsupported_numeric_connector || invalid_percent ||
-             malformed_english_comma_group) &&
-            !(valid_russian_date && !embedded)) {
+             (comma_group_followed_by_word && !valid_english_comma_group) ||
+             unsupported_numeric_connector || invalid_percent || malformed_english_comma_group) &&
+            !(valid_russian_date && !embedded) &&
+            !(valid_english_comma_group && !embedded && !attached_lexical_suffix)) {
             output.append_copy(text, cursor, begin);
             const auto source = text.source_range(begin, end);
             warnings.add(WarningCode::UnresolvedNumber,
@@ -1455,8 +1459,8 @@ MappedText normalize_en(MappedText text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
     text = protect_numeric_technical_candidates(std::move(text), warnings, protected_spans);
     text = protect_technical(std::move(text), protected_spans);
-    text = collapse_english_comma_grouped_numbers(std::move(text));
     text = protect_malformed_numeric_candidates(std::move(text), warnings, protected_spans, false);
+    text = collapse_english_comma_grouped_numbers(std::move(text));
     text = collapse_grouped_numbers(std::move(text));
     text =
         replace_numeric_matches(text,
