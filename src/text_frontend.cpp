@@ -312,6 +312,8 @@ struct RegexPatterns {
     const std::regex technical_csharp{R"(C#)"};
     const std::regex technical_identifier{
         R"((?:#[0-9]+)|(?:[A-Za-z][A-Za-z0-9+._$#-]*[-+$][A-Za-z0-9._$#-]+))"};
+    const std::regex technical_numeric_percent{
+        R"(((?:[A-Za-z][A-Za-z0-9+._$#-]*[-+$][A-Za-z0-9._$#-]+|#[0-9]+|[vV]\d+(?:\.\d+)+|(?:RTX|CUDA|GPU|API)\s+\d+(?:\.\d+)?))((?:,\d{3})+(?:\.\d+)?%))"};
     const std::regex grouped_number{R"((^|[^0-9])-?\d{1,3}(?:\s+\d{3})+)"};
     const std::regex en_comma_grouped_number{R"((^|[^0-9])(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?))"};
     const std::regex en_comma_grouped_value{R"(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?)"};
@@ -897,6 +899,46 @@ MappedText restore_technical(MappedText text, const std::vector<ProtectedSpan>& 
 MappedText protect_numeric_technical_candidates(MappedText text,
                                                 WarningSink& warnings,
                                                 std::vector<ProtectedSpan>& protected_spans) {
+    // Admit grouped percentage tails attached to a technical identifier before
+    // technical shielding hides the identifier itself.  Otherwise a token such
+    // as `x$+1,234%` would leave `,234%` visible to the generic normalizer.
+    {
+        MappedText output;
+        output.preserved_ranges = text.preserved_ranges;
+        std::size_t cursor = 0;
+        for (std::sregex_iterator
+                 it(text.text.begin(), text.text.end(), regex_patterns().technical_numeric_percent),
+             end;
+             it != end;
+             ++it) {
+            const auto begin = static_cast<std::size_t>(it->position());
+            const auto finish = begin + static_cast<std::size_t>(it->length());
+            const auto base = it->str(1);
+            const auto suffix_begin = begin + static_cast<std::size_t>(it->position(2));
+            std::size_t protected_begin = suffix_begin;
+            if (const auto dollar = base.find('$'); dollar != std::string::npos) {
+                protected_begin = begin + dollar;
+            } else if (!base.empty() && base.front() == '#') {
+                protected_begin = begin;
+            } else if (base.rfind("C++", 0) != 0 && base.rfind("V", 0) != 0) {
+                if (const auto sign = base.find_first_of("+-"); sign != std::string::npos)
+                    protected_begin = begin + sign;
+            }
+            output.append_copy(text, cursor, protected_begin);
+            const auto source = text.source_range(protected_begin, finish);
+            warnings.add(WarningCode::UnresolvedNumber,
+                         "Unsupported numeric-like candidate preserved verbatim",
+                         source);
+            const auto marker = marker_for(text.text, protected_spans.size());
+            protected_spans.push_back(
+                {marker, text.text.substr(protected_begin, finish - protected_begin)});
+            output.append_generated(text, protected_begin, finish, marker);
+            cursor = finish;
+        }
+        output.append_copy(text, cursor, text.text.size());
+        text = std::move(output);
+    }
+
     std::vector<CodePoint> points;
     if (!decode_utf8(text.text, points))
         return text;

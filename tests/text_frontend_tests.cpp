@@ -167,6 +167,26 @@ int main() {
     CHECK(frontend.process(decomposed_word, en).normalized_text == decomposed_word);
     CHECK(frontend.process("x$12 RTX-4090 C++17 V2.1.0 #123", en).normalized_text ==
           "x$12 RTX-4090 C++17 V2.1.0 #123");
+    const auto check_technical_numeric_tail = [&](const char* value, std::size_t offset) {
+        const std::string input = value;
+        for (const auto& options : {en, ru}) {
+            const auto result = frontend.process(input, options);
+            if (result.normalized_text != input || result.warnings.size() != 1 ||
+                result.warnings.front().code != WarningCode::UnresolvedNumber ||
+                result.warnings.front().offset != offset ||
+                result.warnings.front().length != input.size() - offset)
+                return false;
+        }
+        return true;
+    };
+    CHECK(check_technical_numeric_tail("x$+1,234%", 1));
+    CHECK(check_technical_numeric_tail("x$-1,234%", 1));
+    CHECK(check_technical_numeric_tail("x+1,234%", 1));
+    CHECK(check_technical_numeric_tail("x-1,234%", 1));
+    CHECK(check_technical_numeric_tail("#1,234%", 0));
+    CHECK(check_technical_numeric_tail("C++17,234%", 5));
+    CHECK(check_technical_numeric_tail("RTX-4090,234%", 3));
+    CHECK(check_technical_numeric_tail("V2.1.0,234%", 6));
     CHECK(frontend.process("1.2.3 12:34:56 1,000.50 1.2.3%", en).normalized_text ==
           "1.2.3 12:34:56 one thousand point five zero 1.2.3%");
     {
