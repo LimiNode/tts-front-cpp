@@ -86,6 +86,20 @@ int main() {
         CHECK(!result.warnings.empty());
         CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
     }
+    CHECK(frontend.process("1,234 12,345,678", en).normalized_text ==
+          "one thousand two hundred thirty four twelve million three hundred forty five thousand "
+          "six hundred seventy eight");
+    CHECK(frontend.process("1,234.56", en).normalized_text ==
+          "one thousand two hundred thirty four point five six");
+    CHECK(frontend.process("$1,234.56", en).normalized_text ==
+          "one thousand two hundred thirty four dollars fifty six cents");
+    CHECK(frontend.process("abc1,234 1,23 1,2345", en).normalized_text == "abc1,234 1,23 1,2345");
+    {
+        const auto malformed_group = frontend.process("1,234.56.7", en);
+        CHECK(malformed_group.normalized_text == "1,234.56.7");
+        CHECK(!malformed_group.warnings.empty());
+        CHECK(malformed_group.warnings.front().code == WarningCode::UnresolvedNumber);
+    }
     CHECK(frontend.process("$12.50 $12.05 $12.5 $1 $2", en).normalized_text ==
           "twelve dollars fifty cents twelve dollars five cents twelve dollars fifty cents one "
           "dollar two dollars");
@@ -135,7 +149,7 @@ int main() {
     CHECK(frontend.process("x$12 RTX-4090 C++17 V2.1.0 #123", en).normalized_text ==
           "x$12 RTX-4090 C++17 V2.1.0 #123");
     CHECK(frontend.process("1.2.3 12:34:56 1,000.50 1.2.3%", en).normalized_text ==
-          "1.2.3 12:34:56 1,000.50 1.2.3%");
+          "1.2.3 12:34:56 one thousand point five zero 1.2.3%");
     CHECK(frontend.process("1,234 руб.", ru).normalized_text == "1,234 руб.");
     const std::string nbsp = "a\xc2\xa0"
                              "b\xe2\x80\xaf"

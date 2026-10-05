@@ -313,6 +313,7 @@ struct RegexPatterns {
     const std::regex technical_identifier{
         R"((?:#[0-9]+)|(?:[A-Za-z][A-Za-z0-9+._$#-]*[-+$][A-Za-z0-9._$#-]+))"};
     const std::regex grouped_number{R"((^|[^0-9])-?\d{1,3}(?:\s+\d{3})+)"};
+    const std::regex en_comma_grouped_number{R"((^|[^0-9])(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?))"};
     const std::regex ru_date{R"(\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b)"};
     const std::regex ru_year{R"(\b(\d{4})\s*г\.)"};
     const std::regex ru_decimal_percent{R"((-?\d+),([0-9]+)\s*%([^0-9]|$))"};
@@ -1225,6 +1226,17 @@ MappedText collapse_grouped_numbers(const MappedText& input) {
     return output;
 }
 
+MappedText collapse_english_comma_grouped_numbers(const MappedText& input) {
+    return replace_numeric_matches(input,
+                                   regex_patterns().en_comma_grouped_number,
+                                   [](const std::smatch& match, const MappedText&) {
+                                       std::string number = match[2].str();
+                                       number.erase(std::remove(number.begin(), number.end(), ','),
+                                                    number.end());
+                                       return match[1].str() + number;
+                                   });
+}
+
 MappedText normalize_ru(MappedText text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
     text = protect_numeric_technical_candidates(std::move(text), warnings, protected_spans);
@@ -1406,6 +1418,7 @@ MappedText normalize_en(MappedText text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
     text = protect_numeric_technical_candidates(std::move(text), warnings, protected_spans);
     text = protect_technical(std::move(text), protected_spans);
+    text = collapse_english_comma_grouped_numbers(std::move(text));
     text = protect_malformed_numeric_candidates(std::move(text), warnings, protected_spans, false);
     text = collapse_grouped_numbers(std::move(text));
     text =
