@@ -131,7 +131,7 @@ struct TextFrontendOptions {
     bool diagnostics = false;        ///< Emit decisions without replacements.
     bool expand_initialisms = false; ///< Expand the conservative Russian allowlist.
     /// Optional verified Silero bundle root. If empty, the backend resolver checks
-    /// TTS_FRONT_SILERO_BUNDLE; no implicit working-directory or download fallback is used.
+    /// TTS_FRONT_SILERO_BUNDLE and otherwise reports AutomaticStressUnavailable.
     std::string silero_bundle_path;
     /// Non-owning dictionary; caller must keep it alive for the call.
     const PronunciationDictionary* dictionary = nullptr;
