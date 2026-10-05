@@ -74,6 +74,10 @@ int main() {
           "тест42 тест42% тест12:34");
     CHECK(frontend.process("слово1.2.2026", ru).normalized_text == "слово1.2.2026");
     CHECK(frontend.process("abc2 kg", en).normalized_text == "abc2 kg");
+    CHECK(frontend.process("abc1 234", en).normalized_text == "abc1 234");
+    CHECK(frontend.process("тест1 234", ru).normalized_text == "тест1 234");
+    CHECK(frontend.process("12-34 123-456 555-1234 12/34", en).normalized_text ==
+          "12-34 123-456 555-1234 12/34");
     CHECK(frontend.process("x$12 RTX-4090 C++17 V2.1.0 #123", en).normalized_text ==
           "x$12 RTX-4090 C++17 V2.1.0 #123");
     CHECK(frontend.process("1.2.3 12:34:56 1,000.50 1.2.3%", en).normalized_text ==

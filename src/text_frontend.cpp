@@ -40,7 +40,7 @@ bool is_word_codepoint(std::uint32_t cp) {
 }
 
 bool is_numeric_separator(std::uint32_t cp) {
-    return cp == '.' || cp == ',' || cp == ':' || cp == '%';
+    return cp == '.' || cp == ',' || cp == ':' || cp == '%' || cp == '-' || cp == '/';
 }
 
 bool is_lexical_numeric_boundary(std::uint32_t cp) {
@@ -920,6 +920,26 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             }
             break;
         }
+        const bool embedded = index > 0 && (is_lexical_numeric_boundary(points[index - 1].value) ||
+                                            (points[index - 1].value == '-' && index > 1 &&
+                                             is_lexical_numeric_boundary(points[index - 2].value)));
+        if (embedded) {
+            std::size_t grouped_end = end_index;
+            while (grouped_end < points.size()) {
+                auto probe = grouped_end;
+                while (probe < points.size() &&
+                       (points[probe].value == ' ' || points[probe].value == '\t' ||
+                        points[probe].value == '\n' || points[probe].value == '\r'))
+                    ++probe;
+                const auto group_begin = probe;
+                while (probe < points.size() && is_digit(points[probe].value))
+                    ++probe;
+                if (probe - group_begin != 3)
+                    break;
+                grouped_end = probe;
+            }
+            end_index = grouped_end;
+        }
         const auto end =
             end_index == 0 ? begin : points[end_index - 1].offset + points[end_index - 1].length;
         const auto candidate = text.text.substr(begin, end - begin);
@@ -942,9 +962,6 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 return false;
             return is_letter(tail_points.front().value);
         }();
-        const bool embedded = index > 0 && (is_lexical_numeric_boundary(points[index - 1].value) ||
-                                            (points[index - 1].value == '-' && index > 1 &&
-                                             is_lexical_numeric_boundary(points[index - 2].value)));
         bool valid_russian_date = false;
         if (russian && separators == 2) {
             const auto first_dot = candidate.find('.');
@@ -964,7 +981,12 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                         static_cast<int>(day), static_cast<int>(month), static_cast<int>(year));
             }
         }
-        if ((separators >= 2 || embedded || comma_group_followed_by_word) &&
+        const auto hyphen_search_start = candidate.size() > 0 && candidate.front() == '-' ? 1 : 0;
+        const bool unsupported_numeric_connector =
+            candidate.find('-', hyphen_search_start) != std::string::npos ||
+            candidate.find('/') != std::string::npos;
+        if ((separators >= 2 || embedded || comma_group_followed_by_word ||
+             unsupported_numeric_connector) &&
             !(valid_russian_date && !embedded)) {
             output.append_copy(text, cursor, begin);
             const auto source = text.source_range(begin, end);
@@ -1010,8 +1032,8 @@ MappedText collapse_grouped_numbers(const MappedText& input) {
 MappedText normalize_ru(MappedText text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
     text = protect_technical(std::move(text), protected_spans);
-    text = collapse_grouped_numbers(std::move(text));
     text = protect_malformed_numeric_candidates(std::move(text), warnings, protected_spans, true);
+    text = collapse_grouped_numbers(std::move(text));
     text = replace_numeric_matches(
         text, regex_patterns().ru_date, [&](const std::smatch& match, const MappedText& source) {
             long long day = 0, month = 0, year = 0;
@@ -1186,8 +1208,8 @@ MappedText normalize_ru(MappedText text, WarningSink& warnings) {
 MappedText normalize_en(MappedText text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
     text = protect_technical(std::move(text), protected_spans);
-    text = collapse_grouped_numbers(std::move(text));
     text = protect_malformed_numeric_candidates(std::move(text), warnings, protected_spans, false);
+    text = collapse_grouped_numbers(std::move(text));
     text =
         replace_numeric_matches(text,
                                 regex_patterns().en_currency_decimal,
