@@ -51,12 +51,18 @@ int main() {
     {
         const std::string unsupported_numeric[] = {"1%word",
                                                    "1%2",
+                                                   "1 %word",
+                                                   "1 %2",
                                                    "1e+3",
                                                    "1.2e-3",
                                                    "1.2#3",
                                                    "1.2$3",
+                                                   "123#abc",
+                                                   "123$abc",
                                                    std::string("10") + "\xE2\x80\x93" + "20",
                                                    std::string("10") + "\xE2\x80\x94" + "20",
+                                                   std::string("10 ") + "\xE2\x80\x93" + " 20",
+                                                   std::string("10 ") + "\xE2\x80\x94" + " 20",
                                                    "+7 (999) 123-45-67"};
         for (const auto& input : unsupported_numeric) {
             const auto result = frontend.process(input, en);
@@ -64,6 +70,15 @@ int main() {
             CHECK(!result.warnings.empty());
             CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
         }
+    }
+    CHECK(frontend.process("1 %", en).normalized_text == "one percent");
+    const std::string russian_percent_suffix =
+        std::string("1,2 %") + "\xD1\x81\xD0\xBB\xD0\xBE\xD0\xB2\xD0\xBE";
+    {
+        const auto result = frontend.process(russian_percent_suffix, ru);
+        CHECK(result.normalized_text == russian_percent_suffix);
+        CHECK(!result.warnings.empty());
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
     }
     CHECK(frontend.process("$12.50 $12.05 $12.5 $1 $2", en).normalized_text ==
           "twelve dollars fifty cents twelve dollars five cents twelve dollars fifty cents one "

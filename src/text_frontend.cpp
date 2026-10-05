@@ -926,7 +926,9 @@ MappedText protect_numeric_technical_candidates(MappedText text,
                    (points[end_index].value == '#' || points[end_index].value == '$')) {
             auto probe = end_index + 1;
             const auto suffix_begin = probe;
-            while (probe < points.size() && is_digit(points[probe].value))
+            while (probe < points.size() &&
+                   (is_digit(points[probe].value) || is_letter(points[probe].value) ||
+                    is_combining_mark(points[probe].value) || points[probe].value == '_'))
                 ++probe;
             if (probe != suffix_begin) {
                 suffix_end = probe;
@@ -1041,12 +1043,32 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         } else {
             while (end_index < points.size()) {
                 const auto value = points[end_index].value;
+                if (value == ' ' || value == '\t' || value == '\n' || value == '\r') {
+                    auto probe = end_index + 1;
+                    while (probe < points.size() &&
+                           (points[probe].value == ' ' || points[probe].value == '\t' ||
+                            points[probe].value == '\n' || points[probe].value == '\r'))
+                        ++probe;
+                    if (probe < points.size() &&
+                        (points[probe].value == '%' ||
+                         (points[probe].value >= 0x2010 && points[probe].value <= 0x2015))) {
+                        end_index = probe;
+                        continue;
+                    }
+                    if (has_range_connector && probe < points.size() &&
+                        is_digit(points[probe].value)) {
+                        end_index = probe;
+                        continue;
+                    }
+                    break;
+                }
                 if (is_numeric_separator(value)) {
                     if (value == '%') {
                         has_percent = true;
-                        if (end_index + 1 < points.size() &&
-                            (is_lexical_numeric_boundary(points[end_index + 1].value) ||
-                             points[end_index + 1].value == '%'))
+                        const auto probe = end_index + 1;
+                        if (probe < points.size() &&
+                            (is_lexical_numeric_boundary(points[probe].value) ||
+                             points[probe].value == '%'))
                             percent_attached_to_numeric = true;
                     } else
                         ++separators;
