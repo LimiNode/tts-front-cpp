@@ -124,7 +124,7 @@ class PronunciationDictionary {
 struct TextFrontendOptions {
     Language language = Language::Auto;                  ///< Requested language or auto-detection.
     StressMode stress_mode = StressMode::DictionaryOnly; ///< Stress resolution policy.
-    bool cleanup_spacing = true;     ///< Collapse Unicode whitespace and punctuation spacing.
+    bool cleanup_spacing = true;     ///< Collapse supported whitespace and punctuation spacing.
     bool normalize = true;           ///< Apply deterministic language normalization.
     bool apply_dictionary = true;    ///< Apply the non-owning dictionary when present.
     bool resolve_stress = true;      ///< Resolve semantic stress.
