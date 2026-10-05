@@ -18,19 +18,20 @@ v0.1. Этапы намеренно разделены: corpus и deterministic 
 
 ## Текущее состояние
 
-- **Baseline v0.1** — завершён в `main`: C++17 core, RU/EN deterministic
+- **Baseline v0.1.0** — завершён в `main`: C++17 core, RU/EN deterministic
   normalization, pronunciation dictionary, semantic stress metadata и честный
   diagnostics contract.
 - **Corpus expansion + provenance** — отдельный PR #3: расширение executable corpus
   реальными RU/EN vectors с pinned source revision и датой адаптации.
 - **Remaining scaffolding cleanup** — отдельный PR #4: canonical public header,
   `.temp/` workspace policy и небольшие allocation/branch cleanup.
-- **Silero Stress Phase 1** — pinned Python reference receipt добавлен в
-  `docs/research/silero-phase1.md`; ONNX/native parity и benchmark gates ещё не пройдены.
-- **Silero Stress Phase 2** — graph-level ONNX parity для `homosolver.model`
-  воспроизведена; full-call parity, accentor export и benchmark остаются открытыми.
-- **Silero Stress Phase 3** — classifier-level ONNX parity для stress/yo heads
-  воспроизведена после exact upstream n-gram embedding; embedding boundary и full-call parity ещё открыты.
+- **Silero Stress Phases 1–3** — reference receipt, graph-level и classifier-level
+  parity зафиксированы в `docs/research/`.
+- **Silero production path** — завершён: verified bundle loader, optional ONNX
+  session owner, private sentence orchestration, production-vs-research parity,
+  benchmark gate и `StressMode::Automatic` подключены за optional build boundary.
+- **Silero distribution contract** — библиотека не поставляет и не скачивает
+  model bundle; приложение передаёт bundle root через options или environment.
 
 ## Порядок этапов
 
@@ -67,7 +68,7 @@ v0.1. Этапы намеренно разделены: corpus и deterministic 
 сохраняться или диагностироваться. Каждое новое правило получает executable
 regression fixture.
 
-### 4. Silero Stress / ONNX feasibility
+### 4. Silero Stress / ONNX production boundary
 
 Это отдельный исследовательский слой, не изменение текущего `tts_front` core.
 Рабочий research contract зафиксирован в
@@ -100,10 +101,10 @@ exact model + weights
 - размер артефактов, CPU latency и Windows compatibility;
 - лицензионные ограничения весов и runtime.
 
-В core не добавлять LibTorch или ONNX Runtime только ради feasibility pass.
-`StressMode::Automatic` можно подключать лишь после parity gate, regression vectors
-и принятого runtime/dependency решения. Символ `+` и другие model-specific stress
-маркеры не становятся public API.
+В core не добавлять LibTorch и не включать ONNX Runtime по умолчанию. Optional
+ONNX backend подключён после parity gate, regression vectors и принятого
+runtime/dependency решения. Символ `+` и другие model-specific stress маркеры
+не становятся public API.
 
 ### 5. Новые языки
 
@@ -118,18 +119,19 @@ The first Phase 4 boundary gate is implemented in
 [docs/research/silero-phase4-boundary.md](research/silero-phase4-boundary.md).
 It independently reproduces tokenization and n-gram embedding and checks
 classifier argmax parity on all Phase 1 vectors. Homograph resolution and
-full-call parity remain explicitly open.
+full-call parity are covered by the production sentence parity gate.
 
 The sentence-level orchestration gate is captured in
 [docs/research/silero-phase4-fullcall.md](research/silero-phase4-fullcall.md):
-the Python/ONNX hybrid now matches all Phase 1 final sentences exactly.
+the production path now matches all Phase 1 final sentences exactly.
 
 The first native preprocessing prototype is documented in
 [docs/research/silero-native-prototype.md](research/silero-native-prototype.md).
-It matches the n-gram embeddings and pinned homosolver WordPiece IDs; ONNX
-Runtime C++ execution and full native sentence parity remain open.
+It matches the n-gram embeddings and pinned homosolver WordPiece IDs; native
+ONNX Runtime execution and full sentence parity are now covered by the
+production parity receipt.
 
-### 6. Benchmark-driven optimizations
+### 6. Post-v0.1 benchmark-driven work
 
 Только после функционального corpus pass измерять реальные hotspots:
 
@@ -138,8 +140,10 @@ Runtime C++ execution and full native sentence parity remain open.
 - regex pipeline;
 - allocations и latency на representative sentences.
 
-Zero-allocation validation, dictionary indexes/caches и прочие оптимизации принимаются
-только при benchmark evidence и regression coverage.
+`v0.1.0` targets sentence- and message-sized TTS inputs. Document-scale
+throughput, allocation reduction, broader normalization corpus and additional
+language support are post-release `v0.2.0` work, accepted only with benchmark
+evidence and regression coverage.
 
 ## Не смешиваем этапы
 
