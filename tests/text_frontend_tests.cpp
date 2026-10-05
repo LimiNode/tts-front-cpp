@@ -205,8 +205,11 @@ int main() {
         CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
     }
     CHECK(frontend.process("1,234 руб.", ru).normalized_text == "1,234 руб.");
-    for (const auto& input :
-         {std::string("$1,234%"), std::string("$1,234.56%"), std::string("x$1,234%")}) {
+    for (const auto& input : {std::string("$1,234%"),
+                              std::string("$1,234.56%"),
+                              std::string("x$1,234%"),
+                              std::string("$ 1,234%"),
+                              std::string("$+1,234%")}) {
         const auto result = frontend.process(input, en);
         const auto numeric_offset = input.front() == 'x' ? 1u : 0u;
         CHECK(result.normalized_text == input);
@@ -221,6 +224,11 @@ int main() {
                              "d\x0c"
                              "e";
     CHECK(frontend.process(nbsp, en).normalized_text == "a b c d e");
+    {
+        const std::string nested_currency_url = "https://example.com/path/$1,234%25";
+        CHECK(frontend.process(nested_currency_url, en).normalized_text == nested_currency_url);
+        CHECK(frontend.process(nested_currency_url, ru).normalized_text == nested_currency_url);
+    }
 
     PronunciationDictionary dictionary;
     CHECK(dictionary.add_token("замок", "замок", 1));

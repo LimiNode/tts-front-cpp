@@ -876,14 +876,14 @@ MappedText protect_technical(MappedText text, std::vector<ProtectedSpan>& protec
     return text;
 }
 MappedText restore_technical(MappedText text, const std::vector<ProtectedSpan>& protected_spans) {
-    for (const auto& span : protected_spans) {
-        for (std::size_t at = text.text.find(span.marker); at != std::string::npos;
-             at = text.text.find(span.marker, at + span.value.size())) {
+    for (auto span = protected_spans.rbegin(); span != protected_spans.rend(); ++span) {
+        for (std::size_t at = text.text.find(span->marker); at != std::string::npos;
+             at = text.text.find(span->marker, at + span->value.size())) {
             MappedText output;
             output.preserved_ranges = text.preserved_ranges;
             output.append_copy(text, 0, at);
-            output.append_generated(text, at, at + span.marker.size(), span.value);
-            output.append_copy(text, at + span.marker.size(), text.text.size());
+            output.append_generated(text, at, at + span->marker.size(), span->value);
+            output.append_copy(text, at + span->marker.size(), text.text.size());
             text = std::move(output);
         }
     }
@@ -1037,8 +1037,20 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             ++index;
             continue;
         }
+        auto currency_context_probe = index;
+        while (currency_context_probe > 0 && (points[currency_context_probe - 1].value == ' ' ||
+                                              points[currency_context_probe - 1].value == '\t'))
+            --currency_context_probe;
+        if (currency_context_probe > 0 && points[currency_context_probe - 1].value == '+') {
+            --currency_context_probe;
+            while (currency_context_probe > 0 && (points[currency_context_probe - 1].value == ' ' ||
+                                                  points[currency_context_probe - 1].value == '\t'))
+                --currency_context_probe;
+        }
+        const bool currency_context =
+            currency_context_probe > 0 && points[currency_context_probe - 1].value == '$';
         const bool starts_phone = points[index].value == '+' && index + 1 < points.size() &&
-                                  is_digit(points[index + 1].value);
+                                  is_digit(points[index + 1].value) && !currency_context;
         const bool starts_number = is_digit(points[index].value) ||
                                    (points[index].value == '-' && index + 1 < points.size() &&
                                     is_digit(points[index + 1].value));
@@ -1181,7 +1193,20 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         const auto end =
             end_index == 0 ? begin : points[end_index - 1].offset + points[end_index - 1].length;
         const auto candidate = text.text.substr(begin, end - begin);
-        const bool currency_prefix = index > 0 && points[index - 1].value == '$';
+        std::size_t currency_prefix_begin = index;
+        auto currency_probe = index;
+        while (currency_probe > 0 && (points[currency_probe - 1].value == ' ' ||
+                                      points[currency_probe - 1].value == '\t'))
+            --currency_probe;
+        if (currency_probe > 0 &&
+            (points[currency_probe - 1].value == '+' || points[currency_probe - 1].value == '-'))
+            --currency_probe;
+        while (currency_probe > 0 && (points[currency_probe - 1].value == ' ' ||
+                                      points[currency_probe - 1].value == '\t'))
+            --currency_probe;
+        const bool currency_prefix = currency_probe > 0 && points[currency_probe - 1].value == '$';
+        if (currency_prefix)
+            currency_prefix_begin = currency_probe - 1;
         const bool attached_lexical_suffix = separators != 0 && end_index < points.size() &&
                                              is_lexical_numeric_boundary(points[end_index].value);
         const bool valid_english_comma_group =
@@ -1242,7 +1267,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             !(valid_english_comma_group && !embedded && !attached_lexical_suffix &&
               !(currency_prefix && has_percent))) {
             const auto protected_begin =
-                currency_prefix && has_percent ? points[index - 1].offset : begin;
+                currency_prefix && has_percent ? points[currency_prefix_begin].offset : begin;
             output.append_copy(text, cursor, protected_begin);
             const auto source = text.source_range(protected_begin, end);
             warnings.add(WarningCode::UnresolvedNumber,
