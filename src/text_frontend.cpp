@@ -1136,6 +1136,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         const auto candidate = text.text.substr(begin, end - begin);
         const bool attached_lexical_suffix = separators != 0 && end_index < points.size() &&
                                              is_lexical_numeric_boundary(points[end_index].value);
+        const bool malformed_english_comma_group =
+            !russian && candidate.find(',') != std::string::npos;
         const bool invalid_percent =
             has_percent &&
             (percent_attached_to_numeric ||
@@ -1183,7 +1185,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             candidate.find('/') != std::string::npos || has_range_connector ||
             has_unsupported_numeric_connector;
         if ((separators >= 2 || embedded || attached_lexical_suffix ||
-             comma_group_followed_by_word || unsupported_numeric_connector || invalid_percent) &&
+             comma_group_followed_by_word || unsupported_numeric_connector || invalid_percent ||
+             malformed_english_comma_group) &&
             !(valid_russian_date && !embedded)) {
             output.append_copy(text, cursor, begin);
             const auto source = text.source_range(begin, end);
@@ -1227,14 +1230,30 @@ MappedText collapse_grouped_numbers(const MappedText& input) {
 }
 
 MappedText collapse_english_comma_grouped_numbers(const MappedText& input) {
-    return replace_numeric_matches(input,
-                                   regex_patterns().en_comma_grouped_number,
-                                   [](const std::smatch& match, const MappedText&) {
-                                       std::string number = match[2].str();
-                                       number.erase(std::remove(number.begin(), number.end(), ','),
-                                                    number.end());
-                                       return match[1].str() + number;
-                                   });
+    MappedText output;
+    output.preserved_ranges = input.preserved_ranges;
+    std::size_t cursor = 0;
+    std::vector<CodePoint> points;
+    if (!decode_utf8(input.text, points))
+        return input;
+    for (std::sregex_iterator
+             it(input.text.begin(), input.text.end(), regex_patterns().en_comma_grouped_number),
+         end;
+         it != end;
+         ++it) {
+        const auto begin = static_cast<std::size_t>(it->position());
+        const auto finish = begin + static_cast<std::size_t>(it->length());
+        const auto number_begin = begin + static_cast<std::size_t>(it->length(1));
+        if (!numeric_match_has_valid_boundaries(points, begin, finish))
+            continue;
+        output.append_copy(input, cursor, number_begin);
+        std::string number = it->str(2);
+        number.erase(std::remove(number.begin(), number.end(), ','), number.end());
+        output.append_generated(input, number_begin, finish, number);
+        cursor = finish;
+    }
+    output.append_copy(input, cursor, input.text.size());
+    return output;
 }
 
 MappedText normalize_ru(MappedText text, WarningSink& warnings) {

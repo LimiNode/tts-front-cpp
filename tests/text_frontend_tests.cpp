@@ -94,11 +94,27 @@ int main() {
     CHECK(frontend.process("$1,234.56", en).normalized_text ==
           "one thousand two hundred thirty four dollars fifty six cents");
     CHECK(frontend.process("abc1,234 1,23 1,2345", en).normalized_text == "abc1,234 1,23 1,2345");
+    for (const auto& input : {std::string("1,23"), std::string("1,2345")}) {
+        const auto result = frontend.process(input, en);
+        CHECK(result.normalized_text == input);
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(result.warnings.front().offset == 0);
+        CHECK(result.warnings.front().length == input.size());
+    }
     {
         const auto malformed_group = frontend.process("1,234.56.7", en);
         CHECK(malformed_group.normalized_text == "1,234.56.7");
         CHECK(!malformed_group.warnings.empty());
         CHECK(malformed_group.warnings.front().code == WarningCode::UnresolvedNumber);
+    }
+    {
+        const std::string oversized_group = "x 99,999,999,999,999,999,999";
+        const auto result = frontend.process(oversized_group, en);
+        CHECK(!result.warnings.empty());
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(result.warnings.front().offset == 2);
+        CHECK(result.warnings.front().length == oversized_group.size() - 2);
     }
     CHECK(frontend.process("$12.50 $12.05 $12.5 $1 $2", en).normalized_text ==
           "twelve dollars fifty cents twelve dollars five cents twelve dollars fifty cents one "
