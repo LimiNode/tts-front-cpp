@@ -46,7 +46,20 @@ bool is_word_codepoint(std::uint32_t cp) {
 
 bool is_numeric_separator(std::uint32_t cp) {
     return cp == '.' || cp == ',' || cp == ':' || cp == '%' || cp == '-' || cp == '/' ||
-           cp == '+' || cp == '=' || (cp >= 0x2010 && cp <= 0x2015);
+           cp == '+' || cp == '=' || (cp >= 0x2010 && cp <= 0x2015) || cp == 0x2212;
+}
+
+bool is_range_connector(std::uint32_t cp) {
+    return (cp >= 0x2010 && cp <= 0x2015) || cp == 0x2212;
+}
+
+bool is_numeric_connector(std::uint32_t cp) {
+    return is_numeric_separator(cp) ||
+           (cp < 0x80 && std::ispunct(static_cast<unsigned char>(cp)) != 0);
+}
+
+bool is_supported_numeric_separator(std::uint32_t cp) {
+    return cp == '.' || cp == ',' || cp == ':' || cp == '%';
 }
 
 bool is_lexical_numeric_boundary(std::uint32_t cp) {
@@ -978,14 +991,17 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
     MappedText output;
     output.preserved_ranges = text.preserved_ranges;
     std::size_t cursor = 0;
+    bool inside_marker = false;
     for (std::size_t index = 0; index < points.size();) {
-        const auto marker_begin = text.text.rfind('\x01', points[index].offset);
-        const auto marker_end = text.text.rfind('\x02', points[index].offset);
-        if (marker_begin != std::string::npos && marker_begin > marker_end) {
-            while (index < points.size() && points[index].value != 0x02)
-                ++index;
-            if (index < points.size())
-                ++index;
+        if (points[index].value == 0x01) {
+            inside_marker = true;
+            ++index;
+            continue;
+        }
+        if (inside_marker) {
+            if (points[index].value == 0x02)
+                inside_marker = false;
+            ++index;
             continue;
         }
         const bool starts_phone = points[index].value == '+' && index + 1 < points.size() &&
@@ -1003,6 +1019,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         bool has_percent = false;
         bool percent_attached_to_numeric = false;
         bool has_range_connector = false;
+        bool has_unsupported_numeric_connector = false;
         if (starts_phone) {
             while (end_index < points.size()) {
                 if (is_digit(points[end_index].value)) {
@@ -1050,8 +1067,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                             points[probe].value == '\n' || points[probe].value == '\r'))
                         ++probe;
                     if (probe < points.size() &&
-                        (points[probe].value == '%' ||
-                         (points[probe].value >= 0x2010 && points[probe].value <= 0x2015))) {
+                        (points[probe].value == '%' || is_range_connector(points[probe].value))) {
                         end_index = probe;
                         continue;
                     }
@@ -1062,7 +1078,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                     }
                     break;
                 }
-                if (is_numeric_separator(value)) {
+                if (is_numeric_connector(value)) {
                     if (value == '%') {
                         has_percent = true;
                         const auto probe = end_index + 1;
@@ -1072,8 +1088,12 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                             percent_attached_to_numeric = true;
                     } else
                         ++separators;
-                    if (value >= 0x2010 && value <= 0x2015)
+                    if (is_range_connector(value))
                         has_range_connector = true;
+                    if (!is_supported_numeric_separator(value) && end_index + 1 < points.size() &&
+                        points[end_index + 1].value != ' ' && points[end_index + 1].value != '\t' &&
+                        points[end_index + 1].value != '\n' && points[end_index + 1].value != '\r')
+                        has_unsupported_numeric_connector = true;
                     ++end_index;
                     continue;
                 }
@@ -1110,7 +1130,6 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         const auto end =
             end_index == 0 ? begin : points[end_index - 1].offset + points[end_index - 1].length;
         const auto candidate = text.text.substr(begin, end - begin);
-        const auto tail = text.text.substr(end);
         const bool attached_lexical_suffix = separators != 0 && end_index < points.size() &&
                                              is_lexical_numeric_boundary(points[end_index].value);
         const bool invalid_percent =
@@ -1121,19 +1140,16 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             const auto comma = candidate.find(',');
             if (comma == std::string::npos || candidate.find('.', comma + 1) != std::string::npos ||
                 candidate.find(':', comma + 1) != std::string::npos ||
-                candidate.size() - comma - 1 != 3 || tail.empty())
+                candidate.size() - comma - 1 != 3)
                 return false;
-            std::size_t whitespace = 0;
-            while (whitespace < tail.size() &&
-                   (tail[whitespace] == ' ' || tail[whitespace] == '\t' ||
-                    tail[whitespace] == '\n' || tail[whitespace] == '\r'))
-                ++whitespace;
-            if (whitespace == tail.size())
+            auto tail_index = end_index;
+            while (tail_index < points.size() &&
+                   (points[tail_index].value == ' ' || points[tail_index].value == '\t' ||
+                    points[tail_index].value == '\n' || points[tail_index].value == '\r'))
+                ++tail_index;
+            if (tail_index == points.size())
                 return false;
-            std::vector<CodePoint> tail_points;
-            if (!decode_utf8(tail.substr(whitespace), tail_points) || tail_points.empty())
-                return false;
-            return is_letter(tail_points.front().value);
+            return is_letter(points[tail_index].value);
         }();
         bool valid_russian_date = false;
         if (russian && separators == 2) {
@@ -1160,7 +1176,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             starts_phone || candidate.find('+') != std::string::npos ||
             candidate.find('=') != std::string::npos ||
             candidate.find('-', hyphen_search_start) != std::string::npos ||
-            candidate.find('/') != std::string::npos || has_range_connector;
+            candidate.find('/') != std::string::npos || has_range_connector ||
+            has_unsupported_numeric_connector;
         if ((separators >= 2 || embedded || attached_lexical_suffix ||
              comma_group_followed_by_word || unsupported_numeric_connector || invalid_percent) &&
             !(valid_russian_date && !embedded)) {
