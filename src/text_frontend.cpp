@@ -1082,6 +1082,9 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                     }
                     break;
                 }
+                if ((value == '.' || value == ',' || value == ':') &&
+                    (end_index + 1 >= points.size() || !is_digit(points[end_index + 1].value)))
+                    break;
                 if (is_numeric_connector(value)) {
                     if (value == '%') {
                         has_percent = true;
@@ -1127,6 +1130,21 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                     ++probe;
                 if (probe == group_begin)
                     break;
+                while (probe < points.size()) {
+                    const auto value = points[probe].value;
+                    if ((value == '.' || value == ',' || value == ':') &&
+                        probe + 1 < points.size() && is_digit(points[probe + 1].value)) {
+                        probe += 1;
+                        while (probe < points.size() && is_digit(points[probe].value))
+                            ++probe;
+                        continue;
+                    }
+                    if (value == '%') {
+                        ++probe;
+                        continue;
+                    }
+                    break;
+                }
                 grouped_end = probe;
             }
             end_index = grouped_end;

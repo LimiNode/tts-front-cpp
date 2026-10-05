@@ -166,6 +166,27 @@ int main() {
           "x$12 RTX-4090 C++17 V2.1.0 #123");
     CHECK(frontend.process("1.2.3 12:34:56 1,000.50 1.2.3%", en).normalized_text ==
           "1.2.3 12:34:56 one thousand point five zero 1.2.3%");
+    {
+        const auto punctuation = frontend.process("12.5%. 1:02.", en);
+        CHECK(punctuation.normalized_text == "twelve point five percent. one hour two minutes.");
+        CHECK(punctuation.warnings.empty());
+    }
+    {
+        const auto punctuation = frontend.process("01.02.2026.", ru);
+        CHECK(punctuation.normalized_text != "01.02.2026.");
+        CHECK(!punctuation.normalized_text.empty());
+        CHECK(punctuation.normalized_text.back() == '.');
+        CHECK(punctuation.warnings.empty());
+    }
+    {
+        const std::string embedded_numeric = "abc1,234 1,23%";
+        const auto result = frontend.process(embedded_numeric, en);
+        CHECK(result.normalized_text == embedded_numeric);
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(result.warnings.front().offset == 3);
+        CHECK(result.warnings.front().length == embedded_numeric.size() - 3);
+    }
     CHECK(frontend.process("1,234 руб.", ru).normalized_text == "1,234 руб.");
     const std::string nbsp = "a\xc2\xa0"
                              "b\xe2\x80\xaf"
