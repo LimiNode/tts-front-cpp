@@ -8,7 +8,7 @@ void benchmark_numeric_scaling() {
     tts_front::TextFrontend frontend;
     tts_front::TextFrontendOptions options;
     options.language = tts_front::Language::English;
-    for (const auto count : {1000u, 5000u, 10000u}) {
+    for (const auto count : {1000u, 5000u, 10000u, 20000u}) {
         std::string text;
         text.reserve(static_cast<std::size_t>(count) * 2);
         for (unsigned int index = 0; index < count; ++index) {

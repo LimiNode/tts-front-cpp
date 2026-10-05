@@ -991,6 +991,9 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
     MappedText output;
     output.preserved_ranges = text.preserved_ranges;
     std::size_t cursor = 0;
+    // Protected spans are emitted as well-formed control-byte markers. Carry
+    // one forward state instead of searching backwards through the text for
+    // every codepoint; this keeps the candidate admission pass linear.
     bool inside_marker = false;
     for (std::size_t index = 0; index < points.size();) {
         if (points[index].value == 0x01) {
