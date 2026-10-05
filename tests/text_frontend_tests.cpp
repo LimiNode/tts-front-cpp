@@ -187,6 +187,20 @@ int main() {
     CHECK(check_technical_numeric_tail("C++17,234%", 5));
     CHECK(check_technical_numeric_tail("RTX-4090,234%", 3));
     CHECK(check_technical_numeric_tail("V2.1.0,234%", 6));
+    CHECK(check_technical_numeric_tail("a C++17,234%", 7));
+    CHECK(check_technical_numeric_tail("HTTP/2,234%", 6));
+    CHECK(check_technical_numeric_tail("x$+1,234 %", 1));
+    {
+        const std::string technical_url = "https://example.com/C++17,234%25";
+        for (const auto& options : {en, ru}) {
+            const auto result = frontend.process(technical_url, options);
+            CHECK(result.normalized_text == technical_url);
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(result.warnings.front().offset == technical_url.find(','));
+            CHECK(result.warnings.front().length == 5);
+        }
+    }
     CHECK(frontend.process("1.2.3 12:34:56 1,000.50 1.2.3%", en).normalized_text ==
           "1.2.3 12:34:56 one thousand point five zero 1.2.3%");
     {

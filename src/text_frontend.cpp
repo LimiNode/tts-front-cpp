@@ -313,7 +313,7 @@ struct RegexPatterns {
     const std::regex technical_identifier{
         R"((?:#[0-9]+)|(?:[A-Za-z][A-Za-z0-9+._$#-]*[-+$][A-Za-z0-9._$#-]+))"};
     const std::regex technical_numeric_percent{
-        R"(((?:[A-Za-z][A-Za-z0-9+._$#-]*[-+$][A-Za-z0-9._$#-]+|#[0-9]+|[vV]\d+(?:\.\d+)+|(?:RTX|CUDA|GPU|API)\s+\d+(?:\.\d+)?))((?:,\d{3})+(?:\.\d+)?%))"};
+        R"(((?:[A-Za-z][A-Za-z0-9+._$#-]*[-+$][A-Za-z0-9._$#-]+|#[0-9]+|[vV]\d+(?:\.\d+)+|(?:RTX|CUDA|GPU|API)\s+\d+(?:\.\d+)?|HTTP/\d+(?:\.\d+)?|C#\d+(?:\.\d+)?|\d{1,3}(?:\.\d{1,3}){3}))((?:,\d{3})+(?:\.\d+)?\s*%))"};
     const std::regex grouped_number{R"((^|[^0-9])-?\d{1,3}(?:\s+\d{3})+)"};
     const std::regex en_comma_grouped_number{R"((^|[^0-9])(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?))"};
     const std::regex en_comma_grouped_value{R"(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?)"};
@@ -914,7 +914,7 @@ MappedText protect_numeric_technical_candidates(MappedText text,
             const auto begin = static_cast<std::size_t>(it->position());
             const auto finish = begin + static_cast<std::size_t>(it->length());
             const auto base = it->str(1);
-            const auto suffix_begin = begin + static_cast<std::size_t>(it->position(2));
+            const auto suffix_begin = static_cast<std::size_t>(it->position(2));
             std::size_t protected_begin = suffix_begin;
             if (const auto dollar = base.find('$'); dollar != std::string::npos) {
                 protected_begin = begin + dollar;
