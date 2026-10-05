@@ -190,6 +190,10 @@ int main() {
     CHECK(check_technical_numeric_tail("a C++17,234%", 7));
     CHECK(check_technical_numeric_tail("HTTP/2,234%", 6));
     CHECK(check_technical_numeric_tail("x$+1,234 %", 1));
+    CHECK(check_technical_numeric_tail("C++17,23%", 5));
+    CHECK(check_technical_numeric_tail("x$+1,23%", 1));
+    CHECK(check_technical_numeric_tail("C++17,1234%", 5));
+    CHECK(check_technical_numeric_tail("C++17,12,345%", 5));
     {
         const std::string technical_url = "https://example.com/C++17,234%25";
         for (const auto& options : {en, ru}) {
