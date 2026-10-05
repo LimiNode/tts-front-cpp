@@ -205,6 +205,16 @@ int main() {
         CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
     }
     CHECK(frontend.process("1,234 руб.", ru).normalized_text == "1,234 руб.");
+    for (const auto& input :
+         {std::string("$1,234%"), std::string("$1,234.56%"), std::string("x$1,234%")}) {
+        const auto result = frontend.process(input, en);
+        const auto numeric_offset = input.front() == 'x' ? 1u : 0u;
+        CHECK(result.normalized_text == input);
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(result.warnings.front().offset == numeric_offset);
+        CHECK(result.warnings.front().length == input.size() - numeric_offset);
+    }
     const std::string nbsp = "a\xc2\xa0"
                              "b\xe2\x80\xaf"
                              "c\x0b"

@@ -905,6 +905,33 @@ MappedText protect_numeric_technical_candidates(MappedText text,
     output.preserved_ranges = text.preserved_ranges;
     std::size_t cursor = 0;
     for (std::size_t index = 0; index < points.size();) {
+        if (points[index].value == '$' && index + 1 < points.size() &&
+            is_digit(points[index + 1].value)) {
+            auto numeric_end = index + 1;
+            while (numeric_end < points.size() && is_digit(points[numeric_end].value))
+                ++numeric_end;
+            while (numeric_end < points.size() &&
+                   (points[numeric_end].value == ',' || points[numeric_end].value == '.') &&
+                   numeric_end + 1 < points.size() && is_digit(points[numeric_end + 1].value)) {
+                numeric_end += 1;
+                while (numeric_end < points.size() && is_digit(points[numeric_end].value))
+                    ++numeric_end;
+            }
+            if (numeric_end < points.size() && points[numeric_end].value == '%') {
+                const auto begin = points[index].offset;
+                const auto end = points[numeric_end].offset + points[numeric_end].length;
+                output.append_copy(text, cursor, begin);
+                warnings.add(WarningCode::UnresolvedNumber,
+                             "Unsupported numeric-like candidate preserved verbatim",
+                             text.source_range(begin, end));
+                const auto marker = marker_for(text.text, protected_spans.size());
+                protected_spans.push_back({marker, text.text.substr(begin, end - begin)});
+                output.append_generated(text, begin, end, marker);
+                cursor = end;
+                index = numeric_end + 1;
+                continue;
+            }
+        }
         const bool starts_number = is_digit(points[index].value) ||
                                    (points[index].value == '-' && index + 1 < points.size() &&
                                     is_digit(points[index + 1].value));
@@ -1154,6 +1181,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         const auto end =
             end_index == 0 ? begin : points[end_index - 1].offset + points[end_index - 1].length;
         const auto candidate = text.text.substr(begin, end - begin);
+        const bool currency_prefix = index > 0 && points[index - 1].value == '$';
         const bool attached_lexical_suffix = separators != 0 && end_index < points.size() &&
                                              is_lexical_numeric_boundary(points[end_index].value);
         const bool valid_english_comma_group =
@@ -1211,15 +1239,19 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
              (comma_group_followed_by_word && !valid_english_comma_group) ||
              unsupported_numeric_connector || invalid_percent || malformed_english_comma_group) &&
             !(valid_russian_date && !embedded) &&
-            !(valid_english_comma_group && !embedded && !attached_lexical_suffix)) {
-            output.append_copy(text, cursor, begin);
-            const auto source = text.source_range(begin, end);
+            !(valid_english_comma_group && !embedded && !attached_lexical_suffix &&
+              !(currency_prefix && has_percent))) {
+            const auto protected_begin =
+                currency_prefix && has_percent ? points[index - 1].offset : begin;
+            output.append_copy(text, cursor, protected_begin);
+            const auto source = text.source_range(protected_begin, end);
             warnings.add(WarningCode::UnresolvedNumber,
                          "Unsupported numeric-like candidate preserved verbatim",
                          source);
             const auto marker = marker_for(text.text, protected_spans.size());
-            protected_spans.push_back({marker, candidate});
-            output.append_generated(text, begin, end, marker);
+            protected_spans.push_back(
+                {marker, text.text.substr(protected_begin, end - protected_begin)});
+            output.append_generated(text, protected_begin, end, marker);
             cursor = end;
         }
         index = end_index;
