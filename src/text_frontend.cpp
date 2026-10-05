@@ -1262,7 +1262,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             has_unsupported_numeric_connector;
         if ((separators >= 2 || embedded || attached_lexical_suffix ||
              (comma_group_followed_by_word && !valid_english_comma_group) ||
-             unsupported_numeric_connector || invalid_percent || malformed_english_comma_group) &&
+             unsupported_numeric_connector || invalid_percent || malformed_english_comma_group ||
+             (currency_prefix && has_percent)) &&
             !(valid_russian_date && !embedded) &&
             !(valid_english_comma_group && !embedded && !attached_lexical_suffix &&
               !(currency_prefix && has_percent))) {

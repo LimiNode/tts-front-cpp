@@ -218,6 +218,14 @@ int main() {
         CHECK(result.warnings.front().offset == numeric_offset);
         CHECK(result.warnings.front().length == input.size() - numeric_offset);
     }
+    for (const auto& input : {std::string("$ 1,234%"), std::string("$+1,234%")}) {
+        const auto result = frontend.process(input, ru);
+        CHECK(result.normalized_text == input);
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(result.warnings.front().offset == 0);
+        CHECK(result.warnings.front().length == input.size());
+    }
     const std::string nbsp = "a\xc2\xa0"
                              "b\xe2\x80\xaf"
                              "c\x0b"
