@@ -918,38 +918,54 @@ MappedText protect_numeric_technical_candidates(MappedText text,
             const auto is_horizontal_space = [](char value) {
                 return value == ' ' || value == '\t';
             };
+            const auto is_ascii_punctuation = [](char value) {
+                const auto byte = static_cast<unsigned char>(value);
+                return byte < 0x80 && std::ispunct(byte) != 0;
+            };
             std::size_t finish = base_finish;
             if (base_finish < text.text.size() && text.text[base_finish] == ',') {
                 auto probe = base_finish;
-                std::size_t digits = 0;
                 while (probe < text.text.size()) {
                     const char value = text.text[probe];
                     if (is_ascii_digit(value)) {
-                        ++digits;
                         ++probe;
-                    } else if (value == ',' || value == '.' || is_horizontal_space(value)) {
+                    } else if (value != '%' &&
+                               (is_ascii_punctuation(value) || is_horizontal_space(value))) {
                         ++probe;
                     } else {
                         break;
                     }
                 }
-                if (digits != 0 && probe < text.text.size() && text.text[probe] == '%') {
+                if (probe < text.text.size() && text.text[probe] == '%') {
                     ++probe;
-                    while (probe < text.text.size() && is_horizontal_space(text.text[probe]))
-                        ++probe;
-                    if (probe < text.text.size() &&
-                        (is_ascii_digit(text.text[probe]) || text.text[probe] == '+' ||
-                         text.text[probe] == '-')) {
-                        while (probe < text.text.size()) {
-                            const char value = text.text[probe];
-                            if (is_ascii_digit(value) || value == '.' || value == ':' ||
-                                value == ',' || value == '+' || value == '-')
-                                ++probe;
+                    std::size_t continuation_end = probe;
+                    while (continuation_end < text.text.size()) {
+                        auto token_begin = continuation_end;
+                        while (token_begin < text.text.size() &&
+                               is_horizontal_space(text.text[token_begin]))
+                            ++token_begin;
+                        if (token_begin >= text.text.size())
+                            break;
+                        auto token_end = token_begin;
+                        while (token_end < text.text.size() &&
+                               is_ascii_punctuation(text.text[token_end])) {
+                            ++token_end;
+                            while (token_end < text.text.size() &&
+                                   is_horizontal_space(text.text[token_end]))
+                                ++token_end;
+                        }
+                        if (token_end >= text.text.size() || !is_ascii_digit(text.text[token_end]))
+                            break;
+                        while (token_end < text.text.size()) {
+                            const char value = text.text[token_end];
+                            if (is_ascii_digit(value) || is_ascii_punctuation(value))
+                                ++token_end;
                             else
                                 break;
                         }
+                        continuation_end = token_end;
                     }
-                    finish = probe;
+                    finish = continuation_end;
                 }
             }
             if (finish == base_finish)
@@ -999,8 +1015,12 @@ MappedText protect_numeric_technical_candidates(MappedText text,
                     ++numeric_end;
             }
             if (numeric_end < points.size() && points[numeric_end].value == '%') {
+                auto protected_end = numeric_end + 1;
+                while (protected_end < points.size() && is_digit(points[protected_end].value))
+                    ++protected_end;
                 const auto begin = points[index].offset;
-                const auto end = points[numeric_end].offset + points[numeric_end].length;
+                const auto end =
+                    points[protected_end - 1].offset + points[protected_end - 1].length;
                 output.append_copy(text, cursor, begin);
                 warnings.add(WarningCode::UnresolvedNumber,
                              "Unsupported numeric-like candidate preserved verbatim",
@@ -1009,7 +1029,7 @@ MappedText protect_numeric_technical_candidates(MappedText text,
                 protected_spans.push_back({marker, text.text.substr(begin, end - begin)});
                 output.append_generated(text, begin, end, marker);
                 cursor = end;
-                index = numeric_end + 1;
+                index = protected_end;
                 continue;
             }
         }

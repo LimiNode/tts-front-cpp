@@ -202,6 +202,24 @@ int main() {
     CHECK(check_technical_numeric_tail("C++17,234..5%", 5));
     CHECK(check_technical_numeric_tail("C++17,234...5%", 5));
     CHECK(check_technical_numeric_tail("C++17,234.0..5%", 5));
+    CHECK(check_technical_numeric_tail("C++17,%1%", 5));
+    CHECK(check_technical_numeric_tail("C++17, %1:02%", 5));
+    CHECK(check_technical_numeric_tail("C++17,23% 456/789", 5));
+    CHECK(check_technical_numeric_tail("C++17,23% 456 789%", 5));
+    CHECK(check_technical_numeric_tail("C++17,23% + 456", 5));
+    CHECK(check_technical_numeric_tail("C++17,234:567%", 5));
+    CHECK(check_technical_numeric_tail("C++17,234/567%", 5));
+    CHECK(check_technical_numeric_tail("C++17,23% 456*789", 5));
+    {
+        const std::string separated = "C++17,23% HTTP/2,12 345%";
+        for (const auto& options : {en, ru}) {
+            const auto result = frontend.process(separated, options);
+            CHECK(result.normalized_text == separated);
+            CHECK(result.warnings.size() == 2);
+            CHECK(result.warnings.front().offset == 5);
+            CHECK(result.warnings.front().length == 4);
+        }
+    }
     {
         std::string long_grouped = "C++17";
         for (int index = 0; index < 7800; ++index)
@@ -294,8 +312,15 @@ int main() {
     CHECK(frontend.process(nbsp, en).normalized_text == "a b c d e");
     {
         const std::string nested_currency_url = "https://example.com/path/$1,234%25";
-        CHECK(frontend.process(nested_currency_url, en).normalized_text == nested_currency_url);
-        CHECK(frontend.process(nested_currency_url, ru).normalized_text == nested_currency_url);
+        for (const auto& options : {en, ru}) {
+            const auto result = frontend.process(nested_currency_url, options);
+            CHECK(result.normalized_text == nested_currency_url);
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(result.warnings.front().offset == nested_currency_url.find('$'));
+            CHECK(result.warnings.front().length ==
+                  nested_currency_url.size() - nested_currency_url.find('$'));
+        }
     }
 
     PronunciationDictionary dictionary;
