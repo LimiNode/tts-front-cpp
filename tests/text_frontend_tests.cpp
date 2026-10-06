@@ -213,6 +213,11 @@ int main() {
     CHECK(check_technical_numeric_tail("C++17,23%1/2", 5));
     CHECK(check_technical_numeric_tail("C++17,23%12/34", 5));
     CHECK(check_technical_numeric_tail("C++17,23%123 456", 5));
+    CHECK(check_technical_numeric_tail("RTX-4090%123", 3));
+    CHECK(check_technical_numeric_tail("C++17%123", 5));
+    CHECK(check_technical_numeric_tail("#123%456", 0));
+    CHECK(check_technical_numeric_tail("x+1%123", 1));
+    CHECK(check_technical_numeric_tail("$- 1,234%123 456", 0));
     {
         const std::string separated = "C++17,23% HTTP/2,12 345%";
         for (const auto& options : {en, ru}) {

@@ -925,7 +925,8 @@ MappedText protect_numeric_technical_candidates(MappedText text,
                 return byte < 0x80 && std::ispunct(byte) != 0;
             };
             std::size_t finish = base_finish;
-            if (base_finish < text.text.size() && text.text[base_finish] == ',') {
+            if (base_finish < text.text.size() &&
+                (text.text[base_finish] == ',' || text.text[base_finish] == '%')) {
                 auto probe = base_finish;
                 while (probe < text.text.size()) {
                     const char value = text.text[probe];
@@ -1206,7 +1207,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         while (currency_context_probe > 0 && (points[currency_context_probe - 1].value == ' ' ||
                                               points[currency_context_probe - 1].value == '\t'))
             --currency_context_probe;
-        if (currency_context_probe > 0 && points[currency_context_probe - 1].value == '+') {
+        if (currency_context_probe > 0 && (points[currency_context_probe - 1].value == '+' ||
+                                           points[currency_context_probe - 1].value == '-')) {
             --currency_context_probe;
             while (currency_context_probe > 0 && (points[currency_context_probe - 1].value == ' ' ||
                                                   points[currency_context_probe - 1].value == '\t'))
