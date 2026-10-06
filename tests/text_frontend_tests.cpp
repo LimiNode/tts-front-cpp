@@ -210,6 +210,9 @@ int main() {
     CHECK(check_technical_numeric_tail("C++17,234:567%", 5));
     CHECK(check_technical_numeric_tail("C++17,234/567%", 5));
     CHECK(check_technical_numeric_tail("C++17,23% 456*789", 5));
+    CHECK(check_technical_numeric_tail("C++17,23%1/2", 5));
+    CHECK(check_technical_numeric_tail("C++17,23%12/34", 5));
+    CHECK(check_technical_numeric_tail("C++17,23%123 456", 5));
     {
         const std::string separated = "C++17,23% HTTP/2,12 345%";
         for (const auto& options : {en, ru}) {
@@ -218,6 +221,16 @@ int main() {
             CHECK(result.warnings.size() == 2);
             CHECK(result.warnings.front().offset == 5);
             CHECK(result.warnings.front().length == 4);
+        }
+    }
+    for (const auto& input : {std::string("C++17,23% #1,234%"),
+                              std::string("#1,23% #2,34%"),
+                              std::string("C++17,23% 127.0.0.1,234%")}) {
+        for (const auto& options : {en, ru}) {
+            const auto result = frontend.process(input, options);
+            CHECK(result.normalized_text == input);
+            CHECK(!result.warnings.empty());
+            CHECK(result.warnings.size() <= 2);
         }
     }
     {
@@ -320,6 +333,16 @@ int main() {
             CHECK(result.warnings.front().offset == nested_currency_url.find('$'));
             CHECK(result.warnings.front().length ==
                   nested_currency_url.size() - nested_currency_url.find('$'));
+        }
+    }
+    for (const auto& input :
+         {std::string("$1,234%1/2"), std::string("$1,234%12/34"), std::string("$1,234%123 456")}) {
+        for (const auto& options : {en, ru}) {
+            const auto result = frontend.process(input, options);
+            CHECK(result.normalized_text == input);
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().offset == 0);
+            CHECK(result.warnings.front().length == input.size());
         }
     }
 

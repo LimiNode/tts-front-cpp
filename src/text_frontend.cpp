@@ -912,6 +912,8 @@ MappedText protect_numeric_technical_candidates(MappedText text,
              it != end;
              ++it) {
             const auto begin = static_cast<std::size_t>(it->position());
+            if (begin < cursor)
+                continue;
             const auto base_finish = begin + static_cast<std::size_t>(it->length());
             const auto base = it->str(1);
             const auto is_ascii_digit = [](char value) { return value >= '0' && value <= '9'; };
@@ -1015,9 +1017,39 @@ MappedText protect_numeric_technical_candidates(MappedText text,
                     ++numeric_end;
             }
             if (numeric_end < points.size() && points[numeric_end].value == '%') {
+                const auto is_ascii_punctuation = [](std::uint32_t value) {
+                    return value < 0x80 && std::ispunct(static_cast<unsigned char>(value)) != 0;
+                };
+                const auto is_horizontal_space = [](std::uint32_t value) {
+                    return value == ' ' || value == '\t';
+                };
                 auto protected_end = numeric_end + 1;
-                while (protected_end < points.size() && is_digit(points[protected_end].value))
-                    ++protected_end;
+                while (protected_end < points.size()) {
+                    auto token_begin = protected_end;
+                    while (token_begin < points.size() &&
+                           is_horizontal_space(points[token_begin].value))
+                        ++token_begin;
+                    if (token_begin >= points.size())
+                        break;
+                    auto token_end = token_begin;
+                    while (token_end < points.size() &&
+                           is_ascii_punctuation(points[token_end].value)) {
+                        ++token_end;
+                        while (token_end < points.size() &&
+                               is_horizontal_space(points[token_end].value))
+                            ++token_end;
+                    }
+                    if (token_end >= points.size() || !is_digit(points[token_end].value))
+                        break;
+                    while (token_end < points.size()) {
+                        const auto value = points[token_end].value;
+                        if (is_digit(value) || is_ascii_punctuation(value))
+                            ++token_end;
+                        else
+                            break;
+                    }
+                    protected_end = token_end;
+                }
                 const auto begin = points[index].offset;
                 const auto end =
                     points[protected_end - 1].offset + points[protected_end - 1].length;
