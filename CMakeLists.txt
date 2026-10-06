@@ -50,6 +50,7 @@ add_library(tts_front
     src/tts_front/core/mapped_text.cpp
     src/tts_front/core/edit_script.cpp
     src/tts_front/normalization/candidate_scanner.cpp
+    src/tts_front/language/english/numbers.cpp
     src/tts_front/backend/silero/silero_asset_hash.cpp
     src/tts_front/backend/silero/silero_bundle.cpp
     src/tts_front/backend/silero/silero_sentence.cpp

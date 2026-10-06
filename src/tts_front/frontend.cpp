@@ -5,6 +5,7 @@
 #include "tts_front/core/source_span.hpp"
 #include "tts_front/core/utf8.hpp"
 #include "tts_front/core/utf8_document.hpp"
+#include "tts_front/language/english/numbers.hpp"
 #include "tts_front/normalization/candidate_scanner.hpp"
 
 #include <algorithm>
@@ -38,6 +39,10 @@ using detail::SourceEdit;
 using detail::SourceRange;
 using detail::SourceSpan;
 using detail::Utf8Document;
+using detail::english::digits;
+using detail::english::number;
+using detail::english::ordinal;
+using detail::english::ordinal_suffix;
 
 bool is_cyrillic(std::uint32_t cp) {
     return cp >= 0x0400 && cp <= 0x052f;
@@ -426,76 +431,13 @@ std::string ru_number(long long n) {
     return std::to_string(n);
 }
 std::string en_number(long long n) {
-    static const char* const ones[] = {"zero",    "one",     "two",       "three",    "four",
-                                       "five",    "six",     "seven",     "eight",    "nine",
-                                       "ten",     "eleven",  "twelve",    "thirteen", "fourteen",
-                                       "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"};
-    static const char* const tens[] = {
-        "", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"};
-    if (n < 0)
-        return "minus " + en_number(-n);
-    if (n < 20)
-        return ones[n];
-    if (n < 100)
-        return std::string(tens[n / 10]) + (n % 10 ? " " + std::string(ones[n % 10]) : "");
-    if (n < 1000)
-        return std::string(ones[n / 100]) + " hundred" + (n % 100 ? " " + en_number(n % 100) : "");
-    if (n < 1000000)
-        return en_number(n / 1000) + " thousand" + (n % 1000 ? " " + en_number(n % 1000) : "");
-    if (n < 1000000000)
-        return en_number(n / 1000000) + " million" +
-               (n % 1000000 ? " " + en_number(n % 1000000) : "");
-    return std::to_string(n);
+    return number(n);
 }
 const char* en_ordinal_suffix(long long n) {
-    const auto last_two = n % 100;
-    if (last_two >= 11 && last_two <= 13)
-        return "th";
-    switch (n % 10) {
-    case 1:
-        return "st";
-    case 2:
-        return "nd";
-    case 3:
-        return "rd";
-    default:
-        return "th";
-    }
+    return ordinal_suffix(n);
 }
 std::string en_ordinal(long long n) {
-    if (n < 0)
-        return "minus " + en_ordinal(-n);
-    if (n == 0)
-        return "zeroth";
-    static const char* const under_twenty[] = {
-        "",          "first",     "second",      "third",      "fourth",
-        "fifth",     "sixth",     "seventh",     "eighth",     "ninth",
-        "tenth",     "eleventh",  "twelfth",     "thirteenth", "fourteenth",
-        "fifteenth", "sixteenth", "seventeenth", "eighteenth", "nineteenth"};
-    static const char* const tens[] = {"",
-                                       "",
-                                       "twentieth",
-                                       "thirtieth",
-                                       "fortieth",
-                                       "fiftieth",
-                                       "sixtieth",
-                                       "seventieth",
-                                       "eightieth",
-                                       "ninetieth"};
-    if (n < 20)
-        return under_twenty[n];
-    if (n < 100)
-        return n % 10 == 0 ? tens[n / 10] : en_number(n / 10 * 10) + " " + under_twenty[n % 10];
-    if (n < 1000)
-        return n % 100 == 0 ? en_number(n / 100) + " hundredth"
-                            : en_number(n / 100) + " hundred " + en_ordinal(n % 100);
-    if (n < 1000000)
-        return n % 1000 == 0 ? en_number(n / 1000) + " thousandth"
-                             : en_number(n / 1000) + " thousand " + en_ordinal(n % 1000);
-    if (n < 1000000000)
-        return n % 1000000 == 0 ? en_number(n / 1000000) + " millionth"
-                                : en_number(n / 1000000) + " million " + en_ordinal(n % 1000000);
-    return std::to_string(n);
+    return ordinal(n);
 }
 bool try_parse_long(std::string_view token, long long& value) {
     try {
@@ -740,15 +682,7 @@ std::string ru_decimal(long long integer, const std::string& fraction) {
            ru_feminine_number(fractional) + " " + denominator_word;
 }
 std::string en_digits(const std::string& digits) {
-    static const char* const names[] = {
-        "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"};
-    std::string result;
-    for (const char digit : digits) {
-        if (!result.empty())
-            result += ' ';
-        result += names[digit - '0'];
-    }
-    return result;
+    return detail::english::digits(digits);
 }
 
 struct ProtectedSpan {
