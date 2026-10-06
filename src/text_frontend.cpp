@@ -313,7 +313,7 @@ struct RegexPatterns {
     const std::regex technical_identifier{
         R"((?:#[0-9]+)|(?:[A-Za-z][A-Za-z0-9+._$#-]*[-+$][A-Za-z0-9._$#-]+))"};
     const std::regex technical_numeric_percent{
-        R"(((?:[A-Za-z][A-Za-z0-9+._$#-]*[-+$][A-Za-z0-9._$#-]+|#[0-9]+|[vV]\d+(?:\.\d+)+|(?:RTX|CUDA|GPU|API)\s+\d+(?:\.\d+)?|HTTP/\d+(?:\.\d+)?|C#\d+(?:\.\d+)?|\d{1,3}(?:\.\d{1,3}){3}))((?:,\d+)+(?:\.\d+)?\s*%))"};
+        R"(((?:[A-Za-z][A-Za-z0-9+._$#-]*[-+$][A-Za-z0-9._$#-]+|#[0-9]+|[vV]\d+(?:\.\d+)+|(?:RTX|CUDA|GPU|API)\s+\d+(?:\.\d+)?|HTTP/\d+(?:\.\d+)?|C#\d+(?:\.\d+)?|\d{1,3}(?:\.\d{1,3}){3}))((?:,\d+)+(?:\.\d+)?(?:[ \t]+\d+)*\s*%(?:[-+]?\d+(?:[.:]\d+)*)?))"};
     const std::regex grouped_number{R"((^|[^0-9])-?\d{1,3}(?:\s+\d{3})+)"};
     const std::regex en_comma_grouped_number{R"((^|[^0-9])(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?))"};
     const std::regex en_comma_grouped_value{R"(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?)"};

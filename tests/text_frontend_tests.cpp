@@ -194,6 +194,10 @@ int main() {
     CHECK(check_technical_numeric_tail("x$+1,23%", 1));
     CHECK(check_technical_numeric_tail("C++17,1234%", 5));
     CHECK(check_technical_numeric_tail("C++17,12,345%", 5));
+    CHECK(check_technical_numeric_tail("C++17,23%1:02", 5));
+    CHECK(check_technical_numeric_tail("x$+1,23%1:02", 1));
+    CHECK(check_technical_numeric_tail("C++17,23 456%", 5));
+    CHECK(check_technical_numeric_tail("x$+1,23 456%", 1));
     {
         const std::string technical_url = "https://example.com/C++17,234%25";
         for (const auto& options : {en, ru}) {
@@ -202,7 +206,7 @@ int main() {
             CHECK(result.warnings.size() == 1);
             CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
             CHECK(result.warnings.front().offset == technical_url.find(','));
-            CHECK(result.warnings.front().length == 5);
+            CHECK(result.warnings.front().length == 7);
         }
     }
     CHECK(frontend.process("1.2.3 12:34:56 1,000.50 1.2.3%", en).normalized_text ==
