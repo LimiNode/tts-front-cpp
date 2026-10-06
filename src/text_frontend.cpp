@@ -313,7 +313,7 @@ struct RegexPatterns {
     const std::regex technical_identifier{
         R"((?:#[0-9]+)|(?:[A-Za-z][A-Za-z0-9+._$#-]*[-+$][A-Za-z0-9._$#-]+))"};
     const std::regex technical_numeric_percent{
-        R"(((?:[A-Za-z][A-Za-z0-9+._$#-]*[-+$][A-Za-z0-9._$#-]+|#[0-9]+|[vV]\d+(?:\.\d+)+|(?:RTX|CUDA|GPU|API)\s+\d+(?:\.\d+)?|HTTP/\d+(?:\.\d+)?|C#\d+(?:\.\d+)?|\d{1,3}(?:\.\d{1,3}){3})))"};
+        R"(((?:[A-Za-z][A-Za-z0-9+._$#-]*[-+$][ \t]*[A-Za-z0-9._$#-]+|[A-Za-z][A-Za-z0-9+._#-]*\$(?:[+-][ \t]*)?\d+|#[0-9]+|[vV]\d+(?:\.\d+)+|(?:RTX|CUDA|GPU|API)\s+\d+(?:\.\d+)?|HTTP/\d+(?:\.\d+)?|C#\d+(?:\.\d+)?|\d{1,3}(?:\.\d{1,3}){3})))"};
     const std::regex grouped_number{R"((^|[^0-9])-?\d{1,3}(?:\s+\d{3})+)"};
     const std::regex en_comma_grouped_number{R"((^|[^0-9])(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?))"};
     const std::regex en_comma_grouped_value{R"(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?)"};
@@ -924,6 +924,36 @@ MappedText protect_numeric_technical_candidates(MappedText text,
                 const auto byte = static_cast<unsigned char>(value);
                 return byte < 0x80 && std::ispunct(byte) != 0;
             };
+            const auto scan_numeric_continuation = [&](std::size_t start) {
+                std::size_t continuation_end = start;
+                while (continuation_end < text.text.size()) {
+                    auto token_begin = continuation_end;
+                    while (token_begin < text.text.size() &&
+                           is_horizontal_space(text.text[token_begin]))
+                        ++token_begin;
+                    if (token_begin >= text.text.size())
+                        break;
+                    auto token_end = token_begin;
+                    while (token_end < text.text.size() &&
+                           is_ascii_punctuation(text.text[token_end])) {
+                        ++token_end;
+                        while (token_end < text.text.size() &&
+                               is_horizontal_space(text.text[token_end]))
+                            ++token_end;
+                    }
+                    if (token_end >= text.text.size() || !is_ascii_digit(text.text[token_end]))
+                        break;
+                    while (token_end < text.text.size()) {
+                        const char value = text.text[token_end];
+                        if (is_ascii_digit(value) || is_ascii_punctuation(value))
+                            ++token_end;
+                        else
+                            break;
+                    }
+                    continuation_end = token_end;
+                }
+                return continuation_end;
+            };
             std::size_t finish = base_finish;
             if (base_finish < text.text.size() &&
                 (text.text[base_finish] == ',' || text.text[base_finish] == '%')) {
@@ -940,37 +970,16 @@ MappedText protect_numeric_technical_candidates(MappedText text,
                     }
                 }
                 if (probe < text.text.size() && text.text[probe] == '%') {
-                    ++probe;
-                    std::size_t continuation_end = probe;
-                    while (continuation_end < text.text.size()) {
-                        auto token_begin = continuation_end;
-                        while (token_begin < text.text.size() &&
-                               is_horizontal_space(text.text[token_begin]))
-                            ++token_begin;
-                        if (token_begin >= text.text.size())
-                            break;
-                        auto token_end = token_begin;
-                        while (token_end < text.text.size() &&
-                               is_ascii_punctuation(text.text[token_end])) {
-                            ++token_end;
-                            while (token_end < text.text.size() &&
-                                   is_horizontal_space(text.text[token_end]))
-                                ++token_end;
-                        }
-                        if (token_end >= text.text.size() || !is_ascii_digit(text.text[token_end]))
-                            break;
-                        while (token_end < text.text.size()) {
-                            const char value = text.text[token_end];
-                            if (is_ascii_digit(value) || is_ascii_punctuation(value))
-                                ++token_end;
-                            else
-                                break;
-                        }
-                        continuation_end = token_end;
-                    }
-                    finish = continuation_end;
+                    const auto after_percent = probe + 1;
+                    const auto continuation_end = scan_numeric_continuation(after_percent);
+                    if (continuation_end != after_percent || base_finish != probe)
+                        finish = continuation_end;
                 }
             }
+            if (finish == base_finish && base_finish < text.text.size() &&
+                (text.text[base_finish] == '/' || text.text[base_finish] == '=' ||
+                 text.text[base_finish] == '*'))
+                finish = scan_numeric_continuation(base_finish);
             if (finish == base_finish)
                 continue;
             std::size_t protected_begin = base_finish;
