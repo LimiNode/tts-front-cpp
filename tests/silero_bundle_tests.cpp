@@ -1,8 +1,8 @@
-#include "detail/silero_asset_hash.hpp"
-#include "detail/silero_bundle.hpp"
-#include "detail/silero_sentence.hpp"
-#include "detail/silero_stress_backend.hpp"
 #include "tts_front.hpp"
+#include "tts_front/backend/silero/silero_asset_hash.hpp"
+#include "tts_front/backend/silero/silero_bundle.hpp"
+#include "tts_front/backend/silero/silero_sentence.hpp"
+#include "tts_front/backend/silero/silero_stress_backend.hpp"
 
 #include <array>
 #include <cstdlib>

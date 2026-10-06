@@ -1,4 +1,4 @@
-#include "detail/silero_asset_hash.hpp"
+#include "tts_front/backend/silero/silero_asset_hash.hpp"
 
 #include <cstdio>
 #include <filesystem>

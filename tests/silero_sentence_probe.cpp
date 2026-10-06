@@ -1,4 +1,4 @@
-#include "detail/silero_stress_backend.hpp"
+#include "tts_front/backend/silero/silero_stress_backend.hpp"
 
 #include <array>
 #include <iostream>

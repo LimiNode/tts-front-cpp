@@ -43,13 +43,13 @@ else()
 endif()
 
 add_library(tts_front
-    src/text_frontend.cpp
-    src/pronunciation_dictionary.cpp
-    src/detail/utf8.cpp
-    src/detail/silero_asset_hash.cpp
-    src/detail/silero_bundle.cpp
-    src/detail/silero_sentence.cpp
-    src/detail/silero_stress_backend.cpp
+    src/tts_front/frontend.cpp
+    src/tts_front/dictionary/pronunciation_dictionary.cpp
+    src/tts_front/core/utf8.cpp
+    src/tts_front/backend/silero/silero_asset_hash.cpp
+    src/tts_front/backend/silero/silero_bundle.cpp
+    src/tts_front/backend/silero/silero_sentence.cpp
+    src/tts_front/backend/silero/silero_stress_backend.cpp
 )
 add_library(TtsFront::tts_front ALIAS tts_front)
 target_compile_features(tts_front PUBLIC cxx_std_17)
@@ -79,7 +79,7 @@ if(TTS_FRONT_ENABLE_ONNX_STRESS)
     message(FATAL_ERROR
             "TTS_FRONT_ONNX_RUNTIME_ROOT must contain include/onnxruntime_cxx_api.h and lib/onnxruntime")
   endif()
-  target_sources(tts_front PRIVATE src/detail/silero_ort_session_owner.cpp)
+  target_sources(tts_front PRIVATE src/tts_front/backend/silero/silero_ort_session_owner.cpp)
   target_compile_definitions(tts_front PRIVATE TTS_FRONT_ENABLE_ONNX_STRESS=1)
   target_include_directories(tts_front PRIVATE "${TTS_FRONT_ONNX_RUNTIME_INCLUDE_DIR}")
   target_link_libraries(tts_front PRIVATE "${TTS_FRONT_ONNX_RUNTIME_LIBRARY}")

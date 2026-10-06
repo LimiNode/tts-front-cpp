@@ -1,6 +1,6 @@
-#include "detail/silero_stress_backend.hpp"
-#include "detail/utf8.hpp"
 #include "tts_front.hpp"
+#include "tts_front/backend/silero/silero_stress_backend.hpp"
+#include "tts_front/core/utf8.hpp"
 
 #include <algorithm>
 #include <array>

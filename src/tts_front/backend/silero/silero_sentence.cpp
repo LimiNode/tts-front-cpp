@@ -1,6 +1,6 @@
 #include "silero_sentence.hpp"
 
-#include "utf8.hpp"
+#include "tts_front/core/utf8.hpp"
 
 #include <algorithm>
 #include <cstring>
