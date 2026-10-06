@@ -196,8 +196,26 @@ int main() {
     CHECK(check_technical_numeric_tail("C++17,12,345%", 5));
     CHECK(check_technical_numeric_tail("C++17,23%1:02", 5));
     CHECK(check_technical_numeric_tail("x$+1,23%1:02", 1));
+    CHECK(check_technical_numeric_tail("C++17,23% 456", 5));
     CHECK(check_technical_numeric_tail("C++17,23 456%", 5));
     CHECK(check_technical_numeric_tail("x$+1,23 456%", 1));
+    CHECK(check_technical_numeric_tail("C++17,234..5%", 5));
+    CHECK(check_technical_numeric_tail("C++17,234...5%", 5));
+    CHECK(check_technical_numeric_tail("C++17,234.0..5%", 5));
+    {
+        std::string long_grouped = "C++17";
+        for (int index = 0; index < 7800; ++index)
+            long_grouped += ",123";
+        long_grouped += '%';
+        for (const auto& options : {en, ru}) {
+            const auto result = frontend.process(long_grouped, options);
+            CHECK(result.normalized_text == long_grouped);
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(result.warnings.front().offset == 5);
+            CHECK(result.warnings.front().length == long_grouped.size() - 5);
+        }
+    }
     {
         const std::string technical_url = "https://example.com/C++17,234%25";
         for (const auto& options : {en, ru}) {

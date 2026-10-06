@@ -313,7 +313,7 @@ struct RegexPatterns {
     const std::regex technical_identifier{
         R"((?:#[0-9]+)|(?:[A-Za-z][A-Za-z0-9+._$#-]*[-+$][A-Za-z0-9._$#-]+))"};
     const std::regex technical_numeric_percent{
-        R"(((?:[A-Za-z][A-Za-z0-9+._$#-]*[-+$][A-Za-z0-9._$#-]+|#[0-9]+|[vV]\d+(?:\.\d+)+|(?:RTX|CUDA|GPU|API)\s+\d+(?:\.\d+)?|HTTP/\d+(?:\.\d+)?|C#\d+(?:\.\d+)?|\d{1,3}(?:\.\d{1,3}){3}))((?:,\d+)+(?:\.\d+)?(?:[ \t]+\d+)*\s*%(?:[-+]?\d+(?:[.:]\d+)*)?))"};
+        R"(((?:[A-Za-z][A-Za-z0-9+._$#-]*[-+$][A-Za-z0-9._$#-]+|#[0-9]+|[vV]\d+(?:\.\d+)+|(?:RTX|CUDA|GPU|API)\s+\d+(?:\.\d+)?|HTTP/\d+(?:\.\d+)?|C#\d+(?:\.\d+)?|\d{1,3}(?:\.\d{1,3}){3})))"};
     const std::regex grouped_number{R"((^|[^0-9])-?\d{1,3}(?:\s+\d{3})+)"};
     const std::regex en_comma_grouped_number{R"((^|[^0-9])(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?))"};
     const std::regex en_comma_grouped_value{R"(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?)"};
@@ -912,10 +912,49 @@ MappedText protect_numeric_technical_candidates(MappedText text,
              it != end;
              ++it) {
             const auto begin = static_cast<std::size_t>(it->position());
-            const auto finish = begin + static_cast<std::size_t>(it->length());
+            const auto base_finish = begin + static_cast<std::size_t>(it->length());
             const auto base = it->str(1);
-            const auto suffix_begin = static_cast<std::size_t>(it->position(2));
-            std::size_t protected_begin = suffix_begin;
+            const auto is_ascii_digit = [](char value) { return value >= '0' && value <= '9'; };
+            const auto is_horizontal_space = [](char value) {
+                return value == ' ' || value == '\t';
+            };
+            std::size_t finish = base_finish;
+            if (base_finish < text.text.size() && text.text[base_finish] == ',') {
+                auto probe = base_finish;
+                std::size_t digits = 0;
+                while (probe < text.text.size()) {
+                    const char value = text.text[probe];
+                    if (is_ascii_digit(value)) {
+                        ++digits;
+                        ++probe;
+                    } else if (value == ',' || value == '.' || is_horizontal_space(value)) {
+                        ++probe;
+                    } else {
+                        break;
+                    }
+                }
+                if (digits != 0 && probe < text.text.size() && text.text[probe] == '%') {
+                    ++probe;
+                    while (probe < text.text.size() && is_horizontal_space(text.text[probe]))
+                        ++probe;
+                    if (probe < text.text.size() &&
+                        (is_ascii_digit(text.text[probe]) || text.text[probe] == '+' ||
+                         text.text[probe] == '-')) {
+                        while (probe < text.text.size()) {
+                            const char value = text.text[probe];
+                            if (is_ascii_digit(value) || value == '.' || value == ':' ||
+                                value == ',' || value == '+' || value == '-')
+                                ++probe;
+                            else
+                                break;
+                        }
+                    }
+                    finish = probe;
+                }
+            }
+            if (finish == base_finish)
+                continue;
+            std::size_t protected_begin = base_finish;
             if (const auto dollar = base.find('$'); dollar != std::string::npos) {
                 protected_begin = begin + dollar;
             } else if (!base.empty() && base.front() == '#') {
