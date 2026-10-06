@@ -313,7 +313,7 @@ struct RegexPatterns {
     const std::regex technical_identifier{
         R"((?:#[0-9]+)|(?:[A-Za-z][A-Za-z0-9+._$#-]*[-+$][A-Za-z0-9._$#-]+))"};
     const std::regex technical_numeric_percent{
-        R"(((?:[A-Za-z][A-Za-z0-9+._$#-]*[-+$][ \t]*[A-Za-z0-9._$#-]+|[A-Za-z][A-Za-z0-9+._#-]*\$(?:[+-][ \t]*)?\d+|#[0-9]+|[vV]\d+(?:\.\d+)+|(?:RTX|CUDA|GPU|API)\s+\d+(?:\.\d+)?|HTTP/\d+(?:\.\d+)?|C#\d+(?:\.\d+)?|\d{1,3}(?:\.\d{1,3}){3})))"};
+        R"(((?:[vV]\d+(?:\.\d+)+|HTTP/\d+(?:\.\d+)?|C#\d+(?:\.\d+)?|(?:RTX|CUDA|GPU|API)\s+\d+(?:\.\d+)?|\d{1,3}(?:\.\d{1,3}){3}|#[0-9]+|[A-Za-z][A-Za-z0-9+._#-]*\$(?:[+-][ \t]*)?\d+|[A-Za-z][A-Za-z0-9+._$#-]*[-+$][ \t]*[A-Za-z0-9._$#-]+)))"};
     const std::regex grouped_number{R"((^|[^0-9])-?\d{1,3}(?:\s+\d{3})+)"};
     const std::regex en_comma_grouped_number{R"((^|[^0-9])(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?))"};
     const std::regex en_comma_grouped_value{R"(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?)"};
@@ -924,6 +924,10 @@ MappedText protect_numeric_technical_candidates(MappedText text,
                 const auto byte = static_cast<unsigned char>(value);
                 return byte < 0x80 && std::ispunct(byte) != 0;
             };
+            const auto is_attached_lexical_byte = [](char value) {
+                const auto byte = static_cast<unsigned char>(value);
+                return byte >= 0x80 || std::isalnum(byte) != 0 || byte == '_';
+            };
             const auto scan_numeric_continuation = [&](std::size_t start) {
                 std::size_t continuation_end = start;
                 while (continuation_end < text.text.size()) {
@@ -950,6 +954,9 @@ MappedText protect_numeric_technical_candidates(MappedText text,
                         else
                             break;
                     }
+                    while (token_end < text.text.size() &&
+                           is_attached_lexical_byte(text.text[token_end]))
+                        ++token_end;
                     continuation_end = token_end;
                 }
                 return continuation_end;
@@ -978,7 +985,7 @@ MappedText protect_numeric_technical_candidates(MappedText text,
             }
             if (finish == base_finish && base_finish < text.text.size() &&
                 (text.text[base_finish] == '/' || text.text[base_finish] == '=' ||
-                 text.text[base_finish] == '*'))
+                 text.text[base_finish] == '*' || text.text[base_finish] == '-'))
                 finish = scan_numeric_continuation(base_finish);
             if (finish == base_finish)
                 continue;
