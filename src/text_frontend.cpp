@@ -924,9 +924,30 @@ MappedText protect_numeric_technical_candidates(MappedText text,
                 const auto byte = static_cast<unsigned char>(value);
                 return byte < 0x80 && std::ispunct(byte) != 0;
             };
-            const auto is_attached_lexical_byte = [](char value) {
-                const auto byte = static_cast<unsigned char>(value);
-                return byte >= 0x80 || std::isalnum(byte) != 0 || byte == '_';
+            const auto unicode_connector_length = [&](std::size_t offset) {
+                if (offset + 2 >= text.text.size())
+                    return std::size_t{0};
+                const auto first = static_cast<unsigned char>(text.text[offset]);
+                const auto second = static_cast<unsigned char>(text.text[offset + 1]);
+                const auto third = static_cast<unsigned char>(text.text[offset + 2]);
+                if (first == 0xe2 && second == 0x80 && third >= 0x90 && third <= 0x95)
+                    return std::size_t{3};
+                if (first == 0xe2 && second == 0x88 && third == 0x92)
+                    return std::size_t{3};
+                return std::size_t{0};
+            };
+            const auto attached_lexical_length = [&](std::size_t offset) {
+                const auto byte = static_cast<unsigned char>(text.text[offset]);
+                if (byte < 0x80)
+                    return (std::isalnum(byte) != 0 || byte == '_') ? std::size_t{1}
+                                                                    : std::size_t{0};
+                std::vector<CodePoint> suffix_points;
+                if (!decode_utf8(std::string_view{text.text}.substr(offset), suffix_points) ||
+                    suffix_points.empty() ||
+                    (!is_letter(suffix_points.front().value) &&
+                     !is_combining_mark(suffix_points.front().value)))
+                    return std::size_t{0};
+                return suffix_points.front().length;
             };
             const auto scan_numeric_continuation = [&](std::size_t start) {
                 std::size_t continuation_end = start;
@@ -938,9 +959,15 @@ MappedText protect_numeric_technical_candidates(MappedText text,
                     if (token_begin >= text.text.size())
                         break;
                     auto token_end = token_begin;
-                    while (token_end < text.text.size() &&
-                           is_ascii_punctuation(text.text[token_end])) {
-                        ++token_end;
+                    while (token_end < text.text.size()) {
+                        const auto unicode_length = unicode_connector_length(token_end);
+                        if (unicode_length != 0) {
+                            token_end += unicode_length;
+                        } else if (is_ascii_punctuation(text.text[token_end])) {
+                            ++token_end;
+                        } else {
+                            break;
+                        }
                         while (token_end < text.text.size() &&
                                is_horizontal_space(text.text[token_end]))
                             ++token_end;
@@ -949,14 +976,24 @@ MappedText protect_numeric_technical_candidates(MappedText text,
                         break;
                     while (token_end < text.text.size()) {
                         const char value = text.text[token_end];
+                        const auto unicode_length = unicode_connector_length(token_end);
                         if (is_ascii_digit(value) || is_ascii_punctuation(value))
                             ++token_end;
+                        else if (unicode_length != 0) {
+                            auto after_connector = token_end + unicode_length;
+                            while (after_connector < text.text.size() &&
+                                   is_horizontal_space(text.text[after_connector]))
+                                ++after_connector;
+                            if (after_connector >= text.text.size() ||
+                                !is_ascii_digit(text.text[after_connector]))
+                                break;
+                            token_end += unicode_length;
+                        } else if (const auto lexical_length = attached_lexical_length(token_end);
+                                   lexical_length != 0)
+                            token_end += lexical_length;
                         else
                             break;
                     }
-                    while (token_end < text.text.size() &&
-                           is_attached_lexical_byte(text.text[token_end]))
-                        ++token_end;
                     continuation_end = token_end;
                 }
                 return continuation_end;
@@ -969,8 +1006,9 @@ MappedText protect_numeric_technical_candidates(MappedText text,
                     const char value = text.text[probe];
                     if (is_ascii_digit(value)) {
                         ++probe;
-                    } else if (value != '%' &&
-                               (is_ascii_punctuation(value) || is_horizontal_space(value))) {
+                    } else if (value != '%' && (is_ascii_punctuation(value) ||
+                                                unicode_connector_length(probe) != 0 ||
+                                                is_horizontal_space(value))) {
                         ++probe;
                     } else {
                         break;
@@ -985,7 +1023,8 @@ MappedText protect_numeric_technical_candidates(MappedText text,
             }
             if (finish == base_finish && base_finish < text.text.size() &&
                 (text.text[base_finish] == '/' || text.text[base_finish] == '=' ||
-                 text.text[base_finish] == '*' || text.text[base_finish] == '-'))
+                 text.text[base_finish] == '*' || text.text[base_finish] == '-' ||
+                 unicode_connector_length(base_finish) != 0))
                 finish = scan_numeric_continuation(base_finish);
             if (finish == base_finish)
                 continue;

@@ -226,6 +226,19 @@ int main() {
     CHECK(check_technical_numeric_tail("V2.1.0-123", 6));
     CHECK(check_technical_numeric_tail("HTTP/2-123", 6));
     CHECK(check_technical_numeric_tail("#123-456", 0));
+    CHECK(check_technical_numeric_tail("C++17–123", 5));
+    CHECK(check_technical_numeric_tail("V2.1.0—123", 6));
+    CHECK(check_technical_numeric_tail("#123−456", 0));
+    {
+        const std::string unicode_suffix = "C++17%123—word";
+        for (const auto& options : {en, ru}) {
+            const auto result = frontend.process(unicode_suffix, options);
+            CHECK(result.normalized_text == unicode_suffix);
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().offset == 5);
+            CHECK(result.warnings.front().length == 4);
+        }
+    }
     CHECK(check_technical_numeric_tail("$- 1,234%123 456", 0));
     {
         const std::string separated = "C++17,23% HTTP/2,12 345%";
