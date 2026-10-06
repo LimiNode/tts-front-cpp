@@ -1,6 +1,11 @@
 #include "tts_front.hpp"
 #include "tts_front/backend/silero/silero_stress_backend.hpp"
+#include "tts_front/core/edit_script.hpp"
+#include "tts_front/core/mapped_text.hpp"
+#include "tts_front/core/source_span.hpp"
 #include "tts_front/core/utf8.hpp"
+#include "tts_front/core/utf8_document.hpp"
+#include "tts_front/normalization/candidate_scanner.hpp"
 
 #include <algorithm>
 #include <array>
@@ -22,7 +27,17 @@ namespace tts_front {
 namespace {
 
 using CodePoint = detail::Utf8CodePoint;
+using detail::apply_source_edits;
+using detail::codepoint_index_at_or_after;
 using detail::decode_utf8;
+using detail::MappedText;
+using detail::NumericCandidate;
+using detail::NumericCandidateKind;
+using detail::scan_numeric_continuation_points;
+using detail::SourceEdit;
+using detail::SourceRange;
+using detail::SourceSpan;
+using detail::Utf8Document;
 
 bool is_cyrillic(std::uint32_t cp) {
     return cp >= 0x0400 && cp <= 0x052f;
@@ -67,248 +82,12 @@ bool is_lexical_numeric_boundary(std::uint32_t cp) {
     return is_letter(cp) || is_combining_mark(cp) || is_digit(cp) || cp == '_';
 }
 
-struct SourceRange {
-    std::size_t offset = 0;
-    std::size_t length = 0;
-};
-
-struct MappedRun {
-    std::size_t output_begin = 0;
-    std::size_t output_end = 0;
-    SourceRange source;
-    bool direct_copy = false;
-};
-
-struct MappedText {
-    std::string text;
-    std::vector<MappedRun> runs;
-    const std::vector<SourceRange>* preserved_ranges = nullptr;
-
-    static MappedText from_original(std::string_view original,
-                                    const std::vector<SourceRange>* preserved_ranges) {
-        MappedText result;
-        result.text = std::string(original);
-        result.preserved_ranges = preserved_ranges;
-        if (!original.empty())
-            result.runs.push_back({0, original.size(), {0, original.size()}, true});
-        return result;
-    }
-
-    SourceRange source_range(std::size_t begin, std::size_t end) const {
-        SourceRange result;
-        bool has_source = false;
-        auto run = std::lower_bound(
-            runs.begin(), runs.end(), begin, [](const MappedRun& candidate, std::size_t position) {
-                return candidate.output_end <= position;
-            });
-        for (; run != runs.end() && run->output_begin < end; ++run) {
-            const auto overlap_begin = std::max(begin, run->output_begin);
-            const auto overlap_end = std::min(end, run->output_end);
-            if (overlap_begin >= overlap_end)
-                continue;
-            SourceRange source = run->source;
-            if (run->direct_copy) {
-                source.offset += overlap_begin - run->output_begin;
-                source.length = overlap_end - overlap_begin;
-            }
-            if (!has_source) {
-                result = source;
-                has_source = true;
-            } else {
-                const auto source_end =
-                    std::max(result.offset + result.length, source.offset + source.length);
-                result.offset = std::min(result.offset, source.offset);
-                result.length = source_end - result.offset;
-            }
-        }
-        return result;
-    }
-
-    void append_copy(const MappedText& source, std::size_t begin, std::size_t end) {
-        auto run = std::lower_bound(source.runs.begin(),
-                                    source.runs.end(),
-                                    begin,
-                                    [](const MappedRun& candidate, std::size_t position) {
-                                        return candidate.output_end <= position;
-                                    });
-        for (; run != source.runs.end() && run->output_begin < end; ++run) {
-            const auto overlap_begin = std::max(begin, run->output_begin);
-            const auto overlap_end = std::min(end, run->output_end);
-            if (overlap_begin >= overlap_end)
-                continue;
-            SourceRange origin = run->source;
-            if (run->direct_copy) {
-                origin.offset += overlap_begin - run->output_begin;
-                origin.length = overlap_end - overlap_begin;
-            }
-            append(source.text.substr(overlap_begin, overlap_end - overlap_begin),
-                   origin,
-                   run->direct_copy);
-        }
-    }
-
-    void append_generated(const MappedText& source,
-                          std::size_t begin,
-                          std::size_t end,
-                          std::string_view replacement) {
-        append(replacement, source.source_range(begin, end), false);
-    }
-
-  private:
-    void append(std::string_view value, SourceRange source, bool direct_copy) {
-        if (value.empty())
-            return;
-        const auto output_begin = text.size();
-        text += value;
-        const auto output_end = text.size();
-        if (direct_copy && !runs.empty() && runs.back().direct_copy &&
-            runs.back().output_end == output_begin &&
-            runs.back().source.offset + runs.back().source.length == source.offset) {
-            runs.back().output_end = output_end;
-            runs.back().source.length += source.length;
-            return;
-        }
-        runs.push_back({output_begin, output_end, source, direct_copy});
-    }
-};
-
-// Immutable view used by admission passes.  All candidate boundaries are
-// represented in both coordinate systems so scanners never need to decode a
-// UTF-8 suffix or guess a byte offset from a codepoint index.
-struct SourceSpan {
-    std::size_t byte_begin = 0;
-    std::size_t byte_end = 0;
-    std::size_t codepoint_begin = 0;
-    std::size_t codepoint_end = 0;
-};
-
-struct Utf8Document {
-    std::string_view bytes;
-    std::vector<CodePoint> points;
-    bool valid = false;
-
-    explicit Utf8Document(std::string_view input)
-        : bytes(input), valid(decode_utf8(input, points)) {}
-
-    SourceSpan span_from_bytes(std::size_t begin, std::size_t end) const {
-        const auto first = std::lower_bound(
-            points.begin(), points.end(), begin, [](const CodePoint& point, std::size_t offset) {
-                return point.offset < offset;
-            });
-        const auto last = std::lower_bound(
-            points.begin(), points.end(), end, [](const CodePoint& point, std::size_t offset) {
-                return point.offset < offset;
-            });
-        return {begin,
-                end,
-                static_cast<std::size_t>(first - points.begin()),
-                static_cast<std::size_t>(last - points.begin())};
-    }
-
-    SourceSpan span_from_codepoints(std::size_t begin, std::size_t end) const {
-        const auto byte_begin = begin < points.size() ? points[begin].offset : bytes.size();
-        const auto byte_end =
-            end == 0 ? byte_begin
-                     : (end <= points.size() ? points[end - 1].offset + points[end - 1].length
-                                             : bytes.size());
-        return {byte_begin, byte_end, begin, end};
-    }
-};
-
-enum class NumericCandidateKind { Technical, Numeric, Grouped, Currency };
-
-struct NumericCandidate {
-    SourceSpan span;
-    NumericCandidateKind kind = NumericCandidateKind::Numeric;
-    bool malformed = false;
-    bool embedded = false;
-    bool has_percent = false;
-};
-
-struct SourceEdit {
-    std::size_t begin = 0;
-    std::size_t end = 0;
-    std::string replacement;
-};
-
 bool is_horizontal_space(std::uint32_t cp) {
     return cp == ' ' || cp == '\t';
 }
 
 bool is_ascii_punctuation(std::uint32_t cp) {
     return cp < 0x80 && std::ispunct(static_cast<unsigned char>(cp)) != 0;
-}
-
-std::size_t codepoint_index_at_or_after(const Utf8Document& document, std::size_t byte_offset) {
-    return static_cast<std::size_t>(
-        std::lower_bound(
-            document.points.begin(),
-            document.points.end(),
-            byte_offset,
-            [](const CodePoint& point, std::size_t offset) { return point.offset < offset; }) -
-        document.points.begin());
-}
-
-std::size_t scan_numeric_continuation_points(const Utf8Document& document,
-                                             std::size_t start,
-                                             bool consume_lexical_suffix) {
-    const auto& points = document.points;
-    std::size_t continuation_end = start;
-    while (continuation_end < points.size()) {
-        auto token_begin = continuation_end;
-        while (token_begin < points.size() && is_horizontal_space(points[token_begin].value))
-            ++token_begin;
-        if (token_begin >= points.size())
-            break;
-
-        auto token_end = token_begin;
-        while (token_end < points.size()) {
-            if (is_ascii_punctuation(points[token_end].value)) {
-                ++token_end;
-            } else if (is_range_connector(points[token_end].value)) {
-                auto after_connector = token_end + 1;
-                while (after_connector < points.size() &&
-                       is_horizontal_space(points[after_connector].value))
-                    ++after_connector;
-                if (after_connector >= points.size() || !is_digit(points[after_connector].value))
-                    break;
-                token_end = after_connector;
-                continue;
-            } else {
-                break;
-            }
-            while (token_end < points.size() && is_horizontal_space(points[token_end].value))
-                ++token_end;
-        }
-        if (token_end >= points.size() || !is_digit(points[token_end].value))
-            break;
-
-        while (token_end < points.size()) {
-            if (is_digit(points[token_end].value) ||
-                is_ascii_punctuation(points[token_end].value)) {
-                ++token_end;
-                continue;
-            }
-            if (is_range_connector(points[token_end].value)) {
-                auto after_connector = token_end + 1;
-                while (after_connector < points.size() &&
-                       is_horizontal_space(points[after_connector].value))
-                    ++after_connector;
-                if (after_connector >= points.size() || !is_digit(points[after_connector].value))
-                    break;
-                token_end = after_connector;
-                continue;
-            }
-            if (consume_lexical_suffix && (is_letter(points[token_end].value) ||
-                                           is_combining_mark(points[token_end].value))) {
-                ++token_end;
-                continue;
-            }
-            break;
-        }
-        continuation_end = token_end;
-    }
-    return continuation_end;
 }
 
 MappedText cleanup_text(const MappedText& input) {
@@ -978,24 +757,6 @@ struct ProtectedSpan {
 };
 
 std::string marker_for(std::string_view text, std::size_t index);
-
-MappedText apply_source_edits(const MappedText& input, std::vector<SourceEdit> edits) {
-    std::sort(edits.begin(), edits.end(), [](const SourceEdit& left, const SourceEdit& right) {
-        return left.begin < right.begin;
-    });
-    MappedText output;
-    output.preserved_ranges = input.preserved_ranges;
-    std::size_t cursor = 0;
-    for (const auto& edit : edits) {
-        if (edit.begin < cursor || edit.begin > edit.end || edit.end > input.text.size())
-            continue;
-        output.append_copy(input, cursor, edit.begin);
-        output.append_generated(input, edit.begin, edit.end, edit.replacement);
-        cursor = edit.end;
-    }
-    output.append_copy(input, cursor, input.text.size());
-    return output;
-}
 
 void add_protected_candidate(const MappedText& text,
                              const NumericCandidate& candidate,

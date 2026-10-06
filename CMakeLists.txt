@@ -46,6 +46,10 @@ add_library(tts_front
     src/tts_front/frontend.cpp
     src/tts_front/dictionary/pronunciation_dictionary.cpp
     src/tts_front/core/utf8.cpp
+    src/tts_front/core/utf8_document.cpp
+    src/tts_front/core/mapped_text.cpp
+    src/tts_front/core/edit_script.cpp
+    src/tts_front/normalization/candidate_scanner.cpp
     src/tts_front/backend/silero/silero_asset_hash.cpp
     src/tts_front/backend/silero/silero_bundle.cpp
     src/tts_front/backend/silero/silero_sentence.cpp
