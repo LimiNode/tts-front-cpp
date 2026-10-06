@@ -1158,6 +1158,38 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
     // one forward state instead of searching backwards through the text for
     // every codepoint; this keeps the candidate admission pass linear.
     bool inside_marker = false;
+    const auto extend_percent_continuation = [&](std::size_t continuation_end) {
+        const auto is_ascii_punctuation = [](std::uint32_t value) {
+            return value < 0x80 && std::ispunct(static_cast<unsigned char>(value)) != 0;
+        };
+        const auto is_horizontal_space = [](std::uint32_t value) {
+            return value == ' ' || value == '\t';
+        };
+        while (continuation_end < points.size()) {
+            auto token_begin = continuation_end;
+            while (token_begin < points.size() && is_horizontal_space(points[token_begin].value))
+                ++token_begin;
+            if (token_begin >= points.size())
+                break;
+            auto token_end = token_begin;
+            while (token_end < points.size() && is_ascii_punctuation(points[token_end].value)) {
+                ++token_end;
+                while (token_end < points.size() && is_horizontal_space(points[token_end].value))
+                    ++token_end;
+            }
+            if (token_end >= points.size() || !is_digit(points[token_end].value))
+                break;
+            while (token_end < points.size()) {
+                const auto value = points[token_end].value;
+                if (is_digit(value) || is_ascii_punctuation(value))
+                    ++token_end;
+                else
+                    break;
+            }
+            continuation_end = token_end;
+        }
+        return continuation_end;
+    };
     for (std::size_t index = 0; index < points.size();) {
         if (points[index].value == 0x01) {
             inside_marker = true;
@@ -1285,6 +1317,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 break;
             }
         }
+        if (currency_context && has_percent)
+            end_index = extend_percent_continuation(end_index);
         const bool previous_is_connector =
             index > 0 && (points[index - 1].value == '-' || points[index - 1].value == '/' ||
                           points[index - 1].value == '+' || points[index - 1].value == '=');

@@ -335,8 +335,12 @@ int main() {
                   nested_currency_url.size() - nested_currency_url.find('$'));
         }
     }
-    for (const auto& input :
-         {std::string("$1,234%1/2"), std::string("$1,234%12/34"), std::string("$1,234%123 456")}) {
+    for (const auto& input : {std::string("$1,234%1/2"),
+                              std::string("$1,234%12/34"),
+                              std::string("$1,234%123 456"),
+                              std::string("$ 1,234%123 456"),
+                              std::string("$+1,234%123 456"),
+                              std::string("$+ 1,234%123 456")}) {
         for (const auto& options : {en, ru}) {
             const auto result = frontend.process(input, options);
             CHECK(result.normalized_text == input);
