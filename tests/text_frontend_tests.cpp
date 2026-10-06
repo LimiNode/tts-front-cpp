@@ -226,6 +226,22 @@ int main() {
         }
         return true;
     };
+    const auto check_warning_invariant = [&](const std::string& input,
+                                             const TextFrontendOptions& options) {
+        const auto result = frontend.process(input, options);
+        bool valid = true;
+        for (std::size_t left = 0; left < result.warnings.size(); ++left) {
+            valid = valid &&
+                    result.warnings[left].offset + result.warnings[left].length <= input.size();
+            for (std::size_t right = left + 1; right < result.warnings.size(); ++right) {
+                const auto& first = result.warnings[left];
+                const auto& second = result.warnings[right];
+                valid = valid && (first.offset + first.length <= second.offset ||
+                                  second.offset + second.length <= first.offset);
+            }
+        }
+        return valid;
+    };
     CHECK(check_technical_numeric_tail("x$+1,234%", 1));
     CHECK(check_technical_numeric_tail("x$-1,234%", 1));
     CHECK(check_technical_numeric_tail("x+1,234%", 1));
@@ -321,6 +337,7 @@ int main() {
             CHECK(result.normalized_text == input);
             CHECK(!result.warnings.empty());
             CHECK(result.warnings.size() <= 2);
+            CHECK(check_warning_invariant(input, options));
         }
     }
     {

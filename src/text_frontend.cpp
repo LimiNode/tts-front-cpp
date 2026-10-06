@@ -13,6 +13,7 @@
 #include <regex>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -170,6 +171,145 @@ struct MappedText {
         runs.push_back({output_begin, output_end, source, direct_copy});
     }
 };
+
+// Immutable view used by admission passes.  All candidate boundaries are
+// represented in both coordinate systems so scanners never need to decode a
+// UTF-8 suffix or guess a byte offset from a codepoint index.
+struct SourceSpan {
+    std::size_t byte_begin = 0;
+    std::size_t byte_end = 0;
+    std::size_t codepoint_begin = 0;
+    std::size_t codepoint_end = 0;
+};
+
+struct Utf8Document {
+    std::string_view bytes;
+    std::vector<CodePoint> points;
+    bool valid = false;
+
+    explicit Utf8Document(std::string_view input)
+        : bytes(input), valid(decode_utf8(input, points)) {}
+
+    SourceSpan span_from_bytes(std::size_t begin, std::size_t end) const {
+        const auto first = std::lower_bound(
+            points.begin(), points.end(), begin, [](const CodePoint& point, std::size_t offset) {
+                return point.offset < offset;
+            });
+        const auto last = std::lower_bound(
+            points.begin(), points.end(), end, [](const CodePoint& point, std::size_t offset) {
+                return point.offset < offset;
+            });
+        return {begin,
+                end,
+                static_cast<std::size_t>(first - points.begin()),
+                static_cast<std::size_t>(last - points.begin())};
+    }
+
+    SourceSpan span_from_codepoints(std::size_t begin, std::size_t end) const {
+        const auto byte_begin = begin < points.size() ? points[begin].offset : bytes.size();
+        const auto byte_end =
+            end == 0 ? byte_begin
+                     : (end <= points.size() ? points[end - 1].offset + points[end - 1].length
+                                             : bytes.size());
+        return {byte_begin, byte_end, begin, end};
+    }
+};
+
+enum class NumericCandidateKind { Technical, Numeric, Grouped, Currency };
+
+struct NumericCandidate {
+    SourceSpan span;
+    NumericCandidateKind kind = NumericCandidateKind::Numeric;
+    bool malformed = false;
+    bool embedded = false;
+    bool has_percent = false;
+};
+
+struct SourceEdit {
+    std::size_t begin = 0;
+    std::size_t end = 0;
+    std::string replacement;
+};
+
+bool is_horizontal_space(std::uint32_t cp) {
+    return cp == ' ' || cp == '\t';
+}
+
+bool is_ascii_punctuation(std::uint32_t cp) {
+    return cp < 0x80 && std::ispunct(static_cast<unsigned char>(cp)) != 0;
+}
+
+std::size_t codepoint_index_at_or_after(const Utf8Document& document, std::size_t byte_offset) {
+    return static_cast<std::size_t>(
+        std::lower_bound(
+            document.points.begin(),
+            document.points.end(),
+            byte_offset,
+            [](const CodePoint& point, std::size_t offset) { return point.offset < offset; }) -
+        document.points.begin());
+}
+
+std::size_t scan_numeric_continuation_points(const Utf8Document& document,
+                                             std::size_t start,
+                                             bool consume_lexical_suffix) {
+    const auto& points = document.points;
+    std::size_t continuation_end = start;
+    while (continuation_end < points.size()) {
+        auto token_begin = continuation_end;
+        while (token_begin < points.size() && is_horizontal_space(points[token_begin].value))
+            ++token_begin;
+        if (token_begin >= points.size())
+            break;
+
+        auto token_end = token_begin;
+        while (token_end < points.size()) {
+            if (is_ascii_punctuation(points[token_end].value)) {
+                ++token_end;
+            } else if (is_range_connector(points[token_end].value)) {
+                auto after_connector = token_end + 1;
+                while (after_connector < points.size() &&
+                       is_horizontal_space(points[after_connector].value))
+                    ++after_connector;
+                if (after_connector >= points.size() || !is_digit(points[after_connector].value))
+                    break;
+                token_end = after_connector;
+                continue;
+            } else {
+                break;
+            }
+            while (token_end < points.size() && is_horizontal_space(points[token_end].value))
+                ++token_end;
+        }
+        if (token_end >= points.size() || !is_digit(points[token_end].value))
+            break;
+
+        while (token_end < points.size()) {
+            if (is_digit(points[token_end].value) ||
+                is_ascii_punctuation(points[token_end].value)) {
+                ++token_end;
+                continue;
+            }
+            if (is_range_connector(points[token_end].value)) {
+                auto after_connector = token_end + 1;
+                while (after_connector < points.size() &&
+                       is_horizontal_space(points[after_connector].value))
+                    ++after_connector;
+                if (after_connector >= points.size() || !is_digit(points[after_connector].value))
+                    break;
+                token_end = after_connector;
+                continue;
+            }
+            if (consume_lexical_suffix && (is_letter(points[token_end].value) ||
+                                           is_combining_mark(points[token_end].value))) {
+                ++token_end;
+                continue;
+            }
+            break;
+        }
+        continuation_end = token_end;
+    }
+    return continuation_end;
+}
 
 MappedText cleanup_text(const MappedText& input) {
     MappedText result;
@@ -836,6 +976,46 @@ struct ProtectedSpan {
     std::string marker;
     std::string value;
 };
+
+std::string marker_for(std::string_view text, std::size_t index);
+
+MappedText apply_source_edits(const MappedText& input, std::vector<SourceEdit> edits) {
+    std::sort(edits.begin(), edits.end(), [](const SourceEdit& left, const SourceEdit& right) {
+        return left.begin < right.begin;
+    });
+    MappedText output;
+    output.preserved_ranges = input.preserved_ranges;
+    std::size_t cursor = 0;
+    for (const auto& edit : edits) {
+        if (edit.begin < cursor || edit.begin > edit.end || edit.end > input.text.size())
+            continue;
+        output.append_copy(input, cursor, edit.begin);
+        output.append_generated(input, edit.begin, edit.end, edit.replacement);
+        cursor = edit.end;
+    }
+    output.append_copy(input, cursor, input.text.size());
+    return output;
+}
+
+void add_protected_candidate(const MappedText& text,
+                             const NumericCandidate& candidate,
+                             WarningSink& warnings,
+                             std::vector<ProtectedSpan>& protected_spans,
+                             std::vector<SourceEdit>& edits) {
+    const auto begin = candidate.span.byte_begin;
+    const auto end = candidate.span.byte_end;
+    if (begin >= end)
+        return;
+    if (!edits.empty() && begin < edits.back().end)
+        return;
+    const auto marker = marker_for(text.text, protected_spans.size());
+    warnings.add(WarningCode::UnresolvedNumber,
+                 "Unsupported numeric-like candidate preserved verbatim",
+                 text.source_range(begin, end));
+    protected_spans.push_back({marker, text.text.substr(begin, end - begin)});
+    edits.push_back({begin, end, marker});
+}
+
 std::string marker_for(std::string_view text, std::size_t index) {
     std::string suffix;
     do {
@@ -903,11 +1083,9 @@ MappedText protect_numeric_technical_candidates(MappedText text,
     // technical shielding hides the identifier itself.  Otherwise a token such
     // as `x$+1,234%` would leave `,234%` visible to the generic normalizer.
     {
-        MappedText output;
-        output.preserved_ranges = text.preserved_ranges;
+        std::vector<SourceEdit> edits;
         std::size_t cursor = 0;
-        std::vector<CodePoint> technical_points;
-        const bool valid_technical_utf8 = decode_utf8(text.text, technical_points);
+        const Utf8Document document(text.text);
         for (std::sregex_iterator
                  it(text.text.begin(), text.text.end(), regex_patterns().technical_numeric_percent),
              end;
@@ -919,13 +1097,6 @@ MappedText protect_numeric_technical_candidates(MappedText text,
             const auto base_finish = begin + static_cast<std::size_t>(it->length());
             const auto base = it->str(1);
             const auto is_ascii_digit = [](char value) { return value >= '0' && value <= '9'; };
-            const auto is_horizontal_space = [](char value) {
-                return value == ' ' || value == '\t';
-            };
-            const auto is_ascii_punctuation = [](char value) {
-                const auto byte = static_cast<unsigned char>(value);
-                return byte < 0x80 && std::ispunct(byte) != 0;
-            };
             const auto unicode_connector_length = [&](std::size_t offset) {
                 if (offset + 2 >= text.text.size())
                     return std::size_t{0};
@@ -938,73 +1109,11 @@ MappedText protect_numeric_technical_candidates(MappedText text,
                     return std::size_t{3};
                 return std::size_t{0};
             };
-            const auto attached_lexical_length = [&](std::size_t offset) {
-                const auto byte = static_cast<unsigned char>(text.text[offset]);
-                if (byte < 0x80)
-                    return (std::isalnum(byte) != 0 || byte == '_') ? std::size_t{1}
-                                                                    : std::size_t{0};
-                if (!valid_technical_utf8)
-                    return std::size_t{0};
-                const auto point =
-                    std::lower_bound(technical_points.begin(),
-                                     technical_points.end(),
-                                     offset,
-                                     [](const CodePoint& candidate, std::size_t position) {
-                                         return candidate.offset < position;
-                                     });
-                if (point == technical_points.end() || point->offset != offset ||
-                    (!is_letter(point->value) && !is_combining_mark(point->value)))
-                    return std::size_t{0};
-                return point->length;
-            };
             const auto scan_numeric_continuation = [&](std::size_t start) {
-                std::size_t continuation_end = start;
-                while (continuation_end < text.text.size()) {
-                    auto token_begin = continuation_end;
-                    while (token_begin < text.text.size() &&
-                           is_horizontal_space(text.text[token_begin]))
-                        ++token_begin;
-                    if (token_begin >= text.text.size())
-                        break;
-                    auto token_end = token_begin;
-                    while (token_end < text.text.size()) {
-                        const auto unicode_length = unicode_connector_length(token_end);
-                        if (unicode_length != 0) {
-                            token_end += unicode_length;
-                        } else if (is_ascii_punctuation(text.text[token_end])) {
-                            ++token_end;
-                        } else {
-                            break;
-                        }
-                        while (token_end < text.text.size() &&
-                               is_horizontal_space(text.text[token_end]))
-                            ++token_end;
-                    }
-                    if (token_end >= text.text.size() || !is_ascii_digit(text.text[token_end]))
-                        break;
-                    while (token_end < text.text.size()) {
-                        const char value = text.text[token_end];
-                        const auto unicode_length = unicode_connector_length(token_end);
-                        if (is_ascii_digit(value) || is_ascii_punctuation(value))
-                            ++token_end;
-                        else if (unicode_length != 0) {
-                            auto after_connector = token_end + unicode_length;
-                            while (after_connector < text.text.size() &&
-                                   is_horizontal_space(text.text[after_connector]))
-                                ++after_connector;
-                            if (after_connector >= text.text.size() ||
-                                !is_ascii_digit(text.text[after_connector]))
-                                break;
-                            token_end += unicode_length;
-                        } else if (const auto lexical_length = attached_lexical_length(token_end);
-                                   lexical_length != 0)
-                            token_end += lexical_length;
-                        else
-                            break;
-                    }
-                    continuation_end = token_end;
-                }
-                return continuation_end;
+                const auto start_index = codepoint_index_at_or_after(document, start);
+                const auto end_index =
+                    scan_numeric_continuation_points(document, start_index, true);
+                return document.span_from_codepoints(start_index, end_index).byte_end;
             };
             std::size_t finish = base_finish;
             if (base_finish < text.text.size() &&
@@ -1076,28 +1185,20 @@ MappedText protect_numeric_technical_candidates(MappedText text,
                 if (const auto sign = base.find_first_of("+-"); sign != std::string::npos)
                     protected_begin = begin + sign;
             }
-            output.append_copy(text, cursor, protected_begin);
-            const auto source = text.source_range(protected_begin, finish);
-            warnings.add(WarningCode::UnresolvedNumber,
-                         "Unsupported numeric-like candidate preserved verbatim",
-                         source);
-            const auto marker = marker_for(text.text, protected_spans.size());
-            protected_spans.push_back(
-                {marker, text.text.substr(protected_begin, finish - protected_begin)});
-            output.append_generated(text, protected_begin, finish, marker);
+            NumericCandidate candidate{document.span_from_bytes(protected_begin, finish),
+                                       NumericCandidateKind::Technical};
+            add_protected_candidate(text, candidate, warnings, protected_spans, edits);
             cursor = finish;
         }
-        output.append_copy(text, cursor, text.text.size());
-        text = std::move(output);
+        text = apply_source_edits(text, std::move(edits));
     }
 
-    std::vector<CodePoint> points;
-    if (!decode_utf8(text.text, points))
+    const Utf8Document document(text.text);
+    if (!document.valid)
         return text;
+    const auto& points = document.points;
 
-    MappedText output;
-    output.preserved_ranges = text.preserved_ranges;
-    std::size_t cursor = 0;
+    std::vector<SourceEdit> edits;
     for (std::size_t index = 0; index < points.size();) {
         if (index > 0 && is_digit(points[index].value) &&
             (points[index - 1].value == 0x20ac || points[index - 1].value == 0xa3 ||
@@ -1105,16 +1206,9 @@ MappedText protect_numeric_technical_candidates(MappedText text,
             auto numeric_end = index + 1;
             while (numeric_end < points.size() && is_digit(points[numeric_end].value))
                 ++numeric_end;
-            const auto begin = points[index - 1].offset;
-            const auto end = points[numeric_end - 1].offset + points[numeric_end - 1].length;
-            output.append_copy(text, cursor, begin);
-            warnings.add(WarningCode::UnresolvedNumber,
-                         "Unsupported numeric-like candidate preserved verbatim",
-                         text.source_range(begin, end));
-            const auto marker = marker_for(text.text, protected_spans.size());
-            protected_spans.push_back({marker, text.text.substr(begin, end - begin)});
-            output.append_generated(text, begin, end, marker);
-            cursor = end;
+            NumericCandidate candidate{document.span_from_codepoints(index - 1, numeric_end),
+                                       NumericCandidateKind::Currency};
+            add_protected_candidate(text, candidate, warnings, protected_spans, edits);
             index = numeric_end;
             continue;
         }
@@ -1131,50 +1225,14 @@ MappedText protect_numeric_technical_candidates(MappedText text,
                     ++numeric_end;
             }
             if (numeric_end < points.size() && points[numeric_end].value == '%') {
-                const auto is_ascii_punctuation = [](std::uint32_t value) {
-                    return value < 0x80 && std::ispunct(static_cast<unsigned char>(value)) != 0;
-                };
-                const auto is_horizontal_space = [](std::uint32_t value) {
-                    return value == ' ' || value == '\t';
-                };
-                auto protected_end = numeric_end + 1;
-                while (protected_end < points.size()) {
-                    auto token_begin = protected_end;
-                    while (token_begin < points.size() &&
-                           is_horizontal_space(points[token_begin].value))
-                        ++token_begin;
-                    if (token_begin >= points.size())
-                        break;
-                    auto token_end = token_begin;
-                    while (token_end < points.size() &&
-                           is_ascii_punctuation(points[token_end].value)) {
-                        ++token_end;
-                        while (token_end < points.size() &&
-                               is_horizontal_space(points[token_end].value))
-                            ++token_end;
-                    }
-                    if (token_end >= points.size() || !is_digit(points[token_end].value))
-                        break;
-                    while (token_end < points.size()) {
-                        const auto value = points[token_end].value;
-                        if (is_digit(value) || is_ascii_punctuation(value))
-                            ++token_end;
-                        else
-                            break;
-                    }
-                    protected_end = token_end;
-                }
-                const auto begin = points[index].offset;
-                const auto end =
-                    points[protected_end - 1].offset + points[protected_end - 1].length;
-                output.append_copy(text, cursor, begin);
-                warnings.add(WarningCode::UnresolvedNumber,
-                             "Unsupported numeric-like candidate preserved verbatim",
-                             text.source_range(begin, end));
-                const auto marker = marker_for(text.text, protected_spans.size());
-                protected_spans.push_back({marker, text.text.substr(begin, end - begin)});
-                output.append_generated(text, begin, end, marker);
-                cursor = end;
+                const auto protected_end =
+                    scan_numeric_continuation_points(document, numeric_end + 1, false);
+                NumericCandidate candidate{document.span_from_codepoints(index, protected_end),
+                                           NumericCandidateKind::Currency,
+                                           true,
+                                           false,
+                                           true};
+                add_protected_candidate(text, candidate, warnings, protected_spans, edits);
                 index = protected_end;
                 continue;
             }
@@ -1232,20 +1290,12 @@ MappedText protect_numeric_technical_candidates(MappedText text,
             continue;
         }
 
-        const auto begin = points[index].offset;
-        const auto end = points[suffix_end - 1].offset + points[suffix_end - 1].length;
-        output.append_copy(text, cursor, begin);
-        warnings.add(WarningCode::UnresolvedNumber,
-                     "Unsupported numeric-like candidate preserved verbatim",
-                     text.source_range(begin, end));
-        const auto marker = marker_for(text.text, protected_spans.size());
-        protected_spans.push_back({marker, text.text.substr(begin, end - begin)});
-        output.append_generated(text, begin, end, marker);
-        cursor = end;
+        NumericCandidate candidate{
+            document.span_from_codepoints(index, suffix_end), NumericCandidateKind::Numeric, true};
+        add_protected_candidate(text, candidate, warnings, protected_spans, edits);
         index = suffix_end;
     }
-    output.append_copy(text, cursor, text.text.size());
-    return output;
+    return apply_source_edits(text, std::move(edits));
 }
 
 bool valid_date(int day, int month, int year) {
@@ -1262,49 +1312,15 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                                                 WarningSink& warnings,
                                                 std::vector<ProtectedSpan>& protected_spans,
                                                 bool russian) {
-    std::vector<CodePoint> points;
-    if (!decode_utf8(text.text, points))
+    const Utf8Document document(text.text);
+    if (!document.valid)
         return text;
-
-    MappedText output;
-    output.preserved_ranges = text.preserved_ranges;
-    std::size_t cursor = 0;
+    const auto& points = document.points;
+    std::vector<SourceEdit> edits;
     // Protected spans are emitted as well-formed control-byte markers. Carry
     // one forward state instead of searching backwards through the text for
     // every codepoint; this keeps the candidate admission pass linear.
     bool inside_marker = false;
-    const auto extend_percent_continuation = [&](std::size_t continuation_end) {
-        const auto is_ascii_punctuation = [](std::uint32_t value) {
-            return value < 0x80 && std::ispunct(static_cast<unsigned char>(value)) != 0;
-        };
-        const auto is_horizontal_space = [](std::uint32_t value) {
-            return value == ' ' || value == '\t';
-        };
-        while (continuation_end < points.size()) {
-            auto token_begin = continuation_end;
-            while (token_begin < points.size() && is_horizontal_space(points[token_begin].value))
-                ++token_begin;
-            if (token_begin >= points.size())
-                break;
-            auto token_end = token_begin;
-            while (token_end < points.size() && is_ascii_punctuation(points[token_end].value)) {
-                ++token_end;
-                while (token_end < points.size() && is_horizontal_space(points[token_end].value))
-                    ++token_end;
-            }
-            if (token_end >= points.size() || !is_digit(points[token_end].value))
-                break;
-            while (token_end < points.size()) {
-                const auto value = points[token_end].value;
-                if (is_digit(value) || is_ascii_punctuation(value))
-                    ++token_end;
-                else
-                    break;
-            }
-            continuation_end = token_end;
-        }
-        return continuation_end;
-    };
     for (std::size_t index = 0; index < points.size();) {
         if (points[index].value == 0x01) {
             inside_marker = true;
@@ -1477,7 +1493,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             }
         }
         if (currency_context && has_percent)
-            end_index = extend_percent_continuation(end_index);
+            end_index = scan_numeric_continuation_points(document, end_index, false);
         const bool previous_is_connector =
             index > 0 && (points[index - 1].value == '-' || points[index - 1].value == '/' ||
                           points[index - 1].value == '+' || points[index - 1].value == '=');
@@ -1607,21 +1623,19 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
               !(currency_prefix && has_percent))) {
             const auto protected_begin =
                 currency_prefix ? points[currency_prefix_begin].offset : begin;
-            output.append_copy(text, cursor, protected_begin);
-            const auto source = text.source_range(protected_begin, end);
-            warnings.add(WarningCode::UnresolvedNumber,
-                         "Unsupported numeric-like candidate preserved verbatim",
-                         source);
-            const auto marker = marker_for(text.text, protected_spans.size());
-            protected_spans.push_back(
-                {marker, text.text.substr(protected_begin, end - protected_begin)});
-            output.append_generated(text, protected_begin, end, marker);
-            cursor = end;
+            NumericCandidate candidate{document.span_from_bytes(protected_begin, end),
+                                       currency_prefix ? NumericCandidateKind::Currency
+                                                       : (malformed_grouped || malformed_compound
+                                                              ? NumericCandidateKind::Grouped
+                                                              : NumericCandidateKind::Numeric),
+                                       true,
+                                       embedded,
+                                       has_percent};
+            add_protected_candidate(text, candidate, warnings, protected_spans, edits);
         }
         index = end_index;
     }
-    output.append_copy(text, cursor, text.text.size());
-    return output;
+    return apply_source_edits(text, std::move(edits));
 }
 
 MappedText collapse_grouped_numbers(const MappedText& input) {
