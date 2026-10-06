@@ -314,7 +314,7 @@ struct RegexPatterns {
         R"((?:#[0-9]+)|(?:[A-Za-z][A-Za-z0-9+._$#-]*[-+$][A-Za-z0-9._$#-]+))"};
     const std::regex technical_numeric_percent{
         R"(((?:[vV]\d+(?:\.\d+)+|HTTP/\d+(?:\.\d+)?|C#\d+(?:\.\d+)?|(?:RTX|CUDA|GPU|API)\s+\d+(?:\.\d+)?|\d{1,3}(?:\.\d{1,3}){3}|#[0-9]+|[A-Za-z][A-Za-z0-9+._#-]*\$(?:[+-][ \t]*)?\d+|[A-Za-z][A-Za-z0-9+._$#-]*[-+$][ \t]*[A-Za-z0-9._$#-]+)))"};
-    const std::regex grouped_number{R"((^|[^0-9])-?\d{1,3}(?:\s+\d{3})+)"};
+    const std::regex grouped_number{R"((^|[^0-9])-?\d{1,3}(?:\s+\d{3})+(?![0-9]))"};
     const std::regex en_comma_grouped_number{R"((^|[^0-9])(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?))"};
     const std::regex en_comma_grouped_value{R"(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?)"};
     const std::regex en_comma_grouped_percent{R"(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?%)"};
@@ -906,6 +906,8 @@ MappedText protect_numeric_technical_candidates(MappedText text,
         MappedText output;
         output.preserved_ranges = text.preserved_ranges;
         std::size_t cursor = 0;
+        std::vector<CodePoint> technical_points;
+        const bool valid_technical_utf8 = decode_utf8(text.text, technical_points);
         for (std::sregex_iterator
                  it(text.text.begin(), text.text.end(), regex_patterns().technical_numeric_percent),
              end;
@@ -941,13 +943,19 @@ MappedText protect_numeric_technical_candidates(MappedText text,
                 if (byte < 0x80)
                     return (std::isalnum(byte) != 0 || byte == '_') ? std::size_t{1}
                                                                     : std::size_t{0};
-                std::vector<CodePoint> suffix_points;
-                if (!decode_utf8(std::string_view{text.text}.substr(offset), suffix_points) ||
-                    suffix_points.empty() ||
-                    (!is_letter(suffix_points.front().value) &&
-                     !is_combining_mark(suffix_points.front().value)))
+                if (!valid_technical_utf8)
                     return std::size_t{0};
-                return suffix_points.front().length;
+                const auto point =
+                    std::lower_bound(technical_points.begin(),
+                                     technical_points.end(),
+                                     offset,
+                                     [](const CodePoint& candidate, std::size_t position) {
+                                         return candidate.offset < position;
+                                     });
+                if (point == technical_points.end() || point->offset != offset ||
+                    (!is_letter(point->value) && !is_combining_mark(point->value)))
+                    return std::size_t{0};
+                return point->length;
             };
             const auto scan_numeric_continuation = [&](std::size_t start) {
                 std::size_t continuation_end = start;
@@ -1002,13 +1010,24 @@ MappedText protect_numeric_technical_candidates(MappedText text,
             if (base_finish < text.text.size() &&
                 (text.text[base_finish] == ',' || text.text[base_finish] == '%')) {
                 auto probe = base_finish;
+                bool saw_digit = false;
                 while (probe < text.text.size()) {
                     const char value = text.text[probe];
+                    const auto unicode_length = unicode_connector_length(probe);
                     if (is_ascii_digit(value)) {
                         ++probe;
-                    } else if (value != '%' && (is_ascii_punctuation(value) ||
-                                                unicode_connector_length(probe) != 0 ||
-                                                is_horizontal_space(value))) {
+                        saw_digit = true;
+                    } else if (unicode_length != 0) {
+                        auto after_connector = probe + unicode_length;
+                        while (after_connector < text.text.size() &&
+                               is_horizontal_space(text.text[after_connector]))
+                            ++after_connector;
+                        if (after_connector >= text.text.size() ||
+                            !is_ascii_digit(text.text[after_connector]))
+                            break;
+                        probe += unicode_length;
+                    } else if (value != '%' &&
+                               (is_ascii_punctuation(value) || is_horizontal_space(value))) {
                         ++probe;
                     } else {
                         break;
@@ -1017,15 +1036,35 @@ MappedText protect_numeric_technical_candidates(MappedText text,
                 if (probe < text.text.size() && text.text[probe] == '%') {
                     const auto after_percent = probe + 1;
                     const auto continuation_end = scan_numeric_continuation(after_percent);
-                    if (continuation_end != after_percent || base_finish != probe)
+                    if (continuation_end != after_percent || (base_finish != probe && saw_digit))
                         finish = continuation_end;
                 }
+                if (finish == base_finish && probe > base_finish && saw_digit)
+                    finish = probe;
             }
-            if (finish == base_finish && base_finish < text.text.size() &&
-                (text.text[base_finish] == '/' || text.text[base_finish] == '=' ||
-                 text.text[base_finish] == '*' || text.text[base_finish] == '-' ||
-                 unicode_connector_length(base_finish) != 0))
-                finish = scan_numeric_continuation(base_finish);
+            if (finish == base_finish) {
+                auto connector = base_finish;
+                while (connector < text.text.size() && is_horizontal_space(text.text[connector]))
+                    ++connector;
+                const auto connector_length =
+                    connector < text.text.size() &&
+                            (text.text[connector] == '/' || text.text[connector] == '=' ||
+                             text.text[connector] == '*' || text.text[connector] == '-' ||
+                             unicode_connector_length(connector) != 0)
+                        ? (unicode_connector_length(connector) != 0
+                               ? unicode_connector_length(connector)
+                               : std::size_t{1})
+                        : std::size_t{0};
+                if (connector_length != 0) {
+                    auto after_connector = connector + connector_length;
+                    while (after_connector < text.text.size() &&
+                           is_horizontal_space(text.text[after_connector]))
+                        ++after_connector;
+                    if (after_connector < text.text.size() &&
+                        is_ascii_digit(text.text[after_connector]))
+                        finish = scan_numeric_continuation(after_connector);
+                }
+            }
             if (finish == base_finish)
                 continue;
             std::size_t protected_begin = base_finish;
@@ -1060,6 +1099,25 @@ MappedText protect_numeric_technical_candidates(MappedText text,
     output.preserved_ranges = text.preserved_ranges;
     std::size_t cursor = 0;
     for (std::size_t index = 0; index < points.size();) {
+        if (index > 0 && is_digit(points[index].value) &&
+            (points[index - 1].value == 0x20ac || points[index - 1].value == 0xa3 ||
+             points[index - 1].value == 0xa5)) {
+            auto numeric_end = index + 1;
+            while (numeric_end < points.size() && is_digit(points[numeric_end].value))
+                ++numeric_end;
+            const auto begin = points[index - 1].offset;
+            const auto end = points[numeric_end - 1].offset + points[numeric_end - 1].length;
+            output.append_copy(text, cursor, begin);
+            warnings.add(WarningCode::UnresolvedNumber,
+                         "Unsupported numeric-like candidate preserved verbatim",
+                         text.source_range(begin, end));
+            const auto marker = marker_for(text.text, protected_spans.size());
+            protected_spans.push_back({marker, text.text.substr(begin, end - begin)});
+            output.append_generated(text, begin, end, marker);
+            cursor = end;
+            index = numeric_end;
+            continue;
+        }
         if (points[index].value == '$' && index + 1 < points.size() &&
             is_digit(points[index + 1].value)) {
             auto numeric_end = index + 1;
@@ -1133,7 +1191,8 @@ MappedText protect_numeric_technical_candidates(MappedText text,
         while (end_index < points.size() && is_digit(points[end_index].value))
             ++end_index;
         if (end_index < points.size() &&
-            (points[end_index].value == '.' || points[end_index].value == ',') &&
+            (points[end_index].value == '.' || points[end_index].value == ',' ||
+             points[end_index].value == ':') &&
             end_index + 1 < points.size() && is_digit(points[end_index + 1].value)) {
             ++end_index;
             while (end_index < points.size() && is_digit(points[end_index].value))
@@ -1270,7 +1329,10 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 --currency_context_probe;
         }
         const bool currency_context =
-            currency_context_probe > 0 && points[currency_context_probe - 1].value == '$';
+            currency_context_probe > 0 && (points[currency_context_probe - 1].value == '$' ||
+                                           points[currency_context_probe - 1].value == 0x20ac ||
+                                           points[currency_context_probe - 1].value == 0xa3 ||
+                                           points[currency_context_probe - 1].value == 0xa5);
         const bool starts_phone = points[index].value == '+' && index + 1 < points.size() &&
                                   is_digit(points[index + 1].value) && !currency_context;
         const bool starts_number = is_digit(points[index].value) ||
@@ -1287,6 +1349,14 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         bool percent_attached_to_numeric = false;
         bool has_range_connector = false;
         bool has_unsupported_numeric_connector = false;
+        bool malformed_grouped = false;
+        bool malformed_compound = false;
+        bool grouped_seen = false;
+        auto initial_digit_index = index + (points[index].value == '-' ? 1 : 0);
+        const auto initial_digit_begin = initial_digit_index;
+        while (initial_digit_index < points.size() && is_digit(points[initial_digit_index].value))
+            ++initial_digit_index;
+        const auto initial_digit_count = initial_digit_index - initial_digit_begin;
         if (starts_phone) {
             while (end_index < points.size()) {
                 if (is_digit(points[end_index].value)) {
@@ -1343,11 +1413,43 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                         end_index = probe;
                         continue;
                     }
+                    if (probe < points.size() && is_digit(points[probe].value)) {
+                        auto group_end = probe;
+                        while (group_end < points.size() && is_digit(points[group_end].value))
+                            ++group_end;
+                        const auto group_size = group_end - probe;
+                        const bool short_following_group =
+                            grouped_seen && group_size < 3 &&
+                            (group_end == points.size() ||
+                             is_lexical_numeric_boundary(points[group_end].value));
+                        if (separators == 0 && initial_digit_count <= 3 &&
+                            (group_size >= 3 || short_following_group)) {
+                            grouped_seen = true;
+                            malformed_grouped = malformed_grouped || group_size != 3;
+                            if (group_end < points.size() &&
+                                is_lexical_numeric_boundary(points[group_end].value))
+                                malformed_grouped = true;
+                            end_index = group_end;
+                            continue;
+                        }
+                    }
                     break;
                 }
                 if ((value == '.' || value == ',' || value == ':') &&
-                    (end_index + 1 >= points.size() || !is_digit(points[end_index + 1].value)))
+                    (end_index + 1 >= points.size() || !is_digit(points[end_index + 1].value))) {
+                    if (value == '.' && end_index + 1 < points.size() &&
+                        points[end_index + 1].value == '.') {
+                        auto probe = end_index;
+                        while (probe < points.size() && points[probe].value == '.')
+                            ++probe;
+                        if (probe < points.size() && is_digit(points[probe].value)) {
+                            malformed_compound = true;
+                            end_index = probe;
+                            continue;
+                        }
+                    }
                     break;
+                }
                 if (is_numeric_connector(value)) {
                     if (value == '%') {
                         has_percent = true;
@@ -1414,6 +1516,12 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             }
             end_index = grouped_end;
         }
+        if (malformed_grouped) {
+            while (end_index < points.size() &&
+                   (is_lexical_numeric_boundary(points[end_index].value) ||
+                    is_combining_mark(points[end_index].value)))
+                ++end_index;
+        }
         const auto end =
             end_index == 0 ? begin : points[end_index - 1].offset + points[end_index - 1].length;
         const auto candidate = text.text.substr(begin, end - begin);
@@ -1428,7 +1536,11 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         while (currency_probe > 0 && (points[currency_probe - 1].value == ' ' ||
                                       points[currency_probe - 1].value == '\t'))
             --currency_probe;
-        const bool currency_prefix = currency_probe > 0 && points[currency_probe - 1].value == '$';
+        const bool currency_prefix =
+            currency_probe > 0 &&
+            (points[currency_probe - 1].value == '$' ||
+             points[currency_probe - 1].value == 0x20ac ||
+             points[currency_probe - 1].value == 0xa3 || points[currency_probe - 1].value == 0xa5);
         if (currency_prefix)
             currency_prefix_begin = currency_probe - 1;
         const bool attached_lexical_suffix = separators != 0 && end_index < points.size() &&
@@ -1487,12 +1599,14 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         if ((separators >= 2 || embedded || attached_lexical_suffix ||
              (comma_group_followed_by_word && !valid_english_comma_group) ||
              unsupported_numeric_connector || invalid_percent || malformed_english_comma_group ||
-             (currency_prefix && has_percent)) &&
+             malformed_grouped || malformed_compound ||
+             (currency_prefix && (has_percent || currency_probe < index ||
+                                  points[currency_probe - 1].value != '$'))) &&
             !(valid_russian_date && !embedded) &&
             !(valid_english_comma_group && !embedded && !attached_lexical_suffix &&
               !(currency_prefix && has_percent))) {
             const auto protected_begin =
-                currency_prefix && has_percent ? points[currency_prefix_begin].offset : begin;
+                currency_prefix ? points[currency_prefix_begin].offset : begin;
             output.append_copy(text, cursor, protected_begin);
             const auto source = text.source_range(protected_begin, end);
             warnings.add(WarningCode::UnresolvedNumber,
@@ -1863,7 +1977,7 @@ MappedText normalize_en(MappedText text, WarningSink& warnings) {
                 return match.str();
             }
             const auto unit = match[2].str();
-            const bool singular = n == 1;
+            const bool singular = n == 1 || n == -1;
             const std::string spoken = unit == "kg" || unit.find("kilogram") == 0
                                            ? (singular ? "kilogram" : "kilograms")
                                        : unit == "km" || unit.find("kilomet") == 0

@@ -130,6 +130,54 @@ int main() {
     CHECK(frontend.process("1:01 2:02 12:30", en).normalized_text ==
           "one hour one minute two hours two minutes twelve hours thirty minutes");
     CHECK(frontend.process("1 kg 2 km", en).normalized_text == "one kilogram two kilometers");
+    for (const auto& input : {std::string("12 3456"),
+                              std::string("12 345foo"),
+                              std::string("1.2..3"),
+                              std::string("1:02..3"),
+                              std::string("$ 1"),
+                              std::string("€1"),
+                              std::string("1:02#3")}) {
+        const auto result = frontend.process(input, en);
+        CHECK(result.normalized_text == input);
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(result.warnings.front().length <= input.size());
+    }
+    for (const auto& input : {std::string("12 3456"),
+                              std::string("12 345foo"),
+                              std::string("1.2..3"),
+                              std::string("1:02..3"),
+                              std::string("$ 1"),
+                              std::string("\xE2\x82\xAC") + "1",
+                              std::string("1:02#3")}) {
+        const auto result = frontend.process(input, ru);
+        CHECK(result.normalized_text == input);
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(result.warnings.front().offset == 0);
+        CHECK(result.warnings.front().length == input.size());
+    }
+    {
+        const std::string euro = "\xe2\x82\xac"
+                                 "1";
+        const auto result = frontend.process(euro, en);
+        CHECK(result.normalized_text == euro);
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(result.warnings.front().offset == 0);
+        CHECK(result.warnings.front().length == euro.size());
+    }
+    {
+        auto no_cleanup = en;
+        no_cleanup.cleanup_spacing = false;
+        const std::string input = "C++17,234–123";
+        const auto result = frontend.process(input, no_cleanup);
+        CHECK(result.normalized_text == input);
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().offset == 5);
+        CHECK(result.warnings.front().length == input.size() - 5);
+    }
+    CHECK(frontend.process("-1 kg", en).normalized_text == "minus one kilogram");
     CHECK(frontend.process("1 MB 2 MB 1 GB 2 GB", en).normalized_text ==
           "one megabyte two megabytes one gigabyte two gigabytes");
     CHECK(frontend.process("$12.345", en).normalized_text == "$12.345");
@@ -167,8 +215,7 @@ int main() {
     CHECK(frontend.process(decomposed_word, en).normalized_text == decomposed_word);
     CHECK(frontend.process("x$12 RTX-4090 C++17 V2.1.0 #123", en).normalized_text ==
           "x$12 RTX-4090 C++17 V2.1.0 #123");
-    const auto check_technical_numeric_tail = [&](const char* value, std::size_t offset) {
-        const std::string input = value;
+    const auto check_technical_numeric_tail = [&](const std::string& input, std::size_t offset) {
         for (const auto& options : {en, ru}) {
             const auto result = frontend.process(input, options);
             if (result.normalized_text != input || result.warnings.size() != 1 ||
@@ -217,6 +264,22 @@ int main() {
     CHECK(check_technical_numeric_tail("C++17%123", 5));
     CHECK(check_technical_numeric_tail("#123%456", 0));
     CHECK(check_technical_numeric_tail("x+1%123", 1));
+    CHECK(check_technical_numeric_tail(std::string("C++17,234") + "\xE2\x80\x93" + "123", 5));
+    CHECK(check_technical_numeric_tail(std::string("x$+1,234") + "\xE2\x80\x93" + "123", 1));
+    CHECK(check_technical_numeric_tail(std::string("HTTP/2,234") + "\xE2\x80\x94" + "123", 6));
+    CHECK(check_technical_numeric_tail(std::string("V2.1.0,234") + "\xE2\x88\x92" + "123", 6));
+    {
+        const auto input = std::string("C++17,234") + "\xE2\x80\x93" + "word";
+        for (const auto& options : {en, ru}) {
+            const auto result = frontend.process(input, options);
+            CHECK(result.normalized_text == input);
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().offset == 5);
+            CHECK(result.warnings.front().length == 4);
+        }
+    }
+    CHECK(check_technical_numeric_tail(std::string("C++17 ") + "\xE2\x80\x93" + " 123", 5));
+    CHECK(check_technical_numeric_tail(std::string("#123 ") + "\xE2\x88\x92" + " 456", 0));
     CHECK(check_technical_numeric_tail("C++17%123word", 5));
     CHECK(check_technical_numeric_tail("C++17%123РєРёРІРѕ", 5));
     CHECK(check_technical_numeric_tail("RTX-4090/123", 3));
