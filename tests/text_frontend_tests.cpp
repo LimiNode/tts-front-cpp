@@ -735,6 +735,71 @@ int main() {
     {
         TextFrontendOptions segmented;
         segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        segmented.cleanup_spacing = false;
+        for (const auto& input : {std::string("Привет 99:99 2 kgfoo"),
+                                  std::string("Привет 1$ 2 kgfoo"),
+                                  std::string("Привет 1,234.56! 2 kgfoo")}) {
+            const auto result = frontend.process(input, segmented);
+            const auto candidate = input.find("2 kgfoo");
+            CHECK(candidate != std::string::npos);
+            CHECK(result.normalized_text == input);
+            const auto warning = std::find_if(
+                result.warnings.begin(),
+                result.warnings.end(),
+                [candidate](const TextWarning& item) {
+                    return item.code == WarningCode::UnresolvedNumber && item.offset == candidate;
+                });
+            CHECK(warning != result.warnings.end());
+            CHECK(warning->length == input.size() - candidate);
+        }
+    }
+    {
+        TextFrontendOptions segmented;
+        segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        segmented.cleanup_spacing = false;
+        for (const auto& input : {std::string("Hello 2 кг-3"),
+                                  std::string("Hello 2 кг—3"),
+                                  std::string("Hello 2 руб./3")}) {
+            const auto result = frontend.process(input, segmented);
+            const auto candidate = input.find("2 ");
+            CHECK(result.normalized_text == input);
+            const auto warning = std::find_if(
+                result.warnings.begin(),
+                result.warnings.end(),
+                [candidate](const TextWarning& item) {
+                    return item.code == WarningCode::UnresolvedNumber && item.offset == candidate;
+                });
+            CHECK(warning != result.warnings.end());
+            CHECK(warning->length == input.size() - candidate);
+        }
+    }
+    {
+        TextFrontendOptions segmented;
+        segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        segmented.cleanup_spacing = false;
+        for (const auto& input : {std::string("Привет 2 kg-3"),
+                                  std::string("Привет 2 kg+3"),
+                                  std::string("Привет 2 kg—3"),
+                                  std::string("Привет 2 kg%3"),
+                                  std::string("Привет x $1/2")}) {
+            const auto result = frontend.process(input, segmented);
+            const auto candidate =
+                input.find(input.find("$1") != std::string::npos ? "$1" : "2 kg");
+            CHECK(candidate != std::string::npos);
+            CHECK(result.normalized_text == input);
+            const auto warning = std::find_if(
+                result.warnings.begin(),
+                result.warnings.end(),
+                [candidate](const TextWarning& item) {
+                    return item.code == WarningCode::UnresolvedNumber && item.offset == candidate;
+                });
+            CHECK(warning != result.warnings.end());
+            CHECK(warning->length == input.size() - candidate);
+        }
+    }
+    {
+        TextFrontendOptions segmented;
+        segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
         const auto result =
             frontend.process("Видеокарта RTX 4090 работает на 1.5 GB RAM.", segmented);
         CHECK(result.normalized_text == "Видеокарта RTX 4090 работает на one point five GB RAM.");

@@ -247,8 +247,11 @@ void collect_candidates(const MappedText& input,
          ++it) {
         const auto begin = static_cast<std::size_t>(it->position(2));
         const auto finish = begin + static_cast<std::size_t>(it->length(2));
-        if (overlaps(technical_index.ranges, begin, finish, technical_cursor) ||
-            preserved(input, begin, finish))
+        const bool technical_overlap =
+            overlaps(technical_index.ranges, begin, finish, technical_cursor);
+        const bool candidate_inside_technical =
+            technical_overlap && technical_index.ranges[technical_cursor].offset <= begin;
+        if (candidate_inside_technical || preserved(input, begin, finish))
             continue;
         const auto replacement = formatter(it->str(2));
         if (!replacement) {
@@ -274,9 +277,48 @@ void protect_malformed_candidates(const MappedText& input,
          ++it) {
         auto begin = static_cast<std::size_t>(it->position(1));
         const auto finish = begin + static_cast<std::size_t>(it->length(1));
-        if (overlaps(technical_index.ranges, begin, finish, technical_cursor) ||
-            preserved(input, begin, finish))
+        const bool technical_overlap =
+            overlaps(technical_index.ranges, begin, finish, technical_cursor);
+        const bool candidate_inside_technical =
+            technical_overlap && technical_index.ranges[technical_cursor].offset <= begin;
+        if (candidate_inside_technical || preserved(input, begin, finish))
             continue;
+        const auto continuation_end = [&] {
+            std::size_t index = codepoint_index_at_or_after(document, finish);
+            const auto start = index;
+            while (index < document.points.size()) {
+                auto connector = index;
+                while (connector < document.points.size() &&
+                       is_horizontal_space(document.points[connector].value))
+                    ++connector;
+                if (connector >= document.points.size())
+                    break;
+                const auto value = document.points[connector].value;
+                if (value != '/' && value != '-' && value != '+' && value != '=' && value != '%' &&
+                    value != '*' && !is_range_connector(value))
+                    break;
+                auto number = connector + 1;
+                while (number < document.points.size() &&
+                       is_horizontal_space(document.points[number].value))
+                    ++number;
+                if (number >= document.points.size() || !is_digit(document.points[number].value))
+                    break;
+                while (number < document.points.size() && is_digit(document.points[number].value))
+                    ++number;
+                if (number + 1 < document.points.size() &&
+                    (document.points[number].value == '.' ||
+                     document.points[number].value == ',') &&
+                    is_digit(document.points[number + 1].value)) {
+                    number += 2;
+                    while (number < document.points.size() &&
+                           is_digit(document.points[number].value))
+                        ++number;
+                }
+                index = number;
+            }
+            return index == start ? finish : document.span_from_codepoints(start, index).byte_end;
+        }();
+        const auto candidate_end = continuation_end;
         const auto point_index = codepoint_index_at_or_after(document, begin);
         const auto previous = point_index == 0 ? 0U : document.points[point_index - 1].value;
         const bool valid_prefix = point_index == 0 || is_horizontal_space(previous) ||
@@ -287,13 +329,13 @@ void protect_malformed_candidates(const MappedText& input,
                 begin = document.points[point_index - 1].offset;
             warnings.add(WarningCode::UnresolvedNumber,
                          "Unsupported mixed-language numeric boundary",
-                         input.source_range(begin, finish));
+                         input.source_range(begin, candidate_end));
             continue;
         }
-        if (!formatter(it->str(1))) {
+        if (candidate_end != finish || !formatter(it->str(1))) {
             warnings.add(WarningCode::UnresolvedNumber,
                          "Unsupported mixed-language numeric candidate",
-                         input.source_range(begin, finish));
+                         input.source_range(begin, candidate_end));
         }
     }
 }
@@ -339,11 +381,15 @@ MappedText normalize_mixed_candidates(MappedText text,
     if (dominant_language == Language::Russian) {
         protect_malformed_candidates(
             text, malformed_english_candidate(), technical_index, format_english, warnings);
+        protect_malformed_candidates(
+            text, malformed_russian_candidate(), technical_index, format_russian, warnings);
         collect_candidates(
             text, foreign_english_candidate(), technical_index, format_english, warnings, edits);
     } else if (dominant_language == Language::English) {
         protect_malformed_candidates(
             text, malformed_russian_candidate(), technical_index, format_russian, warnings);
+        protect_malformed_candidates(
+            text, malformed_english_candidate(), technical_index, format_english, warnings);
         collect_candidates(
             text, foreign_russian_candidate(), technical_index, format_russian, warnings, edits);
     }

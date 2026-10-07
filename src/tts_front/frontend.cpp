@@ -224,7 +224,7 @@ TextFrontendResult TextFrontend::process(std::string_view input,
     if (options.normalize) {
         if (options.language == Language::Auto &&
             options.mixed_language_policy == MixedLanguagePolicy::SegmentCandidates &&
-            has_cyrillic && has_latin && technical_index)
+            has_cyrillic && technical_index)
             text = detail::normalize_mixed_candidates(
                 std::move(text), warning_sink, language, *technical_index);
         switch (language) {

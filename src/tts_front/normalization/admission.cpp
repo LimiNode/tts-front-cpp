@@ -85,8 +85,20 @@ void WarningSink::add_range(WarningCode code,
 }
 
 void WarningSink::add(WarningCode code, std::string message, SourceRange source) {
-    if (source.length != 0)
-        preserved_ranges.push_back(source);
+    if (source.length != 0) {
+        const auto insertion =
+            std::lower_bound(preserved_ranges.begin(),
+                             preserved_ranges.end(),
+                             source,
+                             [](const SourceRange& left, const SourceRange& right) {
+                                 if (left.offset != right.offset)
+                                     return left.offset < right.offset;
+                                 return left.length < right.length;
+                             });
+        if (insertion == preserved_ranges.end() || insertion->offset != source.offset ||
+            insertion->length != source.length)
+            preserved_ranges.insert(insertion, source);
+    }
     add_range(code, std::move(message), source.offset, source.length);
 }
 
