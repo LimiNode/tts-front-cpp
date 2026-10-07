@@ -53,6 +53,7 @@ add_library(tts_front
     src/tts_front/core/tokenization.cpp
     src/tts_front/core/text/codepoint_classification.cpp
     src/tts_front/core/numeric_scanner.cpp
+    src/tts_front/core/normalization_support.cpp
     src/tts_front/normalization/admission.cpp
     src/tts_front/technical/admission.cpp
     src/tts_front/normalization/malformed_admission.cpp
@@ -164,6 +165,21 @@ if(TTS_FRONT_BUILD_TESTS)
     target_compile_definitions(tts_front_silero_bundle_tests PRIVATE TTS_FRONT_ENABLE_ONNX_STRESS=1)
   endif()
   add_test(NAME tts_front_silero_bundle_tests COMMAND tts_front_silero_bundle_tests)
+  add_executable(tts_front_technical_boundary_tests
+    tests/technical_boundary.cpp
+    src/tts_front/core/utf8.cpp
+    src/tts_front/core/utf8_document.cpp
+    src/tts_front/core/mapped_text.cpp
+    src/tts_front/core/edit_script.cpp
+    src/tts_front/core/numeric_scanner.cpp
+    src/tts_front/core/normalization_support.cpp
+    src/tts_front/core/text/codepoint_classification.cpp
+    src/tts_front/technical/admission.cpp
+    src/tts_front/technical/patterns.cpp)
+  tts_front_configure_target(tts_front_technical_boundary_tests)
+  target_compile_features(tts_front_technical_boundary_tests PRIVATE cxx_std_17)
+  target_include_directories(tts_front_technical_boundary_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  add_test(NAME tts_front_technical_boundary_tests COMMAND tts_front_technical_boundary_tests)
   if(TTS_FRONT_ENABLE_ONNX_STRESS)
     add_executable(tts_front_silero_sentence_probe tests/silero_sentence_probe.cpp)
     tts_front_configure_target(tts_front_silero_sentence_probe)

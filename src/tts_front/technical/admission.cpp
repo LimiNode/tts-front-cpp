@@ -192,14 +192,14 @@ MappedText protect_numeric_candidates(MappedText text,
                     } else if (unicode_length != 0) {
                         auto after_connector = probe + unicode_length;
                         while (after_connector < text.text.size() &&
-                               is_horizontal_space(text.text[after_connector]))
+                               text::is_horizontal_space(text.text[after_connector]))
                             ++after_connector;
                         if (after_connector >= text.text.size() ||
                             !is_ascii_digit(text.text[after_connector]))
                             break;
                         probe += unicode_length;
-                    } else if (value != '%' &&
-                               (is_ascii_punctuation(value) || is_horizontal_space(value))) {
+                    } else if (value != '%' && (text::is_ascii_punctuation(value) ||
+                                                text::is_horizontal_space(value))) {
                         ++probe;
                     } else {
                         break;
@@ -216,7 +216,8 @@ MappedText protect_numeric_candidates(MappedText text,
             }
             if (finish == base_finish) {
                 auto connector = base_finish;
-                while (connector < text.text.size() && is_horizontal_space(text.text[connector]))
+                while (connector < text.text.size() &&
+                       text::is_horizontal_space(text.text[connector]))
                     ++connector;
                 const auto connector_length =
                     connector < text.text.size() &&
@@ -230,7 +231,7 @@ MappedText protect_numeric_candidates(MappedText text,
                 if (connector_length != 0) {
                     auto after_connector = connector + connector_length;
                     while (after_connector < text.text.size() &&
-                           is_horizontal_space(text.text[after_connector]))
+                           text::is_horizontal_space(text.text[after_connector]))
                         ++after_connector;
                     if (after_connector < text.text.size() &&
                         is_ascii_digit(text.text[after_connector]))
@@ -263,11 +264,11 @@ MappedText protect_numeric_candidates(MappedText text,
 
     std::vector<SourceEdit> edits;
     for (std::size_t index = 0; index < points.size();) {
-        if (index > 0 && is_digit(points[index].value) &&
+        if (index > 0 && text::is_digit(points[index].value) &&
             (points[index - 1].value == 0x20ac || points[index - 1].value == 0xa3 ||
              points[index - 1].value == 0xa5)) {
             auto numeric_end = index + 1;
-            while (numeric_end < points.size() && is_digit(points[numeric_end].value))
+            while (numeric_end < points.size() && text::is_digit(points[numeric_end].value))
                 ++numeric_end;
             NumericCandidate candidate{document.span_from_codepoints(index - 1, numeric_end),
                                        NumericCandidateKind::Currency};
@@ -276,15 +277,16 @@ MappedText protect_numeric_candidates(MappedText text,
             continue;
         }
         if (points[index].value == '$' && index + 1 < points.size() &&
-            is_digit(points[index + 1].value)) {
+            text::is_digit(points[index + 1].value)) {
             auto numeric_end = index + 1;
-            while (numeric_end < points.size() && is_digit(points[numeric_end].value))
+            while (numeric_end < points.size() && text::is_digit(points[numeric_end].value))
                 ++numeric_end;
             while (numeric_end < points.size() &&
                    (points[numeric_end].value == ',' || points[numeric_end].value == '.') &&
-                   numeric_end + 1 < points.size() && is_digit(points[numeric_end + 1].value)) {
+                   numeric_end + 1 < points.size() &&
+                   text::is_digit(points[numeric_end + 1].value)) {
                 numeric_end += 1;
-                while (numeric_end < points.size() && is_digit(points[numeric_end].value))
+                while (numeric_end < points.size() && text::is_digit(points[numeric_end].value))
                     ++numeric_end;
             }
             if (numeric_end < points.size() && points[numeric_end].value == '%') {
@@ -300,23 +302,24 @@ MappedText protect_numeric_candidates(MappedText text,
                 continue;
             }
         }
-        const bool starts_number = is_digit(points[index].value) ||
+        const bool starts_number = text::is_digit(points[index].value) ||
                                    (points[index].value == '-' && index + 1 < points.size() &&
-                                    is_digit(points[index + 1].value));
-        if (!starts_number || (index > 0 && is_lexical_numeric_boundary(points[index - 1].value))) {
+                                    text::is_digit(points[index + 1].value));
+        if (!starts_number ||
+            (index > 0 && text::is_lexical_numeric_boundary(points[index - 1].value))) {
             ++index;
             continue;
         }
 
         std::size_t end_index = index + (points[index].value == '-' ? 1 : 0);
-        while (end_index < points.size() && is_digit(points[end_index].value))
+        while (end_index < points.size() && text::is_digit(points[end_index].value))
             ++end_index;
         if (end_index < points.size() &&
             (points[end_index].value == '.' || points[end_index].value == ',' ||
              points[end_index].value == ':') &&
-            end_index + 1 < points.size() && is_digit(points[end_index + 1].value)) {
+            end_index + 1 < points.size() && text::is_digit(points[end_index + 1].value)) {
             ++end_index;
-            while (end_index < points.size() && is_digit(points[end_index].value))
+            while (end_index < points.size() && text::is_digit(points[end_index].value))
                 ++end_index;
         }
 
@@ -328,7 +331,7 @@ MappedText protect_numeric_candidates(MappedText text,
             if (probe < points.size() && (points[probe].value == '+' || points[probe].value == '-'))
                 ++probe;
             const auto exponent_begin = probe;
-            while (probe < points.size() && is_digit(points[probe].value))
+            while (probe < points.size() && text::is_digit(points[probe].value))
                 ++probe;
             if (probe != exponent_begin) {
                 suffix_end = probe;
@@ -339,8 +342,8 @@ MappedText protect_numeric_candidates(MappedText text,
             auto probe = end_index + 1;
             const auto suffix_begin = probe;
             while (probe < points.size() &&
-                   (is_digit(points[probe].value) || is_letter(points[probe].value) ||
-                    is_combining_mark(points[probe].value) || points[probe].value == '_'))
+                   (text::is_digit(points[probe].value) || text::is_letter(points[probe].value) ||
+                    text::is_combining_mark(points[probe].value) || points[probe].value == '_'))
                 ++probe;
             if (probe != suffix_begin) {
                 suffix_end = probe;

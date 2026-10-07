@@ -11,49 +11,51 @@ std::size_t scan_numeric_continuation_points(const Utf8Document& document,
     std::size_t continuation_end = start;
     while (continuation_end < points.size()) {
         auto token_begin = continuation_end;
-        while (token_begin < points.size() && is_horizontal_space(points[token_begin].value))
+        while (token_begin < points.size() && text::is_horizontal_space(points[token_begin].value))
             ++token_begin;
         if (token_begin >= points.size())
             break;
         auto token_end = token_begin;
         while (token_end < points.size()) {
-            if (is_ascii_punctuation(points[token_end].value)) {
+            if (text::is_ascii_punctuation(points[token_end].value)) {
                 ++token_end;
-            } else if (is_range_connector(points[token_end].value)) {
+            } else if (text::is_range_connector(points[token_end].value)) {
                 auto after_connector = token_end + 1;
                 while (after_connector < points.size() &&
-                       is_horizontal_space(points[after_connector].value))
+                       text::is_horizontal_space(points[after_connector].value))
                     ++after_connector;
-                if (after_connector >= points.size() || !is_digit(points[after_connector].value))
+                if (after_connector >= points.size() ||
+                    !text::is_digit(points[after_connector].value))
                     break;
                 token_end = after_connector;
                 continue;
             } else {
                 break;
             }
-            while (token_end < points.size() && is_horizontal_space(points[token_end].value))
+            while (token_end < points.size() && text::is_horizontal_space(points[token_end].value))
                 ++token_end;
         }
-        if (token_end >= points.size() || !is_digit(points[token_end].value))
+        if (token_end >= points.size() || !text::is_digit(points[token_end].value))
             break;
         while (token_end < points.size()) {
-            if (is_digit(points[token_end].value) ||
-                is_ascii_punctuation(points[token_end].value)) {
+            if (text::is_digit(points[token_end].value) ||
+                text::is_ascii_punctuation(points[token_end].value)) {
                 ++token_end;
                 continue;
             }
-            if (is_range_connector(points[token_end].value)) {
+            if (text::is_range_connector(points[token_end].value)) {
                 auto after_connector = token_end + 1;
                 while (after_connector < points.size() &&
-                       is_horizontal_space(points[after_connector].value))
+                       text::is_horizontal_space(points[after_connector].value))
                     ++after_connector;
-                if (after_connector >= points.size() || !is_digit(points[after_connector].value))
+                if (after_connector >= points.size() ||
+                    !text::is_digit(points[after_connector].value))
                     break;
                 token_end = after_connector;
                 continue;
             }
-            if (consume_lexical_suffix && (is_letter(points[token_end].value) ||
-                                           is_combining_mark(points[token_end].value))) {
+            if (consume_lexical_suffix && (text::is_letter(points[token_end].value) ||
+                                           text::is_combining_mark(points[token_end].value))) {
                 ++token_end;
                 continue;
             }

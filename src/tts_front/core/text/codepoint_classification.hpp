@@ -22,18 +22,4 @@ bool is_ascii_punctuation(std::uint32_t cp);
 
 } // namespace text
 
-using text::is_ascii_punctuation;
-using text::is_combining_mark;
-using text::is_cyrillic;
-using text::is_digit;
-using text::is_horizontal_space;
-using text::is_latin;
-using text::is_letter;
-using text::is_lexical_numeric_boundary;
-using text::is_numeric_connector;
-using text::is_numeric_separator;
-using text::is_range_connector;
-using text::is_supported_numeric_separator;
-using text::is_word_codepoint;
-
 } // namespace tts_front::detail

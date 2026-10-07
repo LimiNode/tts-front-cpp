@@ -33,7 +33,7 @@ bool numeric_match_has_valid_boundaries(const std::vector<CodePoint>& points,
         });
     auto first_digit = after;
     for (auto point = first; point != after; ++point) {
-        if (is_digit(point->value)) {
+        if (text::is_digit(point->value)) {
             first_digit = point;
             break;
         }
@@ -43,7 +43,7 @@ bool numeric_match_has_valid_boundaries(const std::vector<CodePoint>& points,
 
     auto last_digit = first_digit;
     for (auto point = first_digit; point != after; ++point) {
-        if (is_digit(point->value))
+        if (text::is_digit(point->value))
             last_digit = point;
     }
     const auto first_index = static_cast<std::size_t>(first_digit - points.begin());
@@ -54,51 +54,27 @@ bool numeric_match_has_valid_boundaries(const std::vector<CodePoint>& points,
     const CodePoint* after_next =
         next_index + 1 >= points.size() ? nullptr : &points[next_index + 1];
 
-    if (previous && is_lexical_numeric_boundary(previous->value))
+    if (previous && text::is_lexical_numeric_boundary(previous->value))
         return false;
-    if (previous && is_numeric_separator(previous->value) && before_previous &&
-        is_digit(before_previous->value))
+    if (previous && text::is_numeric_separator(previous->value) && before_previous &&
+        text::is_digit(before_previous->value))
         return false;
     if (previous && previous->value == '-' && before_previous &&
-        is_lexical_numeric_boundary(before_previous->value))
+        text::is_lexical_numeric_boundary(before_previous->value))
         return false;
     bool suffix_consumed = false;
     for (auto point = last_digit + 1; point != after; ++point) {
-        if (!is_digit(point->value)) {
+        if (!text::is_digit(point->value)) {
             suffix_consumed = true;
             break;
         }
     }
-    if (next && is_lexical_numeric_boundary(next->value) && !suffix_consumed)
+    if (next && text::is_lexical_numeric_boundary(next->value) && !suffix_consumed)
         return false;
-    if (next && is_numeric_separator(next->value) && after_next && is_digit(after_next->value))
+    if (next && text::is_numeric_separator(next->value) && after_next &&
+        text::is_digit(after_next->value))
         return false;
     return true;
-}
-
-void WarningSink::add_range(WarningCode code,
-                            std::string message,
-                            std::size_t offset,
-                            std::size_t length) {
-    warnings.push_back({code, std::move(message), offset, length});
-}
-
-void WarningSink::add(WarningCode code, std::string message, SourceRange source) {
-    if (source.length != 0) {
-        const auto insertion =
-            std::lower_bound(preserved_ranges.begin(),
-                             preserved_ranges.end(),
-                             source,
-                             [](const SourceRange& left, const SourceRange& right) {
-                                 if (left.offset != right.offset)
-                                     return left.offset < right.offset;
-                                 return left.length < right.length;
-                             });
-        if (insertion == preserved_ranges.end() || insertion->offset != source.offset ||
-            insertion->length != source.length)
-            preserved_ranges.insert(insertion, source);
-    }
-    add_range(code, std::move(message), source.offset, source.length);
 }
 
 bool try_parse_long(std::string_view token, long long& value) {
@@ -110,37 +86,4 @@ bool try_parse_long(std::string_view token, long long& value) {
         return false;
     }
 }
-std::string marker_for(std::string_view text, std::size_t index);
-
-void add_protected_candidate(const MappedText& text,
-                             const NumericCandidate& candidate,
-                             WarningSink& warnings,
-                             std::vector<ProtectedSpan>& protected_spans,
-                             std::vector<SourceEdit>& edits) {
-    const auto begin = candidate.span.byte_begin;
-    const auto end = candidate.span.byte_end;
-    if (begin >= end)
-        return;
-    if (!edits.empty() && begin < edits.back().end)
-        return;
-    const auto marker = marker_for(text.text, protected_spans.size());
-    warnings.add(WarningCode::UnresolvedNumber,
-                 "Unsupported numeric-like candidate preserved verbatim",
-                 text.source_range(begin, end));
-    protected_spans.push_back({marker, text.text.substr(begin, end - begin)});
-    edits.push_back({begin, end, marker});
-}
-
-std::string marker_for(std::string_view text, std::size_t index) {
-    std::string suffix;
-    do {
-        suffix.push_back(static_cast<char>('a' + (index % 26)));
-        index = index / 26;
-    } while (index != 0);
-    std::string marker = "\x01tts_front_protected_" + suffix + "\x02";
-    while (text.find(marker) != std::string::npos)
-        marker.insert(marker.size() - 1, "x");
-    return marker;
-}
-
 } // namespace tts_front::detail

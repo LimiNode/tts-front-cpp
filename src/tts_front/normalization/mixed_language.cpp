@@ -134,27 +134,28 @@ void protect_malformed_candidates(const MappedText& input,
         while (index < document.points.size()) {
             auto connector = index;
             while (connector < document.points.size() &&
-                   is_horizontal_space(document.points[connector].value))
+                   text::is_horizontal_space(document.points[connector].value))
                 ++connector;
             if (connector >= document.points.size())
                 break;
             const auto value = document.points[connector].value;
             if (value != '/' && value != '-' && value != '+' && value != '=' && value != '%' &&
-                value != '*' && !is_range_connector(value))
+                value != '*' && !text::is_range_connector(value))
                 break;
             auto number = connector + 1;
             while (number < document.points.size() &&
-                   is_horizontal_space(document.points[number].value))
+                   text::is_horizontal_space(document.points[number].value))
                 ++number;
-            if (number >= document.points.size() || !is_digit(document.points[number].value))
+            if (number >= document.points.size() || !text::is_digit(document.points[number].value))
                 break;
-            while (number < document.points.size() && is_digit(document.points[number].value))
+            while (number < document.points.size() && text::is_digit(document.points[number].value))
                 ++number;
             if (number + 1 < document.points.size() &&
                 (document.points[number].value == '.' || document.points[number].value == ',') &&
-                is_digit(document.points[number + 1].value)) {
+                text::is_digit(document.points[number + 1].value)) {
                 number += 2;
-                while (number < document.points.size() && is_digit(document.points[number].value))
+                while (number < document.points.size() &&
+                       text::is_digit(document.points[number].value))
                     ++number;
             }
             index = number;
@@ -165,11 +166,11 @@ void protect_malformed_candidates(const MappedText& input,
                 : document.span_from_codepoints(continuation_start, index).byte_end;
         const auto point_index = codepoint_index_at_or_after(document, begin);
         const auto previous = point_index == 0 ? 0U : document.points[point_index - 1].value;
-        const bool valid_prefix = point_index == 0 || is_horizontal_space(previous) ||
+        const bool valid_prefix = point_index == 0 || text::is_horizontal_space(previous) ||
                                   previous == '\n' || previous == '\r' || previous == '(';
         if (!valid_prefix) {
             if (point_index != 0 && (previous == '/' || previous == '+' || previous == '-' ||
-                                     is_range_connector(previous)))
+                                     text::is_range_connector(previous)))
                 begin = document.points[point_index - 1].offset;
             warnings.add(WarningCode::UnresolvedNumber,
                          "Unsupported mixed-language numeric boundary",
@@ -206,8 +207,8 @@ Language detect_mixed_language(std::string_view text,
         if (cursor < technical_index.ranges.size() &&
             technical_index.ranges[cursor].offset <= point.offset)
             continue;
-        cyrillic_count += is_cyrillic(point.value) ? 1 : 0;
-        latin_count += is_latin(point.value) ? 1 : 0;
+        cyrillic_count += text::is_cyrillic(point.value) ? 1 : 0;
+        latin_count += text::is_latin(point.value) ? 1 : 0;
     }
     has_cyrillic = cyrillic_count != 0;
     has_latin = latin_count != 0;

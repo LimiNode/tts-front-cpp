@@ -13,8 +13,8 @@ Language detect_language(std::string_view text, bool& has_cyrillic, bool& has_la
     std::size_t cyrillic_count = 0;
     std::size_t latin_count = 0;
     for (const auto& point : points) {
-        cyrillic_count += is_cyrillic(point.value) ? 1 : 0;
-        latin_count += is_latin(point.value) ? 1 : 0;
+        cyrillic_count += text::is_cyrillic(point.value) ? 1 : 0;
+        latin_count += text::is_latin(point.value) ? 1 : 0;
     }
     has_cyrillic = cyrillic_count != 0;
     has_latin = latin_count != 0;

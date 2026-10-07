@@ -17,9 +17,9 @@ std::vector<TokenSpan> token_spans(std::string_view text) {
     for (std::size_t index = 0; index < points.size(); ++index) {
         const auto& point = points[index];
         const bool embedded_dot = point.value == '.' && index > 0 && index + 1 < points.size() &&
-                                  is_digit(points[index - 1].value) &&
-                                  is_digit(points[index + 1].value);
-        if (is_word_codepoint(point.value) || embedded_dot) {
+                                  text::is_digit(points[index - 1].value) &&
+                                  text::is_digit(points[index + 1].value);
+        if (text::is_word_codepoint(point.value) || embedded_dot) {
             if (begin == std::string::npos)
                 begin = point.offset;
             end = point.offset + point.length;
