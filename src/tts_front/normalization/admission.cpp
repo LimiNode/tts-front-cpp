@@ -1,4 +1,5 @@
 #include "tts_front/normalization/admission.hpp"
+
 #include "tts_front/core/edit_script.hpp"
 #include "tts_front/core/utf8.hpp"
 #include "tts_front/core/utf8_document.hpp"
@@ -76,7 +77,6 @@ bool numeric_match_has_valid_boundaries(const std::vector<CodePoint>& points,
     return true;
 }
 
-
 void WarningSink::add_range(WarningCode code,
                             std::string message,
                             std::size_t offset,
@@ -89,7 +89,6 @@ void WarningSink::add(WarningCode code, std::string message, SourceRange source)
         preserved_ranges.push_back(source);
     add_range(code, std::move(message), source.offset, source.length);
 }
-
 
 bool try_parse_long(std::string_view token, long long& value) {
     try {
@@ -865,7 +864,5 @@ MappedText collapse_english_comma_grouped_numbers(const MappedText& input) {
     output.append_copy(input, cursor, input.text.size());
     return output;
 }
-
-
 
 } // namespace tts_front::detail

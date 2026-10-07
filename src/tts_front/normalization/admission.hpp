@@ -43,4 +43,3 @@ MappedText collapse_grouped_numbers(const MappedText& input);
 MappedText collapse_english_comma_grouped_numbers(const MappedText& input);
 
 } // namespace tts_front::detail
-
