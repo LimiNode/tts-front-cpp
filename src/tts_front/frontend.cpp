@@ -6,8 +6,10 @@
 #include "tts_front/core/utf8.hpp"
 #include "tts_front/core/utf8_document.hpp"
 #include "tts_front/language/english/numbers.hpp"
+#include "tts_front/language/russian/formatters.hpp"
 #include "tts_front/language/russian/numbers.hpp"
 #include "tts_front/normalization/candidate_scanner.hpp"
+#include "tts_front/normalization/patterns.hpp"
 
 #include <algorithm>
 #include <array>
@@ -35,6 +37,7 @@ using detail::decode_utf8;
 using detail::MappedText;
 using detail::NumericCandidate;
 using detail::NumericCandidateKind;
+using detail::regex_patterns;
 using detail::scan_numeric_continuation_points;
 using detail::SourceEdit;
 using detail::SourceRange;
@@ -44,7 +47,13 @@ using detail::english::digits;
 using detail::english::number;
 using detail::english::ordinal;
 using detail::english::ordinal_suffix;
+using detail::russian::ru_decimal;
+using detail::russian::ru_feminine_number;
+using detail::russian::ru_form;
 using detail::russian::ru_number;
+using detail::russian::ru_ordinal_day;
+using detail::russian::ru_year_genitive;
+using detail::russian::ru_year_locative;
 
 bool is_cyrillic(std::uint32_t cp) {
     return cp >= 0x0400 && cp <= 0x052f;
@@ -227,52 +236,6 @@ replace_numeric_matches(const MappedText& input, const std::regex& pattern, Form
     });
 }
 
-struct RegexPatterns {
-    const std::regex technical_url{R"(https?://[^\s]+)"};
-    const std::regex technical_email{R"([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})"};
-    const std::regex technical_ipv4{R"(\b\d{1,3}(?:\.\d{1,3}){3}\b)"};
-    const std::regex technical_version{R"(\b[vV]\d+(?:\.\d+)+\b)"};
-    const std::regex technical_http{R"(\bHTTP/\d+(?:\.\d+)?\b)"};
-    const std::regex technical_gpu{R"(\b(?:RTX|CUDA|GPU|API)\s+\d+(?:\.\d+)?\b)"};
-    const std::regex technical_cpp{R"(C\+\+)"};
-    const std::regex technical_csharp{R"(C#)"};
-    const std::regex technical_identifier{
-        R"((?:#[0-9]+)|(?:[A-Za-z][A-Za-z0-9+._$#-]*[-+$][A-Za-z0-9._$#-]+))"};
-    const std::regex technical_numeric_percent{
-        R"(((?:[vV]\d+(?:\.\d+)+|HTTP/\d+(?:\.\d+)?|C#\d+(?:\.\d+)?|(?:RTX|CUDA|GPU|API)\s+\d+(?:\.\d+)?|\d{1,3}(?:\.\d{1,3}){3}|#[0-9]+|[A-Za-z][A-Za-z0-9+._#-]*\$(?:[+-][ \t]*)?\d+|[A-Za-z][A-Za-z0-9+._$#-]*[-+$][ \t]*[A-Za-z0-9._$#-]+)))"};
-    const std::regex grouped_number{R"((^|[^0-9])-?\d{1,3}(?:\s+\d{3})+(?![0-9]))"};
-    const std::regex en_comma_grouped_number{R"((^|[^0-9])(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?))"};
-    const std::regex en_comma_grouped_value{R"(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?)"};
-    const std::regex en_comma_grouped_percent{R"(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?%)"};
-    const std::regex ru_date{R"(\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b)"};
-    const std::regex ru_year{R"(\b(\d{4})\s*г\.)"};
-    const std::regex ru_decimal_percent{R"((-?\d+),([0-9]+)\s*%([^0-9]|$))"};
-    const std::regex ru_percent{R"((-?\d+)\s*%)"};
-    const std::regex ru_currency{
-        R"((-?\d+)\s*(рублей|рубля|рубль|руб\.?)([^А-Яа-яЁёA-Za-z0-9]|$))"};
-    const std::regex ru_time{R"(\b(\d{1,2}):(\d{2})\b)"};
-    const std::regex ru_decimal{R"((-?\d+)[,](\d+)([^0-9]|$))"};
-    const std::regex ru_measurement{
-        R"((-?\d+)\s*(километров|километра|километр|км|килограммов|килограмма|килограмм|кг|сантиметров|сантиметра|сантиметр|см|миллиметров|миллиметра|миллиметр|мм|ГБ|МБ|м)([^А-Яа-яЁёA-Za-z0-9]|$))"};
-    const std::regex generic_ru_number{R"((^|[^A-Za-z0-9_,.:])(-?\d+)(?![0-9]*[.,:][0-9]))"};
-    const std::regex ru_abbreviation_td{R"((^|[^A-Za-zА-Яа-яЁё])т\.д\.)"};
-    const std::regex ru_abbreviation_tp{R"((^|[^A-Za-zА-Яа-яЁё])т\.п\.)"};
-    const std::regex en_currency_decimal{R"(\$([0-9]+)\.([0-9]{1,}))"};
-    const std::regex en_currency_integer{R"(\$([0-9]+)(?![0-9]|\.[0-9]))"};
-    const std::regex en_ordinal{R"((^|[^A-Za-z0-9-])(-?[0-9]+)(st|nd|rd|th)\b)"};
-    const std::regex en_percent{R"((-?[0-9]+(?:\.[0-9]+)?)\s*%)"};
-    const std::regex en_time{R"(\b(\d{1,2}):(\d{2})\b)"};
-    const std::regex en_decimal{R"((^|[^$A-Za-z0-9])(-?\d+\.\d+))"};
-    const std::regex en_measurement{
-        R"((-?\d+)\s*(kilometers|kilometres|km|kilograms|kg|meters|metres|m|centimeters|centimetres|cm|millimeters|millimetres|mm|GB|MB)([^A-Za-z0-9]|$))"};
-    const std::regex generic_en_number{R"((^|[^A-Za-z0-9_,.:])(-?\d+)(?![0-9]*[.,:][0-9]))"};
-};
-
-const RegexPatterns& regex_patterns() {
-    static const RegexPatterns patterns;
-    return patterns;
-}
-
 struct WarningSink {
     std::vector<TextWarning>& warnings;
     std::vector<SourceRange> preserved_ranges;
@@ -367,228 +330,6 @@ std::string number_or_original(const std::string& token,
         return token;
     }
     return russian ? ru_number(value) : en_number(value);
-}
-std::string ru_form(long long value, const char* one, const char* few, const char* many) {
-    const auto n = std::llabs(value) % 100;
-    const auto last = n % 10;
-    if (n >= 11 && n <= 19)
-        return many;
-    if (last == 1)
-        return one;
-    if (last >= 2 && last <= 4)
-        return few;
-    return many;
-}
-std::string ru_feminine_number(long long value) {
-    const auto absolute = std::llabs(value);
-    const auto suffix = absolute % 100;
-    if (suffix >= 11 && suffix <= 14)
-        return ru_number(value);
-    std::string result = ru_number(value);
-    if (absolute % 10 == 1) {
-        const auto at = result.rfind("один");
-        if (at != std::string::npos)
-            result.replace(at, std::string("один").size(), "одна");
-    } else if (absolute % 10 == 2) {
-        const auto at = result.rfind("два");
-        if (at != std::string::npos)
-            result.replace(at, std::string("два").size(), "две");
-    }
-    return result;
-}
-std::string ru_ordinal_day(int day) {
-    static const char* const ordinal[] = {"",
-                                          "первое",
-                                          "второе",
-                                          "третье",
-                                          "четвертое",
-                                          "пятое",
-                                          "шестое",
-                                          "седьмое",
-                                          "восьмое",
-                                          "девятое",
-                                          "десятое",
-                                          "одиннадцатое",
-                                          "двенадцатое",
-                                          "тринадцатое",
-                                          "четырнадцатое",
-                                          "пятнадцатое",
-                                          "шестнадцатое",
-                                          "семнадцатое",
-                                          "восемнадцатое",
-                                          "девятнадцатое",
-                                          "двадцатое",
-                                          "двадцать первое",
-                                          "двадцать второе",
-                                          "двадцать третье",
-                                          "двадцать четвертое",
-                                          "двадцать пятое",
-                                          "двадцать шестое",
-                                          "двадцать седьмое",
-                                          "двадцать восьмое",
-                                          "двадцать девятое",
-                                          "тридцатое",
-                                          "тридцать первое"};
-    return day >= 1 && day <= 31 ? ordinal[day] : ru_number(day);
-}
-enum class RuYearCase { Locative, Genitive };
-std::string ru_year_ordinal(int n, RuYearCase grammatical_case) {
-    const bool genitive = grammatical_case == RuYearCase::Genitive;
-    static const char* const loc[] = {"",
-                                      "первом",
-                                      "втором",
-                                      "третьем",
-                                      "четвертом",
-                                      "пятом",
-                                      "шестом",
-                                      "седьмом",
-                                      "восьмом",
-                                      "девятом",
-                                      "десятом",
-                                      "одиннадцатом",
-                                      "двенадцатом",
-                                      "тринадцатом",
-                                      "четырнадцатом",
-                                      "пятнадцатом",
-                                      "шестнадцатом",
-                                      "семнадцатом",
-                                      "восемнадцатом",
-                                      "девятнадцатом",
-                                      "двадцатом"};
-    static const char* const gen[] = {"",
-                                      "первого",
-                                      "второго",
-                                      "третьего",
-                                      "четвертого",
-                                      "пятого",
-                                      "шестого",
-                                      "седьмого",
-                                      "восьмого",
-                                      "девятого",
-                                      "десятого",
-                                      "одиннадцатого",
-                                      "двенадцатого",
-                                      "тринадцатого",
-                                      "четырнадцатого",
-                                      "пятнадцатого",
-                                      "шестнадцатого",
-                                      "семнадцатого",
-                                      "восемнадцатого",
-                                      "девятнадцатого",
-                                      "двадцатого"};
-    if (n <= 20)
-        return std::string((genitive ? gen : loc)[n]);
-    static const char* const tens_loc[] = {"",
-                                           "",
-                                           "двадцатом",
-                                           "тридцатом",
-                                           "сороковом",
-                                           "пятидесятом",
-                                           "шестидесятом",
-                                           "семидесятом",
-                                           "восьмидесятом",
-                                           "девяностом"};
-    static const char* const tens_gen[] = {"",
-                                           "",
-                                           "двадцатого",
-                                           "тридцатого",
-                                           "сорокового",
-                                           "пятидесятого",
-                                           "шестидесятого",
-                                           "семидесятого",
-                                           "восьмидесятого",
-                                           "девяностого"};
-    if (n < 100)
-        return n % 10 == 0 ? std::string((genitive ? tens_gen : tens_loc)[n / 10])
-                           : ru_number(n / 10 * 10) + " " + ((genitive ? gen : loc)[n % 10]);
-    if (n % 100 == 0) {
-        static const char* const hundreds_loc[] = {"",
-                                                   "сотом",
-                                                   "двухсотом",
-                                                   "трехсотом",
-                                                   "четырехсотом",
-                                                   "пятисотом",
-                                                   "шестисотом",
-                                                   "семисотом",
-                                                   "восьмисотом",
-                                                   "девятисотом"};
-        static const char* const hundreds_gen[] = {"",
-                                                   "сотого",
-                                                   "двухсотого",
-                                                   "трехсотого",
-                                                   "четырехсотого",
-                                                   "пятисотого",
-                                                   "шестисотого",
-                                                   "семисотого",
-                                                   "восьмисотого",
-                                                   "девятисотого"};
-        return std::string((genitive ? hundreds_gen : hundreds_loc)[n / 100]);
-    }
-    return ru_number(n / 100 * 100) + " " + ru_year_ordinal(n % 100, grammatical_case);
-}
-std::string ru_year_prefix(int thousands) {
-    if (thousands == 1)
-        return "тысяча";
-    if (thousands == 2)
-        return "две тысячи";
-    return ru_number(thousands) + " " + ru_form(thousands, "тысяча", "тысячи", "тысяч");
-}
-std::string ru_year_locative(int year) {
-    if (year < 1000 || year > 9999)
-        return ru_number(year);
-    const int thousands = year / 1000;
-    const int rest = year % 1000;
-    if (rest == 0) {
-        static const char* const exact[] = {"",
-                                            "тысячном",
-                                            "двухтысячном",
-                                            "трехтысячном",
-                                            "четырехтысячном",
-                                            "пятитысячном",
-                                            "шеститысячном",
-                                            "семитысячном",
-                                            "восьмитысячном",
-                                            "девятитысячном"};
-        return exact[thousands];
-    }
-    return ru_year_prefix(thousands) + " " + ru_year_ordinal(rest, RuYearCase::Locative);
-}
-std::string ru_year_genitive(int year) {
-    if (year < 1000 || year > 9999)
-        return ru_number(year);
-    const int thousands = year / 1000;
-    const int rest = year % 1000;
-    if (rest == 0) {
-        static const char* const exact[] = {"",
-                                            "тысячного",
-                                            "двухтысячного",
-                                            "трехтысячного",
-                                            "четырехтысячного",
-                                            "пятитысячного",
-                                            "шеститысячного",
-                                            "семитысячного",
-                                            "восьмитысячного",
-                                            "девятитысячного"};
-        return exact[thousands];
-    }
-    return ru_year_prefix(thousands) + " " + ru_year_ordinal(rest, RuYearCase::Genitive);
-}
-std::string ru_decimal(long long integer, const std::string& fraction) {
-    const auto denominator = fraction.size() == 1   ? "десятая"
-                             : fraction.size() == 2 ? "сотая"
-                                                    : "тысячная";
-    const auto denominator_plural = fraction.size() == 1   ? "десятых"
-                                    : fraction.size() == 2 ? "сотых"
-                                                           : "тысячных";
-    const auto fractional = std::stoll(fraction);
-    const auto category = std::llabs(fractional) % 100;
-    const auto denominator_word = category % 10 == 1 && !(category >= 11 && category <= 14)
-                                      ? denominator
-                                      : denominator_plural;
-    return ru_feminine_number(integer) +
-           (std::llabs(integer) % 10 == 1 && std::llabs(integer) % 100 != 11 ? " целая "
-                                                                             : " целых ") +
-           ru_feminine_number(fractional) + " " + denominator_word;
 }
 std::string en_digits(const std::string& digits) {
     return detail::english::digits(digits);
