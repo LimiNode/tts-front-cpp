@@ -4,6 +4,7 @@
 #include "tts_front/normalization/admission.hpp"
 
 #include <algorithm>
+#include <iterator>
 #include <regex>
 #include <utility>
 #include <vector>
@@ -18,27 +19,37 @@ replace_matches(const MappedText& input, const std::regex& pattern, Formatter fo
     MappedText output;
     output.preserved_ranges = input.preserved_ranges;
     std::size_t cursor = 0;
+    std::size_t run_cursor = 0;
     for (std::sregex_iterator it(input.text.begin(), input.text.end(), pattern), end; it != end;
          ++it) {
         const auto begin = static_cast<std::size_t>(it->position());
         const auto finish = begin + static_cast<std::size_t>(it->length());
-        output.append_copy(input, cursor, begin);
+        output.append_copy_with_cursor(input, cursor, begin, run_cursor);
         const auto source = input.source_range(begin, finish);
-        if (input.preserved_ranges &&
-            std::any_of(input.preserved_ranges->begin(),
-                        input.preserved_ranges->end(),
-                        [source](const SourceRange& preserved) {
-                            return source.offset < preserved.offset + preserved.length &&
-                                   preserved.offset < source.offset + source.length;
-                        })) {
-            output.append_copy(input, begin, finish);
+        bool is_preserved = false;
+        if (input.preserved_ranges) {
+            const auto& ranges = *input.preserved_ranges;
+            const auto overlaps = [source](const SourceRange& preserved) {
+                return source.offset < preserved.offset + preserved.length &&
+                       preserved.offset < source.offset + source.length;
+            };
+            const auto next = std::lower_bound(
+                ranges.begin(),
+                ranges.end(),
+                source.offset,
+                [](const SourceRange& range, std::size_t at) { return range.offset < at; });
+            is_preserved = (next != ranges.end() && overlaps(*next)) ||
+                           (next != ranges.begin() && overlaps(*std::prev(next)));
+        }
+        if (is_preserved) {
+            output.append_copy_with_cursor(input, begin, finish, run_cursor);
             cursor = finish;
             continue;
         }
         output.append_generated(input, begin, finish, formatter(*it, input));
         cursor = finish;
     }
-    output.append_copy(input, cursor, input.text.size());
+    output.append_copy_with_cursor(input, cursor, input.text.size(), run_cursor);
     return output;
 }
 

@@ -67,6 +67,45 @@ void MappedText::append_copy(const MappedText& source, std::size_t begin, std::s
     }
 }
 
+void MappedText::append_copy_with_cursor(const MappedText& source,
+                                         std::size_t begin,
+                                         std::size_t end,
+                                         std::size_t& run_cursor) {
+    if (begin >= end)
+        return;
+    if (run_cursor > source.runs.size() ||
+        (run_cursor != 0 && source.runs[run_cursor - 1].output_end > begin)) {
+        run_cursor = static_cast<std::size_t>(
+            std::lower_bound(source.runs.begin(),
+                             source.runs.end(),
+                             begin,
+                             [](const MappedRun& candidate, std::size_t position) {
+                                 return candidate.output_end <= position;
+                             }) -
+            source.runs.begin());
+    }
+    while (run_cursor < source.runs.size() && source.runs[run_cursor].output_end <= begin)
+        ++run_cursor;
+    for (std::size_t index = run_cursor;
+         index < source.runs.size() && source.runs[index].output_begin < end;
+         ++index) {
+        const auto& run = source.runs[index];
+        const auto overlap_begin = std::max(begin, run.output_begin);
+        const auto overlap_end = std::min(end, run.output_end);
+        if (overlap_begin >= overlap_end)
+            continue;
+        SourceRange origin = run.source;
+        if (run.direct_copy) {
+            origin.offset += overlap_begin - run.output_begin;
+            origin.length = overlap_end - overlap_begin;
+        }
+        append(source.text.substr(overlap_begin, overlap_end - overlap_begin),
+               origin,
+               run.direct_copy);
+        run_cursor = run.output_end <= end ? index + 1 : index;
+    }
+}
+
 void MappedText::append_generated(const MappedText& source,
                                   std::size_t begin,
                                   std::size_t end,

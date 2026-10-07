@@ -24,6 +24,10 @@ struct MappedText {
                                     const std::vector<SourceRange>* preserved_ranges);
     SourceRange source_range(std::size_t begin, std::size_t end) const;
     void append_copy(const MappedText& source, std::size_t begin, std::size_t end);
+    void append_copy_with_cursor(const MappedText& source,
+                                 std::size_t begin,
+                                 std::size_t end,
+                                 std::size_t& run_cursor);
     void append_generated(const MappedText& source,
                           std::size_t begin,
                           std::size_t end,

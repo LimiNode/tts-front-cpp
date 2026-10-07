@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <iterator>
 #include <regex>
 #include <stdexcept>
 #include <string>
@@ -545,6 +546,24 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             candidate.find('-', hyphen_search_start) != std::string::npos ||
             candidate.find('/') != std::string::npos || has_range_connector ||
             has_unsupported_numeric_connector;
+        const auto protected_begin = currency_prefix ? points[currency_prefix_begin].offset : begin;
+        const bool already_preserved = [&] {
+            if (text.preserved_ranges == nullptr)
+                return false;
+            const auto source = text.source_range(protected_begin, end);
+            const auto& ranges = *text.preserved_ranges;
+            const auto overlaps = [source](const SourceRange& range) {
+                return source.offset < range.offset + range.length &&
+                       range.offset < source.offset + source.length;
+            };
+            auto next = std::lower_bound(
+                ranges.begin(),
+                ranges.end(),
+                source.offset,
+                [](const SourceRange& range, std::size_t at) { return range.offset < at; });
+            return (next != ranges.end() && overlaps(*next)) ||
+                   (next != ranges.begin() && overlaps(*std::prev(next)));
+        }();
         if ((separators >= 2 || embedded || attached_lexical_suffix ||
              (comma_group_followed_by_word && !valid_english_comma_group) ||
              unsupported_numeric_connector || invalid_percent || malformed_english_comma_group ||
@@ -555,9 +574,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                signed_currency_prefix))) &&
             !(valid_russian_date && !embedded) &&
             !(valid_english_comma_group && !embedded && !attached_lexical_suffix &&
-              !(currency_prefix && has_percent) && !malformed_compound)) {
-            const auto protected_begin =
-                currency_prefix ? points[currency_prefix_begin].offset : begin;
+              !(currency_prefix && has_percent) && !malformed_compound) &&
+            !already_preserved) {
             NumericCandidate candidate{document.span_from_bytes(protected_begin, end),
                                        currency_prefix ? NumericCandidateKind::Currency
                                                        : (malformed_grouped || malformed_compound

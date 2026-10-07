@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0
+
+- Добавлена opt-in политика `MixedLanguagePolicy::SegmentCandidates` для локальной нормализации поддержанных числовых, валютных и единичных конструкций в смешанном тексте.
+- Технические диапазоны строятся единым индексом, а восстановление вложенных technical markers выполняется одним sweep без повторной пересборки всего текста.
+- Укреплён fail-closed admission: malformed foreign candidates сохраняются целиком с единым `UnresolvedNumber`, включая Unicode punctuation, signed currency и attached lexical suffixes.
+- Проектная версия и CMake package version обновлены до `0.2.0`.
+
 ## 0.1.0
 
 First stable release of `tts-front-cpp`.

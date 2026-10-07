@@ -47,8 +47,36 @@ void benchmark_mixed_candidate_scaling() {
             std::chrono::duration<double>(std::chrono::steady_clock::now() - begin).count();
         std::cout << count << " mixed candidates, " << elapsed << " s, "
                   << (elapsed / static_cast<double>(count) * 1e6) << " us/candidate\n";
+        if (count == 20000)
+            std::cout << "mixed warnings: " << result.warnings.size() << "\n";
         if (result.normalized_text.empty())
             std::cerr << "unexpected empty mixed normalization result\n";
+    }
+}
+
+void benchmark_technical_heavy_scaling() {
+    tts_front::TextFrontend frontend;
+    tts_front::TextFrontendOptions options;
+    options.mixed_language_policy = tts_front::MixedLanguagePolicy::SegmentCandidates;
+    options.cleanup_spacing = false;
+    for (const unsigned int count : {1000u, 5000u, 10000u, 20000u}) {
+        std::string text;
+        text.reserve(static_cast<std::size_t>(count) * 24);
+        for (unsigned int index = 0; index < count; ++index) {
+            if (index != 0)
+                text.push_back(' ');
+            text += "тест RTX ";
+            text += std::to_string(index % 4096);
+            text += " 2 kg";
+        }
+        const auto begin = std::chrono::steady_clock::now();
+        const auto result = frontend.process(text, options);
+        const auto elapsed =
+            std::chrono::duration<double>(std::chrono::steady_clock::now() - begin).count();
+        std::cout << count << " technical-heavy candidates, " << elapsed << " s, "
+                  << (elapsed / static_cast<double>(count) * 1e6) << " us/candidate\n";
+        if (result.normalized_text.empty())
+            std::cerr << "unexpected empty technical-heavy result\n";
     }
 }
 
@@ -67,4 +95,5 @@ int main() {
               << " us/request\n";
     benchmark_numeric_scaling();
     benchmark_mixed_candidate_scaling();
+    benchmark_technical_heavy_scaling();
 }

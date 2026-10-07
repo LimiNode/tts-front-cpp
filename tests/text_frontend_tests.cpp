@@ -1,5 +1,6 @@
 #include "tts_front.hpp"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -687,6 +688,49 @@ int main() {
         CHECK(result.normalized_text == "У меня два GPU и три ядра. Использую OpenAI API.");
         CHECK(!result.warnings.empty());
         CHECK(result.warnings.front().code == WarningCode::AmbiguousNormalization);
+    }
+    {
+        TextFrontendOptions segmented;
+        segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        segmented.cleanup_spacing = false;
+        const std::string malformed[] = {"Привет 2 kgfoo",
+                                         "Привет «2 kg»",
+                                         "Привет /2 kg",
+                                         "Привет –2 kg",
+                                         "Привет —2 kg",
+                                         "Привет −2 kg",
+                                         "Привет 1234567890 kg",
+                                         "Привет -$1",
+                                         "Привет +$1"};
+        for (const auto& input : malformed) {
+            const auto result = frontend.process(input, segmented);
+            CHECK(result.normalized_text == input);
+            std::size_t unresolved = 0;
+            for (const auto& warning : result.warnings)
+                unresolved += warning.code == WarningCode::UnresolvedNumber ? 1 : 0;
+            CHECK(unresolved == 1);
+            const auto warning = std::find_if(
+                result.warnings.begin(), result.warnings.end(), [](const TextWarning& item) {
+                    return item.code == WarningCode::UnresolvedNumber;
+                });
+            CHECK(warning != result.warnings.end());
+            auto expected_begin = input.find("2 kg");
+            if (expected_begin == std::string::npos)
+                expected_begin = input.find("1234567890");
+            if (const auto connector = input.find("/2"); connector != std::string::npos)
+                expected_begin = connector;
+            if (const auto connector = input.find("–2"); connector != std::string::npos)
+                expected_begin = connector;
+            if (const auto connector = input.find("—2"); connector != std::string::npos)
+                expected_begin = connector;
+            if (const auto connector = input.find("−2"); connector != std::string::npos)
+                expected_begin = connector;
+            if (const auto sign = input.find("-$1"); sign != std::string::npos)
+                expected_begin = sign;
+            if (const auto sign = input.find("+$1"); sign != std::string::npos)
+                expected_begin = sign;
+            CHECK(warning->offset == expected_begin);
+        }
     }
     {
         TextFrontendOptions segmented;

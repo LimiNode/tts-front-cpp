@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <array>
+#include <iterator>
 #include <optional>
 #include <regex>
 #include <string>
@@ -49,8 +50,19 @@ const std::regex& russian_measurement() {
     return pattern;
 }
 
+const std::regex& malformed_english_candidate() {
+    static const std::regex pattern{
+        R"(((?:\$[0-9]+(?:\.[0-9]+)?|[+-]?[0-9]+(?:\.[0-9]+)?[ \t]*(?:kilometers|kilometres|kilometer|kilometre|km|kilogram|kilograms|kg|meters|metres|meter|m|centimeters|centimetres|centimeter|cm|millimeters|millimetres|millimeter|mm))[A-Za-zА-Яа-яЁё]*))"};
+    return pattern;
+}
+
+const std::regex& malformed_russian_candidate() {
+    static const std::regex pattern{
+        R"((-?[0-9]+(?:,[0-9]+)?[ \t]*(?:рублей|рубля|рубль|руб\.?|километров|километра|километр|км|килограммов|килограмма|килограмм|кг|сантиметров|сантиметра|сантиметр|см|миллиметров|миллиметра|миллиметр|мм|ГБ|МБ|м)[A-Za-zА-Яа-яЁё]*))"};
+    return pattern;
+}
+
 std::vector<SourceRange> scan_technical_ranges(const std::string& text) {
-    std::vector<SourceRange> ranges;
     const auto& patterns = technical_patterns();
     const std::array<const std::regex*, 9> technical = {&patterns.technical_url,
                                                         &patterns.technical_email,
@@ -61,16 +73,31 @@ std::vector<SourceRange> scan_technical_ranges(const std::string& text) {
                                                         &patterns.technical_identifier,
                                                         &patterns.technical_cpp,
                                                         &patterns.technical_csharp};
-    for (const auto* pattern : technical) {
+    std::array<std::vector<SourceRange>, 9> streams;
+    for (std::size_t stream = 0; stream < technical.size(); ++stream) {
+        const auto* pattern = technical[stream];
         for (std::sregex_iterator it(text.begin(), text.end(), *pattern), end; it != end; ++it)
-            ranges.push_back(
+            streams[stream].push_back(
                 {static_cast<std::size_t>(it->position()), static_cast<std::size_t>(it->length())});
     }
-    std::sort(ranges.begin(), ranges.end(), [](const SourceRange& left, const SourceRange& right) {
-        return left.offset < right.offset;
-    });
+
+    // Each regex iterator is ordered by source offset.  Merge the fixed set
+    // of streams directly instead of sorting the combined result, keeping
+    // technical-index construction linear in the number of matches.
     std::vector<SourceRange> merged;
-    for (const auto& range : ranges) {
+    std::array<std::size_t, 9> cursors{};
+    while (true) {
+        std::size_t selected = streams.size();
+        for (std::size_t stream = 0; stream < streams.size(); ++stream) {
+            if (cursors[stream] == streams[stream].size())
+                continue;
+            if (selected == streams.size() || streams[stream][cursors[stream]].offset <
+                                                  streams[selected][cursors[selected]].offset)
+                selected = stream;
+        }
+        if (selected == streams.size())
+            break;
+        const auto range = streams[selected][cursors[selected]++];
         if (range.length == 0)
             continue;
         if (!merged.empty() && range.offset <= merged.back().offset + merged.back().length) {
@@ -91,6 +118,24 @@ bool overlaps(const std::vector<SourceRange>& ranges,
     while (cursor < ranges.size() && ranges[cursor].offset + ranges[cursor].length <= begin)
         ++cursor;
     return cursor < ranges.size() && ranges[cursor].offset < end;
+}
+
+bool preserved(const MappedText& input, std::size_t begin, std::size_t end) {
+    if (input.preserved_ranges == nullptr)
+        return false;
+    const auto source = input.source_range(begin, end);
+    const auto& ranges = *input.preserved_ranges;
+    const auto overlaps = [source](const SourceRange& range) {
+        return source.offset < range.offset + range.length &&
+               range.offset < source.offset + source.length;
+    };
+    auto next = std::lower_bound(
+        ranges.begin(), ranges.end(), source.offset, [](const SourceRange& range, std::size_t at) {
+            return range.offset < at;
+        });
+    if (next != ranges.end() && overlaps(*next))
+        return true;
+    return next != ranges.begin() && overlaps(*std::prev(next));
 }
 
 std::optional<std::string> format_english(std::string_view candidate) {
@@ -202,7 +247,8 @@ void collect_candidates(const MappedText& input,
          ++it) {
         const auto begin = static_cast<std::size_t>(it->position(2));
         const auto finish = begin + static_cast<std::size_t>(it->length(2));
-        if (overlaps(technical_index.ranges, begin, finish, technical_cursor))
+        if (overlaps(technical_index.ranges, begin, finish, technical_cursor) ||
+            preserved(input, begin, finish))
             continue;
         const auto replacement = formatter(it->str(2));
         if (!replacement) {
@@ -213,6 +259,42 @@ void collect_candidates(const MappedText& input,
         }
         if (*replacement != input.text.substr(begin, finish - begin))
             edits.push_back({begin, finish, *replacement});
+    }
+}
+
+template <typename Formatter>
+void protect_malformed_candidates(const MappedText& input,
+                                  const std::regex& pattern,
+                                  const TechnicalRangeIndex& technical_index,
+                                  Formatter formatter,
+                                  WarningSink& warnings) {
+    std::size_t technical_cursor = 0;
+    const Utf8Document document(input.text);
+    for (std::sregex_iterator it(input.text.begin(), input.text.end(), pattern), end; it != end;
+         ++it) {
+        auto begin = static_cast<std::size_t>(it->position(1));
+        const auto finish = begin + static_cast<std::size_t>(it->length(1));
+        if (overlaps(technical_index.ranges, begin, finish, technical_cursor) ||
+            preserved(input, begin, finish))
+            continue;
+        const auto point_index = codepoint_index_at_or_after(document, begin);
+        const auto previous = point_index == 0 ? 0U : document.points[point_index - 1].value;
+        const bool valid_prefix = point_index == 0 || is_horizontal_space(previous) ||
+                                  previous == '\n' || previous == '\r' || previous == '(';
+        if (!valid_prefix) {
+            if (point_index != 0 && (previous == '/' || previous == '+' || previous == '-' ||
+                                     is_range_connector(previous)))
+                begin = document.points[point_index - 1].offset;
+            warnings.add(WarningCode::UnresolvedNumber,
+                         "Unsupported mixed-language numeric boundary",
+                         input.source_range(begin, finish));
+            continue;
+        }
+        if (!formatter(it->str(1))) {
+            warnings.add(WarningCode::UnresolvedNumber,
+                         "Unsupported mixed-language numeric candidate",
+                         input.source_range(begin, finish));
+        }
     }
 }
 
@@ -254,12 +336,17 @@ MappedText normalize_mixed_candidates(MappedText text,
                                       Language dominant_language,
                                       const TechnicalRangeIndex& technical_index) {
     std::vector<SourceEdit> edits;
-    if (dominant_language == Language::Russian)
+    if (dominant_language == Language::Russian) {
+        protect_malformed_candidates(
+            text, malformed_english_candidate(), technical_index, format_english, warnings);
         collect_candidates(
             text, foreign_english_candidate(), technical_index, format_english, warnings, edits);
-    else if (dominant_language == Language::English)
+    } else if (dominant_language == Language::English) {
+        protect_malformed_candidates(
+            text, malformed_russian_candidate(), technical_index, format_russian, warnings);
         collect_candidates(
             text, foreign_russian_candidate(), technical_index, format_russian, warnings, edits);
+    }
     return apply_source_edits(text, std::move(edits));
 }
 
