@@ -6,7 +6,7 @@
 
 namespace tts_front::detail::russian {
 
-std::string ru_form(long long value, const char* one, const char* few, const char* many) {
+std::string plural_form(long long value, const char* one, const char* few, const char* many) {
     const auto n = std::llabs(value) % 100;
     const auto last = n % 10;
     if (n >= 11 && n <= 19)
@@ -17,12 +17,12 @@ std::string ru_form(long long value, const char* one, const char* few, const cha
         return few;
     return many;
 }
-std::string ru_feminine_number(long long value) {
+std::string feminine_number(long long value) {
     const auto absolute = std::llabs(value);
     const auto suffix = absolute % 100;
     if (suffix >= 11 && suffix <= 14)
-        return ru_number(value);
-    std::string result = ru_number(value);
+        return number(value);
+    std::string result = number(value);
     if (absolute % 10 == 1) {
         const auto at = result.rfind("один");
         if (at != std::string::npos)
@@ -34,7 +34,7 @@ std::string ru_feminine_number(long long value) {
     }
     return result;
 }
-std::string ru_ordinal_day(int day) {
+std::string ordinal_day(int day) {
     static const char* const ordinal[] = {"",
                                           "первое",
                                           "второе",
@@ -67,9 +67,9 @@ std::string ru_ordinal_day(int day) {
                                           "двадцать девятое",
                                           "тридцатое",
                                           "тридцать первое"};
-    return day >= 1 && day <= 31 ? ordinal[day] : ru_number(day);
+    return day >= 1 && day <= 31 ? ordinal[day] : number(day);
 }
-std::string ru_year_ordinal(int n, RuYearCase grammatical_case) {
+std::string year_ordinal(int n, RuYearCase grammatical_case) {
     const bool genitive = grammatical_case == RuYearCase::Genitive;
     static const char* const loc[] = {"",
                                       "первом",
@@ -137,7 +137,7 @@ std::string ru_year_ordinal(int n, RuYearCase grammatical_case) {
                                            "девяностого"};
     if (n < 100)
         return n % 10 == 0 ? std::string((genitive ? tens_gen : tens_loc)[n / 10])
-                           : ru_number(n / 10 * 10) + " " + ((genitive ? gen : loc)[n % 10]);
+                           : number(n / 10 * 10) + " " + ((genitive ? gen : loc)[n % 10]);
     if (n % 100 == 0) {
         static const char* const hundreds_loc[] = {"",
                                                    "сотом",
@@ -161,18 +161,18 @@ std::string ru_year_ordinal(int n, RuYearCase grammatical_case) {
                                                    "девятисотого"};
         return std::string((genitive ? hundreds_gen : hundreds_loc)[n / 100]);
     }
-    return ru_number(n / 100 * 100) + " " + ru_year_ordinal(n % 100, grammatical_case);
+    return number(n / 100 * 100) + " " + year_ordinal(n % 100, grammatical_case);
 }
-std::string ru_year_prefix(int thousands) {
+std::string year_prefix(int thousands) {
     if (thousands == 1)
         return "тысяча";
     if (thousands == 2)
         return "две тысячи";
-    return ru_number(thousands) + " " + ru_form(thousands, "тысяча", "тысячи", "тысяч");
+    return number(thousands) + " " + plural_form(thousands, "тысяча", "тысячи", "тысяч");
 }
-std::string ru_year_locative(int year) {
+std::string year_locative(int year) {
     if (year < 1000 || year > 9999)
-        return ru_number(year);
+        return number(year);
     const int thousands = year / 1000;
     const int rest = year % 1000;
     if (rest == 0) {
@@ -188,11 +188,11 @@ std::string ru_year_locative(int year) {
                                             "девятитысячном"};
         return exact[thousands];
     }
-    return ru_year_prefix(thousands) + " " + ru_year_ordinal(rest, RuYearCase::Locative);
+    return year_prefix(thousands) + " " + year_ordinal(rest, RuYearCase::Locative);
 }
-std::string ru_year_genitive(int year) {
+std::string year_genitive(int year) {
     if (year < 1000 || year > 9999)
-        return ru_number(year);
+        return number(year);
     const int thousands = year / 1000;
     const int rest = year % 1000;
     if (rest == 0) {
@@ -208,9 +208,9 @@ std::string ru_year_genitive(int year) {
                                             "девятитысячного"};
         return exact[thousands];
     }
-    return ru_year_prefix(thousands) + " " + ru_year_ordinal(rest, RuYearCase::Genitive);
+    return year_prefix(thousands) + " " + year_ordinal(rest, RuYearCase::Genitive);
 }
-std::string ru_decimal(long long integer, const std::string& fraction) {
+std::string decimal(long long integer, const std::string& fraction) {
     const auto denominator = fraction.size() == 1   ? "десятая"
                              : fraction.size() == 2 ? "сотая"
                                                     : "тысячная";
@@ -222,10 +222,10 @@ std::string ru_decimal(long long integer, const std::string& fraction) {
     const auto denominator_word = category % 10 == 1 && !(category >= 11 && category <= 14)
                                       ? denominator
                                       : denominator_plural;
-    return ru_feminine_number(integer) +
+    return feminine_number(integer) +
            (std::llabs(integer) % 10 == 1 && std::llabs(integer) % 100 != 11 ? " целая "
                                                                              : " целых ") +
-           ru_feminine_number(fractional) + " " + denominator_word;
+           feminine_number(fractional) + " " + denominator_word;
 }
 
 } // namespace tts_front::detail::russian

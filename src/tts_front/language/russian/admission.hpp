@@ -1,9 +1,9 @@
 #pragma once
 
-#include <string>
+#include "tts_front/normalization/admission.hpp"
 
 namespace tts_front::detail::russian {
 
-std::string number(long long value);
+const AdmissionRules& admission_rules();
 
 } // namespace tts_front::detail::russian

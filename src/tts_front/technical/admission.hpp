@@ -1,0 +1,15 @@
+#pragma once
+
+#include "tts_front/normalization/admission.hpp"
+
+#include <vector>
+
+namespace tts_front::detail {
+
+MappedText protect_technical(MappedText text, std::vector<ProtectedSpan>& protected_spans);
+MappedText restore_technical(MappedText text, const std::vector<ProtectedSpan>& protected_spans);
+MappedText protect_numeric_technical_candidates(MappedText text,
+                                                WarningSink& warnings,
+                                                std::vector<ProtectedSpan>& protected_spans);
+
+} // namespace tts_front::detail

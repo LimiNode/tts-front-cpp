@@ -1,8 +1,8 @@
 #include "silero_bundle.hpp"
 
 #include "silero_asset_hash.hpp"
-#include "tts_front/core/json.hpp"
 #include "tts_front/core/utf8.hpp"
+#include "tts_front/serialization/json.hpp"
 
 #include <array>
 #include <fstream>

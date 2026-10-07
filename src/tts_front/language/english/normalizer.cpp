@@ -1,27 +1,16 @@
 #include "tts_front/language/english/normalizer.hpp"
 
+#include "tts_front/language/english/admission.hpp"
+#include "tts_front/language/english/grouped_numbers.hpp"
 #include "tts_front/language/english/numbers.hpp"
 #include "tts_front/language/english/patterns.hpp"
 #include "tts_front/normalization/normalizer_support.hpp"
-#include "tts_front/normalization/patterns.hpp"
+#include "tts_front/technical/admission.hpp"
 
 #include <string>
 
 namespace tts_front::detail::english {
 namespace {
-
-std::string en_number(long long n) {
-    return number(n);
-}
-const char* en_ordinal_suffix(long long n) {
-    return ordinal_suffix(n);
-}
-std::string en_ordinal(long long n) {
-    return ordinal(n);
-}
-std::string en_digits(const std::string& value) {
-    return digits(value);
-}
 
 std::string
 number_or_original(const std::string& token, WarningSink& warnings, SourceRange source) {
@@ -30,7 +19,7 @@ number_or_original(const std::string& token, WarningSink& warnings, SourceRange 
         warnings.add(WarningCode::UnresolvedNumber, "Unable to parse number", source);
         return token;
     }
-    return en_number(value);
+    return number(value);
 }
 
 } // namespace
@@ -40,12 +29,12 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
     text = protect_numeric_technical_candidates(std::move(text), warnings, protected_spans);
     text = protect_technical(std::move(text), protected_spans);
     text = protect_malformed_numeric_candidates(
-        std::move(text), warnings, protected_spans, AdmissionLanguage::English);
-    text = collapse_english_comma_grouped_numbers(std::move(text));
+        std::move(text), warnings, protected_spans, admission_rules());
+    text = collapse_comma_grouped_numbers(text);
     text = collapse_grouped_numbers(std::move(text));
     text =
         replace_numeric_matches(text,
-                                english_patterns().en_currency_decimal,
+                                english::patterns().currency_decimal,
                                 [&](const std::smatch& match, const MappedText& source) {
                                     long long dollars = 0, cents = 0;
                                     const auto fraction = match[2].str();
@@ -60,12 +49,12 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                                     }
                                     if (fraction.size() == 1)
                                         cents *= 10;
-                                    return en_number(dollars) +
+                                    return number(dollars) +
                                            (dollars == 1 ? " dollar" : " dollars") + " " +
-                                           en_number(cents) + (cents == 1 ? " cent" : " cents");
+                                           number(cents) + (cents == 1 ? " cent" : " cents");
                                 });
     text = replace_numeric_matches(text,
-                                   english_patterns().en_currency_integer,
+                                   english::patterns().currency_integer,
                                    [&](const std::smatch& match, const MappedText& source) {
                                        long long dollars = 0;
                                        if (!try_parse_long(match[1].str(), dollars)) {
@@ -76,31 +65,27 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                                                        match);
                                            return match.str();
                                        }
-                                       return en_number(dollars) +
+                                       return number(dollars) +
                                               (dollars == 1 ? " dollar" : " dollars");
                                    });
-    text = replace_numeric_matches(text,
-                                   english_patterns().en_ordinal,
-                                   [&](const std::smatch& match, const MappedText& source) {
-                                       long long value = 0;
-                                       const auto suffix = match[3].str();
-                                       if (!try_parse_long(match[2].str(), value) ||
-                                           suffix != en_ordinal_suffix(value)) {
-                                           add_warning_span(warnings,
-                                                            WarningCode::UnresolvedNumber,
-                                                            "Unable to parse English ordinal",
-                                                            source,
-                                                            match,
-                                                            2,
-                                                            3);
-                                           return match.str();
-                                       }
-                                       return match[1].str() + en_ordinal(value);
-                                   });
     text = replace_numeric_matches(
-        text,
-        english_patterns().en_percent,
-        [&](const std::smatch& match, const MappedText& source) {
+        text, english::patterns().ordinal, [&](const std::smatch& match, const MappedText& source) {
+            long long value = 0;
+            const auto suffix = match[3].str();
+            if (!try_parse_long(match[2].str(), value) || suffix != ordinal_suffix(value)) {
+                add_warning_span(warnings,
+                                 WarningCode::UnresolvedNumber,
+                                 "Unable to parse English ordinal",
+                                 source,
+                                 match,
+                                 2,
+                                 3);
+                return match.str();
+            }
+            return match[1].str() + ordinal(value);
+        });
+    text = replace_numeric_matches(
+        text, english::patterns().percent, [&](const std::smatch& match, const MappedText& source) {
             const auto value = match[1].str();
             const auto dot = value.find('.');
             long long integer = 0;
@@ -113,12 +98,12 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                 return match.str();
             }
             return (dot == std::string::npos
-                        ? en_number(integer)
-                        : en_number(integer) + " point " + en_digits(value.substr(dot + 1))) +
+                        ? number(integer)
+                        : number(integer) + " point " + digits(value.substr(dot + 1))) +
                    " percent";
         });
     text = replace_numeric_matches(
-        text, english_patterns().en_time, [&](const std::smatch& match, const MappedText& source) {
+        text, english::patterns().time, [&](const std::smatch& match, const MappedText& source) {
             long long h = 0, m = 0;
             if (!try_parse_long(match[1].str(), h) || !try_parse_long(match[2].str(), m) ||
                 h > 23 || m > 59) {
@@ -129,29 +114,27 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                             match);
                 return match.str();
             }
-            return en_number(h) + (h == 1 ? " hour " : " hours ") + en_number(m) +
+            return number(h) + (h == 1 ? " hour " : " hours ") + number(m) +
                    (m == 1 ? " minute" : " minutes");
         });
-    text = replace_numeric_matches(text,
-                                   english_patterns().en_decimal,
-                                   [&](const std::smatch& match, const MappedText& source) {
-                                       const auto value = match[2].str();
-                                       const auto dot = value.find('.');
-                                       long long integer = 0;
-                                       if (!try_parse_long(value.substr(0, dot), integer)) {
-                                           add_warning(warnings,
-                                                       WarningCode::UnresolvedNumber,
-                                                       "Unable to parse English decimal",
-                                                       source,
-                                                       match,
-                                                       2);
-                                           return match.str();
-                                       }
-                                       return match[1].str() + en_number(integer) + " point " +
-                                              en_digits(value.substr(dot + 1));
-                                   });
+    text = replace_numeric_matches(
+        text, english::patterns().decimal, [&](const std::smatch& match, const MappedText& source) {
+            const auto value = match[2].str();
+            const auto dot = value.find('.');
+            long long integer = 0;
+            if (!try_parse_long(value.substr(0, dot), integer)) {
+                add_warning(warnings,
+                            WarningCode::UnresolvedNumber,
+                            "Unable to parse English decimal",
+                            source,
+                            match,
+                            2);
+                return match.str();
+            }
+            return match[1].str() + number(integer) + " point " + digits(value.substr(dot + 1));
+        });
     text = replace_matches(text,
-                           english_patterns().en_measurement,
+                           english::patterns().measurement,
                            [&](const std::smatch& match, const MappedText& source) {
                                long long n = 0;
                                if (!try_parse_long(match[1].str(), n)) {
@@ -179,11 +162,11 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                                        ? (singular ? "millimeter" : "millimeters")
                                    : unit == "MB" ? (singular ? "megabyte" : "megabytes")
                                                   : (singular ? "gigabyte" : "gigabytes");
-                               return en_number(n) + " " + spoken + match[3].str();
+                               return number(n) + " " + spoken + match[3].str();
                            });
     text = replace_numeric_matches(
         text,
-        english_patterns().generic_en_number,
+        english::patterns().generic_number,
         [&](const std::smatch& match, const MappedText& source) {
             const auto number_begin = static_cast<std::size_t>(match.position(2));
             const auto number_end = number_begin + static_cast<std::size_t>(match.length(2));

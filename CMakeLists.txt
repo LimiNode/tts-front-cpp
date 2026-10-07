@@ -49,24 +49,35 @@ add_library(tts_front
     src/tts_front/core/utf8_document.cpp
     src/tts_front/core/mapped_text.cpp
     src/tts_front/core/edit_script.cpp
+    src/tts_front/core/spacing.cpp
+    src/tts_front/core/tokenization.cpp
     src/tts_front/normalization/candidate_scanner.cpp
     src/tts_front/normalization/admission.cpp
-    src/tts_front/normalization/technical_admission.cpp
+    src/tts_front/technical/admission.cpp
     src/tts_front/normalization/malformed_admission.cpp
     src/tts_front/normalization/grouped_numbers.cpp
     src/tts_front/normalization/mixed_language.cpp
     src/tts_front/normalization/normalizer_support.cpp
     src/tts_front/normalization/codepoint_classification.cpp
-    src/tts_front/normalization/patterns.cpp
+    src/tts_front/normalization/language_detection.cpp
     src/tts_front/language/english/numbers.cpp
+    src/tts_front/language/english/admission.cpp
+    src/tts_front/language/english/patterns.cpp
     src/tts_front/language/english/normalizer.cpp
+    src/tts_front/language/english/grouped_numbers.cpp
+    src/tts_front/language/english/mixed_candidates.cpp
     src/tts_front/language/russian/numbers.cpp
+    src/tts_front/language/russian/admission.cpp
+    src/tts_front/language/russian/patterns.cpp
     src/tts_front/language/russian/formatters.cpp
     src/tts_front/language/russian/normalizer.cpp
+    src/tts_front/language/russian/initialisms.cpp
+    src/tts_front/language/russian/mixed_candidates.cpp
     src/tts_front/backend/silero/silero_asset_hash.cpp
     src/tts_front/backend/silero/silero_bundle.cpp
     src/tts_front/backend/silero/silero_sentence.cpp
     src/tts_front/backend/silero/silero_stress_backend.cpp
+    src/tts_front/technical/patterns.cpp
 )
 add_library(TtsFront::tts_front ALIAS tts_front)
 target_compile_features(tts_front PUBLIC cxx_std_17)

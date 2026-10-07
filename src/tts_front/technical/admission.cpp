@@ -1,11 +1,11 @@
+#include "tts_front/normalization/admission.hpp"
+
 #include "tts_front/core/edit_script.hpp"
 #include "tts_front/core/utf8.hpp"
 #include "tts_front/core/utf8_document.hpp"
-#include "tts_front/language/english/patterns.hpp"
-#include "tts_front/normalization/admission.hpp"
 #include "tts_front/normalization/candidate_scanner.hpp"
 #include "tts_front/normalization/codepoint_classification.hpp"
-#include "tts_front/normalization/patterns.hpp"
+#include "tts_front/technical/admission.hpp"
 #include "tts_front/technical/patterns.hpp"
 
 #include <algorithm>
@@ -25,7 +25,7 @@ namespace tts_front::detail {
 using CodePoint = Utf8CodePoint;
 
 MappedText protect_technical(MappedText text, std::vector<ProtectedSpan>& protected_spans) {
-    const auto& patterns = technical_patterns();
+    const auto& patterns = technical::patterns();
     const std::array<const std::regex*, 9> technical_patterns = {&patterns.technical_url,
                                                                  &patterns.technical_email,
                                                                  &patterns.technical_ipv4,
@@ -151,7 +151,7 @@ MappedText protect_numeric_technical_candidates(MappedText text,
         const Utf8Document document(text.text);
         for (std::sregex_iterator it(text.text.begin(),
                                      text.text.end(),
-                                     technical_patterns().technical_numeric_percent),
+                                     technical::patterns().technical_numeric_percent),
              end;
              it != end;
              ++it) {

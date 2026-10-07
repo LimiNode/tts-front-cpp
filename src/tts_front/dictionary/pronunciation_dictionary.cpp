@@ -1,6 +1,6 @@
 #include "tts_front.hpp"
-#include "tts_front/core/json.hpp"
 #include "tts_front/core/utf8.hpp"
+#include "tts_front/serialization/json.hpp"
 
 #include <cctype>
 #include <cstdint>

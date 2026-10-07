@@ -5,7 +5,6 @@
 #include "tts_front/core/utf8_document.hpp"
 #include "tts_front/normalization/candidate_scanner.hpp"
 #include "tts_front/normalization/codepoint_classification.hpp"
-#include "tts_front/normalization/patterns.hpp"
 
 #include <algorithm>
 #include <array>

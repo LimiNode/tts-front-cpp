@@ -19,4 +19,6 @@ struct Patterns {
         R"(((?:[vV]\d+(?:\.\d+)+|HTTP/\d+(?:\.\d+)?|C#\d+(?:\.\d+)?|(?:RTX|CUDA|GPU|API)\s+\d+(?:\.\d+)?|\d{1,3}(?:\.\d{1,3}){3}|#[0-9]+|[A-Za-z][A-Za-z0-9+._#-]*\$(?:[+-][ \t]*)?\d+|[A-Za-z][A-Za-z0-9+._$#-]*[-+$][ \t]*[A-Za-z0-9._$#-]+)))"};
 };
 
+const Patterns& patterns();
+
 } // namespace tts_front::detail::technical

@@ -1,11 +1,17 @@
 #include "tts_front.hpp"
 #include "tts_front/backend/silero/silero_stress_backend.hpp"
 #include "tts_front/core/mapped_text.hpp"
+#include "tts_front/core/spacing.hpp"
+#include "tts_front/core/tokenization.hpp"
 #include "tts_front/core/utf8.hpp"
+#include "tts_front/language/english/mixed_candidates.hpp"
 #include "tts_front/language/english/normalizer.hpp"
+#include "tts_front/language/russian/initialisms.hpp"
+#include "tts_front/language/russian/mixed_candidates.hpp"
 #include "tts_front/language/russian/normalizer.hpp"
 #include "tts_front/normalization/admission.hpp"
 #include "tts_front/normalization/codepoint_classification.hpp"
+#include "tts_front/normalization/language_detection.hpp"
 #include "tts_front/normalization/mixed_language.hpp"
 
 #include <algorithm>
@@ -29,41 +35,8 @@ namespace {
 
 using CodePoint = detail::Utf8CodePoint;
 using detail::decode_utf8;
-using detail::is_cyrillic;
-using detail::is_digit;
-using detail::is_latin;
-using detail::is_word_codepoint;
 using detail::MappedText;
 using detail::WarningSink;
-
-MappedText cleanup_text(const MappedText& input) {
-    MappedText result;
-    result.preserved_ranges = input.preserved_ranges;
-    result.text.reserve(input.text.size());
-    std::vector<CodePoint> points;
-    if (!decode_utf8(input.text, points))
-        return input;
-    bool pending_space = false;
-    std::size_t space_begin = 0;
-    for (const auto& point : points) {
-        const bool space = point.value == ' ' || point.value == '\t' || point.value == '\n' ||
-                           point.value == '\r' || point.value == '\v' || point.value == '\f' ||
-                           point.value == 0x00a0 || point.value == 0x202f;
-        if (space) {
-            if (!pending_space && !result.text.empty())
-                space_begin = point.offset;
-            pending_space = !result.text.empty();
-            continue;
-        }
-        const bool punctuation = point.value == ',' || point.value == '.' || point.value == ';' ||
-                                 point.value == ':' || point.value == '!' || point.value == '?';
-        if (pending_space && !punctuation && !result.text.empty())
-            result.append_generated(input, space_begin, point.offset, " ");
-        pending_space = false;
-        result.append_copy(input, point.offset, point.offset + point.length);
-    }
-    return result;
-}
 
 void add_warning(std::vector<TextWarning>& warnings,
                  WarningCode code,
@@ -71,76 +44,6 @@ void add_warning(std::vector<TextWarning>& warnings,
                  std::size_t offset,
                  std::size_t length) {
     warnings.push_back({code, std::move(message), offset, length});
-}
-
-struct Span {
-    std::size_t begin = 0;
-    std::size_t end = 0;
-};
-std::vector<Span> token_spans(const std::string& text) {
-    std::vector<CodePoint> points;
-    if (!decode_utf8(text, points))
-        return {};
-    std::vector<Span> spans;
-    std::size_t begin = std::string::npos;
-    std::size_t end = 0;
-    for (std::size_t index = 0; index < points.size(); ++index) {
-        const auto& point = points[index];
-        const bool embedded_dot = point.value == '.' && index > 0 && index + 1 < points.size() &&
-                                  is_digit(points[index - 1].value) &&
-                                  is_digit(points[index + 1].value);
-        if (is_word_codepoint(point.value) || embedded_dot) {
-            if (begin == std::string::npos)
-                begin = point.offset;
-            end = point.offset + point.length;
-        } else if (begin != std::string::npos) {
-            spans.push_back({begin, end});
-            begin = std::string::npos;
-        }
-    }
-    if (begin != std::string::npos)
-        spans.push_back({begin, end});
-    return spans;
-}
-
-// Automatic expansion is deliberately an allowlist.  Uppercase-looking text
-// is not enough evidence that a token should be spelled out letter by letter:
-// lexical acronyms such as НАТО, МИД and ЗАГС must remain unchanged unless a
-// caller supplies an explicit dictionary entry.
-std::optional<std::string> safe_russian_initialism(std::string_view token) {
-    if (token == "ВК")
-        return "вэ ка";
-    if (token == "ООО")
-        return "о о о";
-    if (token == "РФ")
-        return "эр эф";
-    if (token == "МГУ")
-        return "эм гэ у";
-    if (token == "ФСБ")
-        return "эф эс бэ";
-    if (token == "МФЦ")
-        return "эм эф цэ";
-    if (token == "ИП")
-        return "и пэ";
-    return std::nullopt;
-}
-Language detect_language(std::string_view text,
-                         bool& has_cyrillic,
-                         bool& has_latin,
-                         bool use_dominant_counts = false) {
-    std::vector<CodePoint> points;
-    decode_utf8(text, points);
-    std::size_t cyrillic_count = 0;
-    std::size_t latin_count = 0;
-    for (const auto& point : points) {
-        cyrillic_count += is_cyrillic(point.value) ? 1 : 0;
-        latin_count += is_latin(point.value) ? 1 : 0;
-    }
-    has_cyrillic = cyrillic_count != 0;
-    has_latin = latin_count != 0;
-    if (use_dominant_counts && has_cyrillic && has_latin)
-        return cyrillic_count >= latin_count ? Language::Russian : Language::English;
-    return has_cyrillic ? Language::Russian : Language::English;
 }
 
 [[maybe_unused]] std::optional<std::filesystem::path>
@@ -195,7 +98,7 @@ TextFrontendResult TextFrontend::process(std::string_view input,
     WarningSink warning_sink{result.warnings, {}};
     MappedText text = MappedText::from_original(input, &warning_sink.preserved_ranges);
     if (options.cleanup_spacing)
-        text = cleanup_text(text);
+        text = detail::cleanup_spacing(text);
     bool has_cyrillic = false;
     bool has_latin = false;
     std::optional<detail::TechnicalRangeIndex> technical_index;
@@ -206,7 +109,7 @@ TextFrontendResult TextFrontend::process(std::string_view input,
             language =
                 detail::detect_mixed_language(text.text, has_cyrillic, has_latin, *technical_index);
         } else {
-            language = detect_language(text.text, has_cyrillic, has_latin);
+            language = detail::detect_language(text.text, has_cyrillic, has_latin);
         }
     }
     if (options.language == Language::Auto && has_cyrillic && has_latin)
@@ -224,9 +127,20 @@ TextFrontendResult TextFrontend::process(std::string_view input,
     if (options.normalize) {
         if (options.language == Language::Auto &&
             options.mixed_language_policy == MixedLanguagePolicy::SegmentCandidates &&
-            has_cyrillic && technical_index)
-            text = detail::normalize_mixed_candidates(
-                std::move(text), warning_sink, language, *technical_index);
+            has_cyrillic && technical_index) {
+            if (language == Language::Russian)
+                text = detail::normalize_mixed_candidates(std::move(text),
+                                                          warning_sink,
+                                                          detail::russian::mixed_language_rules(),
+                                                          detail::english::mixed_language_rules(),
+                                                          *technical_index);
+            else
+                text = detail::normalize_mixed_candidates(std::move(text),
+                                                          warning_sink,
+                                                          detail::english::mixed_language_rules(),
+                                                          detail::russian::mixed_language_rules(),
+                                                          *technical_index);
+        }
         switch (language) {
         case Language::Russian:
             text = detail::russian::normalize(std::move(text), warning_sink);
@@ -239,7 +153,7 @@ TextFrontendResult TextFrontend::process(std::string_view input,
         }
     }
     if (options.cleanup_spacing)
-        text = cleanup_text(text);
+        text = detail::cleanup_spacing(text);
     result.normalized_text = text.text;
     result.pronunciation_text = text.text;
     const bool stress_enabled =
@@ -247,19 +161,19 @@ TextFrontendResult TextFrontend::process(std::string_view input,
 
     // Dictionary phrases are matched on complete token sequences, longest first, without rescanning output.
     std::vector<const PronunciationDictionary::Entry*> matched_entries;
-    const auto spans = token_spans(text.text);
+    const auto spans = detail::token_spans(text.text);
     matched_entries.assign(spans.size(), nullptr);
     std::vector<std::string> automatic_replacements(spans.size());
     if ((options.apply_dictionary && options.dictionary) || options.expand_initialisms) {
         struct PhraseCandidate {
             const PronunciationDictionary::Entry* entry = nullptr;
-            std::vector<Span> spans;
+            std::vector<detail::TokenSpan> spans;
         };
         std::vector<PhraseCandidate> phrases;
         if (options.apply_dictionary && options.dictionary) {
             for (const auto& entry : options.dictionary->entries()) {
                 if (entry.match == PronunciationDictionary::Match::ExactPhrase)
-                    phrases.push_back({&entry, token_spans(entry.pattern)});
+                    phrases.push_back({&entry, detail::token_spans(entry.pattern)});
             }
         }
         std::string rendered;
@@ -314,7 +228,7 @@ TextFrontendResult TextFrontend::process(std::string_view input,
                     result.dictionary_replacements.push_back(
                         {token, entry->pronunciation, spans[i].begin});
             } else if (options.expand_initialisms && language == Language::Russian) {
-                if (const auto replacement = safe_russian_initialism(token)) {
+                if (const auto replacement = detail::russian::safe_initialism(token)) {
                     automatic_replacements[i] = *replacement;
                     rendered += *replacement;
                     result.automatic_rewrites.push_back(
@@ -332,7 +246,7 @@ TextFrontendResult TextFrontend::process(std::string_view input,
         result.pronunciation_text = std::move(rendered);
     }
 
-    const auto normalized_spans = token_spans(result.normalized_text);
+    const auto normalized_spans = detail::token_spans(result.normalized_text);
     for (std::size_t span_index = 0; span_index < normalized_spans.size(); ++span_index) {
         const auto& span = normalized_spans[span_index];
         const std::string token = result.normalized_text.substr(span.begin, span.end - span.begin);
@@ -442,10 +356,12 @@ TextFrontendResult TextFrontend::process(std::string_view input,
                 auto automatic_words = result.words;
                 auto automatic_stress_decisions = result.stress_decisions;
                 for (const auto& word : semantic.words) {
-                    const auto span_index = std::find_if(
-                        normalized_spans.begin(), normalized_spans.end(), [&](const Span span) {
-                            return span.begin == word.source_offset;
-                        });
+                    const auto span_index =
+                        std::find_if(normalized_spans.begin(),
+                                     normalized_spans.end(),
+                                     [&](const detail::TokenSpan span) {
+                                         return span.begin == word.source_offset;
+                                     });
                     if (span_index == normalized_spans.end())
                         continue;
                     const auto index =

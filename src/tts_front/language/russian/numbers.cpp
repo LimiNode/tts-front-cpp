@@ -2,60 +2,60 @@
 
 namespace tts_front::detail::russian {
 
-const char* const ru_ones[] = {"ноль",        "один",       "два",          "три",
-                               "четыре",      "пять",       "шесть",        "семь",
-                               "восемь",      "девять",     "десять",       "одиннадцать",
-                               "двенадцать",  "тринадцать", "четырнадцать", "пятнадцать",
-                               "шестнадцать", "семнадцать", "восемнадцать", "девятнадцать"};
-const char* const ru_tens[] = {"",
-                               "",
-                               "двадцать",
-                               "тридцать",
-                               "сорок",
-                               "пятьдесят",
-                               "шестьдесят",
-                               "семьдесят",
-                               "восемьдесят",
-                               "девяносто"};
-const char* const ru_hundreds[] = {"",
-                                   "сто",
-                                   "двести",
-                                   "триста",
-                                   "четыреста",
-                                   "пятьсот",
-                                   "шестьсот",
-                                   "семьсот",
-                                   "восемьсот",
-                                   "девятьсот"};
-std::string ru_under_1000(int n) {
+const char* const ones[] = {"ноль",        "один",       "два",          "три",
+                            "четыре",      "пять",       "шесть",        "семь",
+                            "восемь",      "девять",     "десять",       "одиннадцать",
+                            "двенадцать",  "тринадцать", "четырнадцать", "пятнадцать",
+                            "шестнадцать", "семнадцать", "восемнадцать", "девятнадцать"};
+const char* const tens[] = {"",
+                            "",
+                            "двадцать",
+                            "тридцать",
+                            "сорок",
+                            "пятьдесят",
+                            "шестьдесят",
+                            "семьдесят",
+                            "восемьдесят",
+                            "девяносто"};
+const char* const hundreds[] = {"",
+                                "сто",
+                                "двести",
+                                "триста",
+                                "четыреста",
+                                "пятьсот",
+                                "шестьсот",
+                                "семьсот",
+                                "восемьсот",
+                                "девятьсот"};
+std::string under_1000(int n) {
     std::string result;
     if (n >= 100) {
-        result += ru_hundreds[n / 100];
+        result += hundreds[n / 100];
         n %= 100;
         if (n)
             result += " ";
     }
     if (n < 20) {
         if (n)
-            result += ru_ones[n];
+            result += ones[n];
     } else {
-        result += ru_tens[n / 10];
+        result += tens[n / 10];
         if (n % 10)
-            result += " " + std::string(ru_ones[n % 10]);
+            result += " " + std::string(ones[n % 10]);
     }
     return result.empty() ? "ноль" : result;
 }
-std::string ru_number(long long n) {
+std::string number(long long n) {
     if (n < 0)
-        return "минус " + ru_number(-n);
+        return "минус " + number(-n);
     if (n < 1000)
-        return ru_under_1000(static_cast<int>(n));
+        return under_1000(static_cast<int>(n));
     if (n < 1000000) {
         const int thousands = static_cast<int>(n / 1000);
         const int rest = static_cast<int>(n % 1000);
         std::string thousands_word = thousands == 1   ? "одна"
                                      : thousands == 2 ? "две"
-                                                      : ru_under_1000(thousands);
+                                                      : under_1000(thousands);
         const int last_two = thousands % 100;
         const int last_digit = thousands % 10;
         if (!(last_two >= 11 && last_two <= 14)) {
@@ -76,21 +76,21 @@ std::string ru_number(long long n) {
                       ? " тысячи"
                       : " тысяч";
         if (rest)
-            result += " " + ru_under_1000(rest);
+            result += " " + under_1000(rest);
         return result;
     }
     if (n < 1000000000) {
         const int millions = static_cast<int>(n / 1000000);
         const int rest = static_cast<int>(n % 1000000);
         std::string result =
-            ru_number(millions) +
+            number(millions) +
             ((millions % 100 >= 11 && millions % 100 <= 14)
                  ? " миллионов"
                  : (millions % 10 == 1
                         ? " миллион"
                         : (millions % 10 >= 2 && millions % 10 <= 4 ? " миллиона" : " миллионов")));
         if (rest)
-            result += " " + ru_number(rest);
+            result += " " + number(rest);
         return result;
     }
     return std::to_string(n);
