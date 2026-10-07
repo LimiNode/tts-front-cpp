@@ -2,6 +2,7 @@
 #include "tts_front/backend/silero/silero_stress_backend.hpp"
 #include "tts_front/core/mapped_text.hpp"
 #include "tts_front/core/spacing.hpp"
+#include "tts_front/core/text/codepoint_classification.hpp"
 #include "tts_front/core/tokenization.hpp"
 #include "tts_front/core/utf8.hpp"
 #include "tts_front/language/english/mixed_candidates.hpp"
@@ -10,7 +11,6 @@
 #include "tts_front/language/russian/mixed_candidates.hpp"
 #include "tts_front/language/russian/normalizer.hpp"
 #include "tts_front/normalization/admission.hpp"
-#include "tts_front/normalization/codepoint_classification.hpp"
 #include "tts_front/normalization/language_detection.hpp"
 #include "tts_front/normalization/mixed_language.hpp"
 

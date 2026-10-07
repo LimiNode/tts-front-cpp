@@ -81,22 +81,24 @@ std::optional<std::string> format(std::string_view candidate) {
 
 std::vector<MixedCandidateMatch> scan_candidate_matches(std::string_view text) {
     std::vector<MixedCandidateMatch> matches;
-    const std::string value(text);
-    for (std::sregex_iterator it(value.begin(), value.end(), candidate_pattern()), end; it != end;
-         ++it) {
+    using Iterator = std::regex_iterator<std::string_view::const_iterator>;
+    for (Iterator it(text.begin(), text.end(), candidate_pattern()), end; it != end; ++it) {
         const auto begin = static_cast<std::size_t>(it->position(2));
-        matches.push_back({begin, begin + static_cast<std::size_t>(it->length(2)), it->str(2)});
+        matches.push_back({begin,
+                           begin + static_cast<std::size_t>(it->length(2)),
+                           text.substr(begin, static_cast<std::size_t>(it->length(2)))});
     }
     return matches;
 }
 
 std::vector<MixedCandidateMatch> scan_malformed_matches(std::string_view text) {
     std::vector<MixedCandidateMatch> matches;
-    const std::string value(text);
-    for (std::sregex_iterator it(value.begin(), value.end(), malformed_pattern()), end; it != end;
-         ++it) {
+    using Iterator = std::regex_iterator<std::string_view::const_iterator>;
+    for (Iterator it(text.begin(), text.end(), malformed_pattern()), end; it != end; ++it) {
         const auto begin = static_cast<std::size_t>(it->position(1));
-        matches.push_back({begin, begin + static_cast<std::size_t>(it->length(1)), it->str(1)});
+        matches.push_back({begin,
+                           begin + static_cast<std::size_t>(it->length(1)),
+                           text.substr(begin, static_cast<std::size_t>(it->length(1)))});
     }
     return matches;
 }

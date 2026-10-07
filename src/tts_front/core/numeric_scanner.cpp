@@ -1,6 +1,6 @@
-#include "candidate_scanner.hpp"
+#include "tts_front/core/numeric_scanner.hpp"
 
-#include "codepoint_classification.hpp"
+#include "tts_front/core/text/codepoint_classification.hpp"
 
 namespace tts_front::detail {
 
@@ -15,7 +15,6 @@ std::size_t scan_numeric_continuation_points(const Utf8Document& document,
             ++token_begin;
         if (token_begin >= points.size())
             break;
-
         auto token_end = token_begin;
         while (token_end < points.size()) {
             if (is_ascii_punctuation(points[token_end].value)) {
@@ -37,7 +36,6 @@ std::size_t scan_numeric_continuation_points(const Utf8Document& document,
         }
         if (token_end >= points.size() || !is_digit(points[token_end].value))
             break;
-
         while (token_end < points.size()) {
             if (is_digit(points[token_end].value) ||
                 is_ascii_punctuation(points[token_end].value)) {

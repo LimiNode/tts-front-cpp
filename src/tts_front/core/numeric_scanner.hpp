@@ -1,6 +1,5 @@
 #pragma once
 
-#include "candidate_types.hpp"
 #include "tts_front/core/utf8_document.hpp"
 
 namespace tts_front::detail {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "tts_front/normalization/admission.hpp"
+#include "tts_front/core/normalization_support.hpp"
 
 #include <vector>
 

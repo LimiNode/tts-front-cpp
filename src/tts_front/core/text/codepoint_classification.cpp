@@ -2,7 +2,7 @@
 
 #include <cctype>
 
-namespace tts_front::detail {
+namespace tts_front::detail::text {
 
 bool is_cyrillic(std::uint32_t cp) {
     return cp >= 0x0400 && cp <= 0x052f;
@@ -60,4 +60,4 @@ bool is_ascii_punctuation(std::uint32_t cp) {
     return cp < 0x80 && std::ispunct(static_cast<unsigned char>(cp)) != 0;
 }
 
-} // namespace tts_front::detail
+} // namespace tts_front::detail::text

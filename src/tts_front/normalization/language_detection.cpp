@@ -1,7 +1,7 @@
 #include "tts_front/normalization/language_detection.hpp"
 
+#include "tts_front/core/text/codepoint_classification.hpp"
 #include "tts_front/core/utf8.hpp"
-#include "tts_front/normalization/codepoint_classification.hpp"
 
 #include <vector>
 

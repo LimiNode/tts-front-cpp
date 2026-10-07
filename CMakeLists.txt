@@ -52,7 +52,7 @@ add_library(tts_front
     src/tts_front/core/spacing.cpp
     src/tts_front/core/tokenization.cpp
     src/tts_front/core/text/codepoint_classification.cpp
-    src/tts_front/normalization/candidate_scanner.cpp
+    src/tts_front/core/numeric_scanner.cpp
     src/tts_front/normalization/admission.cpp
     src/tts_front/technical/admission.cpp
     src/tts_front/normalization/malformed_admission.cpp

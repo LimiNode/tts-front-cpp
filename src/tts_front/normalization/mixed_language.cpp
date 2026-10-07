@@ -1,12 +1,14 @@
 #include "tts_front/normalization/mixed_language.hpp"
 
 #include "tts_front/core/edit_script.hpp"
+#include "tts_front/core/text/codepoint_classification.hpp"
 #include "tts_front/core/utf8.hpp"
-#include "tts_front/normalization/codepoint_classification.hpp"
+#include "tts_front/core/utf8_document.hpp"
 #include "tts_front/technical/patterns.hpp"
 
 #include <algorithm>
 #include <array>
+#include <regex>
 #include <string>
 #include <string_view>
 #include <vector>

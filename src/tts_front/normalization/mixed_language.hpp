@@ -18,7 +18,7 @@ struct TechnicalRangeIndex {
 struct MixedCandidateMatch {
     std::size_t begin = 0;
     std::size_t end = 0;
-    std::string value;
+    std::string_view value;
 };
 
 using MixedCandidateScanner = std::vector<MixedCandidateMatch> (*)(std::string_view);
