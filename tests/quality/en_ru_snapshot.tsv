@@ -1,0 +1,95 @@
+version	1
+cases	352
+outcome	correct_transformation	278
+outcome	justified_preservation	23
+outcome	unnecessary_refusal	34
+outcome	incorrect_or_partial	17
+mismatch	en-int-0-parentheses
+mismatch	en-int-1-parentheses
+mismatch	en-int-2-parentheses
+mismatch	en-int-3-parentheses
+mismatch	en-int-4-parentheses
+mismatch	en-int-5-parentheses
+mismatch	en-int-10-parentheses
+mismatch	en-int-11-parentheses
+mismatch	en-int-12-parentheses
+mismatch	en-int-20-parentheses
+mismatch	en-int-21-parentheses
+mismatch	en-int-42-parentheses
+mismatch	en-int-99-parentheses
+mismatch	en-int-100-parentheses
+mismatch	en-int-250-parentheses
+mismatch	ru-int-0-parentheses
+mismatch	ru-int-1-parentheses
+mismatch	ru-int-2-parentheses
+mismatch	ru-int-3-parentheses
+mismatch	ru-int-4-parentheses
+mismatch	ru-int-5-parentheses
+mismatch	ru-int-10-parentheses
+mismatch	ru-int-11-parentheses
+mismatch	ru-int-12-parentheses
+mismatch	ru-int-20-parentheses
+mismatch	ru-int-21-parentheses
+mismatch	ru-int-42-parentheses
+mismatch	ru-int-99-parentheses
+mismatch	ru-int-100-parentheses
+mismatch	ru-int-250-parentheses
+mismatch	en-money-3-1
+mismatch	en-money-4-1
+mismatch	en-decimal-4-0
+mismatch	en-decimal-4-1
+mismatch	ru-decimal-10-0
+mismatch	ru-decimal-10-1
+mismatch	en-date-spoken-0
+mismatch	en-date-spoken-1
+mismatch	en-date-spoken-2
+mismatch	en-date-spoken-3
+mismatch	ru-mixed-2
+mismatch	ru-mixed-4
+mismatch	ru-mixed-10
+mismatch	ru-mixed-13
+mismatch	en-mixed-18
+mismatch	en-natural-04
+mismatch	ru-natural-01
+mismatch	ru-natural-02
+mismatch	ru-natural-04
+mismatch	ru-natural-09
+mismatch	ru-natural-11
+diagnostic_exception	en-int-0-parentheses	unresolved_number@24:2
+diagnostic_exception	en-int-1-parentheses	unresolved_number@24:2
+diagnostic_exception	en-int-2-parentheses	unresolved_number@24:2
+diagnostic_exception	en-int-3-parentheses	unresolved_number@24:2
+diagnostic_exception	en-int-4-parentheses	unresolved_number@24:2
+diagnostic_exception	en-int-5-parentheses	unresolved_number@24:2
+diagnostic_exception	en-int-10-parentheses	unresolved_number@24:3
+diagnostic_exception	en-int-11-parentheses	unresolved_number@24:3
+diagnostic_exception	en-int-12-parentheses	unresolved_number@24:3
+diagnostic_exception	en-int-20-parentheses	unresolved_number@24:3
+diagnostic_exception	en-int-21-parentheses	unresolved_number@24:3
+diagnostic_exception	en-int-42-parentheses	unresolved_number@24:3
+diagnostic_exception	en-int-99-parentheses	unresolved_number@24:3
+diagnostic_exception	en-int-100-parentheses	unresolved_number@24:4
+diagnostic_exception	en-int-250-parentheses	unresolved_number@24:4
+diagnostic_exception	ru-int-0-parentheses	unresolved_number@52:2
+diagnostic_exception	ru-int-1-parentheses	unresolved_number@52:2
+diagnostic_exception	ru-int-2-parentheses	unresolved_number@52:2
+diagnostic_exception	ru-int-3-parentheses	unresolved_number@52:2
+diagnostic_exception	ru-int-4-parentheses	unresolved_number@52:2
+diagnostic_exception	ru-int-5-parentheses	unresolved_number@52:2
+diagnostic_exception	ru-int-10-parentheses	unresolved_number@52:3
+diagnostic_exception	ru-int-11-parentheses	unresolved_number@52:3
+diagnostic_exception	ru-int-12-parentheses	unresolved_number@52:3
+diagnostic_exception	ru-int-20-parentheses	unresolved_number@52:3
+diagnostic_exception	ru-int-21-parentheses	unresolved_number@52:3
+diagnostic_exception	ru-int-42-parentheses	unresolved_number@52:3
+diagnostic_exception	ru-int-99-parentheses	unresolved_number@52:3
+diagnostic_exception	ru-int-100-parentheses	unresolved_number@52:4
+diagnostic_exception	ru-int-250-parentheses	unresolved_number@52:4
+diagnostic_exception	en-money-3-1	unresolved_number@7:7
+diagnostic_exception	en-money-4-1	unresolved_number@7:6
+diagnostic_exception	en-preserve-4	unresolved_number@17:6
+diagnostic_exception	ru-preserve-12	unresolved_number@33:6
+diagnostic_exception	en-natural-10	unresolved_number@4:4
+diagnostic_exception	ru-natural-11	unresolved_number@29:3
+diagnostic_exception	ru-mixed-14	unresolved_number@19:6
+diagnostic_exception	en-mixed-19	unresolved_number@14:6

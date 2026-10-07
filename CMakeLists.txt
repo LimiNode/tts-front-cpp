@@ -137,6 +137,9 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/TtsFrontConfig.cmake ${CMAKE_CURRENT_B
 
 if(TTS_FRONT_BUILD_TESTS)
   enable_testing()
+  find_package(Python3 COMPONENTS Interpreter REQUIRED)
+  add_test(NAME tts_front_quality_corpus_sync
+           COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/generate_quality_corpus.py --check)
   add_executable(tts_front_tests tests/text_frontend_tests.cpp)
   tts_front_configure_target(tts_front_tests)
   target_link_libraries(tts_front_tests PRIVATE TtsFront::tts_front)

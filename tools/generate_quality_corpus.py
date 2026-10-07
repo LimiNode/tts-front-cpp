@@ -1,22 +1,36 @@
 #!/usr/bin/env python3
 """Generate the reviewed EN/RU quality corpus without invoking tts-front."""
 
+import sys
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "tests" / "quality" / "en_ru_sentences.tsv"
-HEADER = "id\tlanguage\tmode\tcategory\texpectation\tinput\texpected"
+HEADER = "id\tlanguage\tmode\tcategory\texpectation\tinput\texpected\tdiagnostics"
 
 
-def row(case_id, language, mode, category, expectation, source, expected):
-    fields = (case_id, language, mode, category, expectation, source, expected)
+def row(case_id, language, mode, category, expectation, source, expected, diagnostics="none"):
+    fields = (case_id, language, mode, category, expectation, source, expected, diagnostics)
     assert all("\t" not in field and "\n" not in field for field in fields)
     assert language in {"en", "ru"}
     assert mode in {"explicit", "auto_segment"}
     assert expectation in {"normalize", "preserve"}
+    assert diagnostics == "none" or all(
+        "@" in item and ":" in item for item in diagnostics.split(";")
+    )
     assert (source == expected) == (expectation == "preserve")
     return "\t".join(fields)
+
+
+def warning(source, needle, code="unresolved_number"):
+    offset = source.encode("utf-8").find(needle.encode("utf-8"))
+    assert offset >= 0, (source, needle)
+    return f"{code}@{offset}:{len(needle.encode('utf-8'))}"
+
+
+def warnings(source, *needles):
+    return ";".join(warning(source, needle) for needle in needles)
 
 
 rows = []
@@ -248,7 +262,7 @@ for index, (surface, spoken) in enumerate(en_dates):
 for index, surface in enumerate(("01/02/2026", "02/01/2026", "2026-02-01", "2025-12-31")):
     source = f"Keep the machine-readable date {surface}."
     rows.append(row(f"en-date-preserve-{index}", "en", "explicit", "date", "preserve", source,
-                    source))
+                    source, warning(source, surface)))
 
 mixed_cases = [
     ("ru", "У меня 2 GPU и 3 ядра. Использую OpenAI API.",
@@ -267,37 +281,150 @@ mixed_cases = [
      "Email dev42@example.com after two attempts."),
     ("en", "The OpenAI API accepted 42 requests.",
      "The OpenAI API accepted forty two requests."),
+    ("ru", "Устройство CUDA 13.3 потребляет 2 GB памяти.",
+     "Устройство CUDA 13.3 потребляет two GB памяти."),
+    ("ru", "На сервере HTTP/2 работает 4 процесса.",
+     "На сервере HTTP/2 работает четыре процесса."),
+    ("ru", "OpenAI API обработал 12 запросов.",
+     "OpenAI API обработал двенадцать запросов."),
+    ("ru", "Порог 0.5% задан для RTX-4090.",
+     "Порог ноль point пять процентов задан для RTX-4090."),
+    ("ru", "Версия V2.1.0—123 отмечена номером 7.",
+     "Версия V2.1.0—123 отмечена номером семь."),
+    ("en", "Use 3 кг порошка with OpenAI API.",
+     "Use три килограмма порошка with OpenAI API."),
+    ("en", "The GPU RTX 4090 needs 8 GB of memory.",
+     "The GPU RTX 4090 needs eight gigabytes of memory."),
+    ("en", "Build 12 on HTTP/2 passed validation.",
+     "Build twelve on HTTP/2 passed validation."),
+    ("en", "Deploy 5 replicas в the cluster.",
+     "Deploy five replicas в the cluster."),
+    ("en", "Version V2.1.0—123 is tagged 7.",
+     "Version V2.1.0—123 is tagged seven."),
 ]
 for index, (language, source, expected) in enumerate(mixed_cases):
+    diagnostics = "none"
+    if index in {0, 1, 10, 12} and language == "ru":
+        diagnostics = f"ambiguous_normalization@0:{len(source.encode('utf-8'))}"
+    if index in {5, 15, 18} and language == "en":
+        diagnostics = f"ambiguous_normalization@0:{len(source.encode('utf-8'))}"
     rows.append(row(f"{language}-mixed-{index}", language, "auto_segment", "mixed_language",
-                    "normalize", source, expected))
+                    "normalize", source, expected, diagnostics))
 
 preserved = [
-    ("en", "Deploy C++17 to RTX-4090 at https://example.com/v2.1.0."),
-    ("en", "The endpoint HTTP/2 returned code #123."),
-    ("en", "Keep malformed value 1.2..3 unchanged."),
-    ("en", "Keep malformed time 1:02::3 unchanged."),
-    ("en", "Identifier V2.1.0—123 must remain atomic."),
-    ("en", "The malformed amount 1 dollarfoo stays unchanged."),
-    ("en", "The malformed unit 2 kgfoo stays unchanged."),
-    ("en", "Invalid clock values 24:00 and 99:99 remain digits."),
-    ("ru", "Запустите C++17 на RTX-4090 через https://example.com/v2.1.0."),
-    ("ru", "Ответ HTTP/2 содержит код #123."),
-    ("ru", "Некорректное значение 1,2..3 сохраняется."),
-    ("ru", "Некорректное время 1:02::3 сохраняется."),
-    ("ru", "Идентификатор V2.1.0—123 остаётся атомарным."),
-    ("ru", "Некорректная сумма 1 рублейfoo сохраняется."),
-    ("ru", "Некорректная единица 2 кгfoo сохраняется."),
-    ("ru", "Ошибочное время 24:00 и 99:99 остаётся цифрами."),
+    ("en", "Deploy C++17 to RTX-4090 at https://example.com/v2.1.0.", "none"),
+    ("en", "The endpoint HTTP/2 returned code #123.", "none"),
+    ("en", "Keep malformed value 1.2..3 unchanged.", None),
+    ("en", "Keep malformed time 1:02::3 unchanged.", None),
+    ("en", "Identifier V2.1.0—123 must remain atomic.", None),
+    ("en", "The malformed amount 1 dollarfoo stays unchanged.", None),
+    ("en", "The malformed unit 2 kgfoo stays unchanged.", None),
+    ("en", "Invalid clock values 24:00 and 99:99 remain digits.", None),
+    ("ru", "Запустите C++17 на RTX-4090 через https://example.com/v2.1.0.", "none"),
+    ("ru", "Ответ HTTP/2 содержит код #123.", "none"),
+    ("ru", "Некорректное значение 1,2..3 сохраняется.", None),
+    ("ru", "Некорректное время 1:02::3 сохраняется.", None),
+    ("ru", "Идентификатор V2.1.0—123 остаётся атомарным.", None),
+    ("ru", "Некорректная сумма 1 рублейfoo сохраняется.", None),
+    ("ru", "Некорректная единица 2 кгfoo сохраняется.", None),
+    ("ru", "Ошибочное время 24:00 и 99:99 остаётся цифрами.", None),
 ]
-for index, (language, source) in enumerate(preserved):
+for index, (language, source, diagnostics) in enumerate(preserved):
+    if diagnostics is None:
+        if language == "en" and index == 2:
+            diagnostics = warning(source, "1.2..3")
+        elif language == "en" and index == 3:
+            diagnostics = warning(source, "1:02::3")
+        elif language == "en" and index == 4:
+            diagnostics = warning(source, "V2.1.0—123")
+        elif language == "en" and index == 5:
+            diagnostics = warning(source, "1 dollarfoo")
+        elif language == "en" and index == 6:
+            diagnostics = warning(source, "2 kgfoo")
+        elif language == "en" and index == 7:
+            diagnostics = warnings(source, "24:00", "99:99")
+        elif language == "ru" and index == 10:
+            diagnostics = warning(source, "1,2..3")
+        elif language == "ru" and index == 11:
+            diagnostics = warning(source, "1:02::3")
+        elif language == "ru" and index == 12:
+            diagnostics = warning(source, "V2.1.0—123")
+        elif language == "ru" and index == 13:
+            diagnostics = warning(source, "1 рублейfoo")
+        elif language == "ru" and index == 14:
+            diagnostics = warning(source, "2 кгfoo")
+        elif language == "ru" and index == 15:
+            diagnostics = warnings(source, "24:00", "99:99")
     rows.append(row(f"{language}-preserve-{index}", language, "explicit",
-                    "ambiguous_or_technical", "preserve", source, source))
+                    "ambiguous_or_technical", "preserve", source, source, diagnostics))
+
+natural_cases = [
+    ("en-natural-00", "en", "integer", "normalize", "At 08:05, the train leaves platform 3.",
+     "At eight hours five minutes, the train leaves platform three.", "none"),
+    ("en-natural-01", "en", "currency", "normalize", "The invoice total is $2.50 before tax.",
+     "The invoice total is two dollars fifty cents before tax.", "none"),
+    ("en-natural-02", "en", "decimal", "normalize", "The sensor reads -4.5.",
+     "The sensor reads minus four point five.", "none"),
+    ("en-natural-03", "en", "punctuation", "normalize",
+     "Press “2” to continue, or choose option 4.",
+     "Press “two” to continue, or choose option four.", "none"),
+    ("en-natural-04", "en", "measurement", "normalize", "The package is 1.5 kg.",
+     "The package is one point five kilograms.", "none"),
+    ("en-natural-05", "en", "decimal", "normalize", "Version 2.1 is newer than version 1.9.",
+     "Version two point one is newer than version one point nine.", "none"),
+    ("en-natural-06", "en", "percent", "normalize", "The backup completed at 100%.",
+     "The backup completed at one hundred percent.", "none"),
+    ("en-natural-07", "en", "currency", "normalize",
+     "The invoice lists $1.01, $2.50, and $5.",
+     "The invoice lists one dollar one cent, two dollars fifty cents, and five dollars.", "none"),
+    ("en-natural-08", "en", "measurement", "normalize", "Route A is 12 km; route B is 8 km.",
+     "Route A is twelve kilometers; route B is eight kilometers.", "none"),
+    ("en-natural-09", "en", "date", "preserve", "The quoted date is 2026-02-01.",
+     "The quoted date is 2026-02-01.", warning("The quoted date is 2026-02-01.", "2026-02-01")),
+    ("en-natural-10", "en", "currency", "preserve", "Use €7.20 for the foreign-price example.",
+     "Use €7.20 for the foreign-price example.", warning("Use €7.20 for the foreign-price example.", "€7.20")),
+    ("en-natural-11", "en", "integer", "normalize", "A value in [3] was rejected.",
+     "A value in [three] was rejected.", "none"),
+    ("ru-natural-00", "ru", "time", "normalize", "К 8:30 подготовьте 3 отчёта.",
+     "К восемь часов тридцать минут подготовьте три отчёта.", "none"),
+    ("ru-natural-01", "ru", "currency", "normalize", "Стоимость заказа — 1 250 руб.",
+     "Стоимость заказа — одна тысяча двести пятьдесят рублей.", "none"),
+    ("ru-natural-02", "ru", "decimal", "normalize", "Температура опустилась до -4,5.",
+     "Температура опустилась до минус четырёх целых пяти десятых.", "none"),
+    ("ru-natural-03", "ru", "punctuation", "normalize", "Нажмите «2», затем выберите 4.",
+     "Нажмите «два», затем выберите четыре.", "none"),
+    ("ru-natural-04", "ru", "measurement", "normalize", "Расстояние составляет 12,5 км.",
+     "Расстояние составляет двенадцать целых пять десятых километра.", "none"),
+    ("ru-natural-05", "ru", "measurement", "normalize", "В резерве осталось 1,5 ГБ.",
+     "В резерве осталось одна целая пять десятых ГБ.", "none"),
+    ("ru-natural-06", "ru", "percent", "normalize", "Доля ошибок — 0,5%.",
+     "Доля ошибок — ноль целых пять десятых процента.", "none"),
+    ("ru-natural-07", "ru", "date", "normalize", "Срок — 31.12.2025.",
+     "Срок — тридцать первое декабря две тысячи двадцать пятого года.", "none"),
+    ("ru-natural-08", "ru", "currency", "preserve", "Оплата в евро: €7.",
+     "Оплата в евро: €7.", warning("Оплата в евро: €7.", "€7")),
+    ("ru-natural-09", "ru", "integer", "normalize", "Проверено 3 из 5 узлов.",
+     "Проверено три из пяти узлов.", "none"),
+    ("ru-natural-10", "ru", "integer", "normalize", "В 2026 году запланировано 12 релизов.",
+     "В две тысячи двадцать шесть году запланировано двенадцать релизов.", "none"),
+    ("ru-natural-11", "ru", "integer", "normalize", "Значение равно [42].",
+     "Значение равно [сорок два].", "none"),
+]
+for case_id, language, category, expectation, source, expected, diagnostics in natural_cases:
+    rows.append(row(case_id, language, "explicit", category, expectation, source, expected,
+                    diagnostics))
 
 ids = [item.split("\t", 1)[0] for item in rows]
-assert len(rows) >= 300, len(rows)
+assert len(rows) >= 340, len(rows)
 assert len(ids) == len(set(ids))
 OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+content = HEADER + "\n" + "\n".join(rows) + "\n"
+if "--check" in sys.argv:
+    if not OUTPUT.exists() or OUTPUT.read_text(encoding="utf-8") != content:
+        print(f"quality corpus is out of date: regenerate {OUTPUT}", file=sys.stderr)
+        raise SystemExit(1)
+    print(f"quality corpus is up to date: {len(rows)} cases")
+    raise SystemExit(0)
 with OUTPUT.open("w", encoding="utf-8", newline="\n") as output:
-    output.write(HEADER + "\n" + "\n".join(rows) + "\n")
+    output.write(content)
 print(f"wrote {len(rows)} cases to {OUTPUT}")
