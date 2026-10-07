@@ -51,11 +51,14 @@ add_library(tts_front
     src/tts_front/core/edit_script.cpp
     src/tts_front/normalization/candidate_scanner.cpp
     src/tts_front/normalization/admission.cpp
+    src/tts_front/normalization/normalizer_support.cpp
     src/tts_front/normalization/codepoint_classification.cpp
     src/tts_front/normalization/patterns.cpp
     src/tts_front/language/english/numbers.cpp
+    src/tts_front/language/english/normalizer.cpp
     src/tts_front/language/russian/numbers.cpp
     src/tts_front/language/russian/formatters.cpp
+    src/tts_front/language/russian/normalizer.cpp
     src/tts_front/backend/silero/silero_asset_hash.cpp
     src/tts_front/backend/silero/silero_bundle.cpp
     src/tts_front/backend/silero/silero_sentence.cpp
