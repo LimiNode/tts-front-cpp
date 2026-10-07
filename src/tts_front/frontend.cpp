@@ -198,12 +198,16 @@ TextFrontendResult TextFrontend::process(std::string_view input,
         text = cleanup_text(text);
     bool has_cyrillic = false;
     bool has_latin = false;
+    std::optional<detail::TechnicalRangeIndex> technical_index;
     Language language = options.language;
     if (language == Language::Auto) {
-        if (options.mixed_language_policy == MixedLanguagePolicy::SegmentCandidates)
-            language = detail::detect_mixed_language(text.text, has_cyrillic, has_latin);
-        else
+        if (options.mixed_language_policy == MixedLanguagePolicy::SegmentCandidates) {
+            technical_index = detail::build_technical_range_index(text.text);
+            language =
+                detail::detect_mixed_language(text.text, has_cyrillic, has_latin, *technical_index);
+        } else {
             language = detect_language(text.text, has_cyrillic, has_latin);
+        }
     }
     if (options.language == Language::Auto && has_cyrillic && has_latin)
         warning_sink.add_range(
@@ -220,8 +224,9 @@ TextFrontendResult TextFrontend::process(std::string_view input,
     if (options.normalize) {
         if (options.language == Language::Auto &&
             options.mixed_language_policy == MixedLanguagePolicy::SegmentCandidates &&
-            has_cyrillic && has_latin)
-            text = detail::normalize_mixed_candidates(std::move(text), warning_sink, language);
+            has_cyrillic && has_latin && technical_index)
+            text = detail::normalize_mixed_candidates(
+                std::move(text), warning_sink, language, *technical_index);
         switch (language) {
         case Language::Russian:
             text = detail::russian::normalize(std::move(text), warning_sink);

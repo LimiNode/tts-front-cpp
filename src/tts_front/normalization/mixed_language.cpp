@@ -2,15 +2,19 @@
 
 #include "tts_front/core/edit_script.hpp"
 #include "tts_front/core/utf8.hpp"
-#include "tts_front/language/english/normalizer.hpp"
-#include "tts_front/language/russian/normalizer.hpp"
+#include "tts_front/language/english/numbers.hpp"
+#include "tts_front/language/russian/formatters.hpp"
+#include "tts_front/language/russian/numbers.hpp"
 #include "tts_front/normalization/codepoint_classification.hpp"
 #include "tts_front/normalization/patterns.hpp"
 #include "tts_front/technical/patterns.hpp"
 
+#include <algorithm>
 #include <array>
+#include <optional>
 #include <regex>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace tts_front::detail {
@@ -28,18 +32,24 @@ const std::regex& foreign_russian_candidate() {
     return pattern;
 }
 
-std::vector<SourceRange> technical_ranges(const std::string& text);
-
-bool overlaps_technical(const std::string& text, std::size_t begin, std::size_t end) {
-    const auto ranges = technical_ranges(text);
-    for (const auto& range : ranges) {
-        if (begin < range.offset + range.length && range.offset < end)
-            return true;
-    }
-    return false;
+const std::regex& english_currency() {
+    static const std::regex pattern{R"(\$([0-9]+)(?:\.([0-9]+))?)"};
+    return pattern;
 }
 
-std::vector<SourceRange> technical_ranges(const std::string& text) {
+const std::regex& english_measurement() {
+    static const std::regex pattern{
+        R"((-?[0-9]+(?:\.([0-9]+))?)[ \t]*(kilometers|kilometres|kilometer|kilometre|km|kilogram|kilograms|kg|meters|metres|meter|m|centimeters|centimetres|centimeter|cm|millimeters|millimetres|millimeter|mm|GB|MB))"};
+    return pattern;
+}
+
+const std::regex& russian_measurement() {
+    static const std::regex pattern{
+        R"((-?[0-9]+)(?:,([0-9]+))?[ \t]*(рублей|рубля|рубль|руб\.?|километров|километра|километр|км|килограммов|килограмма|килограмм|кг|сантиметров|сантиметра|сантиметр|см|миллиметров|миллиметра|миллиметр|мм|ГБ|МБ|м))"};
+    return pattern;
+}
+
+std::vector<SourceRange> scan_technical_ranges(const std::string& text) {
     std::vector<SourceRange> ranges;
     const auto& patterns = technical_patterns();
     const std::array<const std::regex*, 9> technical = {&patterns.technical_url,
@@ -52,51 +62,182 @@ std::vector<SourceRange> technical_ranges(const std::string& text) {
                                                         &patterns.technical_cpp,
                                                         &patterns.technical_csharp};
     for (const auto* pattern : technical) {
-        for (std::sregex_iterator it(text.begin(), text.end(), *pattern), end_it; it != end_it;
-             ++it) {
+        for (std::sregex_iterator it(text.begin(), text.end(), *pattern), end; it != end; ++it)
             ranges.push_back(
                 {static_cast<std::size_t>(it->position()), static_cast<std::size_t>(it->length())});
+    }
+    std::sort(ranges.begin(), ranges.end(), [](const SourceRange& left, const SourceRange& right) {
+        return left.offset < right.offset;
+    });
+    std::vector<SourceRange> merged;
+    for (const auto& range : ranges) {
+        if (range.length == 0)
+            continue;
+        if (!merged.empty() && range.offset <= merged.back().offset + merged.back().length) {
+            const auto end =
+                std::max(merged.back().offset + merged.back().length, range.offset + range.length);
+            merged.back().length = end - merged.back().offset;
+        } else {
+            merged.push_back(range);
         }
     }
-    return ranges;
+    return merged;
 }
 
-template <typename Normalizer>
+bool overlaps(const std::vector<SourceRange>& ranges,
+              std::size_t begin,
+              std::size_t end,
+              std::size_t& cursor) {
+    while (cursor < ranges.size() && ranges[cursor].offset + ranges[cursor].length <= begin)
+        ++cursor;
+    return cursor < ranges.size() && ranges[cursor].offset < end;
+}
+
+std::optional<std::string> format_english(std::string_view candidate) {
+    std::smatch match;
+    const std::string value(candidate);
+    long long integer = 0;
+    if (std::regex_match(value, match, english_currency())) {
+        if (!try_parse_long(match[1].str(), integer))
+            return std::nullopt;
+        if (match[2].matched) {
+            const auto fraction = match[2].str();
+            long long cents = 0;
+            if (fraction.size() > 2 || !try_parse_long(fraction, cents))
+                return std::nullopt;
+            if (fraction.size() == 1)
+                cents *= 10;
+            return english::number(integer) + (integer == 1 ? " dollar " : " dollars ") +
+                   english::number(cents) + (cents == 1 ? " cent" : " cents");
+        }
+        return english::number(integer) + (integer == 1 ? " dollar" : " dollars");
+    }
+    if (!std::regex_match(value, match, english_measurement()))
+        return std::nullopt;
+    const auto number_text = match[1].str();
+    const auto fraction = match[2].str();
+    const auto unit = match[3].str();
+    const auto dot = number_text.find('.');
+    if (!try_parse_long(dot == std::string::npos ? number_text : number_text.substr(0, dot),
+                        integer))
+        return std::nullopt;
+    std::string spoken = english::number(integer);
+    if (!fraction.empty())
+        spoken += " point " + english::digits(fraction);
+    if (fraction.empty()) {
+        const bool singular = integer == 1 || integer == -1;
+        const auto unit_name =
+            unit == "kg" || unit.find("kilogram") == 0  ? (singular ? "kilogram" : "kilograms")
+            : unit == "km" || unit.find("kilomet") == 0 ? (singular ? "kilometer" : "kilometers")
+            : unit == "m" || unit == "meter" || unit == "meters" || unit == "metres"
+                ? (singular ? "meter" : "meters")
+            : unit == "cm" || unit.find("centimet") == 0 ? (singular ? "centimeter" : "centimeters")
+            : unit == "mm" || unit.find("millimet") == 0 ? (singular ? "millimeter" : "millimeters")
+            : unit == "MB"                               ? (singular ? "megabyte" : "megabytes")
+                                                         : (singular ? "gigabyte" : "gigabytes");
+        spoken += std::string(" ") + unit_name;
+    } else {
+        spoken += " " + unit;
+    }
+    return spoken;
+}
+
+std::optional<std::string> format_russian(std::string_view candidate) {
+    std::smatch match;
+    const std::string value(candidate);
+    if (!std::regex_match(value, match, russian_measurement()))
+        return std::nullopt;
+    long long integer = 0;
+    if (!try_parse_long(match[1].str(), integer))
+        return std::nullopt;
+    const auto fraction = match[2].str();
+    const auto unit = match[3].str();
+    if (!fraction.empty()) {
+        if (fraction.size() > 3)
+            return std::nullopt;
+        if (unit.find("руб") == 0 || unit == "руб.")
+            return russian::ru_decimal(integer, fraction) + " рубля";
+        return russian::ru_decimal(integer, fraction) + " " + unit;
+    }
+    if (unit.find("руб") == 0 || unit == "руб.")
+        return russian::ru_number(integer) + " " +
+               russian::ru_form(integer, "рубль", "рубля", "рублей");
+    const bool kilogram = unit.find("кг") == 0 || unit.find("килограмм") == 0;
+    const bool kilometer = unit.find("км") == 0 || unit.find("километр") == 0;
+    const bool centimeter = unit.find("см") == 0 || unit.find("сантиметр") == 0;
+    const bool millimeter = unit.find("мм") == 0 || unit.find("миллиметр") == 0;
+    const char* one = kilogram       ? "килограмм"
+                      : kilometer    ? "километр"
+                      : centimeter   ? "сантиметр"
+                      : millimeter   ? "миллиметр"
+                      : unit == "м"  ? "метр"
+                      : unit == "ГБ" ? "гигабайт"
+                                     : "мегабайт";
+    const char* few = kilogram       ? "килограмма"
+                      : kilometer    ? "километра"
+                      : centimeter   ? "сантиметра"
+                      : millimeter   ? "миллиметра"
+                      : unit == "м"  ? "метра"
+                      : unit == "ГБ" ? "гигабайта"
+                                     : "мегабайта";
+    const char* many = kilogram       ? "килограммов"
+                       : kilometer    ? "километров"
+                       : centimeter   ? "сантиметров"
+                       : millimeter   ? "миллиметров"
+                       : unit == "м"  ? "метров"
+                       : unit == "ГБ" ? "гигабайт"
+                                      : "мегабайт";
+    return russian::ru_number(integer) + " " + russian::ru_form(integer, one, few, many);
+}
+
+template <typename Formatter>
 void collect_candidates(const MappedText& input,
                         const std::regex& pattern,
-                        Normalizer normalize,
+                        const TechnicalRangeIndex& technical_index,
+                        Formatter formatter,
                         WarningSink& warnings,
                         std::vector<SourceEdit>& edits) {
+    std::size_t technical_cursor = 0;
     for (std::sregex_iterator it(input.text.begin(), input.text.end(), pattern), end; it != end;
          ++it) {
         const auto begin = static_cast<std::size_t>(it->position(2));
         const auto finish = begin + static_cast<std::size_t>(it->length(2));
-        if (overlaps_technical(input.text, begin, finish))
+        if (overlaps(technical_index.ranges, begin, finish, technical_cursor))
             continue;
-        MappedText segment;
-        segment.preserved_ranges = input.preserved_ranges;
-        segment.append_copy(input, begin, finish);
-        segment = normalize(std::move(segment), warnings);
-        if (segment.text != input.text.substr(begin, finish - begin))
-            edits.push_back({begin, finish, std::move(segment.text)});
+        const auto replacement = formatter(it->str(2));
+        if (!replacement) {
+            warnings.add(WarningCode::UnresolvedNumber,
+                         "Unable to parse mixed-language candidate",
+                         input.source_range(begin, finish));
+            continue;
+        }
+        if (*replacement != input.text.substr(begin, finish - begin))
+            edits.push_back({begin, finish, *replacement});
     }
 }
 
 } // namespace
 
-Language detect_mixed_language(std::string_view text, bool& has_cyrillic, bool& has_latin) {
-    const std::string value(text);
-    const auto ranges = technical_ranges(value);
+TechnicalRangeIndex build_technical_range_index(std::string_view text) {
+    return {scan_technical_ranges(std::string(text))};
+}
+
+Language detect_mixed_language(std::string_view text,
+                               bool& has_cyrillic,
+                               bool& has_latin,
+                               const TechnicalRangeIndex& technical_index) {
     std::vector<Utf8CodePoint> points;
-    decode_utf8(value, points);
+    decode_utf8(text, points);
     std::size_t cyrillic_count = 0;
     std::size_t latin_count = 0;
+    std::size_t cursor = 0;
     for (const auto& point : points) {
-        const bool technical =
-            std::any_of(ranges.begin(), ranges.end(), [&point](const SourceRange& range) {
-                return point.offset >= range.offset && point.offset < range.offset + range.length;
-            });
-        if (technical)
+        while (cursor < technical_index.ranges.size() &&
+               technical_index.ranges[cursor].offset + technical_index.ranges[cursor].length <=
+                   point.offset)
+            ++cursor;
+        if (cursor < technical_index.ranges.size() &&
+            technical_index.ranges[cursor].offset <= point.offset)
             continue;
         cyrillic_count += is_cyrillic(point.value) ? 1 : 0;
         latin_count += is_latin(point.value) ? 1 : 0;
@@ -108,28 +249,17 @@ Language detect_mixed_language(std::string_view text, bool& has_cyrillic, bool& 
     return has_cyrillic ? Language::Russian : Language::English;
 }
 
-MappedText
-normalize_mixed_candidates(MappedText text, WarningSink& warnings, Language dominant_language) {
+MappedText normalize_mixed_candidates(MappedText text,
+                                      WarningSink& warnings,
+                                      Language dominant_language,
+                                      const TechnicalRangeIndex& technical_index) {
     std::vector<SourceEdit> edits;
-    if (dominant_language == Language::Russian) {
+    if (dominant_language == Language::Russian)
         collect_candidates(
-            text,
-            foreign_english_candidate(),
-            [](MappedText value, WarningSink& sink) {
-                return english::normalize(std::move(value), sink);
-            },
-            warnings,
-            edits);
-    } else if (dominant_language == Language::English) {
+            text, foreign_english_candidate(), technical_index, format_english, warnings, edits);
+    else if (dominant_language == Language::English)
         collect_candidates(
-            text,
-            foreign_russian_candidate(),
-            [](MappedText value, WarningSink& sink) {
-                return russian::normalize(std::move(value), sink);
-            },
-            warnings,
-            edits);
-    }
+            text, foreign_russian_candidate(), technical_index, format_russian, warnings, edits);
     return apply_source_edits(text, std::move(edits));
 }
 
