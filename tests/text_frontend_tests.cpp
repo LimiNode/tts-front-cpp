@@ -132,22 +132,37 @@ int main() {
     CHECK(frontend.process("1 kg 2 km", en).normalized_text == "one kilogram two kilometers");
     for (const auto& input : {std::string("12 3456"),
                               std::string("12 345foo"),
+                              std::string("12 345:6"),
+                              std::string("12 345 678 901"),
+                              std::string("1,234,567,890"),
                               std::string("1.2..3"),
+                              std::string("1.2.,3"),
                               std::string("1:02..3"),
+                              std::string("1:02::3"),
+                              std::string("1:02%word"),
                               std::string("$ 1"),
+                              std::string("$-1"),
+                              std::string("1 kg -2 kg"),
                               std::string("€1"),
                               std::string("1:02#3")}) {
         const auto result = frontend.process(input, en);
         CHECK(result.normalized_text == input);
         CHECK(result.warnings.size() == 1);
         CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
-        CHECK(result.warnings.front().length <= input.size());
+        CHECK(result.warnings.front().length == input.size());
     }
     for (const auto& input : {std::string("12 3456"),
                               std::string("12 345foo"),
+                              std::string("12 345:6"),
+                              std::string("12 345 678 901"),
+                              std::string("1.2.,3"),
                               std::string("1.2..3"),
+                              std::string("1:02::3"),
+                              std::string("1:02%word"),
                               std::string("1:02..3"),
                               std::string("$ 1"),
+                              std::string("$-1"),
+                              std::string("1 кг -2 кг"),
                               std::string("\xE2\x82\xAC") + "1",
                               std::string("1:02#3")}) {
         const auto result = frontend.process(input, ru);
@@ -178,6 +193,7 @@ int main() {
         CHECK(result.warnings.front().length == input.size() - 5);
     }
     CHECK(frontend.process("-1 kg", en).normalized_text == "minus one kilogram");
+    CHECK(frontend.process("2 meter", en).normalized_text == "two meters");
     CHECK(frontend.process("1 MB 2 MB 1 GB 2 GB", en).normalized_text ==
           "one megabyte two megabytes one gigabyte two gigabytes");
     CHECK(frontend.process("$12.345", en).normalized_text == "$12.345");

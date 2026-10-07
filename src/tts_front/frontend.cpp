@@ -9,6 +9,7 @@
 #include "tts_front/language/russian/formatters.hpp"
 #include "tts_front/language/russian/numbers.hpp"
 #include "tts_front/normalization/candidate_scanner.hpp"
+#include "tts_front/normalization/codepoint_classification.hpp"
 #include "tts_front/normalization/patterns.hpp"
 
 #include <algorithm>
@@ -34,6 +35,19 @@ using CodePoint = detail::Utf8CodePoint;
 using detail::apply_source_edits;
 using detail::codepoint_index_at_or_after;
 using detail::decode_utf8;
+using detail::is_ascii_punctuation;
+using detail::is_combining_mark;
+using detail::is_cyrillic;
+using detail::is_digit;
+using detail::is_horizontal_space;
+using detail::is_latin;
+using detail::is_letter;
+using detail::is_lexical_numeric_boundary;
+using detail::is_numeric_connector;
+using detail::is_numeric_separator;
+using detail::is_range_connector;
+using detail::is_supported_numeric_separator;
+using detail::is_word_codepoint;
 using detail::MappedText;
 using detail::NumericCandidate;
 using detail::NumericCandidateKind;
@@ -54,57 +68,6 @@ using detail::russian::ru_number;
 using detail::russian::ru_ordinal_day;
 using detail::russian::ru_year_genitive;
 using detail::russian::ru_year_locative;
-
-bool is_cyrillic(std::uint32_t cp) {
-    return cp >= 0x0400 && cp <= 0x052f;
-}
-bool is_latin(std::uint32_t cp) {
-    return (cp >= 'A' && cp <= 'Z') || (cp >= 'a' && cp <= 'z') || (cp >= 0x00c0 && cp <= 0x024f);
-}
-bool is_digit(std::uint32_t cp) {
-    return cp >= '0' && cp <= '9';
-}
-bool is_letter(std::uint32_t cp) {
-    return is_cyrillic(cp) || is_latin(cp);
-}
-bool is_combining_mark(std::uint32_t cp) {
-    return (cp >= 0x0300 && cp <= 0x036f) || (cp >= 0x1ab0 && cp <= 0x1aff) ||
-           (cp >= 0x1dc0 && cp <= 0x1dff) || (cp >= 0x20d0 && cp <= 0x20ff) ||
-           (cp >= 0xfe20 && cp <= 0xfe2f);
-}
-bool is_word_codepoint(std::uint32_t cp) {
-    return is_letter(cp) || is_digit(cp) || cp == '+' || cp == '#' || cp == '_';
-}
-
-bool is_numeric_separator(std::uint32_t cp) {
-    return cp == '.' || cp == ',' || cp == ':' || cp == '%' || cp == '-' || cp == '/' ||
-           cp == '+' || cp == '=' || (cp >= 0x2010 && cp <= 0x2015) || cp == 0x2212;
-}
-
-bool is_range_connector(std::uint32_t cp) {
-    return (cp >= 0x2010 && cp <= 0x2015) || cp == 0x2212;
-}
-
-bool is_numeric_connector(std::uint32_t cp) {
-    return is_numeric_separator(cp) ||
-           (cp < 0x80 && std::ispunct(static_cast<unsigned char>(cp)) != 0);
-}
-
-bool is_supported_numeric_separator(std::uint32_t cp) {
-    return cp == '.' || cp == ',' || cp == ':' || cp == '%';
-}
-
-bool is_lexical_numeric_boundary(std::uint32_t cp) {
-    return is_letter(cp) || is_combining_mark(cp) || is_digit(cp) || cp == '_';
-}
-
-bool is_horizontal_space(std::uint32_t cp) {
-    return cp == ' ' || cp == '\t';
-}
-
-bool is_ascii_punctuation(std::uint32_t cp) {
-    return cp < 0x80 && std::ispunct(static_cast<unsigned char>(cp)) != 0;
-}
 
 MappedText cleanup_text(const MappedText& input) {
     MappedText result;
@@ -809,9 +772,22 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                             continue;
                         }
                     }
+                    if (separators != 0 && end_index + 1 < points.size() &&
+                        (is_numeric_connector(points[end_index + 1].value) ||
+                         is_digit(points[end_index + 1].value))) {
+                        malformed_compound = true;
+                        ++end_index;
+                        while (end_index < points.size() &&
+                               (is_numeric_connector(points[end_index].value) ||
+                                is_digit(points[end_index].value)))
+                            ++end_index;
+                        continue;
+                    }
                     break;
                 }
                 if (is_numeric_connector(value)) {
+                    if (grouped_seen && (value == '.' || value == ',' || value == ':'))
+                        malformed_compound = true;
                     if (value == '%') {
                         has_percent = true;
                         const auto probe = end_index + 1;
@@ -837,8 +813,61 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 break;
             }
         }
+        if (end_index < points.size() &&
+            (points[end_index].value == ' ' || points[end_index].value == '\t')) {
+            auto probe = end_index;
+            while (probe < points.size() &&
+                   (points[probe].value == ' ' || points[probe].value == '\t'))
+                ++probe;
+            const auto unit_begin = probe;
+            while (probe < points.size() && is_letter(points[probe].value))
+                ++probe;
+            if (probe != unit_begin) {
+                while (probe < points.size() &&
+                       (points[probe].value == ' ' || points[probe].value == '\t'))
+                    ++probe;
+                if (probe < points.size() &&
+                    (points[probe].value == '+' || points[probe].value == '-') &&
+                    probe + 1 < points.size() && is_digit(points[probe + 1].value)) {
+                    malformed_compound = true;
+                    end_index = probe + 1;
+                    while (end_index < points.size() &&
+                           (is_digit(points[end_index].value) ||
+                            is_numeric_connector(points[end_index].value) ||
+                            is_letter(points[end_index].value) || points[end_index].value == ' ' ||
+                            points[end_index].value == '\t'))
+                        ++end_index;
+                }
+            }
+        }
+        if (initial_digit_count > 9 && end_index < points.size() &&
+            is_lexical_numeric_boundary(points[end_index].value)) {
+            while (end_index < points.size() &&
+                   (is_lexical_numeric_boundary(points[end_index].value) ||
+                    is_combining_mark(points[end_index].value)))
+                ++end_index;
+        }
+        if (initial_digit_count > 9 && end_index < points.size() &&
+            (points[end_index].value == ' ' || points[end_index].value == '\t')) {
+            auto probe = end_index;
+            while (probe < points.size() &&
+                   (points[probe].value == ' ' || points[probe].value == '\t'))
+                ++probe;
+            while (probe < points.size() && is_letter(points[probe].value))
+                ++probe;
+            if (probe > end_index)
+                end_index = probe;
+        }
         if (currency_context && has_percent)
             end_index = scan_numeric_continuation_points(document, end_index, false);
+        if (has_percent && end_index < points.size() &&
+            is_lexical_numeric_boundary(points[end_index].value)) {
+            while (end_index < points.size() &&
+                   (is_lexical_numeric_boundary(points[end_index].value) ||
+                    is_combining_mark(points[end_index].value)))
+                ++end_index;
+            percent_attached_to_numeric = true;
+        }
         const bool previous_is_connector =
             index > 0 && (points[index - 1].value == '-' || points[index - 1].value == '/' ||
                           points[index - 1].value == '+' || points[index - 1].value == '=');
@@ -911,6 +940,10 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                          std::regex_match(candidate, regex_patterns().en_comma_grouped_percent));
         const bool malformed_english_comma_group =
             !russian && candidate.find(',') != std::string::npos;
+        const auto digit_count = static_cast<std::size_t>(std::count_if(
+            candidate.begin(), candidate.end(), [](unsigned char c) { return is_digit(c); }));
+        if (digit_count > 9)
+            malformed_compound = true;
         const bool invalid_percent =
             has_percent &&
             (percent_attached_to_numeric ||
@@ -961,11 +994,12 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
              (comma_group_followed_by_word && !valid_english_comma_group) ||
              unsupported_numeric_connector || invalid_percent || malformed_english_comma_group ||
              malformed_grouped || malformed_compound ||
-             (currency_prefix && (has_percent || currency_probe < index ||
-                                  points[currency_probe - 1].value != '$'))) &&
+             (currency_prefix &&
+              (has_percent || currency_probe < index || points[index].value == '+' ||
+               points[index].value == '-' || points[currency_probe - 1].value != '$'))) &&
             !(valid_russian_date && !embedded) &&
             !(valid_english_comma_group && !embedded && !attached_lexical_suffix &&
-              !(currency_prefix && has_percent))) {
+              !(currency_prefix && has_percent) && !malformed_compound)) {
             const auto protected_begin =
                 currency_prefix ? points[currency_prefix_begin].offset : begin;
             NumericCandidate candidate{document.span_from_bytes(protected_begin, end),
@@ -1337,18 +1371,18 @@ MappedText normalize_en(MappedText text, WarningSink& warnings) {
             }
             const auto unit = match[2].str();
             const bool singular = n == 1 || n == -1;
-            const std::string spoken = unit == "kg" || unit.find("kilogram") == 0
-                                           ? (singular ? "kilogram" : "kilograms")
-                                       : unit == "km" || unit.find("kilomet") == 0
-                                           ? (singular ? "kilometer" : "kilometers")
-                                       : unit == "m" || unit == "meters" || unit == "metres"
-                                           ? (singular ? "meter" : "meters")
-                                       : unit == "cm" || unit.find("centimet") == 0
-                                           ? (singular ? "centimeter" : "centimeters")
-                                       : unit == "mm" || unit.find("millimet") == 0
-                                           ? (singular ? "millimeter" : "millimeters")
-                                       : unit == "MB" ? (singular ? "megabyte" : "megabytes")
-                                                      : (singular ? "gigabyte" : "gigabytes");
+            const std::string spoken =
+                unit == "kg" || unit.find("kilogram") == 0 ? (singular ? "kilogram" : "kilograms")
+                : unit == "km" || unit.find("kilomet") == 0
+                    ? (singular ? "kilometer" : "kilometers")
+                : unit == "m" || unit == "meter" || unit == "meters" || unit == "metres"
+                    ? (singular ? "meter" : "meters")
+                : unit == "cm" || unit.find("centimet") == 0
+                    ? (singular ? "centimeter" : "centimeters")
+                : unit == "mm" || unit.find("millimet") == 0
+                    ? (singular ? "millimeter" : "millimeters")
+                : unit == "MB" ? (singular ? "megabyte" : "megabytes")
+                               : (singular ? "gigabyte" : "gigabytes");
             return en_number(n) + " " + spoken + match[3].str();
         });
     text = replace_numeric_matches(
