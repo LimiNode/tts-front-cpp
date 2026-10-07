@@ -50,6 +50,7 @@ add_library(tts_front
     src/tts_front/core/mapped_text.cpp
     src/tts_front/core/edit_script.cpp
     src/tts_front/normalization/candidate_scanner.cpp
+    src/tts_front/normalization/admission.cpp
     src/tts_front/normalization/codepoint_classification.cpp
     src/tts_front/normalization/patterns.cpp
     src/tts_front/language/english/numbers.cpp
