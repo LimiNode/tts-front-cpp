@@ -6,6 +6,7 @@
 #include "tts_front/language/russian/normalizer.hpp"
 #include "tts_front/normalization/admission.hpp"
 #include "tts_front/normalization/codepoint_classification.hpp"
+#include "tts_front/normalization/mixed_language.hpp"
 
 #include <algorithm>
 #include <array>
@@ -123,13 +124,22 @@ std::optional<std::string> safe_russian_initialism(std::string_view token) {
         return "и пэ";
     return std::nullopt;
 }
-Language detect_language(std::string_view text, bool& has_cyrillic, bool& has_latin) {
+Language detect_language(std::string_view text,
+                         bool& has_cyrillic,
+                         bool& has_latin,
+                         bool use_dominant_counts = false) {
     std::vector<CodePoint> points;
     decode_utf8(text, points);
-    has_cyrillic = std::any_of(
-        points.begin(), points.end(), [](const CodePoint& p) { return is_cyrillic(p.value); });
-    has_latin = std::any_of(
-        points.begin(), points.end(), [](const CodePoint& p) { return is_latin(p.value); });
+    std::size_t cyrillic_count = 0;
+    std::size_t latin_count = 0;
+    for (const auto& point : points) {
+        cyrillic_count += is_cyrillic(point.value) ? 1 : 0;
+        latin_count += is_latin(point.value) ? 1 : 0;
+    }
+    has_cyrillic = cyrillic_count != 0;
+    has_latin = latin_count != 0;
+    if (use_dominant_counts && has_cyrillic && has_latin)
+        return cyrillic_count >= latin_count ? Language::Russian : Language::English;
     return has_cyrillic ? Language::Russian : Language::English;
 }
 
@@ -189,18 +199,29 @@ TextFrontendResult TextFrontend::process(std::string_view input,
     bool has_cyrillic = false;
     bool has_latin = false;
     Language language = options.language;
-    if (language == Language::Auto)
-        language = detect_language(text.text, has_cyrillic, has_latin);
+    if (language == Language::Auto) {
+        if (options.mixed_language_policy == MixedLanguagePolicy::SegmentCandidates)
+            language = detail::detect_mixed_language(text.text, has_cyrillic, has_latin);
+        else
+            language = detect_language(text.text, has_cyrillic, has_latin);
+    }
     if (options.language == Language::Auto && has_cyrillic && has_latin)
-        warning_sink.add_range(WarningCode::AmbiguousNormalization,
-                               "Mixed Cyrillic/Latin input uses Russian normalization by policy",
-                               0,
-                               input.size());
+        warning_sink.add_range(
+            WarningCode::AmbiguousNormalization,
+            options.mixed_language_policy == MixedLanguagePolicy::DominantLanguage
+                ? "Mixed Cyrillic/Latin input uses dominant-language normalization"
+                : "Mixed Cyrillic/Latin input uses segmented candidate normalization",
+            0,
+            input.size());
     if (language != Language::Russian && language != Language::English) {
         result.warnings.push_back({WarningCode::UnsupportedLanguage, "Unsupported language", 0, 0});
         return result;
     }
     if (options.normalize) {
+        if (options.language == Language::Auto &&
+            options.mixed_language_policy == MixedLanguagePolicy::SegmentCandidates &&
+            has_cyrillic && has_latin)
+            text = detail::normalize_mixed_candidates(std::move(text), warning_sink, language);
         switch (language) {
         case Language::Russian:
             text = detail::russian::normalize(std::move(text), warning_sink);
@@ -472,6 +493,15 @@ const char* to_string(Language language) noexcept {
         return "russian";
     case Language::English:
         return "english";
+    }
+    return "unknown";
+}
+const char* to_string(MixedLanguagePolicy policy) noexcept {
+    switch (policy) {
+    case MixedLanguagePolicy::DominantLanguage:
+        return "dominant_language";
+    case MixedLanguagePolicy::SegmentCandidates:
+        return "segment_candidates";
     }
     return "unknown";
 }

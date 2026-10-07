@@ -69,6 +69,14 @@ example a word replacement for `CUDA` or a phrase replacement for `Visual Studio
 The frontend keeps these semantic replacements separate from any future TTS adapter
 rendering (such as `+` or combining-accent syntax).
 
-For `Language::Auto`, Cyrillic selects Russian and input without Cyrillic selects
-English. Mixed Cyrillic/Latin input uses the Russian policy and emits an
-`AmbiguousNormalization` warning.
+For `Language::Auto`, the default `MixedLanguagePolicy::DominantLanguage` keeps
+the conservative whole-input behavior: Cyrillic selects Russian and input without
+Cyrillic selects English. Mixed Cyrillic/Latin input uses the Russian policy and
+emits an `AmbiguousNormalization` warning.
+
+Applications that need explicit foreign-language number/unit candidates to be
+normalized locally can opt into `MixedLanguagePolicy::SegmentCandidates`. The
+policy keeps technical identifiers and surrounding prose in the dominant language;
+only recognized currency/unit candidates are delegated to the matching formatter.
+Ambiguous mixed input still emits `AmbiguousNormalization`, and unsupported or
+malformed candidates remain fail-closed with their source warning.

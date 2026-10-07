@@ -680,6 +680,32 @@ int main() {
     const auto mixed = frontend.process("Привет API", TextFrontendOptions{});
     CHECK(mixed.has_uncertainty());
     {
+        TextFrontendOptions segmented;
+        segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        const auto result =
+            frontend.process("У меня 2 GPU и 3 ядра. Использую OpenAI API.", segmented);
+        CHECK(result.normalized_text == "У меня два GPU и три ядра. Использую OpenAI API.");
+        CHECK(!result.warnings.empty());
+        CHECK(result.warnings.front().code == WarningCode::AmbiguousNormalization);
+    }
+    {
+        TextFrontendOptions segmented;
+        segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        const auto result =
+            frontend.process("Видеокарта RTX 4090 работает на 1.5 GB RAM.", segmented);
+        CHECK(result.normalized_text == "Видеокарта RTX 4090 работает на one point five GB RAM.");
+        CHECK(!result.warnings.empty());
+        CHECK(result.warnings.front().code == WarningCode::AmbiguousNormalization);
+    }
+    {
+        TextFrontendOptions segmented;
+        segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        const auto result = frontend.process("Use 2 кг", segmented);
+        CHECK(result.normalized_text == "Use два килограмма");
+        CHECK(!result.warnings.empty());
+        CHECK(result.warnings.front().code == WarningCode::AmbiguousNormalization);
+    }
+    {
         const std::string mixed_invalid_input = "Привет hello 99:99";
         const auto mixed_invalid = frontend.process(mixed_invalid_input, TextFrontendOptions{});
         CHECK(mixed_invalid.warnings.size() == 2);

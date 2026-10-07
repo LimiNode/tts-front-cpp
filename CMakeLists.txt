@@ -54,6 +54,7 @@ add_library(tts_front
     src/tts_front/normalization/technical_admission.cpp
     src/tts_front/normalization/malformed_admission.cpp
     src/tts_front/normalization/grouped_numbers.cpp
+    src/tts_front/normalization/mixed_language.cpp
     src/tts_front/normalization/normalizer_support.cpp
     src/tts_front/normalization/codepoint_classification.cpp
     src/tts_front/normalization/patterns.cpp

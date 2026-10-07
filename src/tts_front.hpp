@@ -11,9 +11,15 @@ namespace tts_front {
 
 /// \brief Language used by the normalization pipeline.
 enum class Language {
-    Auto,    ///< Detect language from the input; mixed Cyrillic/Latin uses Russian policy.
+    Auto,    ///< Detect language from the input; mixed handling follows TextFrontendOptions.
     Russian, ///< Normalize using Russian rules.
     English  ///< Normalize using English rules.
+};
+
+/// \brief Controls normalization of explicit numeric candidates in mixed-language input.
+enum class MixedLanguagePolicy {
+    DominantLanguage, ///< Normalize the whole input with the detected language (safe default).
+    SegmentCandidates ///< Locally normalize candidates with an explicit foreign-language surface.
 };
 
 /// \brief Controls how semantic stress information is resolved.
@@ -135,6 +141,8 @@ struct TextFrontendOptions {
     std::string silero_bundle_path;
     /// Non-owning dictionary; caller must keep it alive for the call.
     const PronunciationDictionary* dictionary = nullptr;
+    /// Mixed-language candidate policy; used only with Language::Auto.
+    MixedLanguagePolicy mixed_language_policy = MixedLanguagePolicy::DominantLanguage;
 };
 
 /// \brief All text stages, replacements, token metadata, and diagnostics.
@@ -173,6 +181,8 @@ class TextFrontend {
 
 /// Return the stable textual name of a language value.
 const char* to_string(Language language) noexcept;
+/// Return the stable textual name of a mixed-language policy value.
+const char* to_string(MixedLanguagePolicy policy) noexcept;
 /// Return the stable textual name of a warning code.
 const char* to_string(WarningCode code) noexcept;
 

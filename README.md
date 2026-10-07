@@ -14,6 +14,11 @@ options.language = tts_front::Language::Russian;
 const auto result = frontend.process("В 2026 г. API готов.", options);
 ```
 
+Для смешанных фраз безопасный default — `MixedLanguagePolicy::DominantLanguage`.
+Если нужно локально озвучивать явно распознанные foreign units/currency, можно
+включить `MixedLanguagePolicy::SegmentCandidates`; технические идентификаторы и
+остальной текст при этом остаются в языке основной фразы.
+
 Сборка: `cmake -S . -B build && cmake --build build`, тесты: `ctest --test-dir build`.
 
 Установка экспортирует пакет `TtsFront::tts_front`; потребитель может использовать `find_package(TtsFront CONFIG REQUIRED)`.
