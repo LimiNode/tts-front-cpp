@@ -27,8 +27,8 @@ number_or_original(const std::string& token, WarningSink& warnings, SourceRange 
 
 MappedText normalize(MappedText text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
-    text = protect_numeric_technical_candidates(std::move(text), warnings, protected_spans);
-    text = protect_technical(std::move(text), protected_spans);
+    text = technical::protect_numeric_candidates(std::move(text), warnings, protected_spans);
+    text = technical::protect(std::move(text), protected_spans);
     text = protect_malformed_numeric_candidates(
         std::move(text), warnings, protected_spans, admission_rules());
     text = collapse_grouped_numbers(std::move(text));
@@ -216,7 +216,7 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
         std::move(text),
         russian::patterns().abbreviation_tp,
         [](const auto& match, const MappedText&) { return match[1].str() + "тому подобное"; });
-    return restore_technical(std::move(text), protected_spans);
+    return technical::restore(std::move(text), protected_spans);
 }
 
 } // namespace tts_front::detail::russian

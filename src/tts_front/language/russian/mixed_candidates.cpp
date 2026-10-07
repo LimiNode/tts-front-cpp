@@ -8,6 +8,8 @@
 #include <optional>
 #include <regex>
 #include <string>
+#include <string_view>
+#include <vector>
 
 namespace tts_front::detail::russian {
 namespace {
@@ -77,10 +79,33 @@ std::optional<std::string> format(std::string_view candidate) {
     return number(integer) + " " + plural_form(integer, one, few, many);
 }
 
+std::vector<MixedCandidateMatch> scan_candidate_matches(std::string_view text) {
+    std::vector<MixedCandidateMatch> matches;
+    const std::string value(text);
+    for (std::sregex_iterator it(value.begin(), value.end(), candidate_pattern()), end; it != end;
+         ++it) {
+        const auto begin = static_cast<std::size_t>(it->position(2));
+        matches.push_back({begin, begin + static_cast<std::size_t>(it->length(2)), it->str(2)});
+    }
+    return matches;
+}
+
+std::vector<MixedCandidateMatch> scan_malformed_matches(std::string_view text) {
+    std::vector<MixedCandidateMatch> matches;
+    const std::string value(text);
+    for (std::sregex_iterator it(value.begin(), value.end(), malformed_pattern()), end; it != end;
+         ++it) {
+        const auto begin = static_cast<std::size_t>(it->position(1));
+        matches.push_back({begin, begin + static_cast<std::size_t>(it->length(1)), it->str(1)});
+    }
+    return matches;
+}
+
 } // namespace
 
 const MixedLanguageRules& mixed_language_rules() {
-    static const MixedLanguageRules rules{candidate_pattern(), malformed_pattern(), &format};
+    static const MixedLanguageRules rules{
+        &scan_candidate_matches, &scan_malformed_matches, &format};
     return rules;
 }
 

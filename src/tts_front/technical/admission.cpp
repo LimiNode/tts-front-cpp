@@ -20,11 +20,11 @@
 #include <utility>
 #include <vector>
 
-namespace tts_front::detail {
+namespace tts_front::detail::technical {
 
 using CodePoint = Utf8CodePoint;
 
-MappedText protect_technical(MappedText text, std::vector<ProtectedSpan>& protected_spans) {
+MappedText protect(MappedText text, std::vector<ProtectedSpan>& protected_spans) {
     const auto& patterns = technical::patterns();
     const std::array<const std::regex*, 9> technical_patterns = {&patterns.technical_url,
                                                                  &patterns.technical_email,
@@ -55,7 +55,7 @@ MappedText protect_technical(MappedText text, std::vector<ProtectedSpan>& protec
     }
     return text;
 }
-MappedText restore_technical(MappedText text, const std::vector<ProtectedSpan>& protected_spans) {
+MappedText restore(MappedText text, const std::vector<ProtectedSpan>& protected_spans) {
     if (protected_spans.empty() || text.text.empty())
         return text;
 
@@ -139,9 +139,9 @@ MappedText restore_technical(MappedText text, const std::vector<ProtectedSpan>& 
 // numeric-leading scientific/encoded candidates must be admitted first.  If
 // they are hidden as (for example) `e+3` or `$3`, the generic normalizer can
 // rewrite only the leading numeric fragment.
-MappedText protect_numeric_technical_candidates(MappedText text,
-                                                WarningSink& warnings,
-                                                std::vector<ProtectedSpan>& protected_spans) {
+MappedText protect_numeric_candidates(MappedText text,
+                                      WarningSink& warnings,
+                                      std::vector<ProtectedSpan>& protected_spans) {
     // Admit grouped percentage tails attached to a technical identifier before
     // technical shielding hides the identifier itself.  Otherwise a token such
     // as `x$+1,234%` would leave `,234%` visible to the generic normalizer.
@@ -368,4 +368,4 @@ MappedText protect_numeric_technical_candidates(MappedText text,
     return apply_source_edits(text, std::move(edits));
 }
 
-} // namespace tts_front::detail
+} // namespace tts_front::detail::technical

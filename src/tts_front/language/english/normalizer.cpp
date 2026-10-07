@@ -26,8 +26,8 @@ number_or_original(const std::string& token, WarningSink& warnings, SourceRange 
 
 MappedText normalize(MappedText text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
-    text = protect_numeric_technical_candidates(std::move(text), warnings, protected_spans);
-    text = protect_technical(std::move(text), protected_spans);
+    text = technical::protect_numeric_candidates(std::move(text), warnings, protected_spans);
+    text = technical::protect(std::move(text), protected_spans);
     text = protect_malformed_numeric_candidates(
         std::move(text), warnings, protected_spans, admission_rules());
     text = collapse_comma_grouped_numbers(text);
@@ -174,7 +174,7 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                    number_or_original(
                        match[2].str(), warnings, source.source_range(number_begin, number_end));
         });
-    return restore_technical(std::move(text), protected_spans);
+    return technical::restore(std::move(text), protected_spans);
 }
 
 } // namespace tts_front::detail::english

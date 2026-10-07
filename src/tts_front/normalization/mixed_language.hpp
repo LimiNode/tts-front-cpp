@@ -5,7 +5,6 @@
 #include "tts_front/normalization/admission.hpp"
 
 #include <optional>
-#include <regex>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -16,11 +15,18 @@ struct TechnicalRangeIndex {
     std::vector<SourceRange> ranges;
 };
 
+struct MixedCandidateMatch {
+    std::size_t begin = 0;
+    std::size_t end = 0;
+    std::string value;
+};
+
+using MixedCandidateScanner = std::vector<MixedCandidateMatch> (*)(std::string_view);
 using MixedCandidateFormatter = std::optional<std::string> (*)(std::string_view);
 
 struct MixedLanguageRules {
-    const std::regex& candidate;
-    const std::regex& malformed;
+    MixedCandidateScanner scan_candidates;
+    MixedCandidateScanner scan_malformed;
     MixedCandidateFormatter formatter;
 };
 

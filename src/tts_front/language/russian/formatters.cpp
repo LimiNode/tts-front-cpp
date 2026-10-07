@@ -69,8 +69,8 @@ std::string ordinal_day(int day) {
                                           "тридцать первое"};
     return day >= 1 && day <= 31 ? ordinal[day] : number(day);
 }
-std::string year_ordinal(int n, RuYearCase grammatical_case) {
-    const bool genitive = grammatical_case == RuYearCase::Genitive;
+std::string year_ordinal(int n, YearCase grammatical_case) {
+    const bool genitive = grammatical_case == YearCase::Genitive;
     static const char* const loc[] = {"",
                                       "первом",
                                       "втором",
@@ -188,7 +188,7 @@ std::string year_locative(int year) {
                                             "девятитысячном"};
         return exact[thousands];
     }
-    return year_prefix(thousands) + " " + year_ordinal(rest, RuYearCase::Locative);
+    return year_prefix(thousands) + " " + year_ordinal(rest, YearCase::Locative);
 }
 std::string year_genitive(int year) {
     if (year < 1000 || year > 9999)
@@ -208,7 +208,7 @@ std::string year_genitive(int year) {
                                             "девятитысячного"};
         return exact[thousands];
     }
-    return year_prefix(thousands) + " " + year_ordinal(rest, RuYearCase::Genitive);
+    return year_prefix(thousands) + " " + year_ordinal(rest, YearCase::Genitive);
 }
 std::string decimal(long long integer, const std::string& fraction) {
     const auto denominator = fraction.size() == 1   ? "десятая"

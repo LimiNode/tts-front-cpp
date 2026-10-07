@@ -7,7 +7,6 @@
 
 #include <algorithm>
 #include <array>
-#include <regex>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -92,18 +91,16 @@ void collect_candidates(const MappedText& input,
                         WarningSink& warnings,
                         std::vector<SourceEdit>& edits) {
     std::size_t technical_cursor = 0;
-    for (std::sregex_iterator it(input.text.begin(), input.text.end(), rules.candidate), end;
-         it != end;
-         ++it) {
-        const auto begin = static_cast<std::size_t>(it->position(2));
-        const auto finish = begin + static_cast<std::size_t>(it->length(2));
+    for (const auto& match : rules.scan_candidates(input.text)) {
+        const auto begin = match.begin;
+        const auto finish = match.end;
         const bool technical_overlap =
             overlaps(technical_index.ranges, begin, finish, technical_cursor);
         const bool candidate_inside_technical =
             technical_overlap && technical_index.ranges[technical_cursor].offset <= begin;
         if (candidate_inside_technical || preserved(input, begin, finish))
             continue;
-        const auto replacement = rules.formatter(it->str(2));
+        const auto replacement = rules.formatter(match.value);
         if (!replacement) {
             warnings.add(WarningCode::UnresolvedNumber,
                          "Unable to parse mixed-language candidate",
@@ -121,11 +118,9 @@ void protect_malformed_candidates(const MappedText& input,
                                   WarningSink& warnings) {
     std::size_t technical_cursor = 0;
     const Utf8Document document(input.text);
-    for (std::sregex_iterator it(input.text.begin(), input.text.end(), rules.malformed), end;
-         it != end;
-         ++it) {
-        auto begin = static_cast<std::size_t>(it->position(1));
-        const auto finish = begin + static_cast<std::size_t>(it->length(1));
+    for (const auto& match : rules.scan_malformed(input.text)) {
+        auto begin = match.begin;
+        const auto finish = match.end;
         const bool technical_overlap =
             overlaps(technical_index.ranges, begin, finish, technical_cursor);
         const bool candidate_inside_technical =
@@ -179,7 +174,7 @@ void protect_malformed_candidates(const MappedText& input,
                          input.source_range(begin, candidate_end));
             continue;
         }
-        if (candidate_end != finish || !rules.formatter(it->str(1)))
+        if (candidate_end != finish || !rules.formatter(match.value))
             warnings.add(WarningCode::UnresolvedNumber,
                          "Unsupported mixed-language numeric candidate",
                          input.source_range(begin, candidate_end));
