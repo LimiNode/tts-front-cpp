@@ -275,32 +275,138 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                                        points.begin() + static_cast<std::ptrdiff_t>(end_index),
                                        [](const CodePoint& point) { return point.value == ':'; }))
             malformed_compound = true;
-        // Currency words with an attached lexical suffix are malformed. The
-        // valid forms are handled by the language currency regexes; this guard
-        // prevents `1 рублейfoo` from becoming `один рублейfoo`.
-        if (language == AdmissionLanguage::Russian && end_index < points.size() &&
-            (points[end_index].value == ' ' || points[end_index].value == '\t')) {
-            auto word_begin = end_index;
-            while (word_begin < points.size() &&
-                   (points[word_begin].value == ' ' || points[word_begin].value == '\t'))
-                ++word_begin;
-            auto word_end = word_begin;
+        // A recognized unit/currency stem followed by an attached lexical
+        // suffix is one malformed candidate.  Letting the generic number
+        // pass see only the leading digits would otherwise produce partial
+        // rewrites such as `one kgfoo` or `один руб.foo`.
+        if (end_index < points.size()) {
+            auto suffix_begin = end_index;
+            while (suffix_begin < points.size() &&
+                   (points[suffix_begin].value == ' ' || points[suffix_begin].value == '\t'))
+                ++suffix_begin;
+            auto word_end = suffix_begin;
             while (word_end < points.size() && is_letter(points[word_end].value))
                 ++word_end;
-            if (word_end != word_begin) {
+            if (word_end != suffix_begin) {
+                auto suffix_end = word_end;
+                // Include a dotted continuation such as `руб.foo`; a final
+                // period by itself remains a valid Russian abbreviation.
+                if (suffix_end < points.size() && points[suffix_end].value == '.' &&
+                    suffix_end + 1 < points.size() && is_letter(points[suffix_end + 1].value)) {
+                    ++suffix_end;
+                    while (suffix_end < points.size() && is_letter(points[suffix_end].value))
+                        ++suffix_end;
+                }
                 const auto unit =
-                    text.text.substr(points[word_begin].offset,
-                                     points[word_end - 1].offset + points[word_end - 1].length -
-                                         points[word_begin].offset);
-                const std::string rub_prefix = "\xD1\x80\xD1\x83\xD0\xB1";
-                const bool starts_ruble = unit.compare(0, rub_prefix.size(), rub_prefix) == 0;
-                const bool known_ruble = unit == rub_prefix ||
-                                         unit == rub_prefix + "\xD0\xBB\xD1\x8C" ||
-                                         unit == rub_prefix + "\xD0\xBB\xD1\x8F" ||
-                                         unit == rub_prefix + "\xD0\xBB\xD0\xB5\xD0\xB9";
-                if (starts_ruble && !known_ruble) {
+                    text.text.substr(points[suffix_begin].offset,
+                                     points[suffix_end - 1].offset + points[suffix_end - 1].length -
+                                         points[suffix_begin].offset);
+                const auto starts_with = [&](std::string_view prefix) {
+                    return unit.size() >= prefix.size() &&
+                           unit.compare(0, prefix.size(), prefix) == 0;
+                };
+                bool known_stem = false;
+                bool valid_surface = false;
+                if (language == AdmissionLanguage::English) {
+                    static constexpr std::array<std::string_view, 13> stems = {"kg",
+                                                                               "kilogram",
+                                                                               "kilomet",
+                                                                               "km",
+                                                                               "meter",
+                                                                               "metre",
+                                                                               "m",
+                                                                               "centimet",
+                                                                               "cm",
+                                                                               "millimet",
+                                                                               "mm",
+                                                                               "MB",
+                                                                               "GB"};
+                    static constexpr std::array<std::string_view, 4> currencies = {
+                        "dollar", "euro", "pound", "yen"};
+                    for (const auto stem : stems)
+                        known_stem = known_stem || starts_with(stem);
+                    for (const auto stem : currencies)
+                        known_stem = known_stem || starts_with(stem);
+                    static constexpr std::array<std::string_view, 5> foreign_stems = {
+                        "руб", "рубль", "рубля", "рублей", "кг"};
+                    for (const auto stem : foreign_stems)
+                        known_stem = known_stem || starts_with(stem);
+                    static constexpr std::array<std::string_view, 18> surfaces = {"kg",
+                                                                                  "kilogram",
+                                                                                  "kilograms",
+                                                                                  "km",
+                                                                                  "kilometer",
+                                                                                  "kilometers",
+                                                                                  "kilometre",
+                                                                                  "kilometres",
+                                                                                  "m",
+                                                                                  "meter",
+                                                                                  "meters",
+                                                                                  "metre",
+                                                                                  "metres",
+                                                                                  "cm",
+                                                                                  "mm",
+                                                                                  "MB",
+                                                                                  "GB",
+                                                                                  "dollar"};
+                    for (const auto surface : surfaces)
+                        valid_surface = valid_surface || unit == surface;
+                } else if (language == AdmissionLanguage::Russian) {
+                    static constexpr std::array<std::string_view, 12> stems = {"руб",
+                                                                               "кг",
+                                                                               "килограмм",
+                                                                               "км",
+                                                                               "километр",
+                                                                               "см",
+                                                                               "сантиметр",
+                                                                               "мм",
+                                                                               "миллиметр",
+                                                                               "м",
+                                                                               "ГБ",
+                                                                               "МБ"};
+                    for (const auto stem : stems)
+                        known_stem = known_stem || (stem == "м" ? unit == "м" : starts_with(stem));
+                    static constexpr std::array<std::string_view, 27> surfaces = {
+                        "руб",         "руб.",        "рубль",      "рубля",       "рублей",
+                        "кг",          "килограмм",   "килограмма", "килограммов", "км",
+                        "километр",    "километра",   "километров", "см",          "сантиметр",
+                        "сантиметра",  "сантиметров", "мм",         "миллиметр",   "миллиметра",
+                        "миллиметров", "ГБ",          "МБ",         "м",           "метр",
+                        "метра",       "метров"};
+                    for (const auto surface : surfaces)
+                        valid_surface = valid_surface || unit == surface;
+                } else if (language != AdmissionLanguage::English &&
+                           language != AdmissionLanguage::Russian) {
+                    static constexpr std::array<std::string_view, 12> stems = {
+                        "\xD1\x80\xD1\x83\xD0\xB1",
+                        "\xD0\xBA\xD0\xB3",
+                        "\xD0\xBA\xD0\xB8\xD0\xBB\xD0\xBE\xD0\xB3\xD1\x80\xD0\xB0\xD0\xBC\x0",
+                        "\xD0\xBA\xD0\xBC",
+                        "\xD0\xBC",
+                        "\xD0\xBC\xD0\xB5\xD1\x82\xD1\x80",
+                        "\xD1\x81\xD0\xBC",
+                        "\xD1\x81\xD0\xB0\xD0\xBD\xD1\x82\xD0\xB8\x0",
+                        "\xD0\xBC\x0",
+                        "\xD0\xBC\xD0\xB8\xD0\xBB\xD0\xBB\xD0\xB8\x0",
+                        "\xD0\x93\xD0\x91",
+                        "\xD0\x9C\xD0\x91"};
+                    for (const auto stem : stems)
+                        known_stem = known_stem || starts_with(stem);
+                    static constexpr std::array<std::string_view, 8> surfaces = {
+                        "\xD1\x80\xD1\x83\xD0\xB1",
+                        "\xD1\x80\xD1\x83\xD0\xB1.",
+                        "\xD1\x80\xD1\x83\xD0\xB1\xD0\xBB\xD1\x8C",
+                        "\xD1\x80\xD1\x83\xD0\xB1\xD0\xBB\xD1\x8F",
+                        "\xD1\x80\xD1\x83\xD0\xB1\xD0\xBB\xD0\xB5\xD0\xB9",
+                        "\xD0\xBA\xD0\xB3",
+                        "\xD0\xBA\xD0\xB8\xD0\xBB\xD0\xBE\xD0\xB3\xD1\x80\xD0\xB0\xD0\xBC",
+                        "\xD0\xBA\xD0\xB8\xD0\xBB\xD0\xBE\xD0\xB3\xD1\x80\xD0\xB0\xD0\xBC\xD0\xBC"
+                        "\xD0\xB0"};
+                    (void)surfaces;
+                }
+                if (known_stem && (!valid_surface || suffix_end != word_end)) {
                     malformed_compound = true;
-                    end_index = word_end;
+                    end_index = suffix_end;
                 }
             }
         }
@@ -367,8 +473,20 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             (points[currency_probe - 1].value == '$' ||
              points[currency_probe - 1].value == 0x20ac ||
              points[currency_probe - 1].value == 0xa3 || points[currency_probe - 1].value == 0xa5);
+        bool signed_currency_prefix = false;
         if (currency_prefix)
             currency_prefix_begin = currency_probe - 1;
+        if (currency_prefix) {
+            auto sign_probe = currency_prefix_begin;
+            while (sign_probe > 0 &&
+                   (points[sign_probe - 1].value == ' ' || points[sign_probe - 1].value == '\t'))
+                --sign_probe;
+            if (sign_probe > 0 &&
+                (points[sign_probe - 1].value == '+' || points[sign_probe - 1].value == '-')) {
+                signed_currency_prefix = true;
+                currency_prefix_begin = sign_probe - 1;
+            }
+        }
         const bool attached_lexical_suffix = separators != 0 && end_index < points.size() &&
                                              is_lexical_numeric_boundary(points[end_index].value);
         const bool valid_english_comma_group =
@@ -433,7 +551,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
              malformed_grouped || malformed_compound ||
              (currency_prefix &&
               (has_percent || currency_probe < index || points[index].value == '+' ||
-               points[index].value == '-' || points[currency_probe - 1].value != '$'))) &&
+               points[index].value == '-' || points[currency_probe - 1].value != '$' ||
+               signed_currency_prefix))) &&
             !(valid_russian_date && !embedded) &&
             !(valid_english_comma_group && !embedded && !attached_lexical_suffix &&
               !(currency_prefix && has_percent) && !malformed_compound)) {

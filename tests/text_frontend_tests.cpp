@@ -191,6 +191,37 @@ int main() {
         CHECK(result.warnings.front().offset == 0);
         CHECK(result.warnings.front().length == std::string("1 рублейfoo").size());
     }
+    for (const auto& input : {std::string("1 kgfoo"),
+                              std::string("1 рублейfoo"),
+                              std::string("1 dollarfoo"),
+                              std::string("1 руб.foo")}) {
+        const auto result = frontend.process(input, en);
+        CHECK(result.normalized_text == input);
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(result.warnings.front().offset == 0);
+        CHECK(result.warnings.front().length == input.size());
+    }
+    for (const auto& input :
+         {std::string("1 руб.foo"), std::string("1,2 руб.foo"), std::string("1,2 кгfoo")}) {
+        const auto result = frontend.process(input, ru);
+        CHECK(result.normalized_text == input);
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(result.warnings.front().offset == 0);
+        CHECK(result.warnings.front().length == input.size());
+    }
+    for (const auto& input :
+         {std::string("-$1"), std::string("+$1"), std::string("\xE2\x82\xAC-1")}) {
+        for (const auto& language : {en, ru}) {
+            const auto result = frontend.process(input, language);
+            CHECK(result.normalized_text == input);
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(result.warnings.front().offset == 0);
+            CHECK(result.warnings.front().length == input.size());
+        }
+    }
     {
         const std::string euro = "\xe2\x82\xac"
                                  "1";
