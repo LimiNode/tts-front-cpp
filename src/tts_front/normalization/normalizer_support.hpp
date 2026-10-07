@@ -85,29 +85,4 @@ void add_warning_without_suffix(WarningSink& warnings,
                                 const std::smatch& match,
                                 std::size_t suffix_group);
 
-void add_warning(WarningSink& warnings,
-                 WarningCode code,
-                 std::string message,
-                 const MappedText& text,
-                 const std::smatch& match);
-void add_warning(WarningSink& warnings,
-                 WarningCode code,
-                 std::string message,
-                 const MappedText& text,
-                 const std::smatch& match,
-                 std::size_t group);
-void add_warning_span(WarningSink& warnings,
-                      WarningCode code,
-                      std::string message,
-                      const MappedText& text,
-                      const std::smatch& match,
-                      std::size_t begin_group,
-                      std::size_t end_group);
-void add_warning_without_suffix(WarningSink& warnings,
-                                WarningCode code,
-                                std::string message,
-                                const MappedText& text,
-                                const std::smatch& match,
-                                std::size_t suffix_group);
-
 } // namespace tts_front::detail

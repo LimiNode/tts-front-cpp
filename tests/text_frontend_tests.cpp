@@ -142,7 +142,6 @@ int main() {
                               std::string("1:02%word"),
                               std::string("$ 1"),
                               std::string("$-1"),
-                              std::string("1 kg -2 kg"),
                               std::string("€1"),
                               std::string("1:02#3")}) {
         const auto result = frontend.process(input, en);
@@ -162,7 +161,6 @@ int main() {
                               std::string("1:02..3"),
                               std::string("$ 1"),
                               std::string("$-1"),
-                              std::string("1 кг -2 кг"),
                               std::string("\xE2\x82\xAC") + "1",
                               std::string("1:02#3")}) {
         const auto result = frontend.process(input, ru);
@@ -171,6 +169,27 @@ int main() {
         CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
         CHECK(result.warnings.front().offset == 0);
         CHECK(result.warnings.front().length == input.size());
+    }
+    CHECK(frontend.process("1 kg -2 kg", en).normalized_text == "one kilogram minus two kilograms");
+    CHECK(frontend.process("1 кг -2 кг", ru).normalized_text ==
+          "один килограмм минус два килограмма");
+    for (const auto& input : {std::string("1$"), std::string("1:02%")}) {
+        for (const auto& language : {en, ru}) {
+            const auto result = frontend.process(input, language);
+            CHECK(result.normalized_text == input);
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(result.warnings.front().offset == 0);
+            CHECK(result.warnings.front().length == input.size());
+        }
+    }
+    {
+        const auto result = frontend.process("1 рублейfoo", ru);
+        CHECK(result.normalized_text == "1 рублейfoo");
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(result.warnings.front().offset == 0);
+        CHECK(result.warnings.front().length == std::string("1 рублейfoo").size());
     }
     {
         const std::string euro = "\xe2\x82\xac"
@@ -662,6 +681,9 @@ int main() {
           "тысячных");
     CHECK(frontend.process("1,1234", ru).normalized_text == "1,1234");
     CHECK(frontend.process("7,5%", ru).normalized_text == "семь целых пять десятых процента");
+    CHECK(frontend.process("1,2 руб.", ru).normalized_text == "одна целая две десятых рубля");
+    CHECK(frontend.process("1,2% -3,4%", ru).normalized_text ==
+          "одна целая две десятых процента минус три целых четыре десятых процента");
     {
         const auto invalid_time = frontend.process("24:00 99:99", ru);
         CHECK(invalid_time.normalized_text == "24:00 99:99");

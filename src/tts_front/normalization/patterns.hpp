@@ -1,17 +1,22 @@
 #pragma once
 
-#include "tts_front/language/english/patterns.hpp"
-#include "tts_front/language/russian/patterns.hpp"
-#include "tts_front/technical/patterns.hpp"
-
 #include <regex>
 
 namespace tts_front::detail {
 
-struct RegexPatterns : technical::Patterns, english::Patterns, russian::Patterns {
-    const std::regex grouped_number{R"((^|[^0-9])-?\d{1,3}(?:\s+\d{3})+(?![0-9]))"};
-};
+namespace english {
+struct Patterns;
+}
+namespace russian {
+struct Patterns;
+}
+namespace technical {
+struct Patterns;
+}
 
-const RegexPatterns& regex_patterns();
+const technical::Patterns& technical_patterns();
+const english::Patterns& english_patterns();
+const russian::Patterns& russian_patterns();
+const std::regex& grouped_number_pattern();
 
 } // namespace tts_front::detail

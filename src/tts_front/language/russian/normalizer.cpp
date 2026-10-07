@@ -3,6 +3,7 @@
 #include "tts_front/core/utf8.hpp"
 #include "tts_front/language/russian/formatters.hpp"
 #include "tts_front/language/russian/numbers.hpp"
+#include "tts_front/language/russian/patterns.hpp"
 #include "tts_front/normalization/normalizer_support.hpp"
 #include "tts_front/normalization/patterns.hpp"
 
@@ -27,10 +28,11 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
     text = protect_numeric_technical_candidates(std::move(text), warnings, protected_spans);
     text = protect_technical(std::move(text), protected_spans);
-    text = protect_malformed_numeric_candidates(std::move(text), warnings, protected_spans, true);
+    text = protect_malformed_numeric_candidates(
+        std::move(text), warnings, protected_spans, AdmissionLanguage::Russian);
     text = collapse_grouped_numbers(std::move(text));
     text = replace_numeric_matches(
-        text, regex_patterns().ru_date, [&](const std::smatch& match, const MappedText& source) {
+        text, russian_patterns().ru_date, [&](const std::smatch& match, const MappedText& source) {
             long long day = 0, month = 0, year = 0;
             if (!try_parse_long(match[1].str(), day) || !try_parse_long(match[2].str(), month) ||
                 !try_parse_long(match[3].str(), year) ||
@@ -60,7 +62,7 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                    ru_year_genitive(static_cast<int>(year)) + " года";
         });
     text = replace_numeric_matches(
-        text, regex_patterns().ru_year, [&](const std::smatch& match, const MappedText& source) {
+        text, russian_patterns().ru_year, [&](const std::smatch& match, const MappedText& source) {
             long long year = 0;
             if (!try_parse_long(match[1].str(), year)) {
                 add_warning(warnings,
@@ -72,9 +74,9 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
             }
             return ru_year_locative(static_cast<int>(year)) + " году";
         });
-    text = replace_numeric_matches(
+    text = replace_matches(
         text,
-        regex_patterns().ru_decimal_percent,
+        russian_patterns().ru_decimal_percent,
         [&](const std::smatch& match, const MappedText& source) {
             long long integer = 0, fraction = 0;
             if (!try_parse_long(match[1].str(), integer) ||
@@ -89,22 +91,41 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
             }
             return ru_decimal(integer, match[2].str()) + " процента" + match[3].str();
         });
-    text = replace_numeric_matches(
-        text, regex_patterns().ru_percent, [&](const std::smatch& match, const MappedText& source) {
-            long long n = 0;
-            if (!try_parse_long(match[1].str(), n)) {
-                add_warning(warnings,
-                            WarningCode::UnresolvedNumber,
-                            "Unable to parse Russian percent",
-                            source,
-                            match);
+    text = replace_matches(
+        text,
+        russian_patterns().ru_currency_decimal,
+        [&](const std::smatch& match, const MappedText& source) {
+            long long integer = 0, fraction = 0;
+            if (!try_parse_long(match[1].str(), integer) ||
+                !try_parse_long(match[2].str(), fraction) || match[2].str().size() > 3) {
+                add_warning_without_suffix(warnings,
+                                           WarningCode::UnresolvedNumber,
+                                           "Unable to parse Russian decimal currency",
+                                           source,
+                                           match,
+                                           4);
                 return match.str();
             }
-            return ru_number(n) + " " + ru_form(n, "процент", "процента", "процентов");
+            return ru_decimal(integer, match[2].str()) + " рубля" + match[4].str();
         });
+    text = replace_numeric_matches(text,
+                                   russian_patterns().ru_percent,
+                                   [&](const std::smatch& match, const MappedText& source) {
+                                       long long n = 0;
+                                       if (!try_parse_long(match[1].str(), n)) {
+                                           add_warning(warnings,
+                                                       WarningCode::UnresolvedNumber,
+                                                       "Unable to parse Russian percent",
+                                                       source,
+                                                       match);
+                                           return match.str();
+                                       }
+                                       return ru_number(n) + " " +
+                                              ru_form(n, "процент", "процента", "процентов");
+                                   });
     text = replace_numeric_matches(
         text,
-        regex_patterns().ru_currency,
+        russian_patterns().ru_currency,
         [&](const std::smatch& match, const MappedText& source) {
             long long n = 0;
             if (!try_parse_long(match[1].str(), n)) {
@@ -119,7 +140,7 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
             return ru_number(n) + " " + ru_form(n, "рубль", "рубля", "рублей") + match[3].str();
         });
     text = replace_numeric_matches(
-        text, regex_patterns().ru_time, [&](const std::smatch& match, const MappedText& source) {
+        text, russian_patterns().ru_time, [&](const std::smatch& match, const MappedText& source) {
             long long h = 0, m = 0;
             if (!try_parse_long(match[1].str(), h) || !try_parse_long(match[2].str(), m) ||
                 h > 23 || m > 59) {
@@ -134,7 +155,9 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                    ru_feminine_number(m) + " " + ru_form(m, "минута", "минуты", "минут");
         });
     text = replace_numeric_matches(
-        text, regex_patterns().ru_decimal, [&](const std::smatch& match, const MappedText& source) {
+        text,
+        russian_patterns().ru_decimal,
+        [&](const std::smatch& match, const MappedText& source) {
             long long integer = 0, fraction = 0;
             if (!try_parse_long(match[1].str(), integer) ||
                 !try_parse_long(match[2].str(), fraction) || match[2].str().size() > 3) {
@@ -148,38 +171,39 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
             }
             return ru_decimal(integer, match[2].str()) + match[3].str();
         });
+    text =
+        replace_matches(text,
+                        russian_patterns().ru_measurement,
+                        [&](const std::smatch& match, const MappedText& source) {
+                            long long n = 0;
+                            if (!try_parse_long(match[1].str(), n)) {
+                                add_warning_without_suffix(warnings,
+                                                           WarningCode::UnresolvedNumber,
+                                                           "Unable to parse Russian measurement",
+                                                           source,
+                                                           match,
+                                                           3);
+                                return match.str();
+                            }
+                            const auto unit_source = match[2].str();
+                            const std::string unit =
+                                unit_source.find("кг") == 0 || unit_source.find("килограмм") == 0
+                                    ? ru_form(n, "килограмм", "килограмма", "килограммов")
+                                : unit_source.find("км") == 0 || unit_source.find("километр") == 0
+                                    ? ru_form(n, "километр", "километра", "километров")
+                                : unit_source.find("см") == 0 || unit_source.find("сантиметр") == 0
+                                    ? ru_form(n, "сантиметр", "сантиметра", "сантиметров")
+                                : unit_source.find("мм") == 0 || unit_source.find("миллиметр") == 0
+                                    ? ru_form(n, "миллиметр", "миллиметра", "миллиметров")
+                                : unit_source == "м" ? ru_form(n, "метр", "метра", "метров")
+                                : unit_source == "ГБ"
+                                    ? ru_form(n, "гигабайт", "гигабайта", "гигабайт")
+                                    : ru_form(n, "мегабайт", "мегабайта", "мегабайт");
+                            return ru_number(n) + " " + unit + match[3].str();
+                        });
     text = replace_numeric_matches(
         text,
-        regex_patterns().ru_measurement,
-        [&](const std::smatch& match, const MappedText& source) {
-            long long n = 0;
-            if (!try_parse_long(match[1].str(), n)) {
-                add_warning_without_suffix(warnings,
-                                           WarningCode::UnresolvedNumber,
-                                           "Unable to parse Russian measurement",
-                                           source,
-                                           match,
-                                           3);
-                return match.str();
-            }
-            const auto unit_source = match[2].str();
-            const std::string unit =
-                unit_source.find("кг") == 0 || unit_source.find("килограмм") == 0
-                    ? ru_form(n, "килограмм", "килограмма", "килограммов")
-                : unit_source.find("км") == 0 || unit_source.find("километр") == 0
-                    ? ru_form(n, "километр", "километра", "километров")
-                : unit_source.find("см") == 0 || unit_source.find("сантиметр") == 0
-                    ? ru_form(n, "сантиметр", "сантиметра", "сантиметров")
-                : unit_source.find("мм") == 0 || unit_source.find("миллиметр") == 0
-                    ? ru_form(n, "миллиметр", "миллиметра", "миллиметров")
-                : unit_source == "м" ? ru_form(n, "метр", "метра", "метров")
-                : unit_source == "ГБ" ? ru_form(n, "гигабайт", "гигабайта", "гигабайт")
-                                      : ru_form(n, "мегабайт", "мегабайта", "мегабайт");
-            return ru_number(n) + " " + unit + match[3].str();
-        });
-    text = replace_numeric_matches(
-        text,
-        regex_patterns().generic_ru_number,
+        russian_patterns().generic_ru_number,
         [&](const std::smatch& match, const MappedText& source) {
             const auto number_begin = static_cast<std::size_t>(match.position(2));
             const auto number_end = number_begin + static_cast<std::size_t>(match.length(2));
@@ -189,11 +213,11 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
         });
     text = replace_matches(
         std::move(text),
-        regex_patterns().ru_abbreviation_td,
+        russian_patterns().ru_abbreviation_td,
         [](const auto& match, const MappedText&) { return match[1].str() + "так далее"; });
     text = replace_matches(
         std::move(text),
-        regex_patterns().ru_abbreviation_tp,
+        russian_patterns().ru_abbreviation_tp,
         [](const auto& match, const MappedText&) { return match[1].str() + "тому подобное"; });
     return restore_technical(std::move(text), protected_spans);
 }

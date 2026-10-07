@@ -8,6 +8,8 @@ struct Patterns {
     const std::regex ru_date{R"(\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b)"};
     const std::regex ru_year{R"(\b(\d{4})\s*г\.)"};
     const std::regex ru_decimal_percent{R"((-?\d+),([0-9]+)\s*%([^0-9]|$))"};
+    const std::regex ru_currency_decimal{
+        R"((-?\d+),([0-9]+)\s*(рублей|рубля|рубль|руб\.?)([^0-9A-Za-z]|$))"};
     const std::regex ru_percent{R"((-?\d+)\s*%)"};
     const std::regex ru_currency{
         R"((-?\d+)\s*(рублей|рубля|рубль|руб\.?)([^А-Яа-яЁёA-Za-z0-9]|$))"};
