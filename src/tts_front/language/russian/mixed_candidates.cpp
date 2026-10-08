@@ -40,17 +40,22 @@ std::optional<std::string> format(std::string_view candidate) {
     long long integer = 0;
     if (!try_parse_long(match[1].str(), integer))
         return std::nullopt;
+    const auto number_text = match[1].str();
     const auto fraction = match[2].str();
     const auto unit = match[3].str();
+    const auto signed_zero_prefix =
+        integer == 0 && !number_text.empty() && number_text.front() == '-' ? std::string("минус ")
+                                                                           : std::string();
     if (!fraction.empty()) {
         if (fraction.size() > 3)
             return std::nullopt;
         if (unit.find("руб") == 0 || unit == "руб.")
-            return decimal(integer, fraction) + " рубля";
-        return decimal(integer, fraction) + " " + unit;
+            return signed_zero_prefix + decimal(integer, fraction) + " рубля";
+        return signed_zero_prefix + decimal(integer, fraction) + " " + unit;
     }
     if (unit.find("руб") == 0 || unit == "руб.")
-        return number(integer) + " " + plural_form(integer, "рубль", "рубля", "рублей");
+        return number_for_token(number_text, integer) + " " +
+               plural_form(integer, "рубль", "рубля", "рублей");
     const bool kilogram = unit.find("кг") == 0 || unit.find("килограмм") == 0;
     const bool kilometer = unit.find("км") == 0 || unit.find("километр") == 0;
     const bool centimeter = unit.find("см") == 0 || unit.find("сантиметр") == 0;
@@ -76,7 +81,7 @@ std::optional<std::string> format(std::string_view candidate) {
                        : unit == "м"  ? "метров"
                        : unit == "ГБ" ? "гигабайт"
                                       : "мегабайт";
-    return number(integer) + " " + plural_form(integer, one, few, many);
+    return number_for_token(number_text, integer) + " " + plural_form(integer, one, few, many);
 }
 
 std::vector<MixedCandidateMatch> scan_candidate_matches(std::string_view text) {

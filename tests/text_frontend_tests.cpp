@@ -749,6 +749,10 @@ int main() {
                 expected_begin = sign;
             CHECK(warning->offset == expected_begin);
         }
+        const auto negative_zero = frontend.process("У меня -0 kg", segmented);
+        CHECK(negative_zero.normalized_text == "У меня minus zero kilograms");
+        const auto negative_zero_decimal = frontend.process("У меня -0.0 kg", segmented);
+        CHECK(negative_zero_decimal.normalized_text == "У меня minus zero point zero kg");
     }
     {
         TextFrontendOptions segmented;
@@ -986,6 +990,25 @@ int main() {
         CHECK(signed_ordinal.warnings.size() == 1);
         CHECK(signed_ordinal.warnings.front().offset == 0);
         CHECK(signed_ordinal.warnings.front().length == 4);
+    }
+    {
+        for (const auto& options : {en, ru}) {
+            const auto signed_time = frontend.process("-1:02", options);
+            CHECK(signed_time.normalized_text == "-1:02");
+            CHECK(signed_time.warnings.size() == 1);
+            CHECK(signed_time.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(signed_time.warnings.front().offset == 0);
+            CHECK(signed_time.warnings.front().length == 5);
+        }
+        const auto negative_zero_time = frontend.process("-0:00", en);
+        CHECK(negative_zero_time.normalized_text == "-0:00");
+        CHECK(negative_zero_time.warnings.size() == 1);
+        CHECK(negative_zero_time.warnings.front().length == 5);
+        const auto negative_zero_ordinal = frontend.process("-0th", en);
+        CHECK(negative_zero_ordinal.normalized_text == "-0th");
+        CHECK(negative_zero_ordinal.warnings.size() == 1);
+        CHECK(negative_zero_ordinal.warnings.front().offset == 0);
+        CHECK(negative_zero_ordinal.warnings.front().length == 4);
     }
     {
         const std::string oversized_ordinal = "999999999999999999999th";

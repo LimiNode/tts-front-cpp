@@ -1,7 +1,7 @@
 version	1
-cases	360
-outcome	correct_transformation	322
-outcome	justified_preservation	23
+cases	367
+outcome	correct_transformation	324
+outcome	justified_preservation	28
 outcome	unnecessary_refusal	2
 outcome	incorrect_or_partial	13
 mismatch	en-date-spoken-0

@@ -106,6 +106,13 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                text::is_digit(points[initial_digit_index].value))
             ++initial_digit_index;
         const auto initial_digit_count = initial_digit_index - initial_digit_begin;
+        // A leading sign is not part of the supported clock-time grammar. Keep
+        // the complete signed expression atomic so the time normalizer cannot
+        // match the unsigned suffix after this admission pass.
+        const bool signed_time = points[index].value == '-' && initial_digit_count > 0 &&
+                                 initial_digit_index + 1 < points.size() &&
+                                 points[initial_digit_index].value == ':' &&
+                                 text::is_digit(points[initial_digit_index + 1].value);
         if (starts_phone) {
             while (end_index < points.size()) {
                 if (text::is_digit(points[end_index].value)) {
@@ -288,6 +295,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         if (has_percent && std::any_of(points.begin() + static_cast<std::ptrdiff_t>(index),
                                        points.begin() + static_cast<std::ptrdiff_t>(end_index),
                                        [](const CodePoint& point) { return point.value == ':'; }))
+            malformed_compound = true;
+        if (signed_time)
             malformed_compound = true;
         // A recognized unit/currency stem followed by an attached lexical
         // suffix is one malformed candidate.  Letting the generic number

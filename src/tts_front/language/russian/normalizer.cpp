@@ -14,12 +14,6 @@
 namespace tts_front::detail::russian {
 namespace {
 
-std::string number_for_token(std::string_view token, long long value) {
-    if (value == 0 && !token.empty() && token.front() == '-')
-        return "минус ноль";
-    return number(value);
-}
-
 std::string
 number_or_original(const std::string& token, WarningSink& warnings, SourceRange source) {
     long long value = 0;

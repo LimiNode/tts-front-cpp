@@ -7,7 +7,7 @@ the library output.
 
 ## Corpus and method
 
-The corpus contains 360 natural-sentence cases, split evenly between English and Russian. It covers
+The corpus contains 352 natural-sentence cases, split evenly between English and Russian. It covers
 integers, measurements, currencies, percentages, positive and negative decimals, times, dates,
 punctuation, technical spans, and mixed-language phrases. Twenty mixed cases exercise
 `MixedLanguagePolicy::SegmentCandidates`; the manually written natural-sentence tail adds varied
@@ -37,28 +37,28 @@ improvements require a reviewed snapshot update in
 
 | Outcome | Cases |
 |---|---:|
-| Correct transformation | 322 |
+| Correct transformation | 278 |
 | Justified preservation | 23 |
-| Unnecessary refusal | 2 |
-| Incorrect or partial transformation | 13 |
-| **Total** | **360** |
+| Unnecessary refusal | 34 |
+| Incorrect or partial transformation | 17 |
+| **Total** | **352** |
 
-The implementation matches 345 of 360 desired outcomes (95.8%). Among the 337 cases that request
-normalization, 322 match the desired rendering (95.5%). All 23 intentional preservation cases are
+The implementation matches 301 of 352 desired outcomes (85.5%). Among the 329 cases that request
+normalization, 278 match the desired rendering (84.5%). All 23 intentional preservation cases are
 preserved.
 
 | Language | Correct | Justified preserve | Unnecessary refusal | Incorrect/partial |
 |---|---:|---:|---:|---:|
-| EN | 160 | 14 | 0 | 6 |
-| RU | 162 | 9 | 2 | 7 |
+| EN | 133 | 14 | 17 | 7 |
+| RU | 141 | 9 | 17 | 9 |
 
 | Category | Correct | Justified preserve | Unnecessary refusal | Incorrect/partial |
 |---|---:|---:|---:|---:|
 | Ambiguous or technical | 0 | 16 | 0 | 0 |
-| Currency | 22 | 2 | 0 | 1 |
+| Currency | 20 | 2 | 2 | 1 |
 | Date | 9 | 5 | 0 | 4 |
-| Decimal | 34 | 0 | 0 | 1 |
-| Integer | 123 | 0 | 1 | 1 |
+| Decimal | 22 | 0 | 0 | 5 |
+| Integer | 93 | 0 | 31 | 1 |
 | Measurement | 42 | 0 | 0 | 2 |
 | Mixed language | 15 | 0 | 1 | 4 |
 | Percent | 32 | 0 | 0 | 0 |
@@ -67,21 +67,29 @@ preserved.
 
 ## Discrepancy clusters
 
-1. **English calendar dates use cardinal day forms (4 cases).** For example, `January 2, 2026`
+1. **Ordinary closing punctuation is over-protected (31 cases).** An integer immediately before
+   `).` is preserved with `UnresolvedNumber`, for example `The retry threshold is (2).`. These are
+   ordinary sentence boundaries, not malformed numeric continuations.
+2. **A parenthesized decimal currency is over-protected (2 cases).** `$12.50` and `$1.01` normalize
+   in ordinary prose but are preserved in `Price ($12.50) includes tax.`.
+3. **The sign of negative zero is lost (4 cases).** `-0.01` and `-0,01` are rendered as positive
+   zero in both tested contexts, without a warning.
+4. **English calendar dates use cardinal day forms (4 cases).** For example, `January 2, 2026`
    becomes `January two, two thousand twenty six` instead of `January second, ...`; 1999 is also
    rendered as a full cardinal rather than the preferred spoken year form.
-2. **Russian context-sensitive agreement is incomplete (4 cases in the expanded tail).** Mixed
+5. **Russian context-sensitive agreement is incomplete (4 cases in the expanded tail).** Mixed
    sentences produce contextually incorrect cardinal forms in error counts, prepositional phrases,
    and decimal units.
-3. **Unit and punctuation rendering remain context-sensitive (3 cases).** Fractional `kg` keeps
+6. **Unit and punctuation rendering remain context-sensitive (3 cases).** Fractional `kg` keeps
    its abbreviation, a grouped ruble sentence drops its terminal period, and a bracketed integer
    is preserved with a warning.
-4. **Mixed-language local formatting remains asymmetric (3 cases).** Foreign units can use a
+7. **Mixed-language local formatting remains asymmetric (5 cases).** Foreign units can use a
    different surface style from the dominant language, while technical candidates may still emit a
    warning or refuse a nearby ordinary number.
 
-The next corrective work should focus on English date ordinals, Russian contextual morphology,
-and mixed-language local formatting. Each change should remain a focused language-level rule backed
+The next corrective work should start with ordinary `).` boundary admission and negative-zero sign
+preservation because they affect otherwise unambiguous input. English date ordinals and Russian
+contextual morphology require explicit language rules and should follow as focused changes backed
 by this corpus.
 
 ## Reproduction

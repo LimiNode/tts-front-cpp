@@ -13,12 +13,6 @@
 namespace tts_front::detail::english {
 namespace {
 
-std::string number_for_token(std::string_view token, long long value) {
-    if (value == 0 && !token.empty() && token.front() == '-')
-        return "minus zero";
-    return number(value);
-}
-
 std::string
 number_or_original(const std::string& token, WarningSink& warnings, SourceRange source) {
     long long value = 0;
@@ -79,7 +73,9 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
         text, english::patterns().ordinal, [&](const std::smatch& match, const MappedText& source) {
             long long value = 0;
             const auto suffix = match[3].str();
-            if (!try_parse_long(match[2].str(), value) || suffix != ordinal_suffix(value)) {
+            const bool signed_ordinal = !match[2].str().empty() && match[2].str().front() == '-';
+            if (signed_ordinal || !try_parse_long(match[2].str(), value) ||
+                suffix != ordinal_suffix(value)) {
                 add_warning_span(warnings,
                                  WarningCode::UnresolvedNumber,
                                  "Unable to parse English ordinal",

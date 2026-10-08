@@ -305,10 +305,12 @@ mixed_cases = [
      "Deploy five replicas в the cluster."),
     ("en", "Version V2.1.0—123 is tagged 7.",
      "Version V2.1.0—123 is tagged seven."),
+    ("ru", "У меня -0 kg", "У меня minus zero kilograms"),
+    ("ru", "У меня -0.0 kg", "У меня minus zero point zero kg"),
 ]
 for index, (language, source, expected) in enumerate(mixed_cases):
     diagnostics = "none"
-    if index in {0, 1, 10, 12} and language == "ru":
+    if index in {0, 1, 10, 12, 20, 21} and language == "ru":
         diagnostics = f"ambiguous_normalization@0:{len(source.encode('utf-8'))}"
     if index in {5, 15, 18} and language == "en":
         diagnostics = f"ambiguous_normalization@0:{len(source.encode('utf-8'))}"
@@ -413,6 +415,11 @@ natural_cases = [
      "В две тысячи двадцать шесть году запланировано двенадцать релизов.", "none"),
     ("ru-natural-11", "ru", "integer", "normalize", "Значение равно [42].",
      "Значение равно [сорок два].", "none"),
+    ("en-negative-time-00", "en", "time", "preserve", "-0:00", "-0:00", warning("-0:00", "-0:00")),
+    ("en-negative-time-01", "en", "time", "preserve", "-1:02", "-1:02", warning("-1:02", "-1:02")),
+    ("ru-negative-time-00", "ru", "time", "preserve", "-0:00", "-0:00", warning("-0:00", "-0:00")),
+    ("ru-negative-time-01", "ru", "time", "preserve", "-1:02", "-1:02", warning("-1:02", "-1:02")),
+    ("en-negative-ordinal-00", "en", "date", "preserve", "-0th", "-0th", warning("-0th", "-0th")),
 ]
 for case_id, language, category, expectation, source, expected, diagnostics in natural_cases:
     rows.append(row(case_id, language, "explicit", category, expectation, source, expected,
