@@ -131,6 +131,20 @@ int main() {
     CHECK(frontend.process("1:01 2:02 12:30", en).normalized_text ==
           "one hour one minute two hours two minutes twelve hours thirty minutes");
     CHECK(frontend.process("1 kg 2 km", en).normalized_text == "one kilogram two kilometers");
+    CHECK(frontend.process("The retry threshold is (2).", en).normalized_text ==
+          "The retry threshold is (two).");
+    CHECK(frontend.process("Price ($12.50) includes tax.", en).normalized_text ==
+          "Price (twelve dollars fifty cents) includes tax.");
+    CHECK(frontend.process("Цена (2 рубля) указана без скидки.", ru).normalized_text ==
+          "Цена (два рубля) указана без скидки.");
+    {
+        const auto result = frontend.process("1.2)", en);
+        CHECK(result.normalized_text == "1.2)");
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(result.warnings.front().offset == 0);
+        CHECK(result.warnings.front().length == std::string("1.2)").size());
+    }
     for (const auto& input : {std::string("12 3456"),
                               std::string("12 345foo"),
                               std::string("12 345:6"),

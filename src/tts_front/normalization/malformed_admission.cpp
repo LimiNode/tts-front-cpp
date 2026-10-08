@@ -81,6 +81,16 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             continue;
         }
         const auto begin = points[index].offset;
+        // Parentheses are ordinary sentence punctuation when they enclose a
+        // numeric expression.  Treat a closing parenthesis as a boundary only
+        // when the candidate was introduced by an opening parenthesis (or by
+        // an opening parenthesis immediately followed by a currency sign).
+        // An unmatched suffix such as `1.2)` remains fail-closed below.
+        const bool parenthesized_prefix =
+            (index > 0 && points[index - 1].value == '(') ||
+            (index > 1 && points[index - 2].value == '(' &&
+             (points[index - 1].value == '$' || points[index - 1].value == 0x20ac ||
+              points[index - 1].value == 0xa3 || points[index - 1].value == 0xa5));
         std::size_t end_index = index + 1;
         std::size_t separators = 0;
         bool has_percent = false;
@@ -202,6 +212,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                     }
                     break;
                 }
+                if (value == ')' && parenthesized_prefix)
+                    break;
                 if (text::is_numeric_connector(value)) {
                     if (grouped_seen && (value == '.' || value == ',' || value == ':'))
                         malformed_compound = true;
