@@ -233,6 +233,14 @@ ru-decimal-10-0	ru	explicit	decimal	normalize	Измеренное значен�
 ru-decimal-10-1	ru	explicit	decimal	normalize	Результат измерения — -0,01.	Результат измерения — минус ноль целых одна сотая.	none
 ru-decimal-11-0	ru	explicit	decimal	normalize	Измеренное значение: 99,9.	Измеренное значение: девяносто девять целых девять десятых.	none
 ru-decimal-11-1	ru	explicit	decimal	normalize	Результат измерения — 99,9.	Результат измерения — девяносто девять целых девять десятых.	none
+en-decimal-12-0	en	explicit	decimal	normalize	The measured value is -0.	The measured value is minus zero.	none
+en-decimal-12-1	en	explicit	decimal	normalize	Measured value: -0.	Measured value: minus zero.	none
+en-decimal-13-0	en	explicit	decimal	normalize	The measured value is -0.0.	The measured value is minus zero point zero.	none
+en-decimal-13-1	en	explicit	decimal	normalize	Measured value: -0.0.	Measured value: minus zero point zero.	none
+ru-decimal-14-0	ru	explicit	decimal	normalize	Измеренное значение: -0.	Измеренное значение: минус ноль.	none
+ru-decimal-14-1	ru	explicit	decimal	normalize	Результат измерения — -0.	Результат измерения — минус ноль.	none
+ru-decimal-15-0	ru	explicit	decimal	normalize	Измеренное значение: -0,00.	Измеренное значение: минус ноль целых ноль сотых.	none
+ru-decimal-15-1	ru	explicit	decimal	normalize	Результат измерения — -0,00.	Результат измерения — минус ноль целых ноль сотых.	none
 en-punct-0-0	en	explicit	punctuation	normalize	The values are 1, 2, and 3.	The values are one, two, and three.	none
 en-punct-0-1	en	explicit	punctuation	normalize	The values are 1, 2, and 3. Check complete.	The values are one, two, and three. Check complete.	none
 en-punct-0-2	en	explicit	punctuation	normalize	The values are 1, 2, and 3. The value was confirmed.	The values are one, two, and three. The value was confirmed.	none

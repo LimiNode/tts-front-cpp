@@ -9,9 +9,16 @@
 #include "tts_front/technical/admission.hpp"
 
 #include <string>
+#include <string_view>
 
 namespace tts_front::detail::russian {
 namespace {
+
+std::string number_for_token(std::string_view token, long long value) {
+    if (value == 0 && !token.empty() && token.front() == '-')
+        return "минус ноль";
+    return number(value);
+}
 
 std::string
 number_or_original(const std::string& token, WarningSink& warnings, SourceRange source) {
@@ -20,7 +27,7 @@ number_or_original(const std::string& token, WarningSink& warnings, SourceRange 
         warnings.add(WarningCode::UnresolvedNumber, "Unable to parse number", source);
         return token;
     }
-    return number(value);
+    return number_for_token(token, value);
 }
 
 } // namespace
@@ -90,7 +97,9 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                                            3);
                 return match.str();
             }
-            return decimal(integer, match[2].str()) + " процента" + match[3].str();
+            const auto prefix = integer == 0 && match[1].str().front() == '-' ? "минус " : "";
+            return std::string(prefix) + decimal(integer, match[2].str()) + " процента" +
+                   match[3].str();
         });
     text = replace_matches(
         text,
@@ -107,7 +116,9 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                                            4);
                 return match.str();
             }
-            return decimal(integer, match[2].str()) + " рубля" + match[4].str();
+            const auto prefix = integer == 0 && match[1].str().front() == '-' ? "минус " : "";
+            return std::string(prefix) + decimal(integer, match[2].str()) + " рубля" +
+                   match[4].str();
         });
     text = replace_numeric_matches(
         text, russian::patterns().percent, [&](const std::smatch& match, const MappedText& source) {
@@ -120,7 +131,8 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                             match);
                 return match.str();
             }
-            return number(n) + " " + plural_form(n, "процент", "процента", "процентов");
+            return number_for_token(match[1].str(), n) + " " +
+                   plural_form(n, "процент", "процента", "процентов");
         });
     text = replace_numeric_matches(
         text,
@@ -136,7 +148,8 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                                            3);
                 return match.str();
             }
-            return number(n) + " " + plural_form(n, "рубль", "рубля", "рублей") + match[3].str();
+            return number_for_token(match[1].str(), n) + " " +
+                   plural_form(n, "рубль", "рубля", "рублей") + match[3].str();
         });
     text = replace_numeric_matches(
         text, russian::patterns().time, [&](const std::smatch& match, const MappedText& source) {
@@ -166,38 +179,38 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                                            3);
                 return match.str();
             }
-            return decimal(integer, match[2].str()) + match[3].str();
+            const auto prefix = integer == 0 && match[1].str().front() == '-' ? "минус " : "";
+            return std::string(prefix) + decimal(integer, match[2].str()) + match[3].str();
         });
-    text =
-        replace_matches(text,
-                        russian::patterns().measurement,
-                        [&](const std::smatch& match, const MappedText& source) {
-                            long long n = 0;
-                            if (!try_parse_long(match[1].str(), n)) {
-                                add_warning_without_suffix(warnings,
-                                                           WarningCode::UnresolvedNumber,
-                                                           "Unable to parse Russian measurement",
-                                                           source,
-                                                           match,
-                                                           3);
-                                return match.str();
-                            }
-                            const auto unit_source = match[2].str();
-                            const std::string unit =
-                                unit_source.find("кг") == 0 || unit_source.find("килограмм") == 0
-                                    ? plural_form(n, "килограмм", "килограмма", "килограммов")
-                                : unit_source.find("км") == 0 || unit_source.find("километр") == 0
-                                    ? plural_form(n, "километр", "километра", "километров")
-                                : unit_source.find("см") == 0 || unit_source.find("сантиметр") == 0
-                                    ? plural_form(n, "сантиметр", "сантиметра", "сантиметров")
-                                : unit_source.find("мм") == 0 || unit_source.find("миллиметр") == 0
-                                    ? plural_form(n, "миллиметр", "миллиметра", "миллиметров")
-                                : unit_source == "м" ? plural_form(n, "метр", "метра", "метров")
-                                : unit_source == "ГБ"
-                                    ? plural_form(n, "гигабайт", "гигабайта", "гигабайт")
-                                    : plural_form(n, "мегабайт", "мегабайта", "мегабайт");
-                            return number(n) + " " + unit + match[3].str();
-                        });
+    text = replace_matches(
+        text,
+        russian::patterns().measurement,
+        [&](const std::smatch& match, const MappedText& source) {
+            long long n = 0;
+            if (!try_parse_long(match[1].str(), n)) {
+                add_warning_without_suffix(warnings,
+                                           WarningCode::UnresolvedNumber,
+                                           "Unable to parse Russian measurement",
+                                           source,
+                                           match,
+                                           3);
+                return match.str();
+            }
+            const auto unit_source = match[2].str();
+            const std::string unit =
+                unit_source.find("кг") == 0 || unit_source.find("килограмм") == 0
+                    ? plural_form(n, "килограмм", "килограмма", "килограммов")
+                : unit_source.find("км") == 0 || unit_source.find("километр") == 0
+                    ? plural_form(n, "километр", "километра", "километров")
+                : unit_source.find("см") == 0 || unit_source.find("сантиметр") == 0
+                    ? plural_form(n, "сантиметр", "сантиметра", "сантиметров")
+                : unit_source.find("мм") == 0 || unit_source.find("миллиметр") == 0
+                    ? plural_form(n, "миллиметр", "миллиметра", "миллиметров")
+                : unit_source == "м" ? plural_form(n, "метр", "метра", "метров")
+                : unit_source == "ГБ" ? plural_form(n, "гигабайт", "гигабайта", "гигабайт")
+                                      : plural_form(n, "мегабайт", "мегабайта", "мегабайт");
+            return number_for_token(match[1].str(), n) + " " + unit + match[3].str();
+        });
     text = replace_numeric_matches(
         text,
         russian::patterns().generic_number,

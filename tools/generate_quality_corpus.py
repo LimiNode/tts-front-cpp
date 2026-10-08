@@ -188,6 +188,10 @@ decimal_cases = [
     ("ru", "12,05", "двенадцать целых пять сотых"),
     ("ru", "-0,01", "минус ноль целых одна сотая"),
     ("ru", "99,9", "девяносто девять целых девять десятых"),
+    ("en", "-0", "minus zero"),
+    ("en", "-0.0", "minus zero point zero"),
+    ("ru", "-0", "минус ноль"),
+    ("ru", "-0,00", "минус ноль целых ноль сотых"),
 ]
 for index, (language, surface, spoken) in enumerate(decimal_cases):
     templates = (("The measured value is {}.", "Measured value: {}.")) if language == "en" else (

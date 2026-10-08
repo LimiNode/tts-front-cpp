@@ -57,7 +57,7 @@ cmake --build build-format --target format-check
 
 ## Quality baseline
 
-Расширенный корпус из 352 естественных EN/RU-предложений и методика оценки описаны в
+Расширенный корпус из 360 естественных EN/RU-предложений и методика оценки описаны в
 [docs/quality-baseline-v0.2.0.md](docs/quality-baseline-v0.2.0.md). Audit отдельно считает
 правильные преобразования, обоснованные сохранения, лишние отказы и неправильные/частичные
 преобразования; snapshot фиксирует counts, mismatch IDs, фактические outputs и diagnostics. Новые

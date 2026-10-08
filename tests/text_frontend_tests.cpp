@@ -49,6 +49,10 @@ int main() {
     TextFrontendOptions en;
     en.language = Language::English;
     CHECK(frontend.process("7.5%", en).normalized_text == "seven point five percent");
+    CHECK(frontend.process("-0 -0.0 -0%", en).normalized_text ==
+          "minus zero minus zero point zero minus zero percent");
+    CHECK(frontend.process("-0 -0,00 -0%", ru).normalized_text ==
+          "минус ноль минус ноль целых ноль сотых минус ноль процентов");
     {
         const std::string unsupported_numeric[] = {"1%word",
                                                    "1%2",

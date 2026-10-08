@@ -8,9 +8,16 @@
 #include "tts_front/technical/admission.hpp"
 
 #include <string>
+#include <string_view>
 
 namespace tts_front::detail::english {
 namespace {
+
+std::string number_for_token(std::string_view token, long long value) {
+    if (value == 0 && !token.empty() && token.front() == '-')
+        return "minus zero";
+    return number(value);
+}
 
 std::string
 number_or_original(const std::string& token, WarningSink& warnings, SourceRange source) {
@@ -19,7 +26,7 @@ number_or_original(const std::string& token, WarningSink& warnings, SourceRange 
         warnings.add(WarningCode::UnresolvedNumber, "Unable to parse number", source);
         return token;
     }
-    return number(value);
+    return number_for_token(token, value);
 }
 
 } // namespace
@@ -97,9 +104,9 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                             match);
                 return match.str();
             }
-            return (dot == std::string::npos
-                        ? number(integer)
-                        : number(integer) + " point " + digits(value.substr(dot + 1))) +
+            return (dot == std::string::npos ? number_for_token(value, integer)
+                                             : number_for_token(value.substr(0, dot), integer) +
+                                                   " point " + digits(value.substr(dot + 1))) +
                    " percent";
         });
     text = replace_numeric_matches(
@@ -131,39 +138,39 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                             2);
                 return match.str();
             }
-            return match[1].str() + number(integer) + " point " + digits(value.substr(dot + 1));
+            return match[1].str() + number_for_token(value.substr(0, dot), integer) + " point " +
+                   digits(value.substr(dot + 1));
         });
-    text = replace_matches(text,
-                           english::patterns().measurement,
-                           [&](const std::smatch& match, const MappedText& source) {
-                               long long n = 0;
-                               if (!try_parse_long(match[1].str(), n)) {
-                                   add_warning_without_suffix(warnings,
-                                                              WarningCode::UnresolvedNumber,
-                                                              "Unable to parse English measurement",
-                                                              source,
-                                                              match,
-                                                              3);
-                                   return match.str();
-                               }
-                               const auto unit = match[2].str();
-                               const bool singular = n == 1 || n == -1;
-                               const std::string spoken =
-                                   unit == "kg" || unit.find("kilogram") == 0
-                                       ? (singular ? "kilogram" : "kilograms")
-                                   : unit == "km" || unit.find("kilomet") == 0
-                                       ? (singular ? "kilometer" : "kilometers")
-                                   : unit == "m" || unit == "meter" || unit == "meters" ||
-                                           unit == "metres"
-                                       ? (singular ? "meter" : "meters")
-                                   : unit == "cm" || unit.find("centimet") == 0
-                                       ? (singular ? "centimeter" : "centimeters")
-                                   : unit == "mm" || unit.find("millimet") == 0
-                                       ? (singular ? "millimeter" : "millimeters")
-                                   : unit == "MB" ? (singular ? "megabyte" : "megabytes")
-                                                  : (singular ? "gigabyte" : "gigabytes");
-                               return number(n) + " " + spoken + match[3].str();
-                           });
+    text = replace_matches(
+        text,
+        english::patterns().measurement,
+        [&](const std::smatch& match, const MappedText& source) {
+            long long n = 0;
+            if (!try_parse_long(match[1].str(), n)) {
+                add_warning_without_suffix(warnings,
+                                           WarningCode::UnresolvedNumber,
+                                           "Unable to parse English measurement",
+                                           source,
+                                           match,
+                                           3);
+                return match.str();
+            }
+            const auto unit = match[2].str();
+            const bool singular = n == 1 || n == -1;
+            const std::string spoken =
+                unit == "kg" || unit.find("kilogram") == 0 ? (singular ? "kilogram" : "kilograms")
+                : unit == "km" || unit.find("kilomet") == 0
+                    ? (singular ? "kilometer" : "kilometers")
+                : unit == "m" || unit == "meter" || unit == "meters" || unit == "metres"
+                    ? (singular ? "meter" : "meters")
+                : unit == "cm" || unit.find("centimet") == 0
+                    ? (singular ? "centimeter" : "centimeters")
+                : unit == "mm" || unit.find("millimet") == 0
+                    ? (singular ? "millimeter" : "millimeters")
+                : unit == "MB" ? (singular ? "megabyte" : "megabytes")
+                               : (singular ? "gigabyte" : "gigabytes");
+            return number_for_token(match[1].str(), n) + " " + spoken + match[3].str();
+        });
     text = replace_numeric_matches(
         text,
         english::patterns().generic_number,
