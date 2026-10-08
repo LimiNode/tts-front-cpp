@@ -86,9 +86,13 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             if (text::is_horizontal_space(points[probe].value)) {
                 while (probe < points.size() && text::is_horizontal_space(points[probe].value))
                     ++probe;
-                return probe < points.size() && (text::is_digit(points[probe].value) ||
-                                                 text::is_letter(points[probe].value));
+                // A second digit group is characteristic of a phone number;
+                // leave it to the dedicated phone scanner.  A lexical unit
+                // after the sign remains a malformed numeric candidate.
+                return probe < points.size() && text::is_letter(points[probe].value);
             }
+            if (points[probe].value == '*' || points[probe].value == '&')
+                return true;
             return false;
         }();
         const bool starts_phone = points[index].value == '+' && index + 1 < points.size() &&
@@ -458,6 +462,10 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             rules.comma_grouped_percent != nullptr &&
             (std::regex_match(candidate, *rules.comma_grouped_value) ||
              std::regex_match(candidate, *rules.comma_grouped_percent));
+        const bool valid_currency_group_surface =
+            !currency_prefix ||
+            (!signed_currency_prefix && points[index].value != '+' && points[index].value != '-' &&
+             points[currency_probe - 1].value == '$');
         const bool malformed_english_comma_group =
             rules.comma_grouping && candidate.find(',') != std::string::npos;
         const auto digit_count = static_cast<std::size_t>(std::count_if(
@@ -538,7 +546,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                signed_currency_prefix))) &&
             !(valid_russian_date && !embedded) &&
             !(valid_english_comma_group && !embedded && !attached_lexical_suffix &&
-              !(currency_prefix && has_percent) && !malformed_compound) &&
+              !(currency_prefix && has_percent) && !malformed_compound &&
+              valid_currency_group_surface) &&
             !already_preserved) {
             NumericCandidate candidate{document.span_from_bytes(protected_begin, end),
                                        currency_prefix ? NumericCandidateKind::Currency

@@ -721,6 +721,8 @@ int main() {
                                          "Привет -$1",
                                          "Привет +$1",
                                          "Привет +1.2 kg",
+                                         "Привет +1*2",
+                                         "Привет +$1,234.56",
                                          "Привет −1:02"};
         for (const auto& input : malformed) {
             const auto result = frontend.process(input, segmented);
@@ -750,6 +752,10 @@ int main() {
             if (const auto sign = input.find("+$1"); sign != std::string::npos)
                 expected_begin = sign;
             if (const auto sign = input.find("+1.2"); sign != std::string::npos)
+                expected_begin = sign;
+            if (const auto sign = input.find("+1*2"); sign != std::string::npos)
+                expected_begin = sign;
+            if (const auto sign = input.find("+$1"); sign != std::string::npos)
                 expected_begin = sign;
             if (const auto sign = input.find("−1"); sign != std::string::npos)
                 expected_begin = sign;
@@ -1010,6 +1016,11 @@ int main() {
                                       std::string("+1.2 kg"),
                                       std::string("+1:02"),
                                       std::string("+1,2%"),
+                                      std::string("+1*2"),
+                                      std::string("+1&2"),
+                                      std::string("+$1,234.56"),
+                                      std::string("-$1,234"),
+                                      std::string("€-1,234"),
                                       std::string("−1:02")}) {
                 const auto signed_numeric = frontend.process(input, options);
                 CHECK(signed_numeric.normalized_text == input);
@@ -1019,6 +1030,11 @@ int main() {
                 CHECK(signed_numeric.warnings.front().length == input.size());
             }
         }
+        const auto phone = frontend.process("+7 999 123 45 67", en);
+        CHECK(phone.normalized_text == "+7 999 123 45 67");
+        CHECK(phone.warnings.size() == 1);
+        CHECK(phone.warnings.front().offset == 0);
+        CHECK(phone.warnings.front().length == phone.original_text.size());
         const auto negative_zero_time = frontend.process("-0:00", en);
         CHECK(negative_zero_time.normalized_text == "-0:00");
         CHECK(negative_zero_time.warnings.size() == 1);

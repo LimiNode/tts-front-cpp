@@ -140,6 +140,8 @@ if(TTS_FRONT_BUILD_TESTS)
   find_package(Python3 COMPONENTS Interpreter REQUIRED)
   add_test(NAME tts_front_quality_corpus_sync
            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/generate_quality_corpus.py --check)
+  add_test(NAME tts_front_quality_release_archive
+           COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/check_quality_archive.py)
   add_executable(tts_front_tests tests/text_frontend_tests.cpp)
   tts_front_configure_target(tts_front_tests)
   target_link_libraries(tts_front_tests PRIVATE TtsFront::tts_front)

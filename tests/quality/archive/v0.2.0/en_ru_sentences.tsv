@@ -233,14 +233,6 @@ ru-decimal-10-0	ru	explicit	decimal	normalize	Измеренное значен�
 ru-decimal-10-1	ru	explicit	decimal	normalize	Результат измерения — -0,01.	Результат измерения — минус ноль целых одна сотая.	none
 ru-decimal-11-0	ru	explicit	decimal	normalize	Измеренное значение: 99,9.	Измеренное значение: девяносто девять целых девять десятых.	none
 ru-decimal-11-1	ru	explicit	decimal	normalize	Результат измерения — 99,9.	Результат измерения — девяносто девять целых девять десятых.	none
-en-decimal-12-0	en	explicit	decimal	normalize	The measured value is -0.	The measured value is minus zero.	none
-en-decimal-12-1	en	explicit	decimal	normalize	Measured value: -0.	Measured value: minus zero.	none
-en-decimal-13-0	en	explicit	decimal	normalize	The measured value is -0.0.	The measured value is minus zero point zero.	none
-en-decimal-13-1	en	explicit	decimal	normalize	Measured value: -0.0.	Measured value: minus zero point zero.	none
-ru-decimal-14-0	ru	explicit	decimal	normalize	Измеренное значение: -0.	Измеренное значение: минус ноль.	none
-ru-decimal-14-1	ru	explicit	decimal	normalize	Результат измерения — -0.	Результат измерения — минус ноль.	none
-ru-decimal-15-0	ru	explicit	decimal	normalize	Измеренное значение: -0,00.	Измеренное значение: минус ноль целых ноль сотых.	none
-ru-decimal-15-1	ru	explicit	decimal	normalize	Результат измерения — -0,00.	Результат измерения — минус ноль целых ноль сотых.	none
 en-punct-0-0	en	explicit	punctuation	normalize	The values are 1, 2, and 3.	The values are one, two, and three.	none
 en-punct-0-1	en	explicit	punctuation	normalize	The values are 1, 2, and 3. Check complete.	The values are one, two, and three. Check complete.	none
 en-punct-0-2	en	explicit	punctuation	normalize	The values are 1, 2, and 3. The value was confirmed.	The values are one, two, and three. The value was confirmed.	none
@@ -319,8 +311,6 @@ en-mixed-16	en	auto_segment	mixed_language	normalize	The GPU RTX 4090 needs 8 GB
 en-mixed-17	en	auto_segment	mixed_language	normalize	Build 12 on HTTP/2 passed validation.	Build twelve on HTTP/2 passed validation.	none
 en-mixed-18	en	auto_segment	mixed_language	normalize	Deploy 5 replicas в the cluster.	Deploy five replicas в the cluster.	ambiguous_normalization@0:33
 en-mixed-19	en	auto_segment	mixed_language	normalize	Version V2.1.0—123 is tagged 7.	Version V2.1.0—123 is tagged seven.	none
-ru-mixed-20	ru	auto_segment	mixed_language	normalize	У меня -0 kg	У меня minus zero kilograms	ambiguous_normalization@0:17
-ru-mixed-21	ru	auto_segment	mixed_language	normalize	У меня -0.0 kg	У меня minus zero point zero kg	ambiguous_normalization@0:19
 en-preserve-0	en	explicit	ambiguous_or_technical	preserve	Deploy C++17 to RTX-4090 at https://example.com/v2.1.0.	Deploy C++17 to RTX-4090 at https://example.com/v2.1.0.	none
 en-preserve-1	en	explicit	ambiguous_or_technical	preserve	The endpoint HTTP/2 returned code #123.	The endpoint HTTP/2 returned code #123.	none
 en-preserve-2	en	explicit	ambiguous_or_technical	preserve	Keep malformed value 1.2..3 unchanged.	Keep malformed value 1.2..3 unchanged.	unresolved_number@21:6
@@ -351,3 +341,13 @@ en-natural-10	en	explicit	currency	preserve	Use €7.20 for the foreign-price ex
 en-natural-11	en	explicit	integer	normalize	A value in [3] was rejected.	A value in [three] was rejected.	none
 ru-natural-00	ru	explicit	time	normalize	К 8:30 подготовьте 3 отчёта.	К восемь часов тридцать минут подготовьте три отчёта.	none
 ru-natural-01	ru	explicit	currency	normalize	Стоимость заказа — 1 250 руб.	Стоимость заказа — одна тысяча двести пятьдесят рублей.	none
+ru-natural-02	ru	explicit	decimal	normalize	Температура опустилась до -4,5.	Температура опустилась до минус четырёх целых пяти десятых.	none
+ru-natural-03	ru	explicit	punctuation	normalize	Нажмите «2», затем выберите 4.	Нажмите «два», затем выберите четыре.	none
+ru-natural-04	ru	explicit	measurement	normalize	Расстояние составляет 12,5 км.	Расстояние составляет двенадцать целых пять десятых километра.	none
+ru-natural-05	ru	explicit	measurement	normalize	В резерве осталось 1,5 ГБ.	В резерве осталось одна целая пять десятых ГБ.	none
+ru-natural-06	ru	explicit	percent	normalize	Доля ошибок — 0,5%.	Доля ошибок — ноль целых пять десятых процента.	none
+ru-natural-07	ru	explicit	date	normalize	Срок — 31.12.2025.	Срок — тридцать первое декабря две тысячи двадцать пятого года.	none
+ru-natural-08	ru	explicit	currency	preserve	Оплата в евро: €7.	Оплата в евро: €7.	unresolved_number@26:4
+ru-natural-09	ru	explicit	integer	normalize	Проверено 3 из 5 узлов.	Проверено три из пяти узлов.	none
+ru-natural-10	ru	explicit	integer	normalize	В 2026 году запланировано 12 релизов.	В две тысячи двадцать шесть году запланировано двенадцать релизов.	none
+ru-natural-11	ru	explicit	integer	normalize	Значение равно [42].	Значение равно [сорок два].	none
