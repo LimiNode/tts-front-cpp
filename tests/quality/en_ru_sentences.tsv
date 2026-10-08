@@ -1,0 +1,353 @@
+id	language	mode	category	expectation	input	expected	diagnostics
+en-int-0-reported	en	explicit	integer	normalize	The reported value is 0.	The reported value is zero.	none
+en-int-0-build	en	explicit	integer	normalize	Build 0 completed successfully.	Build zero completed successfully.	none
+en-int-0-response	en	explicit	integer	normalize	The server returned code 0.	The server returned code zero.	none
+en-int-0-parentheses	en	explicit	integer	normalize	The retry threshold is (0).	The retry threshold is (zero).	none
+en-int-1-reported	en	explicit	integer	normalize	The reported value is 1.	The reported value is one.	none
+en-int-1-build	en	explicit	integer	normalize	Build 1 completed successfully.	Build one completed successfully.	none
+en-int-1-response	en	explicit	integer	normalize	The server returned code 1.	The server returned code one.	none
+en-int-1-parentheses	en	explicit	integer	normalize	The retry threshold is (1).	The retry threshold is (one).	none
+en-int-2-reported	en	explicit	integer	normalize	The reported value is 2.	The reported value is two.	none
+en-int-2-build	en	explicit	integer	normalize	Build 2 completed successfully.	Build two completed successfully.	none
+en-int-2-response	en	explicit	integer	normalize	The server returned code 2.	The server returned code two.	none
+en-int-2-parentheses	en	explicit	integer	normalize	The retry threshold is (2).	The retry threshold is (two).	none
+en-int-3-reported	en	explicit	integer	normalize	The reported value is 3.	The reported value is three.	none
+en-int-3-build	en	explicit	integer	normalize	Build 3 completed successfully.	Build three completed successfully.	none
+en-int-3-response	en	explicit	integer	normalize	The server returned code 3.	The server returned code three.	none
+en-int-3-parentheses	en	explicit	integer	normalize	The retry threshold is (3).	The retry threshold is (three).	none
+en-int-4-reported	en	explicit	integer	normalize	The reported value is 4.	The reported value is four.	none
+en-int-4-build	en	explicit	integer	normalize	Build 4 completed successfully.	Build four completed successfully.	none
+en-int-4-response	en	explicit	integer	normalize	The server returned code 4.	The server returned code four.	none
+en-int-4-parentheses	en	explicit	integer	normalize	The retry threshold is (4).	The retry threshold is (four).	none
+en-int-5-reported	en	explicit	integer	normalize	The reported value is 5.	The reported value is five.	none
+en-int-5-build	en	explicit	integer	normalize	Build 5 completed successfully.	Build five completed successfully.	none
+en-int-5-response	en	explicit	integer	normalize	The server returned code 5.	The server returned code five.	none
+en-int-5-parentheses	en	explicit	integer	normalize	The retry threshold is (5).	The retry threshold is (five).	none
+en-int-10-reported	en	explicit	integer	normalize	The reported value is 10.	The reported value is ten.	none
+en-int-10-build	en	explicit	integer	normalize	Build 10 completed successfully.	Build ten completed successfully.	none
+en-int-10-response	en	explicit	integer	normalize	The server returned code 10.	The server returned code ten.	none
+en-int-10-parentheses	en	explicit	integer	normalize	The retry threshold is (10).	The retry threshold is (ten).	none
+en-int-11-reported	en	explicit	integer	normalize	The reported value is 11.	The reported value is eleven.	none
+en-int-11-build	en	explicit	integer	normalize	Build 11 completed successfully.	Build eleven completed successfully.	none
+en-int-11-response	en	explicit	integer	normalize	The server returned code 11.	The server returned code eleven.	none
+en-int-11-parentheses	en	explicit	integer	normalize	The retry threshold is (11).	The retry threshold is (eleven).	none
+en-int-12-reported	en	explicit	integer	normalize	The reported value is 12.	The reported value is twelve.	none
+en-int-12-build	en	explicit	integer	normalize	Build 12 completed successfully.	Build twelve completed successfully.	none
+en-int-12-response	en	explicit	integer	normalize	The server returned code 12.	The server returned code twelve.	none
+en-int-12-parentheses	en	explicit	integer	normalize	The retry threshold is (12).	The retry threshold is (twelve).	none
+en-int-20-reported	en	explicit	integer	normalize	The reported value is 20.	The reported value is twenty.	none
+en-int-20-build	en	explicit	integer	normalize	Build 20 completed successfully.	Build twenty completed successfully.	none
+en-int-20-response	en	explicit	integer	normalize	The server returned code 20.	The server returned code twenty.	none
+en-int-20-parentheses	en	explicit	integer	normalize	The retry threshold is (20).	The retry threshold is (twenty).	none
+en-int-21-reported	en	explicit	integer	normalize	The reported value is 21.	The reported value is twenty one.	none
+en-int-21-build	en	explicit	integer	normalize	Build 21 completed successfully.	Build twenty one completed successfully.	none
+en-int-21-response	en	explicit	integer	normalize	The server returned code 21.	The server returned code twenty one.	none
+en-int-21-parentheses	en	explicit	integer	normalize	The retry threshold is (21).	The retry threshold is (twenty one).	none
+en-int-42-reported	en	explicit	integer	normalize	The reported value is 42.	The reported value is forty two.	none
+en-int-42-build	en	explicit	integer	normalize	Build 42 completed successfully.	Build forty two completed successfully.	none
+en-int-42-response	en	explicit	integer	normalize	The server returned code 42.	The server returned code forty two.	none
+en-int-42-parentheses	en	explicit	integer	normalize	The retry threshold is (42).	The retry threshold is (forty two).	none
+en-int-99-reported	en	explicit	integer	normalize	The reported value is 99.	The reported value is ninety nine.	none
+en-int-99-build	en	explicit	integer	normalize	Build 99 completed successfully.	Build ninety nine completed successfully.	none
+en-int-99-response	en	explicit	integer	normalize	The server returned code 99.	The server returned code ninety nine.	none
+en-int-99-parentheses	en	explicit	integer	normalize	The retry threshold is (99).	The retry threshold is (ninety nine).	none
+en-int-100-reported	en	explicit	integer	normalize	The reported value is 100.	The reported value is one hundred.	none
+en-int-100-build	en	explicit	integer	normalize	Build 100 completed successfully.	Build one hundred completed successfully.	none
+en-int-100-response	en	explicit	integer	normalize	The server returned code 100.	The server returned code one hundred.	none
+en-int-100-parentheses	en	explicit	integer	normalize	The retry threshold is (100).	The retry threshold is (one hundred).	none
+en-int-250-reported	en	explicit	integer	normalize	The reported value is 250.	The reported value is two hundred fifty.	none
+en-int-250-build	en	explicit	integer	normalize	Build 250 completed successfully.	Build two hundred fifty completed successfully.	none
+en-int-250-response	en	explicit	integer	normalize	The server returned code 250.	The server returned code two hundred fifty.	none
+en-int-250-parentheses	en	explicit	integer	normalize	The retry threshold is (250).	The retry threshold is (two hundred fifty).	none
+ru-int-0-reported	ru	explicit	integer	normalize	В отчёте указано число 0.	В отчёте указано число ноль.	none
+ru-int-0-build	ru	explicit	integer	normalize	Сборка 0 завершилась успешно.	Сборка ноль завершилась успешно.	none
+ru-int-0-response	ru	explicit	integer	normalize	Сервер вернул код 0.	Сервер вернул код ноль.	none
+ru-int-0-parentheses	ru	explicit	integer	normalize	Контрольное значение равно (0).	Контрольное значение равно (ноль).	none
+ru-int-1-reported	ru	explicit	integer	normalize	В отчёте указано число 1.	В отчёте указано число один.	none
+ru-int-1-build	ru	explicit	integer	normalize	Сборка 1 завершилась успешно.	Сборка один завершилась успешно.	none
+ru-int-1-response	ru	explicit	integer	normalize	Сервер вернул код 1.	Сервер вернул код один.	none
+ru-int-1-parentheses	ru	explicit	integer	normalize	Контрольное значение равно (1).	Контрольное значение равно (один).	none
+ru-int-2-reported	ru	explicit	integer	normalize	В отчёте указано число 2.	В отчёте указано число два.	none
+ru-int-2-build	ru	explicit	integer	normalize	Сборка 2 завершилась успешно.	Сборка два завершилась успешно.	none
+ru-int-2-response	ru	explicit	integer	normalize	Сервер вернул код 2.	Сервер вернул код два.	none
+ru-int-2-parentheses	ru	explicit	integer	normalize	Контрольное значение равно (2).	Контрольное значение равно (два).	none
+ru-int-3-reported	ru	explicit	integer	normalize	В отчёте указано число 3.	В отчёте указано число три.	none
+ru-int-3-build	ru	explicit	integer	normalize	Сборка 3 завершилась успешно.	Сборка три завершилась успешно.	none
+ru-int-3-response	ru	explicit	integer	normalize	Сервер вернул код 3.	Сервер вернул код три.	none
+ru-int-3-parentheses	ru	explicit	integer	normalize	Контрольное значение равно (3).	Контрольное значение равно (три).	none
+ru-int-4-reported	ru	explicit	integer	normalize	В отчёте указано число 4.	В отчёте указано число четыре.	none
+ru-int-4-build	ru	explicit	integer	normalize	Сборка 4 завершилась успешно.	Сборка четыре завершилась успешно.	none
+ru-int-4-response	ru	explicit	integer	normalize	Сервер вернул код 4.	Сервер вернул код четыре.	none
+ru-int-4-parentheses	ru	explicit	integer	normalize	Контрольное значение равно (4).	Контрольное значение равно (четыре).	none
+ru-int-5-reported	ru	explicit	integer	normalize	В отчёте указано число 5.	В отчёте указано число пять.	none
+ru-int-5-build	ru	explicit	integer	normalize	Сборка 5 завершилась успешно.	Сборка пять завершилась успешно.	none
+ru-int-5-response	ru	explicit	integer	normalize	Сервер вернул код 5.	Сервер вернул код пять.	none
+ru-int-5-parentheses	ru	explicit	integer	normalize	Контрольное значение равно (5).	Контрольное значение равно (пять).	none
+ru-int-10-reported	ru	explicit	integer	normalize	В отчёте указано число 10.	В отчёте указано число десять.	none
+ru-int-10-build	ru	explicit	integer	normalize	Сборка 10 завершилась успешно.	Сборка десять завершилась успешно.	none
+ru-int-10-response	ru	explicit	integer	normalize	Сервер вернул код 10.	Сервер вернул код десять.	none
+ru-int-10-parentheses	ru	explicit	integer	normalize	Контрольное значение равно (10).	Контрольное значение равно (десять).	none
+ru-int-11-reported	ru	explicit	integer	normalize	В отчёте указано число 11.	В отчёте указано число одиннадцать.	none
+ru-int-11-build	ru	explicit	integer	normalize	Сборка 11 завершилась успешно.	Сборка одиннадцать завершилась успешно.	none
+ru-int-11-response	ru	explicit	integer	normalize	Сервер вернул код 11.	Сервер вернул код одиннадцать.	none
+ru-int-11-parentheses	ru	explicit	integer	normalize	Контрольное значение равно (11).	Контрольное значение равно (одиннадцать).	none
+ru-int-12-reported	ru	explicit	integer	normalize	В отчёте указано число 12.	В отчёте указано число двенадцать.	none
+ru-int-12-build	ru	explicit	integer	normalize	Сборка 12 завершилась успешно.	Сборка двенадцать завершилась успешно.	none
+ru-int-12-response	ru	explicit	integer	normalize	Сервер вернул код 12.	Сервер вернул код двенадцать.	none
+ru-int-12-parentheses	ru	explicit	integer	normalize	Контрольное значение равно (12).	Контрольное значение равно (двенадцать).	none
+ru-int-20-reported	ru	explicit	integer	normalize	В отчёте указано число 20.	В отчёте указано число двадцать.	none
+ru-int-20-build	ru	explicit	integer	normalize	Сборка 20 завершилась успешно.	Сборка двадцать завершилась успешно.	none
+ru-int-20-response	ru	explicit	integer	normalize	Сервер вернул код 20.	Сервер вернул код двадцать.	none
+ru-int-20-parentheses	ru	explicit	integer	normalize	Контрольное значение равно (20).	Контрольное значение равно (двадцать).	none
+ru-int-21-reported	ru	explicit	integer	normalize	В отчёте указано число 21.	В отчёте указано число двадцать один.	none
+ru-int-21-build	ru	explicit	integer	normalize	Сборка 21 завершилась успешно.	Сборка двадцать один завершилась успешно.	none
+ru-int-21-response	ru	explicit	integer	normalize	Сервер вернул код 21.	Сервер вернул код двадцать один.	none
+ru-int-21-parentheses	ru	explicit	integer	normalize	Контрольное значение равно (21).	Контрольное значение равно (двадцать один).	none
+ru-int-42-reported	ru	explicit	integer	normalize	В отчёте указано число 42.	В отчёте указано число сорок два.	none
+ru-int-42-build	ru	explicit	integer	normalize	Сборка 42 завершилась успешно.	Сборка сорок два завершилась успешно.	none
+ru-int-42-response	ru	explicit	integer	normalize	Сервер вернул код 42.	Сервер вернул код сорок два.	none
+ru-int-42-parentheses	ru	explicit	integer	normalize	Контрольное значение равно (42).	Контрольное значение равно (сорок два).	none
+ru-int-99-reported	ru	explicit	integer	normalize	В отчёте указано число 99.	В отчёте указано число девяносто девять.	none
+ru-int-99-build	ru	explicit	integer	normalize	Сборка 99 завершилась успешно.	Сборка девяносто девять завершилась успешно.	none
+ru-int-99-response	ru	explicit	integer	normalize	Сервер вернул код 99.	Сервер вернул код девяносто девять.	none
+ru-int-99-parentheses	ru	explicit	integer	normalize	Контрольное значение равно (99).	Контрольное значение равно (девяносто девять).	none
+ru-int-100-reported	ru	explicit	integer	normalize	В отчёте указано число 100.	В отчёте указано число сто.	none
+ru-int-100-build	ru	explicit	integer	normalize	Сборка 100 завершилась успешно.	Сборка сто завершилась успешно.	none
+ru-int-100-response	ru	explicit	integer	normalize	Сервер вернул код 100.	Сервер вернул код сто.	none
+ru-int-100-parentheses	ru	explicit	integer	normalize	Контрольное значение равно (100).	Контрольное значение равно (сто).	none
+ru-int-250-reported	ru	explicit	integer	normalize	В отчёте указано число 250.	В отчёте указано число двести пятьдесят.	none
+ru-int-250-build	ru	explicit	integer	normalize	Сборка 250 завершилась успешно.	Сборка двести пятьдесят завершилась успешно.	none
+ru-int-250-response	ru	explicit	integer	normalize	Сервер вернул код 250.	Сервер вернул код двести пятьдесят.	none
+ru-int-250-parentheses	ru	explicit	integer	normalize	Контрольное значение равно (250).	Контрольное значение равно (двести пятьдесят).	none
+en-unit-0-0	en	explicit	measurement	normalize	The package weighs 1 kg.	The package weighs one kilogram.	none
+en-unit-0-1	en	explicit	measurement	normalize	Maximum package weight: 1 kg.	Maximum package weight: one kilogram.	none
+en-unit-1-0	en	explicit	measurement	normalize	The package weighs 2 kg.	The package weighs two kilograms.	none
+en-unit-1-1	en	explicit	measurement	normalize	Maximum package weight: 2 kg.	Maximum package weight: two kilograms.	none
+en-unit-2-0	en	explicit	measurement	normalize	The route is 5 km long.	The route is five kilometers long.	none
+en-unit-2-1	en	explicit	measurement	normalize	Route length: 5 km.	Route length: five kilometers.	none
+en-unit-3-0	en	explicit	measurement	normalize	The cable is 10 m long.	The cable is ten meters long.	none
+en-unit-3-1	en	explicit	measurement	normalize	Cable length: 10 m.	Cable length: ten meters.	none
+en-unit-4-0	en	explicit	measurement	normalize	The panel is 21 cm wide.	The panel is twenty one centimeters wide.	none
+en-unit-4-1	en	explicit	measurement	normalize	Panel width: 21 cm.	Panel width: twenty one centimeters.	none
+en-unit-5-0	en	explicit	measurement	normalize	The bolt is 42 mm long.	The bolt is forty two millimeters long.	none
+en-unit-5-1	en	explicit	measurement	normalize	Bolt length: 42 mm.	Bolt length: forty two millimeters.	none
+en-unit-6-0	en	explicit	measurement	normalize	The buffer size is 1 GB.	The buffer size is one gigabyte.	none
+en-unit-6-1	en	explicit	measurement	normalize	Buffer limit: 1 GB.	Buffer limit: one gigabyte.	none
+en-unit-7-0	en	explicit	measurement	normalize	The buffer size is 2 GB.	The buffer size is two gigabytes.	none
+en-unit-7-1	en	explicit	measurement	normalize	Buffer limit: 2 GB.	Buffer limit: two gigabytes.	none
+en-unit-8-0	en	explicit	measurement	normalize	The attachment size is 1 MB.	The attachment size is one megabyte.	none
+en-unit-8-1	en	explicit	measurement	normalize	Attachment limit: 1 MB.	Attachment limit: one megabyte.	none
+en-unit-9-0	en	explicit	measurement	normalize	The attachment size is 100 MB.	The attachment size is one hundred megabytes.	none
+en-unit-9-1	en	explicit	measurement	normalize	Attachment limit: 100 MB.	Attachment limit: one hundred megabytes.	none
+ru-unit-0-0	ru	explicit	measurement	normalize	Посылка весит 1 кг.	Посылка весит один килограмм.	none
+ru-unit-0-1	ru	explicit	measurement	normalize	Предельный вес посылки: 1 кг.	Предельный вес посылки: один килограмм.	none
+ru-unit-1-0	ru	explicit	measurement	normalize	Посылка весит 2 кг.	Посылка весит два килограмма.	none
+ru-unit-1-1	ru	explicit	measurement	normalize	Предельный вес посылки: 2 кг.	Предельный вес посылки: два килограмма.	none
+ru-unit-2-0	ru	explicit	measurement	normalize	Посылка весит 5 кг.	Посылка весит пять килограммов.	none
+ru-unit-2-1	ru	explicit	measurement	normalize	Предельный вес посылки: 5 кг.	Предельный вес посылки: пять килограммов.	none
+ru-unit-3-0	ru	explicit	measurement	normalize	Маршрут имеет длину 1 км.	Маршрут имеет длину один километр.	none
+ru-unit-3-1	ru	explicit	measurement	normalize	Длина маршрута: 1 км.	Длина маршрута: один километр.	none
+ru-unit-4-0	ru	explicit	measurement	normalize	Маршрут имеет длину 2 км.	Маршрут имеет длину два километра.	none
+ru-unit-4-1	ru	explicit	measurement	normalize	Длина маршрута: 2 км.	Длина маршрута: два километра.	none
+ru-unit-5-0	ru	explicit	measurement	normalize	Маршрут имеет длину 5 км.	Маршрут имеет длину пять километров.	none
+ru-unit-5-1	ru	explicit	measurement	normalize	Длина маршрута: 5 км.	Длина маршрута: пять километров.	none
+ru-unit-6-0	ru	explicit	measurement	normalize	Кабель имеет длину 1 м.	Кабель имеет длину один метр.	none
+ru-unit-6-1	ru	explicit	measurement	normalize	Длина кабеля: 1 м.	Длина кабеля: один метр.	none
+ru-unit-7-0	ru	explicit	measurement	normalize	Кабель имеет длину 2 м.	Кабель имеет длину два метра.	none
+ru-unit-7-1	ru	explicit	measurement	normalize	Длина кабеля: 2 м.	Длина кабеля: два метра.	none
+ru-unit-8-0	ru	explicit	measurement	normalize	Панель имеет ширину 5 см.	Панель имеет ширину пять сантиметров.	none
+ru-unit-8-1	ru	explicit	measurement	normalize	Ширина панели: 5 см.	Ширина панели: пять сантиметров.	none
+ru-unit-9-0	ru	explicit	measurement	normalize	Деталь имеет толщину 21 мм.	Деталь имеет толщину двадцать один миллиметр.	none
+ru-unit-9-1	ru	explicit	measurement	normalize	Толщина детали: 21 мм.	Толщина детали: двадцать один миллиметр.	none
+en-money-0-0	en	explicit	currency	normalize	The service costs $1.	The service costs one dollar.	none
+en-money-0-1	en	explicit	currency	normalize	Price ($1) includes tax.	Price (one dollar) includes tax.	none
+en-money-1-0	en	explicit	currency	normalize	The service costs $2.	The service costs two dollars.	none
+en-money-1-1	en	explicit	currency	normalize	Price ($2) includes tax.	Price (two dollars) includes tax.	none
+en-money-2-0	en	explicit	currency	normalize	The service costs $5.	The service costs five dollars.	none
+en-money-2-1	en	explicit	currency	normalize	Price ($5) includes tax.	Price (five dollars) includes tax.	none
+en-money-3-0	en	explicit	currency	normalize	The service costs $12.50.	The service costs twelve dollars fifty cents.	none
+en-money-3-1	en	explicit	currency	normalize	Price ($12.50) includes tax.	Price (twelve dollars fifty cents) includes tax.	none
+en-money-4-0	en	explicit	currency	normalize	The service costs $1.01.	The service costs one dollar one cent.	none
+en-money-4-1	en	explicit	currency	normalize	Price ($1.01) includes tax.	Price (one dollar one cent) includes tax.	none
+ru-money-0-0	ru	explicit	currency	normalize	Подписка стоит 1 рубль.	Подписка стоит один рубль.	none
+ru-money-0-1	ru	explicit	currency	normalize	Цена (1 рубль) указана без скидки.	Цена (один рубль) указана без скидки.	none
+ru-money-1-0	ru	explicit	currency	normalize	Подписка стоит 2 рубля.	Подписка стоит два рубля.	none
+ru-money-1-1	ru	explicit	currency	normalize	Цена (2 рубля) указана без скидки.	Цена (два рубля) указана без скидки.	none
+ru-money-2-0	ru	explicit	currency	normalize	Подписка стоит 5 рублей.	Подписка стоит пять рублей.	none
+ru-money-2-1	ru	explicit	currency	normalize	Цена (5 рублей) указана без скидки.	Цена (пять рублей) указана без скидки.	none
+ru-money-3-0	ru	explicit	currency	normalize	Подписка стоит 21 рубль.	Подписка стоит двадцать один рубль.	none
+ru-money-3-1	ru	explicit	currency	normalize	Цена (21 рубль) указана без скидки.	Цена (двадцать один рубль) указана без скидки.	none
+ru-money-4-0	ru	explicit	currency	normalize	Подписка стоит 42 рубля.	Подписка стоит сорок два рубля.	none
+ru-money-4-1	ru	explicit	currency	normalize	Цена (42 рубля) указана без скидки.	Цена (сорок два рубля) указана без скидки.	none
+en-percent-0	en	explicit	percent	normalize	The report shows 0%.	The report shows zero percent.	none
+en-percent-1	en	explicit	percent	normalize	The report shows 1%.	The report shows one percent.	none
+en-percent-2	en	explicit	percent	normalize	The report shows 2%.	The report shows two percent.	none
+en-percent-3	en	explicit	percent	normalize	The report shows 3%.	The report shows three percent.	none
+en-percent-4	en	explicit	percent	normalize	The report shows 4%.	The report shows four percent.	none
+en-percent-5	en	explicit	percent	normalize	The report shows 5%.	The report shows five percent.	none
+en-percent-6	en	explicit	percent	normalize	The report shows 10%.	The report shows ten percent.	none
+en-percent-7	en	explicit	percent	normalize	The report shows 11%.	The report shows eleven percent.	none
+en-percent-8	en	explicit	percent	normalize	The report shows 12%.	The report shows twelve percent.	none
+en-percent-9	en	explicit	percent	normalize	The report shows 20%.	The report shows twenty percent.	none
+en-percent-10	en	explicit	percent	normalize	The report shows 21%.	The report shows twenty one percent.	none
+en-percent-11	en	explicit	percent	normalize	The report shows 42%.	The report shows forty two percent.	none
+en-percent-12	en	explicit	percent	normalize	The report shows 99%.	The report shows ninety nine percent.	none
+en-percent-13	en	explicit	percent	normalize	The report shows 100%.	The report shows one hundred percent.	none
+en-percent-14	en	explicit	percent	normalize	The report shows 250%.	The report shows two hundred fifty percent.	none
+ru-percent-0	ru	explicit	percent	normalize	В отчёте указано: 0%.	В отчёте указано: ноль процентов.	none
+ru-percent-1	ru	explicit	percent	normalize	В отчёте указано: 1%.	В отчёте указано: один процент.	none
+ru-percent-2	ru	explicit	percent	normalize	В отчёте указано: 2%.	В отчёте указано: два процента.	none
+ru-percent-3	ru	explicit	percent	normalize	В отчёте указано: 3%.	В отчёте указано: три процента.	none
+ru-percent-4	ru	explicit	percent	normalize	В отчёте указано: 4%.	В отчёте указано: четыре процента.	none
+ru-percent-5	ru	explicit	percent	normalize	В отчёте указано: 5%.	В отчёте указано: пять процентов.	none
+ru-percent-6	ru	explicit	percent	normalize	В отчёте указано: 10%.	В отчёте указано: десять процентов.	none
+ru-percent-7	ru	explicit	percent	normalize	В отчёте указано: 11%.	В отчёте указано: одиннадцать процентов.	none
+ru-percent-8	ru	explicit	percent	normalize	В отчёте указано: 12%.	В отчёте указано: двенадцать процентов.	none
+ru-percent-9	ru	explicit	percent	normalize	В отчёте указано: 20%.	В отчёте указано: двадцать процентов.	none
+ru-percent-10	ru	explicit	percent	normalize	В отчёте указано: 21%.	В отчёте указано: двадцать один процент.	none
+ru-percent-11	ru	explicit	percent	normalize	В отчёте указано: 42%.	В отчёте указано: сорок два процента.	none
+ru-percent-12	ru	explicit	percent	normalize	В отчёте указано: 99%.	В отчёте указано: девяносто девять процентов.	none
+ru-percent-13	ru	explicit	percent	normalize	В отчёте указано: 100%.	В отчёте указано: сто процентов.	none
+ru-percent-14	ru	explicit	percent	normalize	В отчёте указано: 250%.	В отчёте указано: двести пятьдесят процентов.	none
+en-decimal-0-0	en	explicit	decimal	normalize	The measured value is 0.5.	The measured value is zero point five.	none
+en-decimal-0-1	en	explicit	decimal	normalize	Measured value: 0.5.	Measured value: zero point five.	none
+en-decimal-1-0	en	explicit	decimal	normalize	The measured value is 1.25.	The measured value is one point two five.	none
+en-decimal-1-1	en	explicit	decimal	normalize	Measured value: 1.25.	Measured value: one point two five.	none
+en-decimal-2-0	en	explicit	decimal	normalize	The measured value is -2.5.	The measured value is minus two point five.	none
+en-decimal-2-1	en	explicit	decimal	normalize	Measured value: -2.5.	Measured value: minus two point five.	none
+en-decimal-3-0	en	explicit	decimal	normalize	The measured value is 12.05.	The measured value is twelve point zero five.	none
+en-decimal-3-1	en	explicit	decimal	normalize	Measured value: 12.05.	Measured value: twelve point zero five.	none
+en-decimal-4-0	en	explicit	decimal	normalize	The measured value is -0.01.	The measured value is minus zero point zero one.	none
+en-decimal-4-1	en	explicit	decimal	normalize	Measured value: -0.01.	Measured value: minus zero point zero one.	none
+en-decimal-5-0	en	explicit	decimal	normalize	The measured value is 99.9.	The measured value is ninety nine point nine.	none
+en-decimal-5-1	en	explicit	decimal	normalize	Measured value: 99.9.	Measured value: ninety nine point nine.	none
+ru-decimal-6-0	ru	explicit	decimal	normalize	Измеренное значение: 0,5.	Измеренное значение: ноль целых пять десятых.	none
+ru-decimal-6-1	ru	explicit	decimal	normalize	Результат измерения — 0,5.	Результат измерения — ноль целых пять десятых.	none
+ru-decimal-7-0	ru	explicit	decimal	normalize	Измеренное значение: 1,25.	Измеренное значение: одна целая двадцать пять сотых.	none
+ru-decimal-7-1	ru	explicit	decimal	normalize	Результат измерения — 1,25.	Результат измерения — одна целая двадцать пять сотых.	none
+ru-decimal-8-0	ru	explicit	decimal	normalize	Измеренное значение: -2,5.	Измеренное значение: минус две целых пять десятых.	none
+ru-decimal-8-1	ru	explicit	decimal	normalize	Результат измерения — -2,5.	Результат измерения — минус две целых пять десятых.	none
+ru-decimal-9-0	ru	explicit	decimal	normalize	Измеренное значение: 12,05.	Измеренное значение: двенадцать целых пять сотых.	none
+ru-decimal-9-1	ru	explicit	decimal	normalize	Результат измерения — 12,05.	Результат измерения — двенадцать целых пять сотых.	none
+ru-decimal-10-0	ru	explicit	decimal	normalize	Измеренное значение: -0,01.	Измеренное значение: минус ноль целых одна сотая.	none
+ru-decimal-10-1	ru	explicit	decimal	normalize	Результат измерения — -0,01.	Результат измерения — минус ноль целых одна сотая.	none
+ru-decimal-11-0	ru	explicit	decimal	normalize	Измеренное значение: 99,9.	Измеренное значение: девяносто девять целых девять десятых.	none
+ru-decimal-11-1	ru	explicit	decimal	normalize	Результат измерения — 99,9.	Результат измерения — девяносто девять целых девять десятых.	none
+en-punct-0-0	en	explicit	punctuation	normalize	The values are 1, 2, and 3.	The values are one, two, and three.	none
+en-punct-0-1	en	explicit	punctuation	normalize	The values are 1, 2, and 3. Check complete.	The values are one, two, and three. Check complete.	none
+en-punct-0-2	en	explicit	punctuation	normalize	The values are 1, 2, and 3. The value was confirmed.	The values are one, two, and three. The value was confirmed.	none
+en-punct-1-0	en	explicit	punctuation	normalize	Use (2) workers.	Use (two) workers.	none
+en-punct-1-1	en	explicit	punctuation	normalize	Use (2) workers. Check complete.	Use (two) workers. Check complete.	none
+en-punct-1-2	en	explicit	punctuation	normalize	Use (2) workers. The value was confirmed.	Use (two) workers. The value was confirmed.	none
+en-punct-2-0	en	explicit	punctuation	normalize	She said “42”.	She said “forty two”.	none
+en-punct-2-1	en	explicit	punctuation	normalize	She said “42”. Check complete.	She said “forty two”. Check complete.	none
+en-punct-2-2	en	explicit	punctuation	normalize	She said “42”. The value was confirmed.	She said “forty two”. The value was confirmed.	none
+en-punct-3-0	en	explicit	punctuation	normalize	Result: -5.	Result: minus five.	none
+en-punct-3-1	en	explicit	punctuation	normalize	Result: -5. Check complete.	Result: minus five. Check complete.	none
+en-punct-3-2	en	explicit	punctuation	normalize	Result: -5. The value was confirmed.	Result: minus five. The value was confirmed.	none
+en-punct-4-0	en	explicit	punctuation	normalize	Versions 2 and 3 are supported.	Versions two and three are supported.	none
+en-punct-4-1	en	explicit	punctuation	normalize	Versions 2 and 3 are supported. Check complete.	Versions two and three are supported. Check complete.	none
+en-punct-4-2	en	explicit	punctuation	normalize	Versions 2 and 3 are supported. The value was confirmed.	Versions two and three are supported. The value was confirmed.	none
+ru-punct-5-0	ru	explicit	punctuation	normalize	Значения: 1, 2 и 3.	Значения: один, два и три.	none
+ru-punct-5-1	ru	explicit	punctuation	normalize	Значения: 1, 2 и 3. Проверка завершена.	Значения: один, два и три. Проверка завершена.	none
+ru-punct-5-2	ru	explicit	punctuation	normalize	Значения: 1, 2 и 3. Значение подтверждено.	Значения: один, два и три. Значение подтверждено.	none
+ru-punct-6-0	ru	explicit	punctuation	normalize	Используйте (2) процесса.	Используйте (два) процесса.	none
+ru-punct-6-1	ru	explicit	punctuation	normalize	Используйте (2) процесса. Проверка завершена.	Используйте (два) процесса. Проверка завершена.	none
+ru-punct-6-2	ru	explicit	punctuation	normalize	Используйте (2) процесса. Значение подтверждено.	Используйте (два) процесса. Значение подтверждено.	none
+ru-punct-7-0	ru	explicit	punctuation	normalize	Он сказал «42».	Он сказал «сорок два».	none
+ru-punct-7-1	ru	explicit	punctuation	normalize	Он сказал «42». Проверка завершена.	Он сказал «сорок два». Проверка завершена.	none
+ru-punct-7-2	ru	explicit	punctuation	normalize	Он сказал «42». Значение подтверждено.	Он сказал «сорок два». Значение подтверждено.	none
+ru-punct-8-0	ru	explicit	punctuation	normalize	Результат: -5.	Результат: минус пять.	none
+ru-punct-8-1	ru	explicit	punctuation	normalize	Результат: -5. Проверка завершена.	Результат: минус пять. Проверка завершена.	none
+ru-punct-8-2	ru	explicit	punctuation	normalize	Результат: -5. Значение подтверждено.	Результат: минус пять. Значение подтверждено.	none
+ru-punct-9-0	ru	explicit	punctuation	normalize	Поддерживаются версии 2 и 3.	Поддерживаются версии два и три.	none
+ru-punct-9-1	ru	explicit	punctuation	normalize	Поддерживаются версии 2 и 3. Проверка завершена.	Поддерживаются версии два и три. Проверка завершена.	none
+ru-punct-9-2	ru	explicit	punctuation	normalize	Поддерживаются версии 2 и 3. Значение подтверждено.	Поддерживаются версии два и три. Значение подтверждено.	none
+en-time-0	en	explicit	time	normalize	Timer reading: 1:01.	Timer reading: one hour one minute.	none
+en-time-1	en	explicit	time	normalize	Timer reading: 2:02.	Timer reading: two hours two minutes.	none
+en-time-2	en	explicit	time	normalize	Timer reading: 6:06.	Timer reading: six hours six minutes.	none
+en-time-3	en	explicit	time	normalize	Timer reading: 12:30.	Timer reading: twelve hours thirty minutes.	none
+en-time-4	en	explicit	time	normalize	Timer reading: 21:21.	Timer reading: twenty one hours twenty one minutes.	none
+en-time-5	en	explicit	time	normalize	Timer reading: 23:59.	Timer reading: twenty three hours fifty nine minutes.	none
+ru-time-6	ru	explicit	time	normalize	Показание таймера: 1:01.	Показание таймера: один час одна минута.	none
+ru-time-7	ru	explicit	time	normalize	Показание таймера: 2:02.	Показание таймера: два часа две минуты.	none
+ru-time-8	ru	explicit	time	normalize	Показание таймера: 6:06.	Показание таймера: шесть часов шесть минут.	none
+ru-time-9	ru	explicit	time	normalize	Показание таймера: 12:30.	Показание таймера: двенадцать часов тридцать минут.	none
+ru-time-10	ru	explicit	time	normalize	Показание таймера: 21:21.	Показание таймера: двадцать один час двадцать одна минута.	none
+ru-time-11	ru	explicit	time	normalize	Показание таймера: 23:59.	Показание таймера: двадцать три часа пятьдесят девять минут.	none
+ru-date-0	ru	explicit	date	normalize	Дата встречи: 01.02.2026.	Дата встречи: первое февраля две тысячи двадцать шестого года.	none
+ru-date-1	ru	explicit	date	normalize	Дата встречи: 31.12.1987.	Дата встречи: тридцать первое декабря тысяча девятьсот восемьдесят седьмого года.	none
+ru-date-2	ru	explicit	date	normalize	Дата встречи: 01.02.2011.	Дата встречи: первое февраля две тысячи одиннадцатого года.	none
+ru-date-3	ru	explicit	date	normalize	Дата встречи: 01.02.2012.	Дата встречи: первое февраля две тысячи двенадцатого года.	none
+ru-date-4	ru	explicit	date	normalize	Дата встречи: 01.02.2019.	Дата встречи: первое февраля две тысячи девятнадцатого года.	none
+ru-date-5	ru	explicit	date	normalize	Дата встречи: 01.02.2020.	Дата встречи: первое февраля две тысячи двадцатого года.	none
+ru-date-6	ru	explicit	date	normalize	Дата встречи: 01.02.2042.	Дата встречи: первое февраля две тысячи сорок второго года.	none
+ru-date-7	ru	explicit	date	normalize	Дата встречи: 15.05.2025.	Дата встречи: пятнадцатое мая две тысячи двадцать пятого года.	none
+en-date-spoken-0	en	explicit	date	normalize	The meeting is on January 2, 2026.	The meeting is on January second, two thousand twenty six.	none
+en-date-spoken-1	en	explicit	date	normalize	The meeting is on March 21, 2025.	The meeting is on March twenty first, two thousand twenty five.	none
+en-date-spoken-2	en	explicit	date	normalize	The meeting is on December 31, 1999.	The meeting is on December thirty first, nineteen ninety nine.	none
+en-date-spoken-3	en	explicit	date	normalize	The meeting is on May 1, 2020.	The meeting is on May first, two thousand twenty.	none
+en-date-preserve-0	en	explicit	date	preserve	Keep the machine-readable date 01/02/2026.	Keep the machine-readable date 01/02/2026.	unresolved_number@31:10
+en-date-preserve-1	en	explicit	date	preserve	Keep the machine-readable date 02/01/2026.	Keep the machine-readable date 02/01/2026.	unresolved_number@31:10
+en-date-preserve-2	en	explicit	date	preserve	Keep the machine-readable date 2026-02-01.	Keep the machine-readable date 2026-02-01.	unresolved_number@31:10
+en-date-preserve-3	en	explicit	date	preserve	Keep the machine-readable date 2025-12-31.	Keep the machine-readable date 2025-12-31.	unresolved_number@31:10
+ru-mixed-0	ru	auto_segment	mixed_language	normalize	У меня 2 GPU и 3 ядра. Использую OpenAI API.	У меня два GPU и три ядра. Использую OpenAI API.	ambiguous_normalization@0:63
+ru-mixed-1	ru	auto_segment	mixed_language	normalize	Видеокарта RTX 4090 работает на 1.5 GB RAM.	Видеокарта RTX 4090 работает на one point five GB RAM.	ambiguous_normalization@0:63
+ru-mixed-2	ru	auto_segment	mixed_language	normalize	HTTP/2 вернул 2 ошибки.	HTTP/2 вернул две ошибки.	none
+ru-mixed-3	ru	auto_segment	mixed_language	normalize	Сборка 7 использует C++17.	Сборка семь использует C++17.	none
+ru-mixed-4	ru	auto_segment	mixed_language	normalize	Напишите dev42@example.com после 3 попыток.	Напишите dev42@example.com после трёх попыток.	none
+en-mixed-5	en	auto_segment	mixed_language	normalize	Use 2 кг for the calibration weight.	Use два килограмма for the calibration weight.	ambiguous_normalization@0:38
+en-mixed-6	en	auto_segment	mixed_language	normalize	Build 7 targets RTX-4090.	Build seven targets RTX-4090.	none
+en-mixed-7	en	auto_segment	mixed_language	normalize	HTTP/2 returned 3 errors.	HTTP/2 returned three errors.	none
+en-mixed-8	en	auto_segment	mixed_language	normalize	Email dev42@example.com after 2 attempts.	Email dev42@example.com after two attempts.	none
+en-mixed-9	en	auto_segment	mixed_language	normalize	The OpenAI API accepted 42 requests.	The OpenAI API accepted forty two requests.	none
+ru-mixed-10	ru	auto_segment	mixed_language	normalize	Устройство CUDA 13.3 потребляет 2 GB памяти.	Устройство CUDA 13.3 потребляет two GB памяти.	ambiguous_normalization@0:70
+ru-mixed-11	ru	auto_segment	mixed_language	normalize	На сервере HTTP/2 работает 4 процесса.	На сервере HTTP/2 работает четыре процесса.	none
+ru-mixed-12	ru	auto_segment	mixed_language	normalize	OpenAI API обработал 12 запросов.	OpenAI API обработал двенадцать запросов.	ambiguous_normalization@0:50
+ru-mixed-13	ru	auto_segment	mixed_language	normalize	Порог 0.5% задан для RTX-4090.	Порог ноль point пять процентов задан для RTX-4090.	none
+ru-mixed-14	ru	auto_segment	mixed_language	normalize	Версия V2.1.0—123 отмечена номером 7.	Версия V2.1.0—123 отмечена номером семь.	none
+en-mixed-15	en	auto_segment	mixed_language	normalize	Use 3 кг порошка with OpenAI API.	Use три килограмма порошка with OpenAI API.	ambiguous_normalization@0:42
+en-mixed-16	en	auto_segment	mixed_language	normalize	The GPU RTX 4090 needs 8 GB of memory.	The GPU RTX 4090 needs eight gigabytes of memory.	none
+en-mixed-17	en	auto_segment	mixed_language	normalize	Build 12 on HTTP/2 passed validation.	Build twelve on HTTP/2 passed validation.	none
+en-mixed-18	en	auto_segment	mixed_language	normalize	Deploy 5 replicas в the cluster.	Deploy five replicas в the cluster.	ambiguous_normalization@0:33
+en-mixed-19	en	auto_segment	mixed_language	normalize	Version V2.1.0—123 is tagged 7.	Version V2.1.0—123 is tagged seven.	none
+en-preserve-0	en	explicit	ambiguous_or_technical	preserve	Deploy C++17 to RTX-4090 at https://example.com/v2.1.0.	Deploy C++17 to RTX-4090 at https://example.com/v2.1.0.	none
+en-preserve-1	en	explicit	ambiguous_or_technical	preserve	The endpoint HTTP/2 returned code #123.	The endpoint HTTP/2 returned code #123.	none
+en-preserve-2	en	explicit	ambiguous_or_technical	preserve	Keep malformed value 1.2..3 unchanged.	Keep malformed value 1.2..3 unchanged.	unresolved_number@21:6
+en-preserve-3	en	explicit	ambiguous_or_technical	preserve	Keep malformed time 1:02::3 unchanged.	Keep malformed time 1:02::3 unchanged.	unresolved_number@20:7
+en-preserve-4	en	explicit	ambiguous_or_technical	preserve	Identifier V2.1.0—123 must remain atomic.	Identifier V2.1.0—123 must remain atomic.	unresolved_number@11:12
+en-preserve-5	en	explicit	ambiguous_or_technical	preserve	The malformed amount 1 dollarfoo stays unchanged.	The malformed amount 1 dollarfoo stays unchanged.	unresolved_number@21:11
+en-preserve-6	en	explicit	ambiguous_or_technical	preserve	The malformed unit 2 kgfoo stays unchanged.	The malformed unit 2 kgfoo stays unchanged.	unresolved_number@19:7
+en-preserve-7	en	explicit	ambiguous_or_technical	preserve	Invalid clock values 24:00 and 99:99 remain digits.	Invalid clock values 24:00 and 99:99 remain digits.	unresolved_number@21:5;unresolved_number@31:5
+ru-preserve-8	ru	explicit	ambiguous_or_technical	preserve	Запустите C++17 на RTX-4090 через https://example.com/v2.1.0.	Запустите C++17 на RTX-4090 через https://example.com/v2.1.0.	none
+ru-preserve-9	ru	explicit	ambiguous_or_technical	preserve	Ответ HTTP/2 содержит код #123.	Ответ HTTP/2 содержит код #123.	none
+ru-preserve-10	ru	explicit	ambiguous_or_technical	preserve	Некорректное значение 1,2..3 сохраняется.	Некорректное значение 1,2..3 сохраняется.	unresolved_number@42:6
+ru-preserve-11	ru	explicit	ambiguous_or_technical	preserve	Некорректное время 1:02::3 сохраняется.	Некорректное время 1:02::3 сохраняется.	unresolved_number@36:7
+ru-preserve-12	ru	explicit	ambiguous_or_technical	preserve	Идентификатор V2.1.0—123 остаётся атомарным.	Идентификатор V2.1.0—123 остаётся атомарным.	unresolved_number@27:12
+ru-preserve-13	ru	explicit	ambiguous_or_technical	preserve	Некорректная сумма 1 рублейfoo сохраняется.	Некорректная сумма 1 рублейfoo сохраняется.	unresolved_number@36:17
+ru-preserve-14	ru	explicit	ambiguous_or_technical	preserve	Некорректная единица 2 кгfoo сохраняется.	Некорректная единица 2 кгfoo сохраняется.	unresolved_number@40:9
+ru-preserve-15	ru	explicit	ambiguous_or_technical	preserve	Ошибочное время 24:00 и 99:99 остаётся цифрами.	Ошибочное время 24:00 и 99:99 остаётся цифрами.	unresolved_number@30:5;unresolved_number@39:5
+en-natural-00	en	explicit	integer	normalize	At 08:05, the train leaves platform 3.	At eight hours five minutes, the train leaves platform three.	none
+en-natural-01	en	explicit	currency	normalize	The invoice total is $2.50 before tax.	The invoice total is two dollars fifty cents before tax.	none
+en-natural-02	en	explicit	decimal	normalize	The sensor reads -4.5.	The sensor reads minus four point five.	none
+en-natural-03	en	explicit	punctuation	normalize	Press “2” to continue, or choose option 4.	Press “two” to continue, or choose option four.	none
+en-natural-04	en	explicit	measurement	normalize	The package is 1.5 kg.	The package is one point five kilograms.	none
+en-natural-05	en	explicit	decimal	normalize	Version 2.1 is newer than version 1.9.	Version two point one is newer than version one point nine.	none
+en-natural-06	en	explicit	percent	normalize	The backup completed at 100%.	The backup completed at one hundred percent.	none
+en-natural-07	en	explicit	currency	normalize	The invoice lists $1.01, $2.50, and $5.	The invoice lists one dollar one cent, two dollars fifty cents, and five dollars.	none
+en-natural-08	en	explicit	measurement	normalize	Route A is 12 km; route B is 8 km.	Route A is twelve kilometers; route B is eight kilometers.	none
+en-natural-09	en	explicit	date	preserve	The quoted date is 2026-02-01.	The quoted date is 2026-02-01.	unresolved_number@19:10
+en-natural-10	en	explicit	currency	preserve	Use €7.20 for the foreign-price example.	Use €7.20 for the foreign-price example.	unresolved_number@4:7
+en-natural-11	en	explicit	integer	normalize	A value in [3] was rejected.	A value in [three] was rejected.	none
+ru-natural-00	ru	explicit	time	normalize	К 8:30 подготовьте 3 отчёта.	К восемь часов тридцать минут подготовьте три отчёта.	none
+ru-natural-01	ru	explicit	currency	normalize	Стоимость заказа — 1 250 руб.	Стоимость заказа — одна тысяча двести пятьдесят рублей.	none
+ru-natural-02	ru	explicit	decimal	normalize	Температура опустилась до -4,5.	Температура опустилась до минус четырёх целых пяти десятых.	none
+ru-natural-03	ru	explicit	punctuation	normalize	Нажмите «2», затем выберите 4.	Нажмите «два», затем выберите четыре.	none
+ru-natural-04	ru	explicit	measurement	normalize	Расстояние составляет 12,5 км.	Расстояние составляет двенадцать целых пять десятых километра.	none
+ru-natural-05	ru	explicit	measurement	normalize	В резерве осталось 1,5 ГБ.	В резерве осталось одна целая пять десятых ГБ.	none
+ru-natural-06	ru	explicit	percent	normalize	Доля ошибок — 0,5%.	Доля ошибок — ноль целых пять десятых процента.	none
+ru-natural-07	ru	explicit	date	normalize	Срок — 31.12.2025.	Срок — тридцать первое декабря две тысячи двадцать пятого года.	none
+ru-natural-08	ru	explicit	currency	preserve	Оплата в евро: €7.	Оплата в евро: €7.	unresolved_number@26:4
+ru-natural-09	ru	explicit	integer	normalize	Проверено 3 из 5 узлов.	Проверено три из пяти узлов.	none
+ru-natural-10	ru	explicit	integer	normalize	В 2026 году запланировано 12 релизов.	В две тысячи двадцать шесть году запланировано двенадцать релизов.	none
+ru-natural-11	ru	explicit	integer	normalize	Значение равно [42].	Значение равно [сорок два].	none
