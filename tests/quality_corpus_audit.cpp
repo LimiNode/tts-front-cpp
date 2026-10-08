@@ -37,6 +37,7 @@ struct Snapshot {
     std::map<std::string, std::size_t> outcomes;
     std::set<std::string> mismatch_ids;
     std::map<std::string, std::string> diagnostic_exceptions;
+    std::map<std::string, std::pair<std::string, std::string>> mismatch_outputs;
 };
 
 const char* name(Outcome outcome) {
@@ -64,6 +65,9 @@ std::vector<std::string> split_tabs(const std::string& line) {
         begin = tab + 1;
     }
 }
+
+bool valid_utf8(const std::string& value);
+bool contains_marker(const std::string& value);
 
 bool unsigned_number(const std::string& value) {
     return !value.empty() && std::all_of(value.begin(), value.end(), [](char character) {
@@ -134,6 +138,15 @@ bool load_snapshot(const std::string& path, Snapshot& snapshot) {
         if (fields.size() == 3 && fields[0] == "diagnostic_exception") {
             if (fields[1].empty() || !valid_diagnostic_signature(fields[2]) ||
                 !snapshot.diagnostic_exceptions.emplace(fields[1], fields[2]).second)
+                return false;
+            continue;
+        }
+        if (fields.size() == 4 && fields[0] == "mismatch_output") {
+            if (fields[1].empty() ||
+                !snapshot.mismatch_outputs.emplace(fields[1], std::make_pair(fields[2], fields[3]))
+                     .second ||
+                !valid_utf8(fields[2]) || !valid_utf8(fields[3]) || contains_marker(fields[2]) ||
+                contains_marker(fields[3]))
                 return false;
             continue;
         }
@@ -306,6 +319,13 @@ int main() {
             return EXIT_FAILURE;
         }
     }
+    for (const auto& output : snapshot.mismatch_outputs) {
+        if (ids.find(output.first) == ids.end()) {
+            std::cerr << "Snapshot mismatch output references unknown case: " << output.first
+                      << "\n";
+            return EXIT_FAILURE;
+        }
+    }
 
     tts_front::TextFrontend frontend;
     std::map<Outcome, std::size_t> outcomes;
@@ -313,12 +333,14 @@ int main() {
     std::map<std::string, std::map<Outcome, std::size_t>> by_category;
     std::set<std::string> actual_mismatch_ids;
     std::set<std::string> actual_diagnostic_exception_ids;
+    std::map<std::string, std::pair<std::string, std::string>> actual_mismatch_outputs;
     std::size_t diagnostic_mismatches = 0;
     std::vector<std::string> unexpected_diagnostics;
     struct Mismatch {
         QualityCase item;
         Outcome outcome;
         std::string actual;
+        std::string pronunciation;
         std::size_t warnings = 0;
         std::string diagnostics;
     };
@@ -385,9 +407,12 @@ int main() {
         ++by_category[item.category][outcome];
         if (outcome == Outcome::UnnecessaryRefusal || outcome == Outcome::IncorrectOrPartial) {
             actual_mismatch_ids.insert(item.id);
+            actual_mismatch_outputs.emplace(
+                item.id, std::make_pair(result.normalized_text, result.pronunciation_text));
             mismatches.push_back({item,
                                   outcome,
                                   result.normalized_text,
+                                  result.pronunciation_text,
                                   result.warnings.size(),
                                   diagnostic_signature(result.warnings)});
         }
@@ -404,6 +429,7 @@ int main() {
                            found->second == outcomes[outcome];
     }
     snapshot_matches = snapshot_matches && actual_mismatch_ids == snapshot.mismatch_ids;
+    snapshot_matches = snapshot_matches && actual_mismatch_outputs == snapshot.mismatch_outputs;
     snapshot_matches = snapshot_matches && actual_diagnostic_exception_ids.size() ==
                                                snapshot.diagnostic_exceptions.size();
     if (!unexpected_diagnostics.empty()) {
@@ -435,7 +461,7 @@ int main() {
         std::cout << "\n";
     }
     std::cout << "semantic mismatches: " << mismatches.size() << "\n";
-    const auto shown = std::min<std::size_t>(mismatches.size(), 50);
+    const auto shown = std::min<std::size_t>(mismatches.size(), 100);
     for (std::size_t index = 0; index < shown; ++index) {
         const auto& mismatch = mismatches[index];
         std::cout << "  [" << mismatch.item.id << "] " << name(mismatch.outcome)
@@ -443,7 +469,8 @@ int main() {
                   << "\n"
                   << "    input=" << quoted(mismatch.item.input) << "\n"
                   << "    expected=" << quoted(mismatch.item.expected) << "\n"
-                  << "    actual=" << quoted(mismatch.actual) << "\n";
+                  << "    actual=" << quoted(mismatch.actual) << "\n"
+                  << "    pronunciation=" << quoted(mismatch.pronunciation) << "\n";
     }
     if (mismatches.size() > shown)
         std::cout << "  ... " << mismatches.size() - shown << " more mismatches\n";

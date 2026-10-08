@@ -27,9 +27,10 @@ for the same code/span, no overlapping `UnresolvedNumber` spans, unchanged `orig
 leaked internal marker bytes in normalized or pronunciation text.
 
 The audit is a strict regression gate for the released baseline. The snapshot records the case
-count, all four outcome counts, every mismatch ID, and exact diagnostics for currently known
-diagnostic exceptions. A new mismatch, changed mismatch set, changed count, or changed warning span
-fails CTest. Intentional improvements require a reviewed snapshot update in
+count, all four outcome counts, every mismatch ID, the exact normalized/pronunciation output for
+each mismatch, and exact diagnostics for currently known diagnostic exceptions. A new mismatch,
+changed mismatch set, changed count, changed output, or changed warning span fails CTest. Intentional
+improvements require a reviewed snapshot update in
 `tests/quality/en_ru_snapshot.tsv`.
 
 ## Baseline results
@@ -104,5 +105,6 @@ ctest --test-dir .temp/quality -R tts_front_quality_corpus_audit --output-on-fai
 ```
 
 The complete gold data is in `tests/quality/en_ru_sentences.tsv`; the strict snapshot is in
-`tests/quality/en_ru_snapshot.tsv`. The audit prints up to 50 concrete mismatches so a future
-baseline update remains reviewable.
+`tests/quality/en_ru_snapshot.tsv`. The snapshot stores exact normalized and pronunciation strings
+for every known mismatch. The audit prints up to 100 concrete mismatches so a future baseline update
+remains reviewable.
