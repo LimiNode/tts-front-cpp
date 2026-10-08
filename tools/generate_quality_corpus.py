@@ -420,6 +420,18 @@ natural_cases = [
     ("ru-negative-time-00", "ru", "time", "preserve", "-0:00", "-0:00", warning("-0:00", "-0:00")),
     ("ru-negative-time-01", "ru", "time", "preserve", "-1:02", "-1:02", warning("-1:02", "-1:02")),
     ("en-negative-ordinal-00", "en", "date", "preserve", "-0th", "-0th", warning("-0th", "-0th")),
+    ("en-positive-sign-00", "en", "measurement", "preserve", "+1.2 kg", "+1.2 kg",
+     warning("+1.2 kg", "+1.2 kg")),
+    ("en-positive-sign-01", "en", "percent", "preserve", "+1.2%", "+1.2%",
+     warning("+1.2%", "+1.2%")),
+    ("en-unicode-minus-time-00", "en", "time", "preserve", "−1:02", "−1:02",
+     warning("−1:02", "−1:02")),
+    ("ru-positive-sign-00", "ru", "measurement", "preserve", "+1.2 kg", "+1.2 kg",
+     warning("+1.2 kg", "+1.2 kg")),
+    ("ru-positive-sign-01", "ru", "percent", "preserve", "+1,2%", "+1,2%",
+     warning("+1,2%", "+1,2%")),
+    ("ru-unicode-minus-time-00", "ru", "time", "preserve", "−1:02", "−1:02",
+     warning("−1:02", "−1:02")),
 ]
 for case_id, language, category, expectation, source, expected, diagnostics in natural_cases:
     rows.append(row(case_id, language, "explicit", category, expectation, source, expected,

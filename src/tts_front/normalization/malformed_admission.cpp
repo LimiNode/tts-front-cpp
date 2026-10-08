@@ -71,11 +71,33 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                                            points[currency_context_probe - 1].value == 0x20ac ||
                                            points[currency_context_probe - 1].value == 0xa3 ||
                                            points[currency_context_probe - 1].value == 0xa5);
+        const bool positive_numeric = [&] {
+            if (points[index].value != '+' || index + 1 >= points.size() ||
+                !text::is_digit(points[index + 1].value))
+                return false;
+            auto probe = index + 1;
+            while (probe < points.size() && text::is_digit(points[probe].value))
+                ++probe;
+            if (probe >= points.size())
+                return false;
+            if (points[probe].value == '.' || points[probe].value == ',' ||
+                points[probe].value == ':' || points[probe].value == '%')
+                return true;
+            if (text::is_horizontal_space(points[probe].value)) {
+                while (probe < points.size() && text::is_horizontal_space(points[probe].value))
+                    ++probe;
+                return probe < points.size() && (text::is_digit(points[probe].value) ||
+                                                 text::is_letter(points[probe].value));
+            }
+            return false;
+        }();
         const bool starts_phone = points[index].value == '+' && index + 1 < points.size() &&
-                                  text::is_digit(points[index + 1].value) && !currency_context;
-        const bool starts_number = text::is_digit(points[index].value) ||
-                                   (points[index].value == '-' && index + 1 < points.size() &&
-                                    text::is_digit(points[index + 1].value));
+                                  text::is_digit(points[index + 1].value) && !currency_context &&
+                                  !positive_numeric;
+        const bool signed_number = points[index].value == '-' || points[index].value == 0x2212;
+        const bool starts_number =
+            text::is_digit(points[index].value) || positive_numeric ||
+            (signed_number && index + 1 < points.size() && text::is_digit(points[index + 1].value));
         if (!starts_number && !starts_phone) {
             ++index;
             continue;
@@ -100,7 +122,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         bool malformed_grouped = false;
         bool malformed_compound = false;
         bool grouped_seen = false;
-        auto initial_digit_index = index + (points[index].value == '-' ? 1 : 0);
+        auto initial_digit_index = index + (signed_number || positive_numeric ? 1 : 0);
         const auto initial_digit_begin = initial_digit_index;
         while (initial_digit_index < points.size() &&
                text::is_digit(points[initial_digit_index].value))
@@ -109,10 +131,12 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         // A leading sign is not part of the supported clock-time grammar. Keep
         // the complete signed expression atomic so the time normalizer cannot
         // match the unsigned suffix after this admission pass.
-        const bool signed_time = points[index].value == '-' && initial_digit_count > 0 &&
+        const bool signed_time = signed_number && initial_digit_count > 0 &&
                                  initial_digit_index + 1 < points.size() &&
                                  points[initial_digit_index].value == ':' &&
                                  text::is_digit(points[initial_digit_index + 1].value);
+        if (points[index].value == 0x2212)
+            malformed_compound = true;
         if (starts_phone) {
             while (end_index < points.size()) {
                 if (text::is_digit(points[end_index].value)) {
@@ -248,6 +272,19 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                     continue;
                 }
                 break;
+            }
+        }
+        if (positive_numeric && end_index < points.size()) {
+            auto suffix_begin = end_index;
+            while (suffix_begin < points.size() &&
+                   text::is_horizontal_space(points[suffix_begin].value))
+                ++suffix_begin;
+            auto suffix_end = suffix_begin;
+            while (suffix_end < points.size() && text::is_letter(points[suffix_end].value))
+                ++suffix_end;
+            if (suffix_end > suffix_begin) {
+                malformed_compound = true;
+                end_index = suffix_end;
             }
         }
         if (initial_digit_count > 9 && end_index < points.size() &&

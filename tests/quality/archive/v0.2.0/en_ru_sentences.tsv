@@ -351,24 +351,3 @@ en-natural-10	en	explicit	currency	preserve	Use €7.20 for the foreign-price ex
 en-natural-11	en	explicit	integer	normalize	A value in [3] was rejected.	A value in [three] was rejected.	none
 ru-natural-00	ru	explicit	time	normalize	К 8:30 подготовьте 3 отчёта.	К восемь часов тридцать минут подготовьте три отчёта.	none
 ru-natural-01	ru	explicit	currency	normalize	Стоимость заказа — 1 250 руб.	Стоимость заказа — одна тысяча двести пятьдесят рублей.	none
-ru-natural-02	ru	explicit	decimal	normalize	Температура опустилась до -4,5.	Температура опустилась до минус четырёх целых пяти десятых.	none
-ru-natural-03	ru	explicit	punctuation	normalize	Нажмите «2», затем выберите 4.	Нажмите «два», затем выберите четыре.	none
-ru-natural-04	ru	explicit	measurement	normalize	Расстояние составляет 12,5 км.	Расстояние составляет двенадцать целых пять десятых километра.	none
-ru-natural-05	ru	explicit	measurement	normalize	В резерве осталось 1,5 ГБ.	В резерве осталось одна целая пять десятых ГБ.	none
-ru-natural-06	ru	explicit	percent	normalize	Доля ошибок — 0,5%.	Доля ошибок — ноль целых пять десятых процента.	none
-ru-natural-07	ru	explicit	date	normalize	Срок — 31.12.2025.	Срок — тридцать первое декабря две тысячи двадцать пятого года.	none
-ru-natural-08	ru	explicit	currency	preserve	Оплата в евро: €7.	Оплата в евро: €7.	unresolved_number@26:4
-ru-natural-09	ru	explicit	integer	normalize	Проверено 3 из 5 узлов.	Проверено три из пяти узлов.	none
-ru-natural-10	ru	explicit	integer	normalize	В 2026 году запланировано 12 релизов.	В две тысячи двадцать шесть году запланировано двенадцать релизов.	none
-ru-natural-11	ru	explicit	integer	normalize	Значение равно [42].	Значение равно [сорок два].	none
-en-negative-time-00	en	explicit	time	preserve	-0:00	-0:00	unresolved_number@0:5
-en-negative-time-01	en	explicit	time	preserve	-1:02	-1:02	unresolved_number@0:5
-ru-negative-time-00	ru	explicit	time	preserve	-0:00	-0:00	unresolved_number@0:5
-ru-negative-time-01	ru	explicit	time	preserve	-1:02	-1:02	unresolved_number@0:5
-en-negative-ordinal-00	en	explicit	date	preserve	-0th	-0th	unresolved_number@0:4
-en-positive-sign-00	en	explicit	measurement	preserve	+1.2 kg	+1.2 kg	unresolved_number@0:7
-en-positive-sign-01	en	explicit	percent	preserve	+1.2%	+1.2%	unresolved_number@0:5
-en-unicode-minus-time-00	en	explicit	time	preserve	−1:02	−1:02	unresolved_number@0:7
-ru-positive-sign-00	ru	explicit	measurement	preserve	+1.2 kg	+1.2 kg	unresolved_number@0:7
-ru-positive-sign-01	ru	explicit	percent	preserve	+1,2%	+1,2%	unresolved_number@0:5
-ru-unicode-minus-time-00	ru	explicit	time	preserve	−1:02	−1:02	unresolved_number@0:7

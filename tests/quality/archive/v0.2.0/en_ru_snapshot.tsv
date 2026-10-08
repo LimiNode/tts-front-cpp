@@ -1,9 +1,13 @@
 version	1
-cases	373
-outcome	correct_transformation	324
-outcome	justified_preservation	34
+cases	352
+outcome	correct_transformation	310
+outcome	justified_preservation	23
 outcome	unnecessary_refusal	2
-outcome	incorrect_or_partial	13
+outcome	incorrect_or_partial	17
+mismatch	en-decimal-4-0
+mismatch	en-decimal-4-1
+mismatch	ru-decimal-10-0
+mismatch	ru-decimal-10-1
 mismatch	en-date-spoken-0
 mismatch	en-date-spoken-1
 mismatch	en-date-spoken-2
@@ -25,6 +29,10 @@ diagnostic_exception	en-natural-10	unresolved_number@4:4
 diagnostic_exception	ru-natural-11	unresolved_number@29:3
 diagnostic_exception	ru-mixed-14	unresolved_number@19:6
 diagnostic_exception	en-mixed-19	unresolved_number@14:6
+mismatch_output	en-decimal-4-0	The measured value is zero point zero one.	The measured value is zero point zero one.
+mismatch_output	en-decimal-4-1	Measured value: zero point zero one.	Measured value: zero point zero one.
+mismatch_output	ru-decimal-10-0	Измеренное значение: ноль целых одна сотая.	Измеренное значение: ноль целых одна сотая.
+mismatch_output	ru-decimal-10-1	Результат измерения — ноль целых одна сотая.	Результат измерения — ноль целых одна сотая.
 mismatch_output	en-date-spoken-0	The meeting is on January two, two thousand twenty six.	The meeting is on January two, two thousand twenty six.
 mismatch_output	en-date-spoken-1	The meeting is on March twenty one, two thousand twenty five.	The meeting is on March twenty one, two thousand twenty five.
 mismatch_output	en-date-spoken-2	The meeting is on December thirty one, one thousand nine hundred ninety nine.	The meeting is on December thirty one, one thousand nine hundred ninety nine.

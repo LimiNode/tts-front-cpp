@@ -719,7 +719,9 @@ int main() {
                                          "Привет −2 kg",
                                          "Привет 1234567890 kg",
                                          "Привет -$1",
-                                         "Привет +$1"};
+                                         "Привет +$1",
+                                         "Привет +1.2 kg",
+                                         "Привет −1:02"};
         for (const auto& input : malformed) {
             const auto result = frontend.process(input, segmented);
             CHECK(result.normalized_text == input);
@@ -746,6 +748,10 @@ int main() {
             if (const auto sign = input.find("-$1"); sign != std::string::npos)
                 expected_begin = sign;
             if (const auto sign = input.find("+$1"); sign != std::string::npos)
+                expected_begin = sign;
+            if (const auto sign = input.find("+1.2"); sign != std::string::npos)
+                expected_begin = sign;
+            if (const auto sign = input.find("−1"); sign != std::string::npos)
                 expected_begin = sign;
             CHECK(warning->offset == expected_begin);
         }
@@ -999,6 +1005,19 @@ int main() {
             CHECK(signed_time.warnings.front().code == WarningCode::UnresolvedNumber);
             CHECK(signed_time.warnings.front().offset == 0);
             CHECK(signed_time.warnings.front().length == 5);
+
+            for (const auto& input : {std::string("+1.2%"),
+                                      std::string("+1.2 kg"),
+                                      std::string("+1:02"),
+                                      std::string("+1,2%"),
+                                      std::string("−1:02")}) {
+                const auto signed_numeric = frontend.process(input, options);
+                CHECK(signed_numeric.normalized_text == input);
+                CHECK(signed_numeric.warnings.size() == 1);
+                CHECK(signed_numeric.warnings.front().code == WarningCode::UnresolvedNumber);
+                CHECK(signed_numeric.warnings.front().offset == 0);
+                CHECK(signed_numeric.warnings.front().length == input.size());
+            }
         }
         const auto negative_zero_time = frontend.process("-0:00", en);
         CHECK(negative_zero_time.normalized_text == "-0:00");
