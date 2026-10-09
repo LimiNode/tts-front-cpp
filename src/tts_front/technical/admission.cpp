@@ -348,8 +348,13 @@ MappedText protect_numeric_candidates(MappedText text,
               points[index].value == 0x2212) &&
              index + 1 < points.size() && text::is_digit(points[index + 1].value));
         const bool scientific_suffix_start =
-            index > 1 && (points[index - 1].value == 'e' || points[index - 1].value == 'E') &&
-            text::is_digit(points[index - 2].value);
+            (index > 1 && (points[index - 1].value == 'e' || points[index - 1].value == 'E') &&
+             text::is_digit(points[index - 2].value)) ||
+            (index > 2 &&
+             (points[index - 1].value == '+' || points[index - 1].value == '-' ||
+              points[index - 1].value == 0x2212) &&
+             (points[index - 2].value == 'e' || points[index - 2].value == 'E') &&
+             text::is_digit(points[index - 3].value));
         if (!starts_number || scientific_suffix_start ||
             (index > 0 && text::is_lexical_numeric_boundary(points[index - 1].value))) {
             ++index;

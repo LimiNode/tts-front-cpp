@@ -1027,22 +1027,14 @@ int main() {
                 CHECK(signed_numeric.warnings.front().offset == 0);
                 CHECK(signed_numeric.warnings.front().length == input.size());
             }
-            for (const auto& input : {std::string("−1 kg"),
-                                      std::string("−1.2 kg"),
-                                      std::string("−1,2 кг"),
-                                      std::string("−1word"),
-                                      std::string("+1e"),
-                                      std::string("+1e+"),
-                                      std::string("+1e+x"),
-                                      std::string("+1e++x"),
-                                      std::string("+1e--x"),
-                                      std::string("+1e+%"),
-                                      std::string("+1e+3 kg"),
-                                      std::string("+1e+3/4"),
-                                      std::string("−1e"),
-                                      std::string("−1e+"),
-                                      std::string("−1e+x"),
-                                      std::string("−1e−x")}) {
+            for (const auto& input :
+                 {std::string("−1 kg"),   std::string("−1.2 kg"),  std::string("−1,2 кг"),
+                  std::string("−1word"),  std::string("+1e"),      std::string("+1e+"),
+                  std::string("+1e+x"),   std::string("+1e++x"),   std::string("+1e--x"),
+                  std::string("+1e+%"),   std::string("+1e+3 kg"), std::string("+1e+3/4"),
+                  std::string("+1e+3#4"), std::string("+1e+3$4"),  std::string("−1e"),
+                  std::string("−1e+"),    std::string("−1e+x"),    std::string("−1e−x"),
+                  std::string("−1e+3#4"), std::string("−1e+3$4")}) {
                 const auto malformed_signed = frontend.process(input, options);
                 CHECK(malformed_signed.normalized_text == input);
                 CHECK(malformed_signed.warnings.size() == 1);
