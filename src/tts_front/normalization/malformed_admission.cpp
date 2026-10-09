@@ -289,14 +289,31 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 end_index = std::max(end_index, surface.end);
                 if (surface.exponent == ExponentState::Complete) {
                     end_index = scan_numeric_continuation_points(document, end_index, false);
-                    auto probe = end_index;
-                    while (probe < points.size() && text::is_horizontal_space(points[probe].value))
-                        ++probe;
-                    auto word_end = probe;
-                    while (word_end < points.size() && text::is_letter(points[word_end].value))
-                        ++word_end;
-                    if (word_end > probe)
-                        end_index = word_end;
+                    while (end_index < points.size()) {
+                        const auto value = points[end_index].value;
+                        if (text::is_horizontal_space(value)) {
+                            auto probe = end_index;
+                            while (probe < points.size() &&
+                                   text::is_horizontal_space(points[probe].value))
+                                ++probe;
+                            auto word_end = probe;
+                            while (word_end < points.size() &&
+                                   text::is_letter(points[word_end].value))
+                                ++word_end;
+                            if (word_end == probe)
+                                break;
+                            end_index = word_end;
+                            continue;
+                        }
+                        if (text::is_digit(value) || text::is_letter(value) ||
+                            text::is_combining_mark(value) || value == '%' || value == '#' ||
+                            value == '$' || value == '/' || value == '+' || value == '-' ||
+                            text::is_range_connector(value)) {
+                            ++end_index;
+                            continue;
+                        }
+                        break;
+                    }
                 }
             }
             auto suffix_begin = end_index;
