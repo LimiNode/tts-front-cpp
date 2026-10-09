@@ -284,9 +284,20 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             }
         }
         if ((positive_numeric || points[index].value == 0x2212) && end_index < points.size()) {
-            if (surface.exponent_marker) {
+            if (surface.exponent != ExponentState::None) {
                 malformed_compound = true;
                 end_index = std::max(end_index, surface.end);
+                if (surface.exponent == ExponentState::Complete) {
+                    end_index = scan_numeric_continuation_points(document, end_index, false);
+                    auto probe = end_index;
+                    while (probe < points.size() && text::is_horizontal_space(points[probe].value))
+                        ++probe;
+                    auto word_end = probe;
+                    while (word_end < points.size() && text::is_letter(points[word_end].value))
+                        ++word_end;
+                    if (word_end > probe)
+                        end_index = word_end;
+                }
             }
             auto suffix_begin = end_index;
             while (suffix_begin < points.size() &&

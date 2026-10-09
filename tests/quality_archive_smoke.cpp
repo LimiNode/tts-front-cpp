@@ -178,10 +178,13 @@ int main(int argc, char** argv) {
         const Case item{fields[0], fields[1], fields[2], fields[5], fields[6], fields[7]};
         corpus_ids.insert(item.id);
         tts_front::TextFrontendOptions options;
-        options.language =
-            item.language == "ru" ? tts_front::Language::Russian : tts_front::Language::English;
-        if (item.mode == "auto_segment")
+        if (item.mode == "auto_segment") {
+            options.language = tts_front::Language::Auto;
             options.mixed_language_policy = tts_front::MixedLanguagePolicy::SegmentCandidates;
+        } else {
+            options.language =
+                item.language == "ru" ? tts_front::Language::Russian : tts_front::Language::English;
+        }
         const auto result = frontend.process(item.input, options);
         if (result.original_text != item.input) {
             std::cerr << "original mismatch " << item.id << "\n";

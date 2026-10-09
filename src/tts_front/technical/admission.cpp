@@ -167,6 +167,9 @@ MappedText protect_numeric_candidates(MappedText text,
                 continue;
             const auto base_finish = begin + static_cast<std::size_t>(it->length());
             const auto base = it->str(1);
+            if (begin > 0 && !base.empty() && (base.front() == 'e' || base.front() == 'E') &&
+                text::is_digit(static_cast<unsigned char>(text.text[begin - 1])))
+                continue;
             const auto is_ascii_digit = [](char value) { return value >= '0' && value <= '9'; };
             const auto unicode_connector_length = [&](std::size_t offset) {
                 if (offset + 2 >= text.text.size())
@@ -369,19 +372,7 @@ MappedText protect_numeric_candidates(MappedText text,
         std::size_t suffix_end = end_index;
         bool encoded_suffix = false;
         if (end_index < points.size() &&
-            (points[end_index].value == 'e' || points[end_index].value == 'E')) {
-            auto probe = end_index + 1;
-            if (probe < points.size() && (points[probe].value == '+' || points[probe].value == '-'))
-                ++probe;
-            const auto exponent_begin = probe;
-            while (probe < points.size() && text::is_digit(points[probe].value))
-                ++probe;
-            if (probe != exponent_begin) {
-                suffix_end = probe;
-                encoded_suffix = true;
-            }
-        } else if (end_index < points.size() &&
-                   (points[end_index].value == '#' || points[end_index].value == '$')) {
+            (points[end_index].value == '#' || points[end_index].value == '$')) {
             auto probe = end_index + 1;
             const auto suffix_begin = probe;
             while (probe < points.size() &&

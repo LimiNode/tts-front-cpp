@@ -16,13 +16,14 @@ struct NumericCandidate {
 };
 
 enum class NumericSign { None, Plus, Minus, UnicodeMinus };
+enum class ExponentState { None, Complete, Incomplete, InvalidContinuation };
 
 struct NumericSurface {
     std::size_t digits_begin = 0;
     std::size_t digits_end = 0;
     std::size_t end = 0;
     NumericSign sign = NumericSign::None;
-    bool exponent_marker = false;
+    ExponentState exponent = ExponentState::None;
 
     bool valid() const {
         return digits_end > digits_begin;

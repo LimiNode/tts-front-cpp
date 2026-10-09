@@ -27,14 +27,27 @@ NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t be
     surface.end = surface.digits_end;
     if (surface.end < document.points.size() &&
         (document.points[surface.end].value == 'e' || document.points[surface.end].value == 'E')) {
-        surface.exponent_marker = true;
+        surface.exponent = ExponentState::Incomplete;
         ++surface.end;
         if (surface.end < document.points.size() && (document.points[surface.end].value == '+' ||
                                                      document.points[surface.end].value == '-'))
             ++surface.end;
+        const auto exponent_begin = surface.end;
         while (surface.end < document.points.size() &&
                text::is_digit(document.points[surface.end].value))
             ++surface.end;
+        if (surface.end > exponent_begin) {
+            surface.exponent = ExponentState::Complete;
+        } else if (surface.end < document.points.size()) {
+            surface.exponent = ExponentState::InvalidContinuation;
+            while (surface.end < document.points.size() &&
+                   (text::is_digit(document.points[surface.end].value) ||
+                    text::is_letter(document.points[surface.end].value) ||
+                    text::is_combining_mark(document.points[surface.end].value) ||
+                    text::is_ascii_punctuation(document.points[surface.end].value) ||
+                    text::is_range_connector(document.points[surface.end].value)))
+                ++surface.end;
+        }
     }
     return surface;
 }
