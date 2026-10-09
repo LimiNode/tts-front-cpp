@@ -43,6 +43,14 @@ MappedText protect(MappedText text, std::vector<ProtectedSpan>& protected_spans)
              ++it) {
             const auto begin = static_cast<std::size_t>(it->position());
             const auto finish = begin + static_cast<std::size_t>(it->length());
+            // Do not shield an incomplete scientific suffix (`e+x`) that is
+            // attached to a numeric candidate.  The language admission pass
+            // must see the complete `+1e+x` expression and preserve it
+            // atomically instead of leaving only `+1` visible.
+            if (pattern == &patterns.technical_identifier && begin > 0 &&
+                (text.text[begin - 1] >= '0' && text.text[begin - 1] <= '9') &&
+                !it->str().empty() && (it->str().front() == 'e' || it->str().front() == 'E'))
+                continue;
             output.append_copy_with_cursor(text, cursor, begin, run_cursor);
             const auto marker = marker_for(text.text, protected_spans.size());
             protected_spans.push_back({marker, it->str()});

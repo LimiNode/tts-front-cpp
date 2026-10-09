@@ -141,7 +141,8 @@ const char* outcome_name(Outcome outcome) {
 
 } // namespace
 
-int main() {
+int main(int argc, char** argv) {
+    const bool strict = argc > 1 && std::string(argv[1]) == "--strict";
     const std::string root = std::string(TTS_FRONT_SOURCE_DIR) + "/tests/quality/archive/v0.2.0/";
     std::ifstream corpus(root + "en_ru_sentences.tsv", std::ios::binary);
     if (!corpus) {
@@ -160,6 +161,10 @@ int main() {
         return EXIT_FAILURE;
     }
     std::set<std::string> corpus_ids;
+    std::map<std::string, std::size_t> actual_outcomes;
+    std::set<std::string> actual_mismatches;
+    std::map<std::string, std::pair<std::string, std::string>> actual_mismatch_outputs;
+    std::set<std::string> actual_diagnostic_exceptions;
     tts_front::TextFrontend frontend;
     std::size_t cases = 0;
     while (std::getline(corpus, line)) {
@@ -190,6 +195,33 @@ int main() {
             }
         }
         const auto outcome = classify(item, result.normalized_text);
+        ++actual_outcomes[outcome_name(outcome)];
+        const auto actual_diagnostics = [&] {
+            if (result.warnings.empty())
+                return std::string("none");
+            std::ostringstream output;
+            for (std::size_t index = 0; index < result.warnings.size(); ++index) {
+                if (index != 0)
+                    output << ';';
+                output << tts_front::to_string(result.warnings[index].code) << '@'
+                       << result.warnings[index].offset << ':' << result.warnings[index].length;
+            }
+            return output.str();
+        }();
+        if (actual_diagnostics != item.diagnostics) {
+            const auto exception = snapshot.diagnostic_exceptions.find(item.id);
+            if (strict && (exception == snapshot.diagnostic_exceptions.end() ||
+                           exception->second != actual_diagnostics)) {
+                std::cerr << "strict diagnostic mismatch " << item.id << "\n";
+                return EXIT_FAILURE;
+            }
+            actual_diagnostic_exceptions.insert(item.id);
+        }
+        if (outcome == Outcome::Unnecessary || outcome == Outcome::Incorrect) {
+            actual_mismatches.insert(item.id);
+            actual_mismatch_outputs.emplace(
+                item.id, std::make_pair(result.normalized_text, result.pronunciation_text));
+        }
         if (outcome != Outcome::Unnecessary && outcome != Outcome::Incorrect &&
             (result.normalized_text != item.expected ||
              result.pronunciation_text != item.expected)) {
@@ -197,6 +229,17 @@ int main() {
             return EXIT_FAILURE;
         }
         ++cases;
+    }
+    if (strict) {
+        std::set<std::string> expected_diagnostic_exceptions;
+        for (const auto& entry : snapshot.diagnostic_exceptions)
+            expected_diagnostic_exceptions.insert(entry.first);
+        if (actual_outcomes != snapshot.outcomes || actual_mismatches != snapshot.mismatches ||
+            actual_mismatch_outputs != snapshot.mismatch_outputs ||
+            actual_diagnostic_exceptions != expected_diagnostic_exceptions) {
+            std::cerr << "strict archive snapshot mismatch\n";
+            return EXIT_FAILURE;
+        }
     }
     if (cases != snapshot.cases || snapshot.mismatch_outputs.size() != snapshot.mismatches.size()) {
         std::cerr << "archive metadata mismatch\n";

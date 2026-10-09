@@ -81,6 +81,11 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             if (probe >= points.size())
                 return false;
             const auto continuation = points[probe].value;
+            // An incomplete scientific marker is still a signed numeric
+            // candidate.  Admit it atomically so `+1e`, `+1e+` and
+            // `+1e+x` cannot fall through to a partial rewrite of `1`.
+            if (continuation == 'e' || continuation == 'E')
+                return true;
             if (text::is_numeric_connector(continuation) && continuation != '-' &&
                 continuation != '/')
                 return true;
@@ -92,10 +97,6 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 // after the sign remains a malformed numeric candidate.
                 return probe < points.size() && text::is_letter(points[probe].value);
             }
-            if ((continuation == 'e' || continuation == 'E') && probe + 1 < points.size() &&
-                (text::is_digit(points[probe + 1].value) || points[probe + 1].value == '+' ||
-                 points[probe + 1].value == '-'))
-                return true;
             return false;
         }();
         const bool starts_phone = points[index].value == '+' && index + 1 < points.size() &&
@@ -283,17 +284,19 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         }
         if (positive_numeric && end_index < points.size()) {
             if ((points[end_index].value == 'e' || points[end_index].value == 'E') &&
-                end_index + 1 < points.size()) {
-                auto exponent = end_index + 1;
-                if (points[exponent].value == '+' || points[exponent].value == '-')
-                    ++exponent;
+                end_index < points.size()) {
+                malformed_compound = true;
+                ++end_index;
+                if (end_index < points.size() &&
+                    (points[end_index].value == '+' || points[end_index].value == '-')) {
+                    ++end_index;
+                }
+                auto exponent = end_index;
                 const auto exponent_begin = exponent;
                 while (exponent < points.size() && text::is_digit(points[exponent].value))
                     ++exponent;
-                if (exponent > exponent_begin) {
-                    malformed_compound = true;
+                if (exponent > exponent_begin)
                     end_index = exponent;
-                }
             }
             auto suffix_begin = end_index;
             while (suffix_begin < points.size() &&
@@ -303,6 +306,25 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             while (suffix_end < points.size() && text::is_letter(points[suffix_end].value))
                 ++suffix_end;
             if (suffix_end > suffix_begin) {
+                malformed_compound = true;
+                end_index = suffix_end;
+            }
+        }
+        if (points[index].value == 0x2212 && end_index < points.size()) {
+            auto suffix_begin = end_index;
+            while (suffix_begin < points.size() &&
+                   text::is_horizontal_space(points[suffix_begin].value))
+                ++suffix_begin;
+            auto suffix_end = suffix_begin;
+            while (suffix_end < points.size() && text::is_letter(points[suffix_end].value))
+                ++suffix_end;
+            if (suffix_end > suffix_begin) {
+                malformed_compound = true;
+                end_index = suffix_end;
+            } else if (suffix_begin == end_index && suffix_begin < points.size() &&
+                       text::is_letter(points[suffix_begin].value)) {
+                while (suffix_end < points.size() && text::is_letter(points[suffix_end].value))
+                    ++suffix_end;
                 malformed_compound = true;
                 end_index = suffix_end;
             }
