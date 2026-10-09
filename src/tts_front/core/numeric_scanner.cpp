@@ -4,6 +4,41 @@
 
 namespace tts_front::detail {
 
+NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t begin) {
+    NumericSurface surface;
+    surface.digits_begin = begin;
+    surface.digits_end = begin;
+    surface.end = begin;
+    if (begin >= document.points.size())
+        return surface;
+    const auto first = document.points[begin].value;
+    if (first == '+' || first == '-' || first == 0x2212) {
+        surface.sign = first == '+'
+                           ? NumericSign::Plus
+                           : (first == '-' ? NumericSign::Minus : NumericSign::UnicodeMinus);
+        surface.digits_begin = begin + 1;
+    }
+    surface.digits_end = surface.digits_begin;
+    while (surface.digits_end < document.points.size() &&
+           text::is_digit(document.points[surface.digits_end].value))
+        ++surface.digits_end;
+    if (!surface.valid())
+        return surface;
+    surface.end = surface.digits_end;
+    if (surface.end < document.points.size() &&
+        (document.points[surface.end].value == 'e' || document.points[surface.end].value == 'E')) {
+        surface.exponent_marker = true;
+        ++surface.end;
+        if (surface.end < document.points.size() && (document.points[surface.end].value == '+' ||
+                                                     document.points[surface.end].value == '-'))
+            ++surface.end;
+        while (surface.end < document.points.size() &&
+               text::is_digit(document.points[surface.end].value))
+            ++surface.end;
+    }
+    return surface;
+}
+
 std::size_t scan_numeric_continuation_points(const Utf8Document& document,
                                              std::size_t start,
                                              bool consume_lexical_suffix) {

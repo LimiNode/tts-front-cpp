@@ -71,6 +71,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                                            points[currency_context_probe - 1].value == 0x20ac ||
                                            points[currency_context_probe - 1].value == 0xa3 ||
                                            points[currency_context_probe - 1].value == 0xa5);
+        const auto surface = scan_numeric_surface(document, index);
         const bool positive_numeric = [&] {
             if (points[index].value != '+' || index + 1 >= points.size() ||
                 !text::is_digit(points[index + 1].value))
@@ -282,21 +283,10 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 break;
             }
         }
-        if (positive_numeric && end_index < points.size()) {
-            if ((points[end_index].value == 'e' || points[end_index].value == 'E') &&
-                end_index < points.size()) {
+        if ((positive_numeric || points[index].value == 0x2212) && end_index < points.size()) {
+            if (surface.exponent_marker) {
                 malformed_compound = true;
-                ++end_index;
-                if (end_index < points.size() &&
-                    (points[end_index].value == '+' || points[end_index].value == '-')) {
-                    ++end_index;
-                }
-                auto exponent = end_index;
-                const auto exponent_begin = exponent;
-                while (exponent < points.size() && text::is_digit(points[exponent].value))
-                    ++exponent;
-                if (exponent > exponent_begin)
-                    end_index = exponent;
+                end_index = std::max(end_index, surface.end);
             }
             auto suffix_begin = end_index;
             while (suffix_begin < points.size() &&
