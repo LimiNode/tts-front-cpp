@@ -1012,16 +1012,14 @@ int main() {
             CHECK(signed_time.warnings.front().offset == 0);
             CHECK(signed_time.warnings.front().length == 5);
 
-            for (const auto& input : {std::string("+1.2%"),
-                                      std::string("+1.2 kg"),
-                                      std::string("+1:02"),
-                                      std::string("+1,2%"),
-                                      std::string("+1*2"),
-                                      std::string("+1&2"),
-                                      std::string("+$1,234.56"),
-                                      std::string("-$1,234"),
-                                      std::string("€-1,234"),
-                                      std::string("−1:02")}) {
+            for (const auto& input :
+                 {std::string("+1.2%"),      std::string("+1.2 kg"),    std::string("+1:02"),
+                  std::string("+1,2%"),      std::string("+1*2"),       std::string("+1&2"),
+                  std::string("+1^2"),       std::string("+1–2"),       std::string("+1—2"),
+                  std::string("+1−2"),       std::string("+1=2"),       std::string("+1e+3"),
+                  std::string("+1#2"),       std::string("+$1,234.56"), std::string("-$1,234"),
+                  std::string("€-1,234"),    std::string("-€1,234.56"), std::string("-£1,234.56"),
+                  std::string("−€1,234.56"), std::string("−1:02")}) {
                 const auto signed_numeric = frontend.process(input, options);
                 CHECK(signed_numeric.normalized_text == input);
                 CHECK(signed_numeric.warnings.size() == 1);

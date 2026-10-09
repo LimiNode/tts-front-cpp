@@ -80,8 +80,9 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 ++probe;
             if (probe >= points.size())
                 return false;
-            if (points[probe].value == '.' || points[probe].value == ',' ||
-                points[probe].value == ':' || points[probe].value == '%')
+            const auto continuation = points[probe].value;
+            if (text::is_numeric_connector(continuation) && continuation != '-' &&
+                continuation != '/')
                 return true;
             if (text::is_horizontal_space(points[probe].value)) {
                 while (probe < points.size() && text::is_horizontal_space(points[probe].value))
@@ -91,7 +92,9 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 // after the sign remains a malformed numeric candidate.
                 return probe < points.size() && text::is_letter(points[probe].value);
             }
-            if (points[probe].value == '*' || points[probe].value == '&')
+            if ((continuation == 'e' || continuation == 'E') && probe + 1 < points.size() &&
+                (text::is_digit(points[probe + 1].value) || points[probe + 1].value == '+' ||
+                 points[probe + 1].value == '-'))
                 return true;
             return false;
         }();
@@ -279,6 +282,19 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             }
         }
         if (positive_numeric && end_index < points.size()) {
+            if ((points[end_index].value == 'e' || points[end_index].value == 'E') &&
+                end_index + 1 < points.size()) {
+                auto exponent = end_index + 1;
+                if (points[exponent].value == '+' || points[exponent].value == '-')
+                    ++exponent;
+                const auto exponent_begin = exponent;
+                while (exponent < points.size() && text::is_digit(points[exponent].value))
+                    ++exponent;
+                if (exponent > exponent_begin) {
+                    malformed_compound = true;
+                    end_index = exponent;
+                }
+            }
             auto suffix_begin = end_index;
             while (suffix_begin < points.size() &&
                    text::is_horizontal_space(points[suffix_begin].value))
@@ -449,7 +465,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                    (points[sign_probe - 1].value == ' ' || points[sign_probe - 1].value == '\t'))
                 --sign_probe;
             if (sign_probe > 0 &&
-                (points[sign_probe - 1].value == '+' || points[sign_probe - 1].value == '-')) {
+                (points[sign_probe - 1].value == '+' || points[sign_probe - 1].value == '-' ||
+                 points[sign_probe - 1].value == 0x2212)) {
                 signed_currency_prefix = true;
                 currency_prefix_begin = sign_probe - 1;
             }

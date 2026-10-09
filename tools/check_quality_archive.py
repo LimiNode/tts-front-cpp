@@ -1,6 +1,7 @@
 """Verify the immutable v0.2.0 quality inputs remain intact."""
 
 from pathlib import Path
+import hashlib
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -10,6 +11,14 @@ ARCHIVE = ROOT / "tests" / "quality" / "archive" / "v0.2.0"
 def main() -> int:
     corpus = (ARCHIVE / "en_ru_sentences.tsv").read_text(encoding="utf-8").splitlines()
     snapshot = (ARCHIVE / "en_ru_snapshot.tsv").read_text(encoding="utf-8").splitlines()
+    expected_hashes = {
+        "en_ru_sentences.tsv": "64df6a2991f4f4e936ac3a33bd96cb4cbe5fc074710e4e7d2915e029ebc42c7c",
+        "en_ru_snapshot.tsv": "d17ae423a174bf57215d06878cf3791a9879bbd7d2ed4030549bc3d9adc36d0e",
+    }
+    for name, expected_hash in expected_hashes.items():
+        data = (ARCHIVE / name).read_bytes().replace(b"\r\n", b"\n")
+        if hashlib.sha256(data).hexdigest() != expected_hash:
+            raise SystemExit(f"release archive checksum mismatch: {name}")
     if len(corpus) != 353 or corpus[0].split("\t", 1)[0] != "id":
         raise SystemExit(f"release corpus must contain 352 cases, got {len(corpus) - 1}")
     expected = {

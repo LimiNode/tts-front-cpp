@@ -21,7 +21,6 @@ mismatch	ru-natural-09
 mismatch	ru-natural-11
 diagnostic_exception	en-preserve-4	unresolved_number@17:6
 diagnostic_exception	ru-preserve-12	unresolved_number@33:6
-diagnostic_exception	en-natural-10	unresolved_number@4:4
 diagnostic_exception	ru-natural-11	unresolved_number@29:3
 diagnostic_exception	ru-mixed-14	unresolved_number@19:6
 diagnostic_exception	en-mixed-19	unresolved_number@14:6

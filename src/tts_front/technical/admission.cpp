@@ -249,6 +249,16 @@ MappedText protect_numeric_candidates(MappedText text,
                 if (const auto sign = base.find_first_of("+-"); sign != std::string::npos)
                     protected_begin = begin + sign;
             }
+            // Technical regexes can begin immediately after a leading sign
+            // (for example the `1e+3` suffix in `+1e+3`).  Extend the source
+            // span over that sign so admission remains atomic and warning
+            // offsets never expose a partial candidate.
+            const auto protected_point = codepoint_index_at_or_after(document, protected_begin);
+            if (protected_point > 0) {
+                const auto previous = document.points[protected_point - 1].value;
+                if (previous == '+' || previous == '-' || previous == 0x2212)
+                    protected_begin = document.points[protected_point - 1].offset;
+            }
             NumericCandidate candidate{document.span_from_bytes(protected_begin, finish),
                                        NumericCandidateKind::Technical};
             add_protected_candidate(text, candidate, warnings, protected_spans, edits);
@@ -267,10 +277,23 @@ MappedText protect_numeric_candidates(MappedText text,
         if (index > 0 && text::is_digit(points[index].value) &&
             (points[index - 1].value == 0x20ac || points[index - 1].value == 0xa3 ||
              points[index - 1].value == 0xa5)) {
+            auto currency_begin = index - 1;
+            if (currency_begin > 0 && (points[currency_begin - 1].value == '+' ||
+                                       points[currency_begin - 1].value == '-' ||
+                                       points[currency_begin - 1].value == 0x2212))
+                --currency_begin;
             auto numeric_end = index + 1;
             while (numeric_end < points.size() && text::is_digit(points[numeric_end].value))
                 ++numeric_end;
-            NumericCandidate candidate{document.span_from_codepoints(index - 1, numeric_end),
+            while (numeric_end < points.size() &&
+                   (points[numeric_end].value == ',' || points[numeric_end].value == '.') &&
+                   numeric_end + 1 < points.size() &&
+                   text::is_digit(points[numeric_end + 1].value)) {
+                ++numeric_end;
+                while (numeric_end < points.size() && text::is_digit(points[numeric_end].value))
+                    ++numeric_end;
+            }
+            NumericCandidate candidate{document.span_from_codepoints(currency_begin, numeric_end),
                                        NumericCandidateKind::Currency};
             add_protected_candidate(text, candidate, warnings, protected_spans, edits);
             index = numeric_end;
@@ -278,6 +301,11 @@ MappedText protect_numeric_candidates(MappedText text,
         }
         if (points[index].value == '$' && index + 1 < points.size() &&
             text::is_digit(points[index + 1].value)) {
+            auto currency_begin = index;
+            if (currency_begin > 0 && (points[currency_begin - 1].value == '+' ||
+                                       points[currency_begin - 1].value == '-' ||
+                                       points[currency_begin - 1].value == 0x2212))
+                --currency_begin;
             auto numeric_end = index + 1;
             while (numeric_end < points.size() && text::is_digit(points[numeric_end].value))
                 ++numeric_end;
@@ -292,26 +320,33 @@ MappedText protect_numeric_candidates(MappedText text,
             if (numeric_end < points.size() && points[numeric_end].value == '%') {
                 const auto protected_end =
                     scan_numeric_continuation_points(document, numeric_end + 1, false);
-                NumericCandidate candidate{document.span_from_codepoints(index, protected_end),
-                                           NumericCandidateKind::Currency,
-                                           true,
-                                           false,
-                                           true};
+                NumericCandidate candidate{
+                    document.span_from_codepoints(currency_begin, protected_end),
+                    NumericCandidateKind::Currency,
+                    true,
+                    false,
+                    true};
                 add_protected_candidate(text, candidate, warnings, protected_spans, edits);
                 index = protected_end;
                 continue;
             }
         }
-        const bool starts_number = text::is_digit(points[index].value) ||
-                                   (points[index].value == '-' && index + 1 < points.size() &&
-                                    text::is_digit(points[index + 1].value));
+        const bool starts_number =
+            text::is_digit(points[index].value) ||
+            ((points[index].value == '-' || points[index].value == '+' ||
+              points[index].value == 0x2212) &&
+             index + 1 < points.size() && text::is_digit(points[index + 1].value));
         if (!starts_number ||
             (index > 0 && text::is_lexical_numeric_boundary(points[index - 1].value))) {
             ++index;
             continue;
         }
 
-        std::size_t end_index = index + (points[index].value == '-' ? 1 : 0);
+        std::size_t end_index =
+            index + ((points[index].value == '-' || points[index].value == '+' ||
+                      points[index].value == 0x2212)
+                         ? 1
+                         : 0);
         while (end_index < points.size() && text::is_digit(points[end_index].value))
             ++end_index;
         if (end_index < points.size() &&
