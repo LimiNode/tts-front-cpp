@@ -52,6 +52,18 @@ NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t be
     return surface;
 }
 
+bool is_scientific_continuation(const Utf8Document& document, std::size_t index) {
+    if (index == 0 || index >= document.points.size())
+        return false;
+    const auto first = index > 3 ? index - 3 : 0;
+    for (std::size_t begin = first; begin < index; ++begin) {
+        const auto surface = scan_numeric_surface(document, begin);
+        if (surface.valid() && surface.exponent != ExponentState::None && index < surface.end)
+            return true;
+    }
+    return false;
+}
+
 std::size_t scan_numeric_continuation_points(const Utf8Document& document,
                                              std::size_t start,
                                              bool consume_lexical_suffix) {

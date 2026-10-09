@@ -1042,6 +1042,17 @@ int main() {
                 CHECK(malformed_signed.warnings.front().offset == 0);
                 CHECK(malformed_signed.warnings.front().length == input.size());
             }
+            for (const auto& input : {std::string("+1e–3"),
+                                      std::string("+1e—3"),
+                                      std::string("−1e–3"),
+                                      std::string("−1e—3")}) {
+                const auto malformed_dash = frontend.process(input, options);
+                CHECK(malformed_dash.normalized_text == input);
+                CHECK(malformed_dash.warnings.size() == 1);
+                CHECK(malformed_dash.warnings.front().code == WarningCode::UnresolvedNumber);
+                CHECK(malformed_dash.warnings.front().offset == 0);
+                CHECK(malformed_dash.warnings.front().length == input.size());
+            }
         }
         const auto phone = frontend.process("+7 999 123 45 67", en);
         CHECK(phone.normalized_text == "+7 999 123 45 67");
