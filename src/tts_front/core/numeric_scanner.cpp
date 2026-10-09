@@ -55,13 +55,20 @@ NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t be
 bool is_scientific_continuation(const Utf8Document& document, std::size_t index) {
     if (index == 0 || index >= document.points.size())
         return false;
-    const auto first = index > 3 ? index - 3 : 0;
-    for (std::size_t begin = first; begin < index; ++begin) {
-        const auto surface = scan_numeric_surface(document, begin);
-        if (surface.valid() && surface.exponent != ExponentState::None && index < surface.end)
-            return true;
-    }
-    return false;
+    // This predicate is queried while sweeping every codepoint in technical
+    // admission.  Do not rescan a complete numeric surface here: on a long
+    // contiguous digit run that turns the otherwise linear pass into O(n^2).
+    // A scientific continuation can only begin at the exponent marker, its
+    // optional sign, or the first exponent digit; all of those are identified
+    // from the three immediately preceding codepoints.
+    const auto& points = document.points;
+    const auto previous = points[index - 1].value;
+    if ((previous == 'e' || previous == 'E') && index > 1 &&
+        text::is_digit(points[index - 2].value))
+        return true;
+    return index > 2 && (previous == '+' || previous == '-' || previous == 0x2212) &&
+           (points[index - 2].value == 'e' || points[index - 2].value == 'E') &&
+           text::is_digit(points[index - 3].value);
 }
 
 std::size_t scan_numeric_continuation_points(const Utf8Document& document,

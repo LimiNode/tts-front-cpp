@@ -1,8 +1,13 @@
 #include "tts_front.hpp"
+#include "tts_front/core/mapped_text.hpp"
+#include "tts_front/core/normalization_support.hpp"
+#include "tts_front/technical/admission.hpp"
 
 #include <chrono>
 #include <iostream>
 #include <string>
+#include <utility>
+#include <vector>
 
 void benchmark_numeric_scaling() {
     tts_front::TextFrontend frontend;
@@ -24,6 +29,26 @@ void benchmark_numeric_scaling() {
                   << (elapsed / static_cast<double>(count) * 1e6) << " us/token\n";
         if (result.normalized_text.empty())
             std::cerr << "unexpected empty normalization result\n";
+    }
+}
+
+void benchmark_technical_contiguous_numeric_scaling() {
+    for (const unsigned int count : {5000u, 10000u, 20000u}) {
+        const std::string text(count, '1');
+        std::vector<tts_front::TextWarning> warnings;
+        tts_front::detail::WarningSink warning_sink{warnings, {}};
+        auto mapped = tts_front::detail::MappedText::from_original(
+            text, &warning_sink.preserved_ranges);
+        std::vector<tts_front::detail::ProtectedSpan> protected_spans;
+        const auto begin = std::chrono::steady_clock::now();
+        mapped = tts_front::detail::technical::protect_numeric_candidates(
+            std::move(mapped), warning_sink, protected_spans);
+        const auto elapsed =
+            std::chrono::duration<double>(std::chrono::steady_clock::now() - begin).count();
+        std::cout << count << " contiguous technical digits, " << elapsed << " s, "
+                  << (elapsed / static_cast<double>(count) * 1e6) << " us/digit\n";
+        if (mapped.text != text)
+            std::cerr << "unexpected technical admission edit\n";
     }
 }
 
@@ -94,6 +119,7 @@ int main() {
     std::cout << iterations << " iterations, " << elapsed << " s, " << (elapsed / iterations * 1e6)
               << " us/request\n";
     benchmark_numeric_scaling();
+    benchmark_technical_contiguous_numeric_scaling();
     benchmark_mixed_candidate_scaling();
     benchmark_technical_heavy_scaling();
 }
