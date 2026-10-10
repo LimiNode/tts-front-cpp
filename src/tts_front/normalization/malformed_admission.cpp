@@ -258,6 +258,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 }
                 if (value == ')' && parenthesized_prefix)
                     break;
+                if (value == '[' || value == ']')
+                    break;
                 if (text::is_numeric_connector(value)) {
                     if (grouped_seen && (value == '.' || value == ',' || value == ':'))
                         malformed_compound = true;

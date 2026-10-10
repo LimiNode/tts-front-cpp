@@ -28,7 +28,7 @@ int main() {
     CHECK(frontend.process("1:01 2:02 5:05", ru).normalized_text ==
           "один час одна минута два часа две минуты пять часов пять минут");
     CHECK(frontend.process("1 руб. 2 руб. 5 руб.", ru).normalized_text ==
-          "один рубль два рубля пять рублей");
+          "один рубль два рубля пять рублей.");
     CHECK(frontend.process("7,5 12 500 -42", ru).normalized_text ==
           "семь целых пять десятых двенадцать тысяч пятьсот минус сорок два");
     CHECK(frontend.process("В 2026 г.", ru).normalized_text == "В две тысячи двадцать шестом году");
@@ -776,7 +776,7 @@ int main() {
         const auto negative_zero = frontend.process("У меня -0 kg", segmented);
         CHECK(negative_zero.normalized_text == "У меня minus zero kilograms");
         const auto negative_zero_decimal = frontend.process("У меня -0.0 kg", segmented);
-        CHECK(negative_zero_decimal.normalized_text == "У меня minus zero point zero kg");
+        CHECK(negative_zero_decimal.normalized_text == "У меня minus zero point zero kilograms");
     }
     {
         TextFrontendOptions segmented;
@@ -848,7 +848,8 @@ int main() {
         segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
         const auto result =
             frontend.process("Видеокарта RTX 4090 работает на 1.5 GB RAM.", segmented);
-        CHECK(result.normalized_text == "Видеокарта RTX 4090 работает на one point five GB RAM.");
+        CHECK(result.normalized_text ==
+              "Видеокарта RTX 4090 работает на one point five gigabytes RAM.");
         CHECK(!result.warnings.empty());
         CHECK(result.warnings.front().code == WarningCode::AmbiguousNormalization);
     }
@@ -893,7 +894,7 @@ int main() {
           "тысячных");
     CHECK(frontend.process("1,1234", ru).normalized_text == "1,1234");
     CHECK(frontend.process("7,5%", ru).normalized_text == "семь целых пять десятых процента");
-    CHECK(frontend.process("1,2 руб.", ru).normalized_text == "одна целая две десятых рубля");
+    CHECK(frontend.process("1,2 руб.", ru).normalized_text == "одна целая две десятых рубля.");
     CHECK(frontend.process("1,2% -3,4%", ru).normalized_text ==
           "одна целая две десятых процента минус три целых четыре десятых процента");
     {

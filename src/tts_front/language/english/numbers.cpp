@@ -34,6 +34,12 @@ std::string number_for_token(std::string_view token, long long value) {
     return number(value);
 }
 
+std::string year(long long value) {
+    if (value >= 1000 && value < 2000)
+        return number(value / 100) + " " + (value % 100 ? number(value % 100) : "hundred");
+    return number(value);
+}
+
 const char* ordinal_suffix(long long value) {
     const auto last_two = value % 100;
     if (last_two >= 11 && last_two <= 13)

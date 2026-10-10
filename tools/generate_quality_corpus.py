@@ -272,7 +272,7 @@ mixed_cases = [
     ("ru", "У меня 2 GPU и 3 ядра. Использую OpenAI API.",
      "У меня два GPU и три ядра. Использую OpenAI API."),
     ("ru", "Видеокарта RTX 4090 работает на 1.5 GB RAM.",
-     "Видеокарта RTX 4090 работает на one point five GB RAM."),
+     "Видеокарта RTX 4090 работает на one point five gigabytes RAM."),
     ("ru", "HTTP/2 вернул 2 ошибки.", "HTTP/2 вернул две ошибки."),
     ("ru", "Сборка 7 использует C++17.", "Сборка семь использует C++17."),
     ("ru", "Напишите dev42@example.com после 3 попыток.",
@@ -286,13 +286,13 @@ mixed_cases = [
     ("en", "The OpenAI API accepted 42 requests.",
      "The OpenAI API accepted forty two requests."),
     ("ru", "Устройство CUDA 13.3 потребляет 2 GB памяти.",
-     "Устройство CUDA 13.3 потребляет two GB памяти."),
+     "Устройство CUDA 13.3 потребляет two gigabytes памяти."),
     ("ru", "На сервере HTTP/2 работает 4 процесса.",
      "На сервере HTTP/2 работает четыре процесса."),
     ("ru", "OpenAI API обработал 12 запросов.",
      "OpenAI API обработал двенадцать запросов."),
     ("ru", "Порог 0.5% задан для RTX-4090.",
-     "Порог ноль point пять процентов задан для RTX-4090."),
+     "Порог 0.5% задан для RTX-4090."),
     ("ru", "Версия V2.1.0—123 отмечена номером 7.",
      "Версия V2.1.0—123 отмечена номером семь."),
     ("en", "Use 3 кг порошка with OpenAI API.",
@@ -306,7 +306,7 @@ mixed_cases = [
     ("en", "Version V2.1.0—123 is tagged 7.",
      "Version V2.1.0—123 is tagged seven."),
     ("ru", "У меня -0 kg", "У меня minus zero kilograms"),
-    ("ru", "У меня -0.0 kg", "У меня minus zero point zero kg"),
+    ("ru", "У меня -0.0 kg", "У меня minus zero point zero kilograms"),
 ]
 for index, (language, source, expected) in enumerate(mixed_cases):
     diagnostics = "none"
@@ -314,8 +314,9 @@ for index, (language, source, expected) in enumerate(mixed_cases):
         diagnostics = f"ambiguous_normalization@0:{len(source.encode('utf-8'))}"
     if index in {5, 15, 18} and language == "en":
         diagnostics = f"ambiguous_normalization@0:{len(source.encode('utf-8'))}"
+    expectation = "preserve" if index == 13 else "normalize"
     rows.append(row(f"{language}-mixed-{index}", language, "auto_segment", "mixed_language",
-                    "normalize", source, expected, diagnostics))
+                    expectation, source, expected, diagnostics))
 
 preserved = [
     ("en", "Deploy C++17 to RTX-4090 at https://example.com/v2.1.0.", "none"),
@@ -402,7 +403,7 @@ natural_cases = [
     ("ru-natural-04", "ru", "measurement", "normalize", "Расстояние составляет 12,5 км.",
      "Расстояние составляет двенадцать целых пять десятых километра.", "none"),
     ("ru-natural-05", "ru", "measurement", "normalize", "В резерве осталось 1,5 ГБ.",
-     "В резерве осталось одна целая пять десятых ГБ.", "none"),
+     "В резерве осталось одна целая пять десятых гигабайта.", "none"),
     ("ru-natural-06", "ru", "percent", "normalize", "Доля ошибок — 0,5%.",
      "Доля ошибок — ноль целых пять десятых процента.", "none"),
     ("ru-natural-07", "ru", "date", "normalize", "Срок — 31.12.2025.",

@@ -1,7 +1,7 @@
 {"input":"У меня 42 яблока.","language":"ru","expected":"У меня сорок два яблока.","category":"ru_integer","source":"local-rule"}
 {"input":"1% 2% 5% 11% 21%","language":"ru","expected":"один процент два процента пять процентов одиннадцать процентов двадцать один процент","category":"ru_percent","source":"local-rule"}
 {"input":"1:01 2:02 5:05","language":"ru","expected":"один час одна минута два часа две минуты пять часов пять минут","category":"ru_time","source":"local-rule"}
-{"input":"1 руб. 2 руб. 5 руб.","language":"ru","expected":"один рубль два рубля пять рублей","category":"ru_currency","source":"local-rule"}
+{"input":"1 руб. 2 руб. 5 руб.","language":"ru","expected":"один рубль два рубля пять рублей.","category":"ru_currency","source":"local-rule"}
 {"input":"7,5","language":"ru","expected":"семь целых пять десятых","category":"ru_decimal","source":"local-rule"}
 {"input":"12 500 -42","language":"ru","expected":"двенадцать тысяч пятьсот минус сорок два","category":"ru_grouped_negative","source":"local-rule"}
 {"input":"В 2026 г.","language":"ru","expected":"В две тысячи двадцать шестом году","category":"ru_year","source":"local-rule"}

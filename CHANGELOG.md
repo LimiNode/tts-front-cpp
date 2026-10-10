@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.2
+
+- Improved English spoken dates and year rendering (`January second`, ordinal days,
+  and conversational years).
+- Added Russian contextual agreement for counts and genitive decimal contexts,
+  and expanded unit formatting for decimal measurements.
+- Preserved terminal punctuation and normalized bracketed numeric values without
+  unnecessary warnings.
+- Clarified mixed-language dominant-language detection and recorded the reviewed
+  373-case EN/RU quality baseline (`338/35/0/0`) in an immutable archive.
+
 ## 0.2.1
 
 - Исправлены fail-closed границы signed и scientific numeric candidates, включая Unicode-знаки, continuation и embedded cases.

@@ -175,6 +175,10 @@ int main(int argc, char** argv) {
     }
     std::set<std::string> corpus_ids;
     std::map<std::string, std::size_t> actual_outcomes;
+    actual_outcomes["correct_transformation"] = 0;
+    actual_outcomes["justified_preservation"] = 0;
+    actual_outcomes["unnecessary_refusal"] = 0;
+    actual_outcomes["incorrect_or_partial"] = 0;
     std::set<std::string> actual_mismatches;
     std::map<std::string, std::pair<std::string, std::string>> actual_mismatch_outputs;
     std::set<std::string> actual_diagnostic_exceptions;

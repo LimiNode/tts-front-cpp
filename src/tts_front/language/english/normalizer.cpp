@@ -33,6 +33,20 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
         std::move(text), warnings, protected_spans, admission_rules());
     text = collapse_comma_grouped_numbers(text);
     text = collapse_grouped_numbers(std::move(text));
+    text = replace_numeric_matches(
+        text, english::patterns().date, [&](const std::smatch& match, const MappedText& source) {
+            long long day = 0, year_value = 0;
+            if (!try_parse_long(match[2].str(), day) ||
+                !try_parse_long(match[3].str(), year_value) || day < 1 || day > 31) {
+                add_warning(warnings,
+                            WarningCode::UnresolvedNumber,
+                            "Unable to parse English calendar date",
+                            source,
+                            match);
+                return match.str();
+            }
+            return match[1].str() + " " + ordinal(day) + ", " + year(year_value);
+        });
     text =
         replace_numeric_matches(text,
                                 english::patterns().currency_decimal,
@@ -120,6 +134,44 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
             return number(h) + (h == 1 ? " hour " : " hours ") + number(m) +
                    (m == 1 ? " minute" : " minutes");
         });
+    text = replace_matches(text,
+                           english::patterns().measurement,
+                           [&](const std::smatch& match, const MappedText& source) {
+                               long long n = 0;
+                               if (!try_parse_long(match[1].str(), n)) {
+                                   add_warning_without_suffix(warnings,
+                                                              WarningCode::UnresolvedNumber,
+                                                              "Unable to parse English measurement",
+                                                              source,
+                                                              match,
+                                                              4);
+                                   return match.str();
+                               }
+                               const auto fraction = match[2].str();
+                               const auto unit = match[3].str();
+                               const bool singular = n == 1 || n == -1;
+                               const auto unit_name = [&](bool singular_form) {
+                                   return unit == "kg" || unit.find("kilogram") == 0
+                                              ? (singular_form ? "kilogram" : "kilograms")
+                                          : unit == "km" || unit.find("kilomet") == 0
+                                              ? (singular_form ? "kilometer" : "kilometers")
+                                          : unit == "m" || unit == "meter" || unit == "meters" ||
+                                                  unit == "metres"
+                                              ? (singular_form ? "meter" : "meters")
+                                          : unit == "cm" || unit.find("centimet") == 0
+                                              ? (singular_form ? "centimeter" : "centimeters")
+                                          : unit == "mm" || unit.find("millimet") == 0
+                                              ? (singular_form ? "millimeter" : "millimeters")
+                                          : unit == "MB"
+                                              ? (singular_form ? "megabyte" : "megabytes")
+                                              : (singular_form ? "gigabyte" : "gigabytes");
+                               };
+                               const auto spoken_unit = unit_name(fraction.empty() && singular);
+                               auto spoken = number_for_token(match[1].str(), n);
+                               if (!fraction.empty())
+                                   spoken += " point " + digits(fraction);
+                               return spoken + " " + spoken_unit + match[4].str();
+                           });
     text = replace_numeric_matches(
         text, english::patterns().decimal, [&](const std::smatch& match, const MappedText& source) {
             const auto value = match[2].str();
@@ -136,36 +188,6 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
             }
             return match[1].str() + number_for_token(value.substr(0, dot), integer) + " point " +
                    digits(value.substr(dot + 1));
-        });
-    text = replace_matches(
-        text,
-        english::patterns().measurement,
-        [&](const std::smatch& match, const MappedText& source) {
-            long long n = 0;
-            if (!try_parse_long(match[1].str(), n)) {
-                add_warning_without_suffix(warnings,
-                                           WarningCode::UnresolvedNumber,
-                                           "Unable to parse English measurement",
-                                           source,
-                                           match,
-                                           3);
-                return match.str();
-            }
-            const auto unit = match[2].str();
-            const bool singular = n == 1 || n == -1;
-            const std::string spoken =
-                unit == "kg" || unit.find("kilogram") == 0 ? (singular ? "kilogram" : "kilograms")
-                : unit == "km" || unit.find("kilomet") == 0
-                    ? (singular ? "kilometer" : "kilometers")
-                : unit == "m" || unit == "meter" || unit == "meters" || unit == "metres"
-                    ? (singular ? "meter" : "meters")
-                : unit == "cm" || unit.find("centimet") == 0
-                    ? (singular ? "centimeter" : "centimeters")
-                : unit == "mm" || unit.find("millimet") == 0
-                    ? (singular ? "millimeter" : "millimeters")
-                : unit == "MB" ? (singular ? "megabyte" : "megabytes")
-                               : (singular ? "gigabyte" : "gigabytes");
-            return number_for_token(match[1].str(), n) + " " + spoken + match[3].str();
         });
     text = replace_numeric_matches(
         text,

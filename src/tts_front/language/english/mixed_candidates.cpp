@@ -68,21 +68,17 @@ std::optional<std::string> format(std::string_view candidate) {
     std::string spoken = number_for_token(number_text, integer);
     if (!fraction.empty())
         spoken += " point " + digits(fraction);
-    if (fraction.empty()) {
-        const bool singular = integer == 1 || integer == -1;
-        const auto unit_name =
-            unit == "kg" || unit.find("kilogram") == 0  ? (singular ? "kilogram" : "kilograms")
-            : unit == "km" || unit.find("kilomet") == 0 ? (singular ? "kilometer" : "kilometers")
-            : unit == "m" || unit == "meter" || unit == "meters" || unit == "metres"
-                ? (singular ? "meter" : "meters")
-            : unit == "cm" || unit.find("centimet") == 0 ? (singular ? "centimeter" : "centimeters")
-            : unit == "mm" || unit.find("millimet") == 0 ? (singular ? "millimeter" : "millimeters")
-            : unit == "MB"                               ? (singular ? "megabyte" : "megabytes")
-                                                         : (singular ? "gigabyte" : "gigabytes");
-        spoken += std::string(" ") + unit_name;
-    } else {
-        spoken += " " + unit;
-    }
+    const bool singular = fraction.empty() && (integer == 1 || integer == -1);
+    const auto unit_name =
+        unit == "kg" || unit.find("kilogram") == 0  ? (singular ? "kilogram" : "kilograms")
+        : unit == "km" || unit.find("kilomet") == 0 ? (singular ? "kilometer" : "kilometers")
+        : unit == "m" || unit == "meter" || unit == "meters" || unit == "metres"
+            ? (singular ? "meter" : "meters")
+        : unit == "cm" || unit.find("centimet") == 0 ? (singular ? "centimeter" : "centimeters")
+        : unit == "mm" || unit.find("millimet") == 0 ? (singular ? "millimeter" : "millimeters")
+        : unit == "MB"                               ? (singular ? "megabyte" : "megabytes")
+                                                     : (singular ? "gigabyte" : "gigabytes");
+    spoken += std::string(" ") + unit_name;
     return spoken;
 }
 
