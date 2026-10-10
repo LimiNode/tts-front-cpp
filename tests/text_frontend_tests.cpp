@@ -303,6 +303,15 @@ int main() {
     CHECK(frontend.process(decomposed_word, en).normalized_text == decomposed_word);
     CHECK(frontend.process("x$12 RTX-4090 C++17 V2.1.0 #123", en).normalized_text ==
           "x$12 RTX-4090 C++17 V2.1.0 #123");
+    for (const auto& technical_text : {std::string("https://example.com/1e3"),
+                                       std::string("https://example.com/1e3?x=2"),
+                                       std::string("user1e3@example.com"),
+                                       std::string("RTX-1e3"),
+                                       std::string("C++1e3")}) {
+        const auto technical_result = frontend.process(technical_text, en);
+        CHECK(technical_result.normalized_text == technical_text);
+        CHECK(technical_result.warnings.empty());
+    }
     const auto check_technical_numeric_tail = [&](const std::string& input, std::size_t offset) {
         for (const auto& options : {en, ru}) {
             const auto result = frontend.process(input, options);
