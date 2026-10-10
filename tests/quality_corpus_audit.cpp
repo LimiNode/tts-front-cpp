@@ -398,9 +398,10 @@ int main() {
             snapshot.diagnostic_exceptions.find(item.id) != snapshot.diagnostic_exceptions.end() &&
             snapshot.diagnostic_exceptions.at(item.id) == actual_diagnostics)
             actual_diagnostic_exception_ids.insert(item.id);
-        else if (actual_diagnostics != item.diagnostics)
+        else if (actual_diagnostics != item.diagnostics) {
             unexpected_diagnostics.push_back(item.id + " expected " + item.diagnostics +
                                              " actual " + actual_diagnostics);
+        }
         const auto outcome = classify(item, result.normalized_text);
         ++outcomes[outcome];
         ++by_language[item.language][outcome];

@@ -50,10 +50,11 @@ std::optional<std::string> format(std::string_view candidate) {
                 return std::nullopt;
             if (fraction.size() == 1)
                 cents *= 10;
-            return number(integer) + (integer == 1 ? " dollar " : " dollars ") + number(cents) +
+            return number_for_token(match[1].str(), integer) +
+                   (integer == 1 ? " dollar " : " dollars ") + number(cents) +
                    (cents == 1 ? " cent" : " cents");
         }
-        return number(integer) + (integer == 1 ? " dollar" : " dollars");
+        return number_for_token(match[1].str(), integer) + (integer == 1 ? " dollar" : " dollars");
     }
     if (!std::regex_match(value, match, measurement_pattern()))
         return std::nullopt;
@@ -64,7 +65,7 @@ std::optional<std::string> format(std::string_view candidate) {
     if (!try_parse_long(dot == std::string::npos ? number_text : number_text.substr(0, dot),
                         integer))
         return std::nullopt;
-    std::string spoken = number(integer);
+    std::string spoken = number_for_token(number_text, integer);
     if (!fraction.empty())
         spoken += " point " + digits(fraction);
     if (fraction.empty()) {

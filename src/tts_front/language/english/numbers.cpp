@@ -28,6 +28,12 @@ std::string number(long long value) {
     return std::to_string(value);
 }
 
+std::string number_for_token(std::string_view token, long long value) {
+    if (value == 0 && !token.empty() && token.front() == '-')
+        return "minus zero";
+    return number(value);
+}
+
 const char* ordinal_suffix(long long value) {
     const auto last_two = value % 100;
     if (last_two >= 11 && last_two <= 13)

@@ -1,6 +1,9 @@
 #pragma once
 
 #include "tts_front/core/source_span.hpp"
+#include "tts_front/core/utf8_document.hpp"
+
+#include <vector>
 
 namespace tts_front::detail {
 
@@ -13,5 +16,36 @@ struct NumericCandidate {
     bool embedded = false;
     bool has_percent = false;
 };
+
+enum class NumericSign { None, Plus, Minus, UnicodeMinus };
+enum class ExponentState { None, Complete, Incomplete, InvalidContinuation };
+
+struct NumericSurface {
+    std::size_t digits_begin = 0;
+    std::size_t digits_end = 0;
+    std::size_t end = 0;
+    std::size_t continuation_end = 0;
+    NumericSign sign = NumericSign::None;
+    ExponentState exponent = ExponentState::None;
+
+    bool valid() const {
+        return digits_end > digits_begin;
+    }
+};
+
+struct NumericSurfaceRange {
+    std::size_t surface_begin = 0;
+    std::size_t continuation_begin = 0;
+    std::size_t end = 0;
+};
+
+struct NumericSurfaceIndex {
+    std::vector<NumericSurfaceRange> ranges;
+
+    bool contains(std::size_t point) const;
+    bool overlaps(std::size_t begin, std::size_t end) const;
+};
+
+NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t begin);
 
 } // namespace tts_front::detail

@@ -233,14 +233,6 @@ ru-decimal-10-0	ru	explicit	decimal	normalize	Измеренное значен�
 ru-decimal-10-1	ru	explicit	decimal	normalize	Результат измерения — -0,01.	Результат измерения — минус ноль целых одна сотая.	none
 ru-decimal-11-0	ru	explicit	decimal	normalize	Измеренное значение: 99,9.	Измеренное значение: девяносто девять целых девять десятых.	none
 ru-decimal-11-1	ru	explicit	decimal	normalize	Результат измерения — 99,9.	Результат измерения — девяносто девять целых девять десятых.	none
-en-decimal-12-0	en	explicit	decimal	normalize	The measured value is -0.	The measured value is minus zero.	none
-en-decimal-12-1	en	explicit	decimal	normalize	Measured value: -0.	Measured value: minus zero.	none
-en-decimal-13-0	en	explicit	decimal	normalize	The measured value is -0.0.	The measured value is minus zero point zero.	none
-en-decimal-13-1	en	explicit	decimal	normalize	Measured value: -0.0.	Measured value: minus zero point zero.	none
-ru-decimal-14-0	ru	explicit	decimal	normalize	Измеренное значение: -0.	Измеренное значение: минус ноль.	none
-ru-decimal-14-1	ru	explicit	decimal	normalize	Результат измерения — -0.	Результат измерения — минус ноль.	none
-ru-decimal-15-0	ru	explicit	decimal	normalize	Измеренное значение: -0,00.	Измеренное значение: минус ноль целых ноль сотых.	none
-ru-decimal-15-1	ru	explicit	decimal	normalize	Результат измерения — -0,00.	Результат измерения — минус ноль целых ноль сотых.	none
 en-punct-0-0	en	explicit	punctuation	normalize	The values are 1, 2, and 3.	The values are one, two, and three.	none
 en-punct-0-1	en	explicit	punctuation	normalize	The values are 1, 2, and 3. Check complete.	The values are one, two, and three. Check complete.	none
 en-punct-0-2	en	explicit	punctuation	normalize	The values are 1, 2, and 3. The value was confirmed.	The values are one, two, and three. The value was confirmed.	none
@@ -319,8 +311,6 @@ en-mixed-16	en	auto_segment	mixed_language	normalize	The GPU RTX 4090 needs 8 GB
 en-mixed-17	en	auto_segment	mixed_language	normalize	Build 12 on HTTP/2 passed validation.	Build twelve on HTTP/2 passed validation.	none
 en-mixed-18	en	auto_segment	mixed_language	normalize	Deploy 5 replicas в the cluster.	Deploy five replicas в the cluster.	ambiguous_normalization@0:33
 en-mixed-19	en	auto_segment	mixed_language	normalize	Version V2.1.0—123 is tagged 7.	Version V2.1.0—123 is tagged seven.	none
-ru-mixed-20	ru	auto_segment	mixed_language	normalize	У меня -0 kg	У меня minus zero kilograms	ambiguous_normalization@0:17
-ru-mixed-21	ru	auto_segment	mixed_language	normalize	У меня -0.0 kg	У меня minus zero point zero kg	ambiguous_normalization@0:19
 en-preserve-0	en	explicit	ambiguous_or_technical	preserve	Deploy C++17 to RTX-4090 at https://example.com/v2.1.0.	Deploy C++17 to RTX-4090 at https://example.com/v2.1.0.	none
 en-preserve-1	en	explicit	ambiguous_or_technical	preserve	The endpoint HTTP/2 returned code #123.	The endpoint HTTP/2 returned code #123.	none
 en-preserve-2	en	explicit	ambiguous_or_technical	preserve	Keep malformed value 1.2..3 unchanged.	Keep malformed value 1.2..3 unchanged.	unresolved_number@21:6
@@ -361,14 +351,3 @@ ru-natural-08	ru	explicit	currency	preserve	Оплата в евро: €7.	Оп
 ru-natural-09	ru	explicit	integer	normalize	Проверено 3 из 5 узлов.	Проверено три из пяти узлов.	none
 ru-natural-10	ru	explicit	integer	normalize	В 2026 году запланировано 12 релизов.	В две тысячи двадцать шесть году запланировано двенадцать релизов.	none
 ru-natural-11	ru	explicit	integer	normalize	Значение равно [42].	Значение равно [сорок два].	none
-en-negative-time-00	en	explicit	time	preserve	-0:00	-0:00	unresolved_number@0:5
-en-negative-time-01	en	explicit	time	preserve	-1:02	-1:02	unresolved_number@0:5
-ru-negative-time-00	ru	explicit	time	preserve	-0:00	-0:00	unresolved_number@0:5
-ru-negative-time-01	ru	explicit	time	preserve	-1:02	-1:02	unresolved_number@0:5
-en-negative-ordinal-00	en	explicit	date	preserve	-0th	-0th	unresolved_number@0:4
-en-positive-sign-00	en	explicit	measurement	preserve	+1.2 kg	+1.2 kg	unresolved_number@0:7
-en-positive-sign-01	en	explicit	percent	preserve	+1.2%	+1.2%	unresolved_number@0:5
-en-unicode-minus-time-00	en	explicit	time	preserve	−1:02	−1:02	unresolved_number@0:7
-ru-positive-sign-00	ru	explicit	measurement	preserve	+1.2 kg	+1.2 kg	unresolved_number@0:7
-ru-positive-sign-01	ru	explicit	percent	preserve	+1,2%	+1,2%	unresolved_number@0:5
-ru-unicode-minus-time-00	ru	explicit	time	preserve	−1:02	−1:02	unresolved_number@0:7

@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <vector>
 
 using namespace tts_front;
 #define CHECK(condition)                                                                           \
@@ -48,7 +49,13 @@ int main() {
           "одна целая одна десятая две целых две десятых пять целых одна десятая");
     TextFrontendOptions en;
     en.language = Language::English;
+    TextFrontendOptions auto_options = en;
+    auto_options.language = Language::Auto;
     CHECK(frontend.process("7.5%", en).normalized_text == "seven point five percent");
+    CHECK(frontend.process("-0 -0.0 -0%", en).normalized_text ==
+          "minus zero minus zero point zero minus zero percent");
+    CHECK(frontend.process("-0 -0,00 -0%", ru).normalized_text ==
+          "минус ноль минус ноль целых ноль сотых минус ноль процентов");
     {
         const std::string unsupported_numeric[] = {"1%word",
                                                    "1%2",
@@ -296,6 +303,15 @@ int main() {
     CHECK(frontend.process(decomposed_word, en).normalized_text == decomposed_word);
     CHECK(frontend.process("x$12 RTX-4090 C++17 V2.1.0 #123", en).normalized_text ==
           "x$12 RTX-4090 C++17 V2.1.0 #123");
+    for (const auto& technical_text : {std::string("https://example.com/1e3"),
+                                       std::string("https://example.com/1e3?x=2"),
+                                       std::string("user1e3@example.com"),
+                                       std::string("RTX-1e3"),
+                                       std::string("C++1e3")}) {
+        const auto technical_result = frontend.process(technical_text, en);
+        CHECK(technical_result.normalized_text == technical_text);
+        CHECK(technical_result.warnings.empty());
+    }
     const auto check_technical_numeric_tail = [&](const std::string& input, std::size_t offset) {
         for (const auto& options : {en, ru}) {
             const auto result = frontend.process(input, options);
@@ -715,7 +731,11 @@ int main() {
                                          "Привет −2 kg",
                                          "Привет 1234567890 kg",
                                          "Привет -$1",
-                                         "Привет +$1"};
+                                         "Привет +$1",
+                                         "Привет +1.2 kg",
+                                         "Привет +1*2",
+                                         "Привет +$1,234.56",
+                                         "Привет −1:02"};
         for (const auto& input : malformed) {
             const auto result = frontend.process(input, segmented);
             CHECK(result.normalized_text == input);
@@ -743,8 +763,20 @@ int main() {
                 expected_begin = sign;
             if (const auto sign = input.find("+$1"); sign != std::string::npos)
                 expected_begin = sign;
+            if (const auto sign = input.find("+1.2"); sign != std::string::npos)
+                expected_begin = sign;
+            if (const auto sign = input.find("+1*2"); sign != std::string::npos)
+                expected_begin = sign;
+            if (const auto sign = input.find("+$1"); sign != std::string::npos)
+                expected_begin = sign;
+            if (const auto sign = input.find("−1"); sign != std::string::npos)
+                expected_begin = sign;
             CHECK(warning->offset == expected_begin);
         }
+        const auto negative_zero = frontend.process("У меня -0 kg", segmented);
+        CHECK(negative_zero.normalized_text == "У меня minus zero kilograms");
+        const auto negative_zero_decimal = frontend.process("У меня -0.0 kg", segmented);
+        CHECK(negative_zero_decimal.normalized_text == "У меня minus zero point zero kg");
     }
     {
         TextFrontendOptions segmented;
@@ -982,6 +1014,115 @@ int main() {
         CHECK(signed_ordinal.warnings.size() == 1);
         CHECK(signed_ordinal.warnings.front().offset == 0);
         CHECK(signed_ordinal.warnings.front().length == 4);
+    }
+    {
+        for (const auto& options : {en, ru, auto_options}) {
+            const auto signed_time = frontend.process("-1:02", options);
+            CHECK(signed_time.normalized_text == "-1:02");
+            CHECK(signed_time.warnings.size() == 1);
+            CHECK(signed_time.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(signed_time.warnings.front().offset == 0);
+            CHECK(signed_time.warnings.front().length == 5);
+
+            for (const auto& input :
+                 {std::string("+1.2%"),      std::string("+1.2 kg"),    std::string("+1:02"),
+                  std::string("+1,2%"),      std::string("+1*2"),       std::string("+1&2"),
+                  std::string("+1^2"),       std::string("+1–2"),       std::string("+1—2"),
+                  std::string("+1−2"),       std::string("+1=2"),       std::string("+1e+3"),
+                  std::string("+1#2"),       std::string("+$1,234.56"), std::string("-$1,234"),
+                  std::string("€-1,234"),    std::string("-€1,234.56"), std::string("-£1,234.56"),
+                  std::string("−€1,234.56"), std::string("−1:02")}) {
+                const auto signed_numeric = frontend.process(input, options);
+                CHECK(signed_numeric.normalized_text == input);
+                CHECK(signed_numeric.warnings.size() == 1);
+                CHECK(signed_numeric.warnings.front().code == WarningCode::UnresolvedNumber);
+                CHECK(signed_numeric.warnings.front().offset == 0);
+                CHECK(signed_numeric.warnings.front().length == input.size());
+            }
+            for (const auto& input :
+                 {std::string("−1 kg"),   std::string("−1.2 kg"),  std::string("−1,2 кг"),
+                  std::string("−1word"),  std::string("+1e"),      std::string("+1e+"),
+                  std::string("+1e+x"),   std::string("+1e++x"),   std::string("+1e--x"),
+                  std::string("+1e+%"),   std::string("+1e+3 kg"), std::string("+1e+3/4"),
+                  std::string("+1e+3#4"), std::string("+1e+3$4"),  std::string("−1e"),
+                  std::string("−1e+"),    std::string("−1e+x"),    std::string("−1e−x"),
+                  std::string("−1e+3#4"), std::string("−1e+3$4"),  std::string("-1e+3#4"),
+                  std::string("+1e34#4")}) {
+                const auto malformed_signed = frontend.process(input, options);
+                CHECK(malformed_signed.normalized_text == input);
+                CHECK(malformed_signed.warnings.size() == 1);
+                CHECK(malformed_signed.warnings.front().code == WarningCode::UnresolvedNumber);
+                CHECK(malformed_signed.warnings.front().offset == 0);
+                CHECK(malformed_signed.warnings.front().length == input.size());
+            }
+            for (const auto& input : {std::string("+1e–3"),
+                                      std::string("+1e—3"),
+                                      std::string("−1e–3"),
+                                      std::string("−1e—3")}) {
+                const auto malformed_dash = frontend.process(input, options);
+                CHECK(malformed_dash.normalized_text == input);
+                CHECK(malformed_dash.warnings.size() == 1);
+                CHECK(malformed_dash.warnings.front().code == WarningCode::UnresolvedNumber);
+                CHECK(malformed_dash.warnings.front().offset == 0);
+                CHECK(malformed_dash.warnings.front().length == input.size());
+            }
+            for (const auto& input : {std::string("+1e") + "\xE2\x80\x93" + "3#4",
+                                      std::string("+1e") + "\xE2\x80\x94" + "3$4",
+                                      std::string("\xE2\x88\x92"
+                                                  "1e") +
+                                          "\xE2\x80\x93" + "3#4",
+                                      std::string("\xE2\x88\x92"
+                                                  "1e") +
+                                          "\xE2\x80\x94" + "3$4"}) {
+                const auto malformed_dash_suffix = frontend.process(input, options);
+                CHECK(malformed_dash_suffix.normalized_text == input);
+                CHECK(malformed_dash_suffix.warnings.size() == 1);
+                CHECK(malformed_dash_suffix.warnings.front().code == WarningCode::UnresolvedNumber);
+                CHECK(malformed_dash_suffix.warnings.front().offset == 0);
+                CHECK(malformed_dash_suffix.warnings.front().length == input.size());
+            }
+            const std::vector<std::string> prefixes = {"", "abc"};
+            const std::vector<std::string> initial_signs = {"", "+", "-", "\xE2\x88\x92"};
+            const std::vector<std::string> exponent_connectors = {
+                "+", "-", "\xE2\x80\x93", "\xE2\x80\x94"};
+            const std::vector<std::string> exponent_lengths = {"3", "34", "3456"};
+            const std::vector<std::string> suffixes = {
+                "word", "#4", "$4", "%", "%word", "/word", " kg"};
+            for (const auto& prefix : prefixes) {
+                for (const auto& initial_sign : initial_signs) {
+                    for (const auto& exponent_connector : exponent_connectors) {
+                        for (const auto& exponent_digits : exponent_lengths) {
+                            for (const auto& suffix : suffixes) {
+                                const auto input = prefix + initial_sign + "1e" +
+                                                   exponent_connector + exponent_digits + suffix;
+                                const auto matrix_case = frontend.process(input, options);
+                                CHECK(matrix_case.normalized_text == input);
+                                CHECK(matrix_case.warnings.size() == 1);
+                                CHECK(matrix_case.warnings.front().code ==
+                                      WarningCode::UnresolvedNumber);
+                                CHECK(matrix_case.warnings.front().offset == prefix.size());
+                                CHECK(matrix_case.warnings.front().length ==
+                                      input.size() - prefix.size());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        const auto phone = frontend.process("+7 999 123 45 67", en);
+        CHECK(phone.normalized_text == "+7 999 123 45 67");
+        CHECK(phone.warnings.size() == 1);
+        CHECK(phone.warnings.front().offset == 0);
+        CHECK(phone.warnings.front().length == phone.original_text.size());
+        const auto negative_zero_time = frontend.process("-0:00", en);
+        CHECK(negative_zero_time.normalized_text == "-0:00");
+        CHECK(negative_zero_time.warnings.size() == 1);
+        CHECK(negative_zero_time.warnings.front().length == 5);
+        const auto negative_zero_ordinal = frontend.process("-0th", en);
+        CHECK(negative_zero_ordinal.normalized_text == "-0th");
+        CHECK(negative_zero_ordinal.warnings.size() == 1);
+        CHECK(negative_zero_ordinal.warnings.front().offset == 0);
+        CHECK(negative_zero_ordinal.warnings.front().length == 4);
     }
     {
         const std::string oversized_ordinal = "999999999999999999999th";

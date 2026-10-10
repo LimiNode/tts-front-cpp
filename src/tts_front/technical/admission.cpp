@@ -35,6 +35,8 @@ MappedText protect(MappedText text, std::vector<ProtectedSpan>& protected_spans)
                                                                  &patterns.technical_cpp,
                                                                  &patterns.technical_csharp};
     for (const auto* pattern : technical_patterns) {
+        const Utf8Document document(text.text);
+        const auto scientific_index = build_numeric_surface_index(document);
         MappedText output;
         output.preserved_ranges = text.preserved_ranges;
         std::size_t cursor = 0;
@@ -43,6 +45,30 @@ MappedText protect(MappedText text, std::vector<ProtectedSpan>& protected_spans)
              ++it) {
             const auto begin = static_cast<std::size_t>(it->position());
             const auto finish = begin + static_cast<std::size_t>(it->length());
+            const auto match_point = codepoint_index_at_or_after(document, begin);
+            const auto match_end_point = codepoint_index_at_or_after(document, finish);
+            const auto& value = it->str();
+            const bool known_technical_prefix =
+                value.rfind("RTX", 0) == 0 || value.rfind("CUDA", 0) == 0 ||
+                value.rfind("GPU", 0) == 0 || value.rfind("API", 0) == 0 ||
+                value.rfind("C++", 0) == 0;
+            const bool generic_identifier = pattern == &patterns.technical_identifier;
+            if (generic_identifier && !known_technical_prefix &&
+                scientific_index.overlaps(match_point, match_end_point))
+                continue;
+            const bool scientific_suffix = match_point < document.points.size() && !value.empty() &&
+                                           (value.front() == '#' || value.front() == '$') &&
+                                           scientific_index.contains(match_point);
+            if (scientific_suffix)
+                continue;
+            // Do not shield an incomplete scientific suffix (`e+x`) that is
+            // attached to a numeric candidate.  The language admission pass
+            // must see the complete `+1e+x` expression and preserve it
+            // atomically instead of leaving only `+1` visible.
+            if (pattern == &patterns.technical_identifier && begin > 0 &&
+                (text.text[begin - 1] >= '0' && text.text[begin - 1] <= '9') &&
+                !it->str().empty() && (it->str().front() == 'e' || it->str().front() == 'E'))
+                continue;
             output.append_copy_with_cursor(text, cursor, begin, run_cursor);
             const auto marker = marker_for(text.text, protected_spans.size());
             protected_spans.push_back({marker, it->str()});
@@ -148,6 +174,7 @@ MappedText protect_numeric_candidates(MappedText text,
         std::vector<SourceEdit> edits;
         std::size_t cursor = 0;
         const Utf8Document document(text.text);
+        const auto scientific_index = build_numeric_surface_index(document);
         for (std::sregex_iterator it(text.text.begin(),
                                      text.text.end(),
                                      technical::patterns().technical_numeric_percent),
@@ -159,6 +186,13 @@ MappedText protect_numeric_candidates(MappedText text,
                 continue;
             const auto base_finish = begin + static_cast<std::size_t>(it->length());
             const auto base = it->str(1);
+            const auto base_point = codepoint_index_at_or_after(document, begin);
+            const auto base_end_point = codepoint_index_at_or_after(document, base_finish);
+            if (scientific_index.overlaps(base_point, base_end_point))
+                continue;
+            if (begin > 0 && !base.empty() && (base.front() == 'e' || base.front() == 'E') &&
+                text::is_digit(static_cast<unsigned char>(text.text[begin - 1])))
+                continue;
             const auto is_ascii_digit = [](char value) { return value >= '0' && value <= '9'; };
             const auto unicode_connector_length = [&](std::size_t offset) {
                 if (offset + 2 >= text.text.size())
@@ -249,6 +283,16 @@ MappedText protect_numeric_candidates(MappedText text,
                 if (const auto sign = base.find_first_of("+-"); sign != std::string::npos)
                     protected_begin = begin + sign;
             }
+            // Technical regexes can begin immediately after a leading sign
+            // (for example the `1e+3` suffix in `+1e+3`).  Extend the source
+            // span over that sign so admission remains atomic and warning
+            // offsets never expose a partial candidate.
+            const auto protected_point = codepoint_index_at_or_after(document, protected_begin);
+            if (protected_point > 0) {
+                const auto previous = document.points[protected_point - 1].value;
+                if (previous == '+' || previous == '-' || previous == 0x2212)
+                    protected_begin = document.points[protected_point - 1].offset;
+            }
             NumericCandidate candidate{document.span_from_bytes(protected_begin, finish),
                                        NumericCandidateKind::Technical};
             add_protected_candidate(text, candidate, warnings, protected_spans, edits);
@@ -261,16 +305,30 @@ MappedText protect_numeric_candidates(MappedText text,
     if (!document.valid)
         return text;
     const auto& points = document.points;
+    const auto scientific_index = build_numeric_surface_index(document);
 
     std::vector<SourceEdit> edits;
     for (std::size_t index = 0; index < points.size();) {
         if (index > 0 && text::is_digit(points[index].value) &&
             (points[index - 1].value == 0x20ac || points[index - 1].value == 0xa3 ||
              points[index - 1].value == 0xa5)) {
+            auto currency_begin = index - 1;
+            if (currency_begin > 0 && (points[currency_begin - 1].value == '+' ||
+                                       points[currency_begin - 1].value == '-' ||
+                                       points[currency_begin - 1].value == 0x2212))
+                --currency_begin;
             auto numeric_end = index + 1;
             while (numeric_end < points.size() && text::is_digit(points[numeric_end].value))
                 ++numeric_end;
-            NumericCandidate candidate{document.span_from_codepoints(index - 1, numeric_end),
+            while (numeric_end < points.size() &&
+                   (points[numeric_end].value == ',' || points[numeric_end].value == '.') &&
+                   numeric_end + 1 < points.size() &&
+                   text::is_digit(points[numeric_end + 1].value)) {
+                ++numeric_end;
+                while (numeric_end < points.size() && text::is_digit(points[numeric_end].value))
+                    ++numeric_end;
+            }
+            NumericCandidate candidate{document.span_from_codepoints(currency_begin, numeric_end),
                                        NumericCandidateKind::Currency};
             add_protected_candidate(text, candidate, warnings, protected_spans, edits);
             index = numeric_end;
@@ -278,6 +336,11 @@ MappedText protect_numeric_candidates(MappedText text,
         }
         if (points[index].value == '$' && index + 1 < points.size() &&
             text::is_digit(points[index + 1].value)) {
+            auto currency_begin = index;
+            if (currency_begin > 0 && (points[currency_begin - 1].value == '+' ||
+                                       points[currency_begin - 1].value == '-' ||
+                                       points[currency_begin - 1].value == 0x2212))
+                --currency_begin;
             auto numeric_end = index + 1;
             while (numeric_end < points.size() && text::is_digit(points[numeric_end].value))
                 ++numeric_end;
@@ -292,26 +355,34 @@ MappedText protect_numeric_candidates(MappedText text,
             if (numeric_end < points.size() && points[numeric_end].value == '%') {
                 const auto protected_end =
                     scan_numeric_continuation_points(document, numeric_end + 1, false);
-                NumericCandidate candidate{document.span_from_codepoints(index, protected_end),
-                                           NumericCandidateKind::Currency,
-                                           true,
-                                           false,
-                                           true};
+                NumericCandidate candidate{
+                    document.span_from_codepoints(currency_begin, protected_end),
+                    NumericCandidateKind::Currency,
+                    true,
+                    false,
+                    true};
                 add_protected_candidate(text, candidate, warnings, protected_spans, edits);
                 index = protected_end;
                 continue;
             }
         }
-        const bool starts_number = text::is_digit(points[index].value) ||
-                                   (points[index].value == '-' && index + 1 < points.size() &&
-                                    text::is_digit(points[index + 1].value));
-        if (!starts_number ||
+        const bool starts_number =
+            text::is_digit(points[index].value) ||
+            ((points[index].value == '-' || points[index].value == '+' ||
+              points[index].value == 0x2212) &&
+             index + 1 < points.size() && text::is_digit(points[index + 1].value));
+        const bool scientific_suffix_start = scientific_index.contains(index);
+        if (!starts_number || scientific_suffix_start ||
             (index > 0 && text::is_lexical_numeric_boundary(points[index - 1].value))) {
             ++index;
             continue;
         }
 
-        std::size_t end_index = index + (points[index].value == '-' ? 1 : 0);
+        std::size_t end_index =
+            index + ((points[index].value == '-' || points[index].value == '+' ||
+                      points[index].value == 0x2212)
+                         ? 1
+                         : 0);
         while (end_index < points.size() && text::is_digit(points[end_index].value))
             ++end_index;
         if (end_index < points.size() &&
@@ -326,19 +397,7 @@ MappedText protect_numeric_candidates(MappedText text,
         std::size_t suffix_end = end_index;
         bool encoded_suffix = false;
         if (end_index < points.size() &&
-            (points[end_index].value == 'e' || points[end_index].value == 'E')) {
-            auto probe = end_index + 1;
-            if (probe < points.size() && (points[probe].value == '+' || points[probe].value == '-'))
-                ++probe;
-            const auto exponent_begin = probe;
-            while (probe < points.size() && text::is_digit(points[probe].value))
-                ++probe;
-            if (probe != exponent_begin) {
-                suffix_end = probe;
-                encoded_suffix = true;
-            }
-        } else if (end_index < points.size() &&
-                   (points[end_index].value == '#' || points[end_index].value == '$')) {
+            (points[end_index].value == '#' || points[end_index].value == '$')) {
             auto probe = end_index + 1;
             const auto suffix_begin = probe;
             while (probe < points.size() &&

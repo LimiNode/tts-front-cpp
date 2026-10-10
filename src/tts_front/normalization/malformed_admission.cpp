@@ -71,11 +71,42 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                                            points[currency_context_probe - 1].value == 0x20ac ||
                                            points[currency_context_probe - 1].value == 0xa3 ||
                                            points[currency_context_probe - 1].value == 0xa5);
+        const auto surface = scan_numeric_surface(document, index);
+        const bool positive_numeric = [&] {
+            if (points[index].value != '+' || index + 1 >= points.size() ||
+                !text::is_digit(points[index + 1].value))
+                return false;
+            auto probe = index + 1;
+            while (probe < points.size() && text::is_digit(points[probe].value))
+                ++probe;
+            if (probe >= points.size())
+                return false;
+            const auto continuation = points[probe].value;
+            // An incomplete scientific marker is still a signed numeric
+            // candidate.  Admit it atomically so `+1e`, `+1e+` and
+            // `+1e+x` cannot fall through to a partial rewrite of `1`.
+            if (continuation == 'e' || continuation == 'E')
+                return true;
+            if (text::is_numeric_connector(continuation) && continuation != '-' &&
+                continuation != '/')
+                return true;
+            if (text::is_horizontal_space(points[probe].value)) {
+                while (probe < points.size() && text::is_horizontal_space(points[probe].value))
+                    ++probe;
+                // A second digit group is characteristic of a phone number;
+                // leave it to the dedicated phone scanner.  A lexical unit
+                // after the sign remains a malformed numeric candidate.
+                return probe < points.size() && text::is_letter(points[probe].value);
+            }
+            return false;
+        }();
         const bool starts_phone = points[index].value == '+' && index + 1 < points.size() &&
-                                  text::is_digit(points[index + 1].value) && !currency_context;
-        const bool starts_number = text::is_digit(points[index].value) ||
-                                   (points[index].value == '-' && index + 1 < points.size() &&
-                                    text::is_digit(points[index + 1].value));
+                                  text::is_digit(points[index + 1].value) && !currency_context &&
+                                  !positive_numeric;
+        const bool signed_number = points[index].value == '-' || points[index].value == 0x2212;
+        const bool starts_number =
+            text::is_digit(points[index].value) || positive_numeric ||
+            (signed_number && index + 1 < points.size() && text::is_digit(points[index + 1].value));
         if (!starts_number && !starts_phone) {
             ++index;
             continue;
@@ -92,6 +123,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
              (points[index - 1].value == '$' || points[index - 1].value == 0x20ac ||
               points[index - 1].value == 0xa3 || points[index - 1].value == 0xa5));
         std::size_t end_index = index + 1;
+        if (surface.exponent != ExponentState::None && surface.continuation_end > end_index)
+            end_index = surface.continuation_end;
         std::size_t separators = 0;
         bool has_percent = false;
         bool percent_attached_to_numeric = false;
@@ -100,12 +133,23 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         bool malformed_grouped = false;
         bool malformed_compound = false;
         bool grouped_seen = false;
-        auto initial_digit_index = index + (points[index].value == '-' ? 1 : 0);
+        if (surface.exponent != ExponentState::None)
+            malformed_compound = true;
+        auto initial_digit_index = index + (signed_number || positive_numeric ? 1 : 0);
         const auto initial_digit_begin = initial_digit_index;
         while (initial_digit_index < points.size() &&
                text::is_digit(points[initial_digit_index].value))
             ++initial_digit_index;
         const auto initial_digit_count = initial_digit_index - initial_digit_begin;
+        // A leading sign is not part of the supported clock-time grammar. Keep
+        // the complete signed expression atomic so the time normalizer cannot
+        // match the unsigned suffix after this admission pass.
+        const bool signed_time = signed_number && initial_digit_count > 0 &&
+                                 initial_digit_index + 1 < points.size() &&
+                                 points[initial_digit_index].value == ':' &&
+                                 text::is_digit(points[initial_digit_index + 1].value);
+        if (points[index].value == 0x2212)
+            malformed_compound = true;
         if (starts_phone) {
             while (end_index < points.size()) {
                 if (text::is_digit(points[end_index].value)) {
@@ -243,6 +287,70 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 break;
             }
         }
+        if ((positive_numeric || points[index].value == 0x2212) && end_index < points.size()) {
+            if (surface.exponent != ExponentState::None) {
+                malformed_compound = true;
+                end_index = std::max(end_index, surface.end);
+                if (surface.exponent == ExponentState::Complete) {
+                    end_index = scan_numeric_continuation_points(document, end_index, false);
+                    while (end_index < points.size()) {
+                        const auto value = points[end_index].value;
+                        if (text::is_horizontal_space(value)) {
+                            auto probe = end_index;
+                            while (probe < points.size() &&
+                                   text::is_horizontal_space(points[probe].value))
+                                ++probe;
+                            auto word_end = probe;
+                            while (word_end < points.size() &&
+                                   text::is_letter(points[word_end].value))
+                                ++word_end;
+                            if (word_end == probe)
+                                break;
+                            end_index = word_end;
+                            continue;
+                        }
+                        if (text::is_digit(value) || text::is_letter(value) ||
+                            text::is_combining_mark(value) || value == '%' || value == '#' ||
+                            value == '$' || value == '/' || value == '+' || value == '-' ||
+                            text::is_range_connector(value)) {
+                            ++end_index;
+                            continue;
+                        }
+                        break;
+                    }
+                }
+            }
+            auto suffix_begin = end_index;
+            while (suffix_begin < points.size() &&
+                   text::is_horizontal_space(points[suffix_begin].value))
+                ++suffix_begin;
+            auto suffix_end = suffix_begin;
+            while (suffix_end < points.size() && text::is_letter(points[suffix_end].value))
+                ++suffix_end;
+            if (suffix_end > suffix_begin) {
+                malformed_compound = true;
+                end_index = suffix_end;
+            }
+        }
+        if (points[index].value == 0x2212 && end_index < points.size()) {
+            auto suffix_begin = end_index;
+            while (suffix_begin < points.size() &&
+                   text::is_horizontal_space(points[suffix_begin].value))
+                ++suffix_begin;
+            auto suffix_end = suffix_begin;
+            while (suffix_end < points.size() && text::is_letter(points[suffix_end].value))
+                ++suffix_end;
+            if (suffix_end > suffix_begin) {
+                malformed_compound = true;
+                end_index = suffix_end;
+            } else if (suffix_begin == end_index && suffix_begin < points.size() &&
+                       text::is_letter(points[suffix_begin].value)) {
+                while (suffix_end < points.size() && text::is_letter(points[suffix_end].value))
+                    ++suffix_end;
+                malformed_compound = true;
+                end_index = suffix_end;
+            }
+        }
         if (initial_digit_count > 9 && end_index < points.size() &&
             text::is_lexical_numeric_boundary(points[end_index].value)) {
             while (end_index < points.size() &&
@@ -288,6 +396,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         if (has_percent && std::any_of(points.begin() + static_cast<std::ptrdiff_t>(index),
                                        points.begin() + static_cast<std::ptrdiff_t>(end_index),
                                        [](const CodePoint& point) { return point.value == ':'; }))
+            malformed_compound = true;
+        if (signed_time)
             malformed_compound = true;
         // A recognized unit/currency stem followed by an attached lexical
         // suffix is one malformed candidate.  Letting the generic number
@@ -399,7 +509,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                    (points[sign_probe - 1].value == ' ' || points[sign_probe - 1].value == '\t'))
                 --sign_probe;
             if (sign_probe > 0 &&
-                (points[sign_probe - 1].value == '+' || points[sign_probe - 1].value == '-')) {
+                (points[sign_probe - 1].value == '+' || points[sign_probe - 1].value == '-' ||
+                 points[sign_probe - 1].value == 0x2212)) {
                 signed_currency_prefix = true;
                 currency_prefix_begin = sign_probe - 1;
             }
@@ -412,6 +523,10 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             rules.comma_grouped_percent != nullptr &&
             (std::regex_match(candidate, *rules.comma_grouped_value) ||
              std::regex_match(candidate, *rules.comma_grouped_percent));
+        const bool valid_currency_group_surface =
+            !currency_prefix ||
+            (!signed_currency_prefix && points[index].value != '+' && points[index].value != '-' &&
+             points[currency_probe - 1].value == '$');
         const bool malformed_english_comma_group =
             rules.comma_grouping && candidate.find(',') != std::string::npos;
         const auto digit_count = static_cast<std::size_t>(std::count_if(
@@ -492,7 +607,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                signed_currency_prefix))) &&
             !(valid_russian_date && !embedded) &&
             !(valid_english_comma_group && !embedded && !attached_lexical_suffix &&
-              !(currency_prefix && has_percent) && !malformed_compound) &&
+              !(currency_prefix && has_percent) && !malformed_compound &&
+              valid_currency_group_surface) &&
             !already_preserved) {
             NumericCandidate candidate{document.span_from_bytes(protected_begin, end),
                                        currency_prefix ? NumericCandidateKind::Currency
