@@ -46,6 +46,9 @@ MappedText protect(MappedText text, std::vector<ProtectedSpan>& protected_spans)
             const auto begin = static_cast<std::size_t>(it->position());
             const auto finish = begin + static_cast<std::size_t>(it->length());
             const auto match_point = codepoint_index_at_or_after(document, begin);
+            const auto match_end_point = codepoint_index_at_or_after(document, finish);
+            if (scientific_index.overlaps(match_point, match_end_point))
+                continue;
             const bool scientific_suffix = match_point < document.points.size() &&
                                            !it->str().empty() &&
                                            (it->str().front() == '#' || it->str().front() == '$') &&
@@ -165,6 +168,7 @@ MappedText protect_numeric_candidates(MappedText text,
         std::vector<SourceEdit> edits;
         std::size_t cursor = 0;
         const Utf8Document document(text.text);
+        const auto scientific_index = build_numeric_surface_index(document);
         for (std::sregex_iterator it(text.text.begin(),
                                      text.text.end(),
                                      technical::patterns().technical_numeric_percent),
@@ -176,6 +180,10 @@ MappedText protect_numeric_candidates(MappedText text,
                 continue;
             const auto base_finish = begin + static_cast<std::size_t>(it->length());
             const auto base = it->str(1);
+            const auto base_point = codepoint_index_at_or_after(document, begin);
+            const auto base_end_point = codepoint_index_at_or_after(document, base_finish);
+            if (scientific_index.overlaps(base_point, base_end_point))
+                continue;
             if (begin > 0 && !base.empty() && (base.front() == 'e' || base.front() == 'E') &&
                 text::is_digit(static_cast<unsigned char>(text.text[begin - 1])))
                 continue;

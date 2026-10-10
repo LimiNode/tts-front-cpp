@@ -1072,24 +1072,29 @@ int main() {
                 CHECK(malformed_dash_suffix.warnings.front().offset == 0);
                 CHECK(malformed_dash_suffix.warnings.front().length == input.size());
             }
-            const std::vector<std::string> initial_signs = {"+", "-", "\xE2\x88\x92"};
+            const std::vector<std::string> prefixes = {"", "abc"};
+            const std::vector<std::string> initial_signs = {"", "+", "-", "\xE2\x88\x92"};
             const std::vector<std::string> exponent_connectors = {
                 "+", "-", "\xE2\x80\x93", "\xE2\x80\x94"};
             const std::vector<std::string> exponent_lengths = {"3", "34", "3456"};
-            const std::vector<std::string> suffixes = {"#4", "$4", "%", " kg"};
-            for (const auto& initial_sign : initial_signs) {
-                for (const auto& exponent_connector : exponent_connectors) {
-                    for (const auto& exponent_digits : exponent_lengths) {
-                        for (const auto& suffix : suffixes) {
-                            const auto input =
-                                initial_sign + "1e" + exponent_connector + exponent_digits + suffix;
-                            const auto matrix_case = frontend.process(input, options);
-                            CHECK(matrix_case.normalized_text == input);
-                            CHECK(matrix_case.warnings.size() == 1);
-                            CHECK(matrix_case.warnings.front().code ==
-                                  WarningCode::UnresolvedNumber);
-                            CHECK(matrix_case.warnings.front().offset == 0);
-                            CHECK(matrix_case.warnings.front().length == input.size());
+            const std::vector<std::string> suffixes = {
+                "word", "#4", "$4", "%", "%word", "/word", " kg"};
+            for (const auto& prefix : prefixes) {
+                for (const auto& initial_sign : initial_signs) {
+                    for (const auto& exponent_connector : exponent_connectors) {
+                        for (const auto& exponent_digits : exponent_lengths) {
+                            for (const auto& suffix : suffixes) {
+                                const auto input = prefix + initial_sign + "1e" +
+                                                   exponent_connector + exponent_digits + suffix;
+                                const auto matrix_case = frontend.process(input, options);
+                                CHECK(matrix_case.normalized_text == input);
+                                CHECK(matrix_case.warnings.size() == 1);
+                                CHECK(matrix_case.warnings.front().code ==
+                                      WarningCode::UnresolvedNumber);
+                                CHECK(matrix_case.warnings.front().offset == prefix.size());
+                                CHECK(matrix_case.warnings.front().length ==
+                                      input.size() - prefix.size());
+                            }
                         }
                     }
                 }

@@ -66,19 +66,31 @@ NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t be
         if (suffix_end > surface.end + 1)
             surface.continuation_end = suffix_end;
     }
-    if (surface.continuation_end == surface.end && surface.end < document.points.size() &&
-        text::is_horizontal_space(document.points[surface.end].value)) {
-        auto suffix_begin = surface.end;
+    auto suffix_begin = surface.continuation_end;
+    if (suffix_begin < document.points.size() &&
+        text::is_horizontal_space(document.points[suffix_begin].value)) {
         while (suffix_begin < document.points.size() &&
                text::is_horizontal_space(document.points[suffix_begin].value))
             ++suffix_begin;
-        auto suffix_end = suffix_begin;
-        while (suffix_end < document.points.size() &&
-               (text::is_letter(document.points[suffix_end].value) ||
-                text::is_combining_mark(document.points[suffix_end].value)))
-            ++suffix_end;
-        if (suffix_end > suffix_begin)
-            surface.continuation_end = suffix_end;
+    }
+    auto suffix_end = suffix_begin;
+    while (suffix_end < document.points.size() &&
+           (text::is_letter(document.points[suffix_end].value) ||
+            text::is_combining_mark(document.points[suffix_end].value)))
+        ++suffix_end;
+    if (suffix_end > suffix_begin)
+        surface.continuation_end = suffix_end;
+    else if (surface.continuation_end == surface.end && surface.end < document.points.size() &&
+             (document.points[surface.end].value == '/' ||
+              document.points[surface.end].value == '%')) {
+        auto connector_end = surface.end + 1;
+        while (connector_end < document.points.size() &&
+               (text::is_letter(document.points[connector_end].value) ||
+                text::is_combining_mark(document.points[connector_end].value) ||
+                text::is_digit(document.points[connector_end].value)))
+            ++connector_end;
+        if (connector_end > surface.end + 1)
+            surface.continuation_end = connector_end;
     }
     return surface;
 }
@@ -89,7 +101,16 @@ bool NumericSurfaceIndex::contains(std::size_t point) const {
         ranges.end(),
         point,
         [](const NumericSurfaceRange& range, std::size_t value) { return range.end <= value; });
-    return found != ranges.end() && found->begin <= point && point < found->end;
+    return found != ranges.end() && found->continuation_begin <= point && point < found->end;
+}
+
+bool NumericSurfaceIndex::overlaps(std::size_t begin, std::size_t end) const {
+    const auto found = std::lower_bound(
+        ranges.begin(),
+        ranges.end(),
+        begin,
+        [](const NumericSurfaceRange& range, std::size_t value) { return range.end <= value; });
+    return found != ranges.end() && found->surface_begin < end && begin < found->end;
 }
 
 NumericSurfaceIndex build_numeric_surface_index(const Utf8Document& document) {
@@ -101,14 +122,13 @@ NumericSurfaceIndex build_numeric_surface_index(const Utf8Document& document) {
                                   point + 1 < points.size() &&
                                   text::is_digit(points[point + 1].value);
         const bool unsigned_start =
-            text::is_digit(value) &&
-            (point == 0 || !text::is_lexical_numeric_boundary(points[point - 1].value));
+            text::is_digit(value) && (point == 0 || !text::is_digit(points[point - 1].value));
         if (!signed_start && !unsigned_start)
             continue;
         const auto surface = scan_numeric_surface(document, point);
         if (!surface.valid() || surface.exponent == ExponentState::None)
             continue;
-        index.ranges.push_back({point, surface.continuation_end});
+        index.ranges.push_back({point, point + 1, surface.continuation_end});
         point = std::max(point, surface.continuation_end - 1);
     }
     return index;

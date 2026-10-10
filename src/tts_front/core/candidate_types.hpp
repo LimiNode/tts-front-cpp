@@ -34,7 +34,8 @@ struct NumericSurface {
 };
 
 struct NumericSurfaceRange {
-    std::size_t begin = 0;
+    std::size_t surface_begin = 0;
+    std::size_t continuation_begin = 0;
     std::size_t end = 0;
 };
 
@@ -42,6 +43,7 @@ struct NumericSurfaceIndex {
     std::vector<NumericSurfaceRange> ranges;
 
     bool contains(std::size_t point) const;
+    bool overlaps(std::size_t begin, std::size_t end) const;
 };
 
 NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t begin);
