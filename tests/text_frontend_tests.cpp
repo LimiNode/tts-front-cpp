@@ -48,6 +48,8 @@ int main() {
           "одна целая одна десятая две целых две десятых пять целых одна десятая");
     TextFrontendOptions en;
     en.language = Language::English;
+    TextFrontendOptions auto_options = en;
+    auto_options.language = Language::Auto;
     CHECK(frontend.process("7.5%", en).normalized_text == "seven point five percent");
     CHECK(frontend.process("-0 -0.0 -0%", en).normalized_text ==
           "minus zero minus zero point zero minus zero percent");
@@ -1004,7 +1006,7 @@ int main() {
         CHECK(signed_ordinal.warnings.front().length == 4);
     }
     {
-        for (const auto& options : {en, ru}) {
+        for (const auto& options : {en, ru, auto_options}) {
             const auto signed_time = frontend.process("-1:02", options);
             CHECK(signed_time.normalized_text == "-1:02");
             CHECK(signed_time.warnings.size() == 1);
@@ -1052,6 +1054,21 @@ int main() {
                 CHECK(malformed_dash.warnings.front().code == WarningCode::UnresolvedNumber);
                 CHECK(malformed_dash.warnings.front().offset == 0);
                 CHECK(malformed_dash.warnings.front().length == input.size());
+            }
+            for (const auto& input : {std::string("+1e") + "\xE2\x80\x93" + "3#4",
+                                      std::string("+1e") + "\xE2\x80\x94" + "3$4",
+                                      std::string("\xE2\x88\x92"
+                                                  "1e") +
+                                          "\xE2\x80\x93" + "3#4",
+                                      std::string("\xE2\x88\x92"
+                                                  "1e") +
+                                          "\xE2\x80\x94" + "3$4"}) {
+                const auto malformed_dash_suffix = frontend.process(input, options);
+                CHECK(malformed_dash_suffix.normalized_text == input);
+                CHECK(malformed_dash_suffix.warnings.size() == 1);
+                CHECK(malformed_dash_suffix.warnings.front().code == WarningCode::UnresolvedNumber);
+                CHECK(malformed_dash_suffix.warnings.front().offset == 0);
+                CHECK(malformed_dash_suffix.warnings.front().length == input.size());
             }
         }
         const auto phone = frontend.process("+7 999 123 45 67", en);

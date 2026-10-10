@@ -35,6 +35,7 @@ MappedText protect(MappedText text, std::vector<ProtectedSpan>& protected_spans)
                                                                  &patterns.technical_cpp,
                                                                  &patterns.technical_csharp};
     for (const auto* pattern : technical_patterns) {
+        const Utf8Document document(text.text);
         MappedText output;
         output.preserved_ranges = text.preserved_ranges;
         std::size_t cursor = 0;
@@ -43,6 +44,13 @@ MappedText protect(MappedText text, std::vector<ProtectedSpan>& protected_spans)
              ++it) {
             const auto begin = static_cast<std::size_t>(it->position());
             const auto finish = begin + static_cast<std::size_t>(it->length());
+            const auto match_point = codepoint_index_at_or_after(document, begin);
+            const bool scientific_suffix = match_point < document.points.size() &&
+                                           !it->str().empty() &&
+                                           (it->str().front() == '#' || it->str().front() == '$') &&
+                                           is_scientific_continuation(document, match_point);
+            if (scientific_suffix)
+                continue;
             // Do not shield an incomplete scientific suffix (`e+x`) that is
             // attached to a numeric candidate.  The language admission pass
             // must see the complete `+1e+x` expression and preserve it

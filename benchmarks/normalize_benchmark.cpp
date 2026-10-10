@@ -37,8 +37,8 @@ void benchmark_technical_contiguous_numeric_scaling() {
         const std::string text(count, '1');
         std::vector<tts_front::TextWarning> warnings;
         tts_front::detail::WarningSink warning_sink{warnings, {}};
-        auto mapped = tts_front::detail::MappedText::from_original(
-            text, &warning_sink.preserved_ranges);
+        auto mapped =
+            tts_front::detail::MappedText::from_original(text, &warning_sink.preserved_ranges);
         std::vector<tts_front::detail::ProtectedSpan> protected_spans;
         const auto begin = std::chrono::steady_clock::now();
         mapped = tts_front::detail::technical::protect_numeric_candidates(

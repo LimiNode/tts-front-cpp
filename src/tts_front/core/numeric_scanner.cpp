@@ -58,15 +58,26 @@ bool is_scientific_continuation(const Utf8Document& document, std::size_t index)
     // This predicate is queried while sweeping every codepoint in technical
     // admission.  Do not rescan a complete numeric surface here: on a long
     // contiguous digit run that turns the otherwise linear pass into O(n^2).
-    // A scientific continuation can only begin at the exponent marker, its
-    // optional sign, or the first exponent digit; all of those are identified
-    // from the three immediately preceding codepoints.
+    // Scientific continuation and an attached encoded suffix are identified
+    // from a bounded local window.  Never rescan the complete numeric surface
+    // here: this predicate runs for every codepoint in technical admission.
     const auto& points = document.points;
     const auto previous = points[index - 1].value;
     if ((previous == 'e' || previous == 'E') && index > 1 &&
         text::is_digit(points[index - 2].value))
         return true;
-    return index > 2 && (previous == '+' || previous == '-' || previous == 0x2212) &&
+    if (index > 2 && text::is_digit(previous) &&
+        (points[index - 2].value == 'e' || points[index - 2].value == 'E') &&
+        text::is_digit(points[index - 3].value))
+        return true;
+    if (index > 4 && text::is_digit(previous) &&
+        (points[index - 2].value == '+' || points[index - 2].value == '-' ||
+         text::is_range_connector(points[index - 2].value)) &&
+        (points[index - 3].value == 'e' || points[index - 3].value == 'E') &&
+        text::is_digit(points[index - 4].value))
+        return true;
+    return index > 2 &&
+           (previous == '+' || previous == '-' || text::is_range_connector(previous)) &&
            (points[index - 2].value == 'e' || points[index - 2].value == 'E') &&
            text::is_digit(points[index - 3].value);
 }
