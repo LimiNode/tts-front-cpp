@@ -22,6 +22,6 @@ struct Patterns {
 
 const Patterns& patterns();
 
-bool is_known_identifier(std::string_view value);
+bool has_known_identifier_prefix(std::string_view value);
 
 } // namespace tts_front::detail::technical

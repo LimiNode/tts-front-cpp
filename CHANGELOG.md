@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1
+
+- Исправлены fail-closed границы signed и scientific numeric candidates, включая Unicode-знаки, continuation и embedded cases.
+- Технические URL, email и идентификаторы (`RTX`, `CUDA`, `GPU`, `API`, `C++`) сохраняются целиком даже при наличии scientific-подстрок.
+- Устранены частичные переписывания и квадратичный путь в technical numeric admission.
+- Зафиксирован строгий EN/RU quality baseline: 373 кейса (`324/34/2/13`); оставшиеся 15 mismatch-ID явно сохранены в snapshot для следующего quality-цикла.
+
 ## 0.2.0
 
 - Добавлена opt-in политика `MixedLanguagePolicy::SegmentCandidates` для локальной нормализации поддержанных числовых, валютных и единичных конструкций в смешанном тексте.

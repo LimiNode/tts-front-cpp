@@ -142,8 +142,21 @@ const char* outcome_name(Outcome outcome) {
 } // namespace
 
 int main(int argc, char** argv) {
-    const bool strict = argc > 1 && std::string(argv[1]) == "--strict";
-    const std::string root = std::string(TTS_FRONT_SOURCE_DIR) + "/tests/quality/archive/v0.2.0/";
+    bool strict = false;
+    std::string archive_version = "v0.2.0";
+    for (int index = 1; index < argc; ++index) {
+        const std::string argument = argv[index];
+        if (argument == "--strict") {
+            strict = true;
+        } else if (argument.rfind("v", 0) == 0) {
+            archive_version = argument;
+        } else {
+            std::cerr << "usage: quality_archive_smoke [--strict] [vX.Y.Z]\n";
+            return EXIT_FAILURE;
+        }
+    }
+    const std::string root =
+        std::string(TTS_FRONT_SOURCE_DIR) + "/tests/quality/archive/" + archive_version + "/";
     std::ifstream corpus(root + "en_ru_sentences.tsv", std::ios::binary);
     if (!corpus) {
         std::cerr << "cannot open corpus\n";
@@ -255,6 +268,6 @@ int main(int argc, char** argv) {
             return EXIT_FAILURE;
         }
     }
-    std::cout << "v0.2.0 archive execution audit: 352 cases verified\n";
+    std::cout << archive_version << " archive execution audit: " << cases << " cases verified\n";
     return EXIT_SUCCESS;
 }
