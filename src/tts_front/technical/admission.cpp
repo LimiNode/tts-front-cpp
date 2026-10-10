@@ -49,7 +49,7 @@ MappedText protect(MappedText text, std::vector<ProtectedSpan>& protected_spans)
             const auto match_end_point = codepoint_index_at_or_after(document, finish);
             const auto& value = it->str();
             const bool generic_identifier = pattern == &patterns.technical_identifier;
-            if (generic_identifier && !is_known_identifier(value) &&
+            if (generic_identifier && !has_known_identifier_prefix(value) &&
                 scientific_index.overlaps(match_point, match_end_point))
                 continue;
             const bool scientific_suffix = match_point < document.points.size() && !value.empty() &&

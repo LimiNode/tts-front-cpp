@@ -9,7 +9,7 @@ const Patterns& patterns() {
     return value;
 }
 
-bool is_known_identifier(std::string_view value) {
+bool has_known_identifier_prefix(std::string_view value) {
     constexpr std::array<std::string_view, 5> prefixes = {"RTX", "CUDA", "GPU", "API", "C++"};
     for (const auto prefix : prefixes) {
         if (value.rfind(prefix, 0) == 0)

@@ -1,0 +1,41 @@
+version	1
+cases	373
+outcome	correct_transformation	324
+outcome	justified_preservation	34
+outcome	unnecessary_refusal	2
+outcome	incorrect_or_partial	13
+mismatch	en-date-spoken-0
+mismatch	en-date-spoken-1
+mismatch	en-date-spoken-2
+mismatch	en-date-spoken-3
+mismatch	ru-mixed-2
+mismatch	ru-mixed-4
+mismatch	ru-mixed-10
+mismatch	ru-mixed-13
+mismatch	en-mixed-18
+mismatch	en-natural-04
+mismatch	ru-natural-01
+mismatch	ru-natural-02
+mismatch	ru-natural-04
+mismatch	ru-natural-09
+mismatch	ru-natural-11
+diagnostic_exception	en-preserve-4	unresolved_number@17:6
+diagnostic_exception	ru-preserve-12	unresolved_number@33:6
+diagnostic_exception	ru-natural-11	unresolved_number@29:3
+diagnostic_exception	ru-mixed-14	unresolved_number@19:6
+diagnostic_exception	en-mixed-19	unresolved_number@14:6
+mismatch_output	en-date-spoken-0	The meeting is on January two, two thousand twenty six.	The meeting is on January two, two thousand twenty six.
+mismatch_output	en-date-spoken-1	The meeting is on March twenty one, two thousand twenty five.	The meeting is on March twenty one, two thousand twenty five.
+mismatch_output	en-date-spoken-2	The meeting is on December thirty one, one thousand nine hundred ninety nine.	The meeting is on December thirty one, one thousand nine hundred ninety nine.
+mismatch_output	en-date-spoken-3	The meeting is on May one, two thousand twenty.	The meeting is on May one, two thousand twenty.
+mismatch_output	ru-mixed-2	HTTP/2 вернул два ошибки.	HTTP/2 вернул два ошибки.
+mismatch_output	ru-mixed-4	Напишите dev42@example.com после три попыток.	Напишите dev42@example.com после три попыток.
+mismatch_output	ru-mixed-10	Устройство CUDA 13.3 потребляет two gigabytes памяти.	Устройство CUDA 13.3 потребляет two gigabytes памяти.
+mismatch_output	ru-mixed-13	Порог 0.5% задан для RTX-4090.	Порог 0.5% задан для RTX-4090.
+mismatch_output	en-mixed-18	Deploy пять replicas в the cluster.	Deploy пять replicas в the cluster.
+mismatch_output	en-natural-04	The package is one point five kg.	The package is one point five kg.
+mismatch_output	ru-natural-01	Стоимость заказа — одна тысяча двести пятьдесят рублей	Стоимость заказа — одна тысяча двести пятьдесят рублей
+mismatch_output	ru-natural-02	Температура опустилась до минус четыре целых пять десятых.	Температура опустилась до минус четыре целых пять десятых.
+mismatch_output	ru-natural-04	Расстояние составляет двенадцать целых пять десятых км.	Расстояние составляет двенадцать целых пять десятых км.
+mismatch_output	ru-natural-09	Проверено три из пять узлов.	Проверено три из пять узлов.
+mismatch_output	ru-natural-11	Значение равно [42].	Значение равно [42].

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(tts-front-cpp VERSION 0.2.0 LANGUAGES CXX)
+project(tts-front-cpp VERSION 0.2.1 LANGUAGES CXX)
 
 option(TTS_FRONT_BUILD_TESTS "Build tests" ON)
 option(TTS_FRONT_BUILD_EXAMPLES "Build examples" ON)
@@ -162,6 +162,8 @@ if(TTS_FRONT_BUILD_TESTS)
   target_link_libraries(tts_front_quality_archive_smoke PRIVATE TtsFront::tts_front)
   target_compile_definitions(tts_front_quality_archive_smoke PRIVATE TTS_FRONT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
   add_test(NAME tts_front_quality_archive_smoke COMMAND tts_front_quality_archive_smoke)
+  add_test(NAME tts_front_quality_v021_archive
+           COMMAND tts_front_quality_archive_smoke --strict v0.2.1)
   add_executable(tts_front_header_self_test tests/header_self_contained.cpp)
   tts_front_configure_target(tts_front_header_self_test)
   target_link_libraries(tts_front_header_self_test PRIVATE TtsFront::tts_front)
