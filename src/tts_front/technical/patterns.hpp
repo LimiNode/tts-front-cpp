@@ -1,6 +1,7 @@
 #pragma once
 
 #include <regex>
+#include <string_view>
 
 namespace tts_front::detail::technical {
 
@@ -20,5 +21,7 @@ struct Patterns {
 };
 
 const Patterns& patterns();
+
+bool is_known_identifier(std::string_view value);
 
 } // namespace tts_front::detail::technical

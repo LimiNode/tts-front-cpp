@@ -48,12 +48,8 @@ MappedText protect(MappedText text, std::vector<ProtectedSpan>& protected_spans)
             const auto match_point = codepoint_index_at_or_after(document, begin);
             const auto match_end_point = codepoint_index_at_or_after(document, finish);
             const auto& value = it->str();
-            const bool known_technical_prefix =
-                value.rfind("RTX", 0) == 0 || value.rfind("CUDA", 0) == 0 ||
-                value.rfind("GPU", 0) == 0 || value.rfind("API", 0) == 0 ||
-                value.rfind("C++", 0) == 0;
             const bool generic_identifier = pattern == &patterns.technical_identifier;
-            if (generic_identifier && !known_technical_prefix &&
+            if (generic_identifier && !is_known_identifier(value) &&
                 scientific_index.overlaps(match_point, match_end_point))
                 continue;
             const bool scientific_suffix = match_point < document.points.size() && !value.empty() &&
