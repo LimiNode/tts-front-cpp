@@ -5,7 +5,7 @@
 
 namespace tts_front::detail {
 
-bool is_scientific_continuation(const Utf8Document& document, std::size_t index);
+NumericSurfaceIndex build_numeric_surface_index(const Utf8Document& document);
 
 std::size_t scan_numeric_continuation_points(const Utf8Document& document,
                                              std::size_t start,

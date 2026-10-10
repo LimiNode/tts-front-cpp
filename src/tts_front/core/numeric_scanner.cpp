@@ -2,6 +2,8 @@
 
 #include "tts_front/core/text/codepoint_classification.hpp"
 
+#include <algorithm>
+
 namespace tts_front::detail {
 
 NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t begin) {
@@ -9,6 +11,7 @@ NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t be
     surface.digits_begin = begin;
     surface.digits_end = begin;
     surface.end = begin;
+    surface.continuation_end = begin;
     if (begin >= document.points.size())
         return surface;
     const auto first = document.points[begin].value;
@@ -25,6 +28,7 @@ NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t be
     if (!surface.valid())
         return surface;
     surface.end = surface.digits_end;
+    surface.continuation_end = surface.end;
     if (surface.end < document.points.size() &&
         (document.points[surface.end].value == 'e' || document.points[surface.end].value == 'E')) {
         surface.exponent = ExponentState::Incomplete;
@@ -49,54 +53,65 @@ NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t be
                 ++surface.end;
         }
     }
+    surface.continuation_end = surface.end;
+    if (surface.exponent != ExponentState::None && surface.end < document.points.size() &&
+        (document.points[surface.end].value == '#' || document.points[surface.end].value == '$')) {
+        auto suffix_end = surface.end + 1;
+        while (suffix_end < document.points.size() &&
+               (text::is_digit(document.points[suffix_end].value) ||
+                text::is_letter(document.points[suffix_end].value) ||
+                text::is_combining_mark(document.points[suffix_end].value) ||
+                document.points[suffix_end].value == '_'))
+            ++suffix_end;
+        if (suffix_end > surface.end + 1)
+            surface.continuation_end = suffix_end;
+    }
+    if (surface.continuation_end == surface.end && surface.end < document.points.size() &&
+        text::is_horizontal_space(document.points[surface.end].value)) {
+        auto suffix_begin = surface.end;
+        while (suffix_begin < document.points.size() &&
+               text::is_horizontal_space(document.points[suffix_begin].value))
+            ++suffix_begin;
+        auto suffix_end = suffix_begin;
+        while (suffix_end < document.points.size() &&
+               (text::is_letter(document.points[suffix_end].value) ||
+                text::is_combining_mark(document.points[suffix_end].value)))
+            ++suffix_end;
+        if (suffix_end > suffix_begin)
+            surface.continuation_end = suffix_end;
+    }
     return surface;
 }
 
-bool is_scientific_continuation(const Utf8Document& document, std::size_t index) {
-    if (index == 0 || index >= document.points.size())
-        return false;
-    // This predicate is queried while sweeping every codepoint in technical
-    // admission.  Do not rescan a complete numeric surface here: on a long
-    // contiguous digit run that turns the otherwise linear pass into O(n^2).
-    // Scientific continuation and an attached encoded suffix are identified
-    // from a bounded local window.  Never rescan the complete numeric surface
-    // here: this predicate runs for every codepoint in technical admission.
+bool NumericSurfaceIndex::contains(std::size_t point) const {
+    const auto found = std::lower_bound(
+        ranges.begin(),
+        ranges.end(),
+        point,
+        [](const NumericSurfaceRange& range, std::size_t value) { return range.end <= value; });
+    return found != ranges.end() && found->begin <= point && point < found->end;
+}
+
+NumericSurfaceIndex build_numeric_surface_index(const Utf8Document& document) {
+    NumericSurfaceIndex index;
     const auto& points = document.points;
-    const auto previous = points[index - 1].value;
-    if ((points[index].value == '#' || points[index].value == '$') && text::is_digit(previous)) {
-        auto exponent_digits = index - 1;
-        while (exponent_digits > 0 && text::is_digit(points[exponent_digits - 1].value))
-            --exponent_digits;
-        if (exponent_digits > 1 &&
-            (points[exponent_digits - 1].value == 'e' ||
-             points[exponent_digits - 1].value == 'E') &&
-            text::is_digit(points[exponent_digits - 2].value))
-            return true;
-        if (exponent_digits > 2 &&
-            (points[exponent_digits - 1].value == '+' || points[exponent_digits - 1].value == '-' ||
-             text::is_range_connector(points[exponent_digits - 1].value)) &&
-            (points[exponent_digits - 2].value == 'e' ||
-             points[exponent_digits - 2].value == 'E') &&
-            text::is_digit(points[exponent_digits - 3].value))
-            return true;
+    for (std::size_t point = 0; point < points.size(); ++point) {
+        const auto value = points[point].value;
+        const bool signed_start = (value == '+' || value == '-' || value == 0x2212) &&
+                                  point + 1 < points.size() &&
+                                  text::is_digit(points[point + 1].value);
+        const bool unsigned_start =
+            text::is_digit(value) &&
+            (point == 0 || !text::is_lexical_numeric_boundary(points[point - 1].value));
+        if (!signed_start && !unsigned_start)
+            continue;
+        const auto surface = scan_numeric_surface(document, point);
+        if (!surface.valid() || surface.exponent == ExponentState::None)
+            continue;
+        index.ranges.push_back({point, surface.continuation_end});
+        point = std::max(point, surface.continuation_end - 1);
     }
-    if ((previous == 'e' || previous == 'E') && index > 1 &&
-        text::is_digit(points[index - 2].value))
-        return true;
-    if (index > 2 && text::is_digit(previous) &&
-        (points[index - 2].value == 'e' || points[index - 2].value == 'E') &&
-        text::is_digit(points[index - 3].value))
-        return true;
-    if (index > 4 && text::is_digit(previous) &&
-        (points[index - 2].value == '+' || points[index - 2].value == '-' ||
-         text::is_range_connector(points[index - 2].value)) &&
-        (points[index - 3].value == 'e' || points[index - 3].value == 'E') &&
-        text::is_digit(points[index - 4].value))
-        return true;
-    return index > 2 &&
-           (previous == '+' || previous == '-' || text::is_range_connector(previous)) &&
-           (points[index - 2].value == 'e' || points[index - 2].value == 'E') &&
-           text::is_digit(points[index - 3].value);
+    return index;
 }
 
 std::size_t scan_numeric_continuation_points(const Utf8Document& document,

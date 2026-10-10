@@ -3,6 +3,8 @@
 #include "tts_front/core/source_span.hpp"
 #include "tts_front/core/utf8_document.hpp"
 
+#include <vector>
+
 namespace tts_front::detail {
 
 enum class NumericCandidateKind { Technical, Numeric, Grouped, Currency };
@@ -22,12 +24,24 @@ struct NumericSurface {
     std::size_t digits_begin = 0;
     std::size_t digits_end = 0;
     std::size_t end = 0;
+    std::size_t continuation_end = 0;
     NumericSign sign = NumericSign::None;
     ExponentState exponent = ExponentState::None;
 
     bool valid() const {
         return digits_end > digits_begin;
     }
+};
+
+struct NumericSurfaceRange {
+    std::size_t begin = 0;
+    std::size_t end = 0;
+};
+
+struct NumericSurfaceIndex {
+    std::vector<NumericSurfaceRange> ranges;
+
+    bool contains(std::size_t point) const;
 };
 
 NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t begin);

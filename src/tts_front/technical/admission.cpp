@@ -36,6 +36,7 @@ MappedText protect(MappedText text, std::vector<ProtectedSpan>& protected_spans)
                                                                  &patterns.technical_csharp};
     for (const auto* pattern : technical_patterns) {
         const Utf8Document document(text.text);
+        const auto scientific_index = build_numeric_surface_index(document);
         MappedText output;
         output.preserved_ranges = text.preserved_ranges;
         std::size_t cursor = 0;
@@ -48,7 +49,7 @@ MappedText protect(MappedText text, std::vector<ProtectedSpan>& protected_spans)
             const bool scientific_suffix = match_point < document.points.size() &&
                                            !it->str().empty() &&
                                            (it->str().front() == '#' || it->str().front() == '$') &&
-                                           is_scientific_continuation(document, match_point);
+                                           scientific_index.contains(match_point);
             if (scientific_suffix)
                 continue;
             // Do not shield an incomplete scientific suffix (`e+x`) that is
@@ -290,6 +291,7 @@ MappedText protect_numeric_candidates(MappedText text,
     if (!document.valid)
         return text;
     const auto& points = document.points;
+    const auto scientific_index = build_numeric_surface_index(document);
 
     std::vector<SourceEdit> edits;
     for (std::size_t index = 0; index < points.size();) {
@@ -355,7 +357,7 @@ MappedText protect_numeric_candidates(MappedText text,
             ((points[index].value == '-' || points[index].value == '+' ||
               points[index].value == 0x2212) &&
              index + 1 < points.size() && text::is_digit(points[index + 1].value));
-        const bool scientific_suffix_start = is_scientific_continuation(document, index);
+        const bool scientific_suffix_start = scientific_index.contains(index);
         if (!starts_number || scientific_suffix_start ||
             (index > 0 && text::is_lexical_numeric_boundary(points[index - 1].value))) {
             ++index;

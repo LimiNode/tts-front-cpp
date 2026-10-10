@@ -123,8 +123,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
              (points[index - 1].value == '$' || points[index - 1].value == 0x20ac ||
               points[index - 1].value == 0xa3 || points[index - 1].value == 0xa5));
         std::size_t end_index = index + 1;
-        if (surface.exponent != ExponentState::None && surface.end > end_index)
-            end_index = surface.end;
+        if (surface.exponent != ExponentState::None && surface.continuation_end > end_index)
+            end_index = surface.continuation_end;
         std::size_t separators = 0;
         bool has_percent = false;
         bool percent_attached_to_numeric = false;
@@ -133,6 +133,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         bool malformed_grouped = false;
         bool malformed_compound = false;
         bool grouped_seen = false;
+        if (surface.exponent != ExponentState::None)
+            malformed_compound = true;
         auto initial_digit_index = index + (signed_number || positive_numeric ? 1 : 0);
         const auto initial_digit_begin = initial_digit_index;
         while (initial_digit_index < points.size() &&
