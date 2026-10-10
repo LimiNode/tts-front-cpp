@@ -1036,7 +1036,8 @@ int main() {
                   std::string("+1e+%"),   std::string("+1e+3 kg"), std::string("+1e+3/4"),
                   std::string("+1e+3#4"), std::string("+1e+3$4"),  std::string("−1e"),
                   std::string("−1e+"),    std::string("−1e+x"),    std::string("−1e−x"),
-                  std::string("−1e+3#4"), std::string("−1e+3$4")}) {
+                  std::string("−1e+3#4"), std::string("−1e+3$4"),  std::string("-1e+3#4"),
+                  std::string("+1e34#4")}) {
                 const auto malformed_signed = frontend.process(input, options);
                 CHECK(malformed_signed.normalized_text == input);
                 CHECK(malformed_signed.warnings.size() == 1);

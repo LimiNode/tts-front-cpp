@@ -123,6 +123,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
              (points[index - 1].value == '$' || points[index - 1].value == 0x20ac ||
               points[index - 1].value == 0xa3 || points[index - 1].value == 0xa5));
         std::size_t end_index = index + 1;
+        if (surface.exponent != ExponentState::None && surface.end > end_index)
+            end_index = surface.end;
         std::size_t separators = 0;
         bool has_percent = false;
         bool percent_attached_to_numeric = false;

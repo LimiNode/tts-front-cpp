@@ -63,6 +63,23 @@ bool is_scientific_continuation(const Utf8Document& document, std::size_t index)
     // here: this predicate runs for every codepoint in technical admission.
     const auto& points = document.points;
     const auto previous = points[index - 1].value;
+    if ((points[index].value == '#' || points[index].value == '$') && text::is_digit(previous)) {
+        auto exponent_digits = index - 1;
+        while (exponent_digits > 0 && text::is_digit(points[exponent_digits - 1].value))
+            --exponent_digits;
+        if (exponent_digits > 1 &&
+            (points[exponent_digits - 1].value == 'e' ||
+             points[exponent_digits - 1].value == 'E') &&
+            text::is_digit(points[exponent_digits - 2].value))
+            return true;
+        if (exponent_digits > 2 &&
+            (points[exponent_digits - 1].value == '+' || points[exponent_digits - 1].value == '-' ||
+             text::is_range_connector(points[exponent_digits - 1].value)) &&
+            (points[exponent_digits - 2].value == 'e' ||
+             points[exponent_digits - 2].value == 'E') &&
+            text::is_digit(points[exponent_digits - 3].value))
+            return true;
+    }
     if ((previous == 'e' || previous == 'E') && index > 1 &&
         text::is_digit(points[index - 2].value))
         return true;
