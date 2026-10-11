@@ -1,4 +1,6 @@
 #include "tts_front.hpp"
+#include "tts_front/core/numeric_scanner.hpp"
+#include "tts_front/core/utf8_document.hpp"
 
 #include <algorithm>
 #include <cstdio>
@@ -22,6 +24,14 @@ int main() {
     TextFrontend frontend;
     TextFrontendOptions ru;
     ru.language = Language::Russian;
+    {
+        const tts_front::detail::Utf8Document document("+1e+3#4");
+        const auto surface = tts_front::detail::scan_candidate_surface(
+            document, 0, tts_front::detail::CandidateSurfaceKind::Technical);
+        CHECK(surface.valid());
+        CHECK(surface.numeric.exponent == tts_front::detail::ExponentState::Complete);
+        CHECK(surface.end == document.points.size());
+    }
     CHECK(frontend.process("У меня 42 яблока.", ru).normalized_text == "У меня сорок два яблока.");
     CHECK(frontend.process("1% 2% 5% 11% 21%", ru).normalized_text ==
           "один процент два процента пять процентов одиннадцать процентов двадцать один процент");

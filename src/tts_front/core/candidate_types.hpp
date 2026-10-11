@@ -9,6 +9,8 @@ namespace tts_front::detail {
 
 enum class NumericCandidateKind { Technical, Numeric, Grouped, Currency };
 
+enum class CandidateSurfaceKind { Numeric, Percent, Currency, Unit, Date, Technical };
+
 struct NumericCandidate {
     SourceSpan span;
     NumericCandidateKind kind = NumericCandidateKind::Numeric;
@@ -30,6 +32,21 @@ struct NumericSurface {
 
     bool valid() const {
         return digits_end > digits_begin;
+    }
+};
+
+// The scanner's typed result.  Admission code consumes this single surface
+// instead of independently recomputing the numeric core and its continuation
+// boundary in each domain.
+struct CandidateSurface {
+    CandidateSurfaceKind kind = CandidateSurfaceKind::Numeric;
+    std::size_t begin = 0;
+    std::size_t core_end = 0;
+    std::size_t end = 0;
+    NumericSurface numeric;
+
+    bool valid() const {
+        return numeric.valid();
     }
 };
 

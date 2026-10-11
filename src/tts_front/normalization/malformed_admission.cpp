@@ -31,19 +31,6 @@ bool valid_date(int day, int month, int year) {
     return day <= limit;
 }
 
-bool is_technical_suffix_point(std::uint32_t value) {
-    return text::is_letter(value) || text::is_digit(value) || text::is_combining_mark(value) ||
-           value == '_' || value == '-' || value == '.' || value == '+' || value == '#' ||
-           value == '$';
-}
-
-std::size_t scan_technical_suffix(const std::vector<CodePoint>& points, std::size_t begin) {
-    auto end = begin;
-    while (end < points.size() && is_technical_suffix_point(points[end].value))
-        ++end;
-    return end;
-}
-
 std::size_t scan_nonterminal_ellipsis(const std::vector<CodePoint>& points, std::size_t begin) {
     if (begin + 1 >= points.size() || points[begin].value != '.' || points[begin + 1].value != '.')
         return begin;
@@ -104,7 +91,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                                            points[currency_context_probe - 1].value == 0x20ac ||
                                            points[currency_context_probe - 1].value == 0xa3 ||
                                            points[currency_context_probe - 1].value == 0xa5);
-        const auto surface = scan_numeric_surface(document, index);
+        const auto candidate_surface = scan_candidate_surface(document, index);
+        const auto& surface = candidate_surface.numeric;
         const bool positive_numeric = [&] {
             if (points[index].value != '+' || index + 1 >= points.size() ||
                 !text::is_digit(points[index + 1].value))
@@ -156,8 +144,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
              (points[index - 1].value == '$' || points[index - 1].value == 0x20ac ||
               points[index - 1].value == 0xa3 || points[index - 1].value == 0xa5));
         std::size_t end_index = index + 1;
-        if (surface.exponent != ExponentState::None && surface.continuation_end > end_index)
-            end_index = surface.continuation_end;
+        if (surface.exponent != ExponentState::None && candidate_surface.end > end_index)
+            end_index = candidate_surface.end;
         std::size_t separators = 0;
         bool has_percent = false;
         bool has_dot_decimal = false;
@@ -457,7 +445,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                  text::is_digit(points[end_index - 1].value));
             if (attached_word || continues_word) {
                 malformed_compound = true;
-                end_index = scan_technical_suffix(points, end_index);
+                end_index = scan_candidate_continuation(
+                    document, end_index, CandidateSurfaceKind::Technical);
             }
         }
         // A terminal currency/hash connector is not a supported postfix

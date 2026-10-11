@@ -1,5 +1,7 @@
 #include "tts_front/language/english/normalizer.hpp"
 
+#include "tts_front/core/numeric_scanner.hpp"
+#include "tts_front/core/utf8_document.hpp"
 #include "tts_front/language/english/admission.hpp"
 #include "tts_front/language/english/grouped_numbers.hpp"
 #include "tts_front/language/english/numbers.hpp"
@@ -61,6 +63,7 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
     // date continuation such as `2024#4` is one unsupported candidate and
     // must not be split by the generic scanners.
     if (std::regex_search(text.text, english::patterns().date)) {
+        const Utf8Document document(text.text);
         std::vector<SourceEdit> date_edits;
         for (std::sregex_iterator it(text.text.begin(), text.text.end(), english::patterns().date),
              end;
@@ -71,11 +74,18 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
             const bool valid =
                 try_parse_long((*it)[2].str(), day) && try_parse_long((*it)[3].str(), year_value) &&
                 valid_calendar_date(month, static_cast<int>(day), static_cast<int>(year_value));
-            const bool has_continuation = it->length(4) != 0;
+            const auto match_begin = static_cast<std::size_t>(it->position());
+            const auto match_end = match_begin + static_cast<std::size_t>(it->length());
+            const auto continuation_begin = codepoint_index_at_or_after(document, match_end);
+            const auto continuation_end = scan_candidate_continuation(
+                document, continuation_begin, CandidateSurfaceKind::Date);
+            const bool has_continuation = continuation_end != continuation_begin;
             if (valid && !has_continuation)
                 continue;
-            const auto begin = static_cast<std::size_t>(it->position());
-            const auto finish = begin + static_cast<std::size_t>(it->length());
+            const auto begin = match_begin;
+            const auto finish = continuation_end != continuation_begin
+                                    ? document.span_from_codepoints(0, continuation_end).byte_end
+                                    : match_end;
             add_protected_candidate(
                 text,
                 NumericCandidate{SourceSpan{begin, finish}, NumericCandidateKind::Numeric, true},
