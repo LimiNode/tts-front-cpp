@@ -1149,6 +1149,45 @@ int main() {
         CHECK(malformed_date.warnings.front().offset == 0);
         CHECK(malformed_date.warnings.front().length == std::string("99.99.2026").size());
     }
+    {
+        const auto invalid_english_date = frontend.process("February 31, 2026.", en);
+        CHECK(invalid_english_date.normalized_text == "February 31, 2026.");
+        CHECK(invalid_english_date.warnings.size() == 1);
+        CHECK(invalid_english_date.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(invalid_english_date.warnings.front().offset == 0);
+        CHECK(invalid_english_date.warnings.front().length ==
+              std::string("February 31, 2026").size());
+    }
+    {
+        const auto genitive_21 = frontend.process("после 21 попыток.", ru);
+        CHECK(genitive_21.normalized_text == "после двадцати одного попыток.");
+        CHECK(genitive_21.warnings.empty());
+        const auto malformed_genitive = frontend.process("после 21.5 попыток.", ru);
+        CHECK(malformed_genitive.normalized_text == "после 21.5 попыток.");
+        CHECK(malformed_genitive.warnings.size() == 1);
+        CHECK(malformed_genitive.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(malformed_genitive.warnings.front().offset ==
+              malformed_genitive.original_text.find("21.5"));
+        CHECK(malformed_genitive.warnings.front().length == 4);
+    }
+    for (const auto& punctuation : {std::string("!"), std::string("?"), std::string(")")}) {
+        const auto input = "1 руб." + punctuation;
+        const auto result = frontend.process(input, ru);
+        CHECK(result.normalized_text == "один рубль" + punctuation);
+    }
+    {
+        TextFrontendOptions segmented;
+        segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        const auto mixed_unit = frontend.process("Use 1,5 кг", segmented);
+        CHECK(mixed_unit.normalized_text == "Use одна целая пять десятых килограмма");
+        CHECK(!mixed_unit.warnings.empty());
+        const auto foreign_percent = frontend.process("Порог 0.5% задан для RTX-4090.", segmented);
+        CHECK(foreign_percent.normalized_text == "Порог 0.5% задан для RTX-4090.");
+        CHECK(foreign_percent.warnings.size() == 1);
+        CHECK(foreign_percent.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(foreign_percent.warnings.front().offset == 11);
+        CHECK(foreign_percent.warnings.front().length == 4);
+    }
     std::string many_protected;
     for (int i = 0; i < 35; ++i) {
         if (!many_protected.empty())

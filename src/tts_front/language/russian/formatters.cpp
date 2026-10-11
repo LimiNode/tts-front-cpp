@@ -46,7 +46,29 @@ std::string genitive_number(long long value) {
         const auto result = std::string(forms[absolute]);
         return value < 0 ? "минус " + result : result;
     }
-    return number(value);
+    const auto remainder = absolute % 10;
+    static const char* const tens_forms[] = {"",
+                                             "",
+                                             "двадцати",
+                                             "тридцати",
+                                             "сорока",
+                                             "пятидесяти",
+                                             "шестидесяти",
+                                             "семидесяти",
+                                             "восьмидесяти",
+                                             "девяноста"};
+    std::string result;
+    if (absolute < 100) {
+        result = tens_forms[absolute / 10];
+        if (remainder != 0)
+            result +=
+                result.empty() ? genitive_number(remainder) : " " + genitive_number(remainder);
+    } else {
+        result = number(value);
+    }
+    if (value < 0)
+        result = "минус " + result;
+    return result;
 }
 std::string ordinal_day(int day) {
     static const char* const ordinal[] = {"",

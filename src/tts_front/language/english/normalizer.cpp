@@ -23,6 +23,32 @@ number_or_original(const std::string& token, WarningSink& warnings, SourceRange 
     return number_for_token(token, value);
 }
 
+int month_number(std::string_view month) {
+    static constexpr std::string_view names[] = {"January",
+                                                 "February",
+                                                 "March",
+                                                 "April",
+                                                 "May",
+                                                 "June",
+                                                 "July",
+                                                 "August",
+                                                 "September",
+                                                 "October",
+                                                 "November",
+                                                 "December"};
+    for (int index = 0; index < 12; ++index)
+        if (names[index] == month)
+            return index + 1;
+    return 0;
+}
+
+bool valid_calendar_date(int month, int day, int year) {
+    static constexpr int days[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    if (month < 1 || month > 12 || day < 1 || day > days[month])
+        return false;
+    return month != 2 || day != 29 || year % 400 == 0 || (year % 4 == 0 && year % 100 != 0);
+}
+
 } // namespace
 
 MappedText normalize(MappedText text, WarningSink& warnings) {
@@ -36,8 +62,10 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
     text = replace_numeric_matches(
         text, english::patterns().date, [&](const std::smatch& match, const MappedText& source) {
             long long day = 0, year_value = 0;
+            const auto month = month_number(match[1].str());
             if (!try_parse_long(match[2].str(), day) ||
-                !try_parse_long(match[3].str(), year_value) || day < 1 || day > 31) {
+                !try_parse_long(match[3].str(), year_value) ||
+                !valid_calendar_date(month, static_cast<int>(day), static_cast<int>(year_value))) {
                 add_warning(warnings,
                             WarningCode::UnresolvedNumber,
                             "Unable to parse English calendar date",

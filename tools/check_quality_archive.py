@@ -69,7 +69,7 @@ def main() -> int:
     verify_archive(
         NEXT_ARCHIVE,
         {
-            "en_ru_sentences.tsv": "766c4d784d4c16308d24e63a9da437391610f4b0871ccba8a73f03b21cf86e97",
+            "en_ru_sentences.tsv": "89024ef36e1c535b58a66bd912df968abb4f4b5360dfa4a8750a16c3413a4d1c",
             "en_ru_snapshot.tsv": "5da6d699193cafe88c7282e7237569151c0b3007aed2e206db57710abf6b8f73",
         },
         {

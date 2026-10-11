@@ -310,6 +310,8 @@ mixed_cases = [
 ]
 for index, (language, source, expected) in enumerate(mixed_cases):
     diagnostics = "none"
+    if index == 13:
+        diagnostics = warning(source, "0.5%")
     if index in {0, 1, 10, 12, 20, 21} and language == "ru":
         diagnostics = f"ambiguous_normalization@0:{len(source.encode('utf-8'))}"
     if index in {5, 15, 18} and language == "en":

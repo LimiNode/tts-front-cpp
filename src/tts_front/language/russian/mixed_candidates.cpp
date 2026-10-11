@@ -51,7 +51,15 @@ std::optional<std::string> format(std::string_view candidate) {
             return std::nullopt;
         if (unit.find("руб") == 0 || unit == "руб.")
             return signed_zero_prefix + decimal(integer, fraction) + " рубля";
-        return signed_zero_prefix + decimal(integer, fraction) + " " + unit;
+        const auto spoken_unit =
+            unit.find("кг") == 0 || unit.find("килограмм") == 0   ? "килограмма"
+            : unit.find("км") == 0 || unit.find("километр") == 0  ? "километра"
+            : unit.find("см") == 0 || unit.find("сантиметр") == 0 ? "сантиметра"
+            : unit.find("мм") == 0 || unit.find("миллиметр") == 0 ? "миллиметра"
+            : unit == "м"                                         ? "метра"
+            : unit == "ГБ"                                        ? "гигабайта"
+                                                                  : "мегабайта";
+        return signed_zero_prefix + decimal(integer, fraction) + " " + spoken_unit;
     }
     if (unit.find("руб") == 0 || unit == "руб.")
         return number_for_token(number_text, integer) + " " +

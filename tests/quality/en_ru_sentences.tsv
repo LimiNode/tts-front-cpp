@@ -312,7 +312,7 @@ en-mixed-9	en	auto_segment	mixed_language	normalize	The OpenAI API accepted 42 r
 ru-mixed-10	ru	auto_segment	mixed_language	normalize	Устройство CUDA 13.3 потребляет 2 GB памяти.	Устройство CUDA 13.3 потребляет two gigabytes памяти.	ambiguous_normalization@0:70
 ru-mixed-11	ru	auto_segment	mixed_language	normalize	На сервере HTTP/2 работает 4 процесса.	На сервере HTTP/2 работает четыре процесса.	none
 ru-mixed-12	ru	auto_segment	mixed_language	normalize	OpenAI API обработал 12 запросов.	OpenAI API обработал двенадцать запросов.	ambiguous_normalization@0:50
-ru-mixed-13	ru	auto_segment	mixed_language	preserve	Порог 0.5% задан для RTX-4090.	Порог 0.5% задан для RTX-4090.	none
+ru-mixed-13	ru	auto_segment	mixed_language	preserve	Порог 0.5% задан для RTX-4090.	Порог 0.5% задан для RTX-4090.	unresolved_number@11:4
 ru-mixed-14	ru	auto_segment	mixed_language	normalize	Версия V2.1.0—123 отмечена номером 7.	Версия V2.1.0—123 отмечена номером семь.	none
 en-mixed-15	en	auto_segment	mixed_language	normalize	Use 3 кг порошка with OpenAI API.	Use три килограмма порошка with OpenAI API.	ambiguous_normalization@0:42
 en-mixed-16	en	auto_segment	mixed_language	normalize	The GPU RTX 4090 needs 8 GB of memory.	The GPU RTX 4090 needs eight gigabytes of memory.	none

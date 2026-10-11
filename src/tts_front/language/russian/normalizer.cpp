@@ -8,6 +8,7 @@
 #include "tts_front/normalization/normalizer_support.hpp"
 #include "tts_front/technical/admission.hpp"
 
+#include <cctype>
 #include <string>
 #include <string_view>
 
@@ -27,6 +28,25 @@ number_or_original(const std::string& token, WarningSink& warnings, SourceRange 
 } // namespace
 
 MappedText normalize(MappedText text, WarningSink& warnings) {
+    text = replace_matches(
+        text,
+        russian::patterns().foreign_decimal_percent,
+        [&](const std::smatch& match, const MappedText& source) {
+            const auto begin = static_cast<std::size_t>(match.position());
+            const bool preceded_by_unicode_minus =
+                begin >= 3 && static_cast<unsigned char>(source.text[begin - 3]) == 0xE2 &&
+                static_cast<unsigned char>(source.text[begin - 2]) == 0x88 &&
+                static_cast<unsigned char>(source.text[begin - 1]) == 0x92;
+            if (begin != 0 && (source.text[begin - 1] == '+' || source.text[begin - 1] == '-' ||
+                               preceded_by_unicode_minus))
+                return match.str();
+            add_warning(warnings,
+                        WarningCode::UnresolvedNumber,
+                        "Unsupported dot-decimal Russian percentage",
+                        source,
+                        match);
+            return match.str();
+        });
     std::vector<ProtectedSpan> protected_spans;
     text = technical::protect_numeric_candidates(std::move(text), warnings, protected_spans);
     text = technical::protect(std::move(text), protected_spans);
@@ -116,7 +136,8 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                                static_cast<std::size_t>(match.length());
             const auto punctuation =
                 suffix == "." && after < source.text.size() &&
-                        (source.text[after] == ' ' || source.text[after] == '\t')
+                        (source.text[after] == ' ' || source.text[after] == '\t' ||
+                         std::ispunct(static_cast<unsigned char>(source.text[after])))
                     ? std::string()
                     : suffix;
             return std::string(prefix) + decimal(integer, match[2].str()) + " рубля" + punctuation;
@@ -154,7 +175,8 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                                static_cast<std::size_t>(match.length());
             const auto punctuation =
                 suffix == "." && after < source.text.size() &&
-                        (source.text[after] == ' ' || source.text[after] == '\t')
+                        (source.text[after] == ' ' || source.text[after] == '\t' ||
+                         std::ispunct(static_cast<unsigned char>(source.text[after])))
                     ? std::string()
                     : suffix;
             return number_for_token(match[1].str(), n) + " " +
@@ -258,14 +280,23 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
             return match[1].str() + feminine_number(value) + " " +
                    plural_form(value, "ошибка", "ошибки", "ошибок") + match[4].str();
         });
-    text = replace_matches(text,
-                           russian::patterns().genitive_context,
-                           [&](const std::smatch& match, const MappedText&) {
-                               long long value = 0;
-                               if (!try_parse_long(match[3].str(), value))
-                                   return match.str();
-                               return match[1].str() + match[2].str() + genitive_number(value);
-                           });
+    text = replace_matches(
+        text,
+        russian::patterns().genitive_context,
+        [&](const std::smatch& match, const MappedText& source) {
+            const auto token = match[3].str();
+            if (token.find('.') != std::string::npos || token.find(',') != std::string::npos) {
+                const auto begin = static_cast<std::size_t>(match.position(3));
+                warnings.add(WarningCode::UnresolvedNumber,
+                             "Unable to inflect a genitive decimal",
+                             source.source_range(begin, begin + match.length(3)));
+                return match.str();
+            }
+            long long value = 0;
+            if (!try_parse_long(token, value))
+                return match.str();
+            return match[1].str() + match[2].str() + genitive_number(value);
+        });
     text = replace_numeric_matches(
         text,
         russian::patterns().generic_number,
