@@ -6,17 +6,17 @@ The immutable corpus and snapshot are archived under
 
 | Outcome | Cases |
 | --- | ---: |
-| Correct transformation | 342 |
-| Justified preservation | 45 |
+| Correct transformation | 345 |
+| Justified preservation | 54 |
 | Unnecessary refusal | 0 |
 | Incorrect or partial transformation | 0 |
-| **Total** | **387** |
+| **Total** | **399** |
 
 The cycle reviewed English spoken and leap-year dates, bounded Russian
 contextual agreement, decimal units and terminal punctuation, bracketed
 numbers, and mixed-language dominant-language behavior. Unsupported foreign
 decimal percentages remain fail-closed as one atomic candidate.
 
-The strict archive audit executes all 387 archived cases and compares outcomes,
+The strict archive audit executes all 399 archived cases and compares outcomes,
 diagnostic exceptions, and exact outputs. The generator check keeps the working
 corpus synchronized with `tools/generate_quality_corpus.py`.

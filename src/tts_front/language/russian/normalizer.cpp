@@ -1,6 +1,8 @@
 #include "tts_front/language/russian/normalizer.hpp"
 
+#include "tts_front/core/text/codepoint_classification.hpp"
 #include "tts_front/core/utf8.hpp"
+#include "tts_front/core/utf8_document.hpp"
 #include "tts_front/language/russian/admission.hpp"
 #include "tts_front/language/russian/formatters.hpp"
 #include "tts_front/language/russian/numbers.hpp"
@@ -230,10 +232,30 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
     text = replace_matches(
         text,
         russian::patterns().genitive_decimal_context,
-        [&](const std::smatch& match, const MappedText&) {
+        [&](const std::smatch& match, const MappedText& source) {
             long long integer = 0;
-            if (!try_parse_long(match[2].str(), integer) || match[3].str().size() > 3)
+            if (!try_parse_long(match[2].str(), integer) || match[3].str().size() > 3) {
                 return match.str();
+            }
+            const auto begin = static_cast<std::size_t>(match.position(2));
+            const auto end = begin + static_cast<std::size_t>(match.length(2)) +
+                             static_cast<std::size_t>(match.length(3)) + 1;
+            auto after = static_cast<std::size_t>(match.position(4)) +
+                         static_cast<std::size_t>(match.length(4));
+            while (after < source.text.size() &&
+                   (source.text[after] == ' ' || source.text[after] == '\t'))
+                ++after;
+            const Utf8Document source_document(source.text);
+            const auto after_point = codepoint_index_at_or_after(source_document, after);
+            const bool noun_follows =
+                source_document.valid && after_point < source_document.points.size() &&
+                tts_front::detail::text::is_letter(source_document.points[after_point].value);
+            if (noun_follows) {
+                warnings.add(WarningCode::UnresolvedNumber,
+                             "Unable to inflect a genitive decimal",
+                             source.source_range(begin, end));
+                return match.str();
+            }
             return match[1].str() + decimal_genitive(integer, match[3].str()) + match[4].str();
         });
     text = replace_numeric_matches(
@@ -280,11 +302,12 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                 return match.str();
             // Agreement of compound genitives depends on the governed noun
             // ("двадцати одного узла", "двадцати одной попытки", ...).
-            // We do not have a noun-aware inflector here; leave values >= 10
-            // for the final generic pass, which will preserve them with an
-            // explicit warning instead of emitting a grammatically unsafe
-            // rewrite.
-            if (std::llabs(value) >= 10) {
+            // Values ending in one require noun gender ("одного" versus
+            // "одной").  Preserve those until a noun-aware inflector exists;
+            // the remaining compound genitives are gender-neutral enough for
+            // the supported plural contexts.
+            const auto absolute = std::llabs(value);
+            if (absolute % 10 == 1) {
                 const auto begin = static_cast<std::size_t>(match.position(3));
                 warnings.add(WarningCode::UnresolvedNumber,
                              "Unable to inflect compound genitive",
@@ -311,7 +334,7 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                                 std::string("из ").size(),
                                 "из ") == 0);
             if (genitive_prefix && try_parse_long(match[2].str(), parsed) &&
-                std::llabs(parsed) >= 10) {
+                std::llabs(parsed) % 10 == 1) {
                 return match[1].str() + match[2].str();
             }
             return match[1].str() +

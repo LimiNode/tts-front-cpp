@@ -9,7 +9,7 @@
 - Preserved terminal punctuation and normalized bracketed numeric values without
   unnecessary warnings.
 - Clarified mixed-language dominant-language detection and recorded the reviewed
-  387-case EN/RU quality baseline (`342/45/0/0`) in an immutable archive.
+  399-case EN/RU quality baseline (`345/54/0/0`) in an immutable archive.
 
 ## 0.2.1
 

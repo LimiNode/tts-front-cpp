@@ -69,17 +69,17 @@ def main() -> int:
     verify_archive(
         NEXT_ARCHIVE,
         {
-            "en_ru_sentences.tsv": "de34eaf51cedfecf49bbf04652ccd901a1c7b5b53b2adc5e3faf2e9f0a6e4400",
-            "en_ru_snapshot.tsv": "cddcdca8bd064c0412ecd02ed3094c5c61f41041a091b27ac28779d62f8b363d",
+            "en_ru_sentences.tsv": "bd5577c174f1c2933f58645e4a0c97af9169bfba5bbbf13d5b0f36caf14e50e2",
+            "en_ru_snapshot.tsv": "f7de9ec2e1883e4a5c854e76b5ecc2594000295719e89c610df22ec7c9566ccd",
         },
         {
-            "cases\t387",
-            "outcome\tcorrect_transformation\t342",
-            "outcome\tjustified_preservation\t45",
+            "cases\t399",
+            "outcome\tcorrect_transformation\t345",
+            "outcome\tjustified_preservation\t54",
             "outcome\tunnecessary_refusal\t0",
             "outcome\tincorrect_or_partial\t0",
         },
-        387,
+        399,
         "v0.2.2",
     )
 
@@ -89,7 +89,7 @@ def main() -> int:
         raise SystemExit("release snapshot contains post-release corrective IDs")
     print("v0.2.0 quality archive: 352 cases and baseline counts verified")
     print("v0.2.1 quality archive: 373 cases and baseline counts verified")
-    print("v0.2.2 quality archive: 387 cases and baseline counts verified")
+    print("v0.2.2 quality archive: 399 cases and baseline counts verified")
     return 0
 
 

@@ -1230,6 +1230,65 @@ int main() {
         CHECK(result.normalized_text == "February 29, 2025");
         CHECK(result.warnings.size() == 1);
     }
+    for (const auto& input : {std::string("February 29, 2025foo"),
+                              std::string("February 29, 2024#4"),
+                              std::string("February 29, 2024/4")}) {
+        const auto result = frontend.process(input, en);
+        CHECK(result.normalized_text == input);
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(result.warnings.front().offset == 0);
+        CHECK(result.warnings.front().length == input.size());
+    }
+    for (const auto& input : {std::string("1 руб...foo"), std::string("1,2 руб.../2")}) {
+        const auto result = frontend.process(input, ru);
+        CHECK(result.normalized_text == input);
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(result.warnings.front().offset == 0);
+        CHECK(result.warnings.front().length == input.size());
+    }
+    for (const auto& input : {std::string("после 1 попытки."),
+                              std::string("после 21 попыток."),
+                              std::string("из 21 узлов.")}) {
+        const auto result = frontend.process(input, ru);
+        CHECK(result.normalized_text == input);
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+    }
+    CHECK(frontend.process("после 2 попыток.", ru).normalized_text == "после двух попыток.");
+    CHECK(frontend.process("после 22 попыток.", ru).normalized_text ==
+          "после двадцати двух попыток.");
+    {
+        const auto result = frontend.process("до 1,2 градусов.", ru);
+        CHECK(result.normalized_text == "до 1,2 градусов.");
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(result.warnings.front().offset == std::string("до ").size());
+        CHECK(result.warnings.front().length == std::string("1,2").size());
+    }
+    {
+        const auto result = frontend.process("1.5%RTX-4090", ru);
+        CHECK(result.normalized_text == "1.5%RTX-4090");
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(result.warnings.front().offset == 0);
+        CHECK(result.warnings.front().length == result.original_text.size());
+    }
+    {
+        TextFrontendOptions segmented;
+        segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        const auto result = frontend.process("Use 1,5 кгfoo", segmented);
+        CHECK(result.normalized_text == "Use 1,5 кгfoo");
+        CHECK(std::count_if(
+                  result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
+                      return warning.code == WarningCode::UnresolvedNumber;
+                  }) == 1);
+        CHECK(std::none_of(
+            result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
+                return warning.code == WarningCode::AmbiguousNormalization;
+            }));
+    }
     std::string many_protected;
     for (int i = 0; i < 35; ++i) {
         if (!many_protected.empty())

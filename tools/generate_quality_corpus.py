@@ -457,10 +457,32 @@ natural_cases = [
      "February twenty ninth, two thousand twenty four", "none"),
     ("en-date-leap-invalid", "en", "date", "preserve", "February 29, 2025",
      "February 29, 2025", warning("February 29, 2025", "February 29, 2025")),
+    ("en-date-continuation-00", "en", "date", "preserve", "February 29, 2025foo",
+     "February 29, 2025foo", warning("February 29, 2025foo", "February 29, 2025foo")),
+    ("en-date-continuation-01", "en", "date", "preserve", "February 29, 2024#4",
+     "February 29, 2024#4", warning("February 29, 2024#4", "February 29, 2024#4")),
+    ("en-date-continuation-02", "en", "date", "preserve", "February 29, 2024/4",
+     "February 29, 2024/4", warning("February 29, 2024/4", "February 29, 2024/4")),
     ("ru-genitive-compound-00", "ru", "integer", "preserve", "после 21 попыток.",
      "после 21 попыток.", warning("после 21 попыток.", "21")),
+    ("ru-genitive-one-00", "ru", "integer", "preserve", "после 1 попытки.",
+     "после 1 попытки.", warning("после 1 попытки.", "1")),
+    ("ru-genitive-two-00", "ru", "integer", "normalize", "после 2 попыток.",
+     "после двух попыток.", "none"),
+    ("ru-genitive-compound-22", "ru", "integer", "normalize", "после 22 попыток.",
+     "после двадцати двух попыток.", "none"),
+    ("ru-genitive-compound-22-noun", "ru", "integer", "normalize", "из 22 узлов.",
+     "из двадцати двух узлов.", "none"),
+    ("ru-genitive-decimal-noun", "ru", "decimal", "preserve", "до 1,2 градусов.",
+     "до 1,2 градусов.", warning("до 1,2 градусов.", "1,2")),
     ("ru-punctuation-ellipsis-00", "ru", "punctuation", "normalize", "1 руб...",
      "один рубль...", "none"),
+    ("ru-punctuation-ellipsis-01", "ru", "punctuation", "preserve", "1 руб...foo",
+     "1 руб...foo", warning("1 руб...foo", "1 руб...foo")),
+    ("ru-punctuation-ellipsis-02", "ru", "punctuation", "preserve", "1,2 руб.../2",
+     "1,2 руб.../2", warning("1,2 руб.../2", "1,2 руб.../2")),
+    ("ru-technical-dot-percent-suffix", "ru", "ambiguous_or_technical", "preserve",
+     "1.5%RTX-4090", "1.5%RTX-4090", warning("1.5%RTX-4090", "1.5%RTX-4090")),
 ]
 for case_id, language, category, expectation, source, expected, diagnostics in natural_cases:
     rows.append(row(case_id, language, "explicit", category, expectation, source, expected,
@@ -469,6 +491,8 @@ rows.append(row("ru-mixed-unit-gb-decimal", "ru", "auto_segment", "measurement",
                 "Используем 1,5 GB данных.",
                 "Используем одна целая пять десятых гигабайта данных.",
                 "ambiguous_normalization@0:41"))
+rows.append(row("ru-mixed-malformed-unit-suffix", "ru", "auto_segment", "measurement", "preserve",
+                "Use 1,5 кгfoo", "Use 1,5 кгfoo", warning("Use 1,5 кгfoo", "1,5 кгfoo")))
 
 ids = [item.split("\t", 1)[0] for item in rows]
 assert len(rows) >= 340, len(rows)

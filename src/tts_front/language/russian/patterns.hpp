@@ -10,10 +10,10 @@ struct Patterns {
     const std::regex decimal_percent{R"((-?\d+),([0-9]+)\s*%([^0-9]|$))"};
     const std::regex foreign_decimal_percent{R"(-?\d+\.\d+\s*%)"};
     const std::regex currency_decimal{
-        R"((-?\d+),([0-9]+)\s*(рублей|рубля|рубль|руб)(\.\.\.|[^0-9A-Za-z]|$))"};
+        R"((-?\d+),([0-9]+)\s*(рублей|рубля|рубль|руб)(\.\.\.(?![A-Za-z0-9])|[^0-9A-Za-z]|$))"};
     const std::regex percent{R"((-?\d+)\s*%)"};
     const std::regex currency{
-        R"((-?\d+)\s*(рублей|рубля|рубль|руб)(\.\.\.|[^А-Яа-яЁёA-Za-z0-9]|$))"};
+        R"((-?\d+)\s*(рублей|рубля|рубль|руб)(\.\.\.(?![А-Яа-яЁёA-Za-z0-9])|[^А-Яа-яЁёA-Za-z0-9]|$))"};
     const std::regex time{R"(\b(\d{1,2}):(\d{2})\b)"};
     const std::regex decimal{R"((-?\d+)[,](\d+)([^0-9]|$))"};
     const std::regex measurement{

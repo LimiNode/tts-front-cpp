@@ -152,6 +152,29 @@ TextFrontendResult TextFrontend::process(std::string_view input,
             break;
         }
     }
+    // An unresolved candidate is the more specific diagnostic.  In segmented
+    // mixed-language mode the broad ambiguity warning covers the whole input;
+    // retaining it when it overlaps an atomic unresolved span produces
+    // contradictory overlapping diagnostics for the same malformed token.
+    if (options.language == Language::Auto &&
+        options.mixed_language_policy == MixedLanguagePolicy::SegmentCandidates) {
+        const auto has_unresolved_overlap = [&](const TextWarning& warning) {
+            return std::any_of(
+                result.warnings.begin(), result.warnings.end(), [&](const TextWarning& other) {
+                    return other.code == WarningCode::UnresolvedNumber &&
+                           warning.offset < other.offset + other.length &&
+                           other.offset < warning.offset + warning.length;
+                });
+        };
+        result.warnings.erase(std::remove_if(result.warnings.begin(),
+                                             result.warnings.end(),
+                                             [&](const TextWarning& warning) {
+                                                 return warning.code ==
+                                                            WarningCode::AmbiguousNormalization &&
+                                                        has_unresolved_overlap(warning);
+                                             }),
+                              result.warnings.end());
+    }
     if (options.cleanup_spacing)
         text = detail::cleanup_spacing(text);
     result.normalized_text = text.text;

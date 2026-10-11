@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cstdint>
 #include <iterator>
 #include <regex>
 #include <stdexcept>
@@ -28,6 +29,38 @@ bool valid_date(int day, int month, int year) {
     if (month == 2 && (year % 400 == 0 || (year % 4 == 0 && year % 100 != 0)))
         limit = 29;
     return day <= limit;
+}
+
+bool is_technical_suffix_point(std::uint32_t value) {
+    return text::is_letter(value) || text::is_digit(value) || text::is_combining_mark(value) ||
+           value == '_' || value == '-' || value == '.' || value == '+' || value == '#' ||
+           value == '$';
+}
+
+std::size_t scan_technical_suffix(const std::vector<CodePoint>& points, std::size_t begin) {
+    auto end = begin;
+    while (end < points.size() && is_technical_suffix_point(points[end].value))
+        ++end;
+    return end;
+}
+
+std::size_t scan_nonterminal_ellipsis(const std::vector<CodePoint>& points, std::size_t begin) {
+    if (begin + 1 >= points.size() || points[begin].value != '.' || points[begin + 1].value != '.')
+        return begin;
+    auto continuation = begin;
+    while (continuation < points.size() && points[continuation].value == '.')
+        ++continuation;
+    if (continuation >= points.size() ||
+        (!text::is_letter(points[continuation].value) &&
+         !text::is_digit(points[continuation].value) && points[continuation].value != '/' &&
+         points[continuation].value != '#' && points[continuation].value != '$'))
+        return begin;
+    while (continuation < points.size() &&
+           (text::is_letter(points[continuation].value) ||
+            text::is_digit(points[continuation].value) || points[continuation].value == '/' ||
+            points[continuation].value == '#' || points[continuation].value == '$'))
+        ++continuation;
+    return continuation;
 }
 
 MappedText protect_malformed_numeric_candidates(MappedText text,
@@ -408,6 +441,25 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 ++end_index;
             percent_attached_to_numeric = true;
         }
+        // A dotted foreign percentage immediately followed by a technical
+        // identifier is one unsupported candidate (for example
+        // `1.5%RTX-4090`).  The technical pass deliberately leaves that
+        // identifier visible so the warning can cover the complete source
+        // span; consume its lexical tail here instead of emitting two
+        // diagnostics.
+        if (has_percent && end_index < points.size()) {
+            const auto value = points[end_index].value;
+            const bool attached_word = text::is_letter(value);
+            const bool continues_word =
+                end_index > 0 &&
+                (value == '-' || value == '+' || value == '.' || value == '#' || value == '$') &&
+                (text::is_letter(points[end_index - 1].value) ||
+                 text::is_digit(points[end_index - 1].value));
+            if (attached_word || continues_word) {
+                malformed_compound = true;
+                end_index = scan_technical_suffix(points, end_index);
+            }
+        }
         // A terminal currency/hash connector is not a supported postfix
         // notation. Preserve it atomically instead of letting the generic
         // number pass rewrite only the leading digits (`1$` -> `one$`).
@@ -462,6 +514,17 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 if (known_stem && (!valid_surface || suffix_end != word_end)) {
                     malformed_compound = true;
                     end_index = suffix_end;
+                }
+                // An abbreviation ellipsis is terminal only when it is
+                // followed by ordinary punctuation or the end of input.
+                // `руб...foo` and `руб.../2` are unsupported continuations
+                // and must remain one atomic candidate.
+                if (known_stem && suffix_end == word_end) {
+                    const auto continuation = scan_nonterminal_ellipsis(points, suffix_end);
+                    if (continuation != suffix_end) {
+                        malformed_compound = true;
+                        end_index = continuation;
+                    }
                 }
             }
         }

@@ -1,12 +1,12 @@
 # v0.2.2 quality archive
 
 This directory is the immutable quality archive for the `v0.2.2` release. It
-contains the reviewed 387-case EN/RU corpus and strict snapshot.
+contains the reviewed 399-case EN/RU corpus and strict snapshot.
 
 Snapshot outcomes:
 
-- correct transformation: 342;
-- justified preservation: 45;
+- correct transformation: 345;
+- justified preservation: 54;
 - unnecessary refusal: 0;
 - incorrect or partial transformation: 0.
 

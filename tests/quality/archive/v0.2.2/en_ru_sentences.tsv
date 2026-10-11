@@ -386,3 +386,15 @@ en-date-leap-invalid	en	explicit	date	preserve	February 29, 2025	February 29, 20
 ru-genitive-compound-00	ru	explicit	integer	preserve	после 21 попыток.	после 21 попыток.	unresolved_number@11:2
 ru-punctuation-ellipsis-00	ru	explicit	punctuation	normalize	1 руб...	один рубль...	none
 ru-mixed-unit-gb-decimal	ru	auto_segment	measurement	normalize	Используем 1,5 GB данных.	Используем одна целая пять десятых гигабайта данных.	ambiguous_normalization@0:41
+en-date-continuation-00	en	explicit	date	preserve	February 29, 2025foo	February 29, 2025foo	unresolved_number@0:20
+en-date-continuation-01	en	explicit	date	preserve	February 29, 2024#4	February 29, 2024#4	unresolved_number@0:19
+en-date-continuation-02	en	explicit	date	preserve	February 29, 2024/4	February 29, 2024/4	unresolved_number@0:19
+ru-genitive-one-00	ru	explicit	integer	preserve	после 1 попытки.	после 1 попытки.	unresolved_number@11:1
+ru-genitive-compound-22	ru	explicit	integer	normalize	после 22 попыток.	после двадцати двух попыток.	none
+ru-genitive-compound-22-noun	ru	explicit	integer	normalize	из 22 узлов.	из двадцати двух узлов.	none
+ru-punctuation-ellipsis-01	ru	explicit	punctuation	preserve	1 руб...foo	1 руб...foo	unresolved_number@0:14
+ru-punctuation-ellipsis-02	ru	explicit	punctuation	preserve	1,2 руб.../2	1,2 руб.../2	unresolved_number@0:15
+ru-technical-dot-percent-suffix	ru	explicit	ambiguous_or_technical	preserve	1.5%RTX-4090	1.5%RTX-4090	unresolved_number@0:12
+ru-mixed-malformed-unit-suffix	ru	auto_segment	measurement	preserve	Use 1,5 кгfoo	Use 1,5 кгfoo	unresolved_number@4:11
+ru-genitive-two-00	ru	explicit	integer	normalize	после 2 попыток.	после двух попыток.	none
+ru-genitive-decimal-noun	ru	explicit	decimal	preserve	до 1,2 градусов.	до 1,2 градусов.	unresolved_number@5:3
