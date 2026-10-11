@@ -127,6 +127,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             end_index = surface.continuation_end;
         std::size_t separators = 0;
         bool has_percent = false;
+        bool has_dot_decimal = false;
         bool percent_attached_to_numeric = false;
         bool has_range_connector = false;
         bool has_unsupported_numeric_connector = false;
@@ -261,6 +262,9 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 if (value == '[' || value == ']')
                     break;
                 if (text::is_numeric_connector(value)) {
+                    if (rules.dotted_dates && value == '.' && end_index + 1 < points.size() &&
+                        text::is_digit(points[end_index + 1].value))
+                        has_dot_decimal = true;
                     if (grouped_seen && (value == '.' || value == ',' || value == ':'))
                         malformed_compound = true;
                     if (value == '%') {
@@ -373,6 +377,29 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         }
         if (currency_context && has_percent)
             end_index = scan_numeric_continuation_points(document, end_index, false);
+        if (rules.dotted_dates && has_dot_decimal && has_percent) {
+            malformed_compound = true;
+            const auto continuation = scan_numeric_continuation_points(document, end_index, false);
+            if (continuation != end_index)
+                end_index = continuation;
+            auto suffix_end = end_index;
+            while (suffix_end < points.size() && text::is_letter(points[suffix_end].value))
+                ++suffix_end;
+            if (suffix_end > end_index) {
+                malformed_compound = true;
+                end_index = suffix_end;
+            }
+            if (end_index < points.size() &&
+                (points[end_index].value == '/' || points[end_index].value == '#' ||
+                 points[end_index].value == '$')) {
+                ++end_index;
+                while (end_index < points.size() &&
+                       (text::is_digit(points[end_index].value) ||
+                        text::is_letter(points[end_index].value) ||
+                        text::is_combining_mark(points[end_index].value)))
+                    ++end_index;
+            }
+        }
         if (has_percent && end_index < points.size() &&
             text::is_lexical_numeric_boundary(points[end_index].value)) {
             while (end_index < points.size() &&

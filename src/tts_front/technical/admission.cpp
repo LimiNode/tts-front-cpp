@@ -49,6 +49,12 @@ MappedText protect(MappedText text, std::vector<ProtectedSpan>& protected_spans)
             const auto match_end_point = codepoint_index_at_or_after(document, finish);
             const auto& value = it->str();
             const bool generic_identifier = pattern == &patterns.technical_identifier;
+            // A hash suffix immediately following an unsupported dot-decimal
+            // percentage belongs to that numeric candidate, not to a
+            // standalone C#-style technical token.  Leave it visible for the
+            // malformed admission pass so the warning remains atomic.
+            if (generic_identifier && begin > 0 && text.text[begin - 1] == '%')
+                continue;
             if (generic_identifier && !has_known_identifier_prefix(value) &&
                 scientific_index.overlaps(match_point, match_end_point))
                 continue;

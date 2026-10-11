@@ -435,10 +435,40 @@ natural_cases = [
      warning("+1,2%", "+1,2%")),
     ("ru-unicode-minus-time-00", "ru", "time", "preserve", "−1:02", "−1:02",
      warning("−1:02", "−1:02")),
+    ("ru-foreign-percent-continuation-00", "ru", "percent", "preserve",
+     "Порог 1.5% 123 задан", "Порог 1.5% 123 задан", warning("Порог 1.5% 123 задан", "1.5% 123")),
+    ("ru-foreign-percent-continuation-01", "ru", "percent", "preserve",
+     "1.5%/4", "1.5%/4", warning("1.5%/4", "1.5%/4")),
+    ("ru-foreign-percent-continuation-02", "ru", "percent", "preserve",
+     "1.5%#4", "1.5%#4", warning("1.5%#4", "1.5%#4")),
+    ("ru-foreign-percent-continuation-03", "ru", "percent", "preserve",
+     "1.5%$4", "1.5%$4", warning("1.5%$4", "1.5%$4")),
+    ("ru-foreign-percent-continuation-04", "ru", "percent", "preserve",
+     "1.5%word", "1.5%word", warning("1.5%word", "1.5%word")),
+    ("ru-technical-dot-percent-00", "ru", "ambiguous_or_technical", "preserve",
+     "https://example.com/1.5%", "https://example.com/1.5%", "none"),
+    ("ru-technical-dot-percent-01", "ru", "ambiguous_or_technical", "preserve",
+     "user1.5%@example.com", "user1.5%@example.com", "none"),
+    ("ru-technical-dot-percent-02", "ru", "ambiguous_or_technical", "preserve",
+     "RTX-1.5%", "RTX-1.5%", "none"),
+    ("en-date-leap-00", "en", "date", "normalize", "February 29, 2020",
+     "February twenty ninth, two thousand twenty", "none"),
+    ("en-date-leap-01", "en", "date", "normalize", "February 29, 2024",
+     "February twenty ninth, two thousand twenty four", "none"),
+    ("en-date-leap-invalid", "en", "date", "preserve", "February 29, 2025",
+     "February 29, 2025", warning("February 29, 2025", "February 29, 2025")),
+    ("ru-genitive-compound-00", "ru", "integer", "preserve", "после 21 попыток.",
+     "после 21 попыток.", warning("после 21 попыток.", "21")),
+    ("ru-punctuation-ellipsis-00", "ru", "punctuation", "normalize", "1 руб...",
+     "один рубль...", "none"),
 ]
 for case_id, language, category, expectation, source, expected, diagnostics in natural_cases:
     rows.append(row(case_id, language, "explicit", category, expectation, source, expected,
                     diagnostics))
+rows.append(row("ru-mixed-unit-gb-decimal", "ru", "auto_segment", "measurement", "normalize",
+                "Используем 1,5 GB данных.",
+                "Используем одна целая пять десятых гигабайта данных.",
+                "ambiguous_normalization@0:41"))
 
 ids = [item.split("\t", 1)[0] for item in rows]
 assert len(rows) >= 340, len(rows)

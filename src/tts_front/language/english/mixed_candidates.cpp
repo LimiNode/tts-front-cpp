@@ -21,7 +21,7 @@ const std::regex& candidate_pattern() {
 
 const std::regex& malformed_pattern() {
     static const std::regex pattern{
-        R"(((?:\$[0-9]+(?:\.[0-9]+)?|[+-]?[0-9]+(?:\.[0-9]+)?[ \t]*(?:kilometers|kilometres|kilometer|kilometre|km|kilogram|kilograms|kg|meters|metres|meter|m|centimeters|centimetres|centimeter|cm|millimeters|millimetres|millimeter|mm))[A-Za-zА-Яа-яЁё]*))"};
+        R"((?:^|[^0-9.,])((?:\$[0-9]+(?:\.[0-9]+)?|[+-]?[0-9]+(?:\.[0-9]+)?[ \t]*(?:kilometers|kilometres|kilometer|kilometre|km|kilogram|kilograms|kg|meters|metres|meter|m|centimeters|centimetres|centimeter|cm|millimeters|millimetres|millimeter|mm))[A-Za-zА-Яа-яЁё]*))"};
     return pattern;
 }
 

@@ -372,3 +372,17 @@ en-unicode-minus-time-00	en	explicit	time	preserve	−1:02	−1:02	unresolved_nu
 ru-positive-sign-00	ru	explicit	measurement	preserve	+1.2 kg	+1.2 kg	unresolved_number@0:7
 ru-positive-sign-01	ru	explicit	percent	preserve	+1,2%	+1,2%	unresolved_number@0:5
 ru-unicode-minus-time-00	ru	explicit	time	preserve	−1:02	−1:02	unresolved_number@0:7
+ru-foreign-percent-continuation-00	ru	explicit	percent	preserve	Порог 1.5% 123 задан	Порог 1.5% 123 задан	unresolved_number@11:8
+ru-foreign-percent-continuation-01	ru	explicit	percent	preserve	1.5%/4	1.5%/4	unresolved_number@0:6
+ru-foreign-percent-continuation-02	ru	explicit	percent	preserve	1.5%#4	1.5%#4	unresolved_number@0:6
+ru-foreign-percent-continuation-03	ru	explicit	percent	preserve	1.5%$4	1.5%$4	unresolved_number@0:6
+ru-foreign-percent-continuation-04	ru	explicit	percent	preserve	1.5%word	1.5%word	unresolved_number@0:8
+ru-technical-dot-percent-00	ru	explicit	ambiguous_or_technical	preserve	https://example.com/1.5%	https://example.com/1.5%	none
+ru-technical-dot-percent-01	ru	explicit	ambiguous_or_technical	preserve	user1.5%@example.com	user1.5%@example.com	none
+ru-technical-dot-percent-02	ru	explicit	ambiguous_or_technical	preserve	RTX-1.5%	RTX-1.5%	none
+en-date-leap-00	en	explicit	date	normalize	February 29, 2020	February twenty ninth, two thousand twenty	none
+en-date-leap-01	en	explicit	date	normalize	February 29, 2024	February twenty ninth, two thousand twenty four	none
+en-date-leap-invalid	en	explicit	date	preserve	February 29, 2025	February 29, 2025	unresolved_number@0:17
+ru-genitive-compound-00	ru	explicit	integer	preserve	после 21 попыток.	после 21 попыток.	unresolved_number@11:2
+ru-punctuation-ellipsis-00	ru	explicit	punctuation	normalize	1 руб...	один рубль...	none
+ru-mixed-unit-gb-decimal	ru	auto_segment	measurement	normalize	Используем 1,5 GB данных.	Используем одна целая пять десятых гигабайта данных.	ambiguous_normalization@0:41

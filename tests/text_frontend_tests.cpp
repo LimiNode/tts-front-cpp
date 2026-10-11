@@ -1160,8 +1160,13 @@ int main() {
     }
     {
         const auto genitive_21 = frontend.process("после 21 попыток.", ru);
-        CHECK(genitive_21.normalized_text == "после двадцати одного попыток.");
-        CHECK(genitive_21.warnings.empty());
+        CHECK(genitive_21.normalized_text == "после 21 попыток.");
+        CHECK(genitive_21.warnings.size() == 1);
+        CHECK(genitive_21.warnings.front().offset == genitive_21.original_text.find("21"));
+        CHECK(genitive_21.warnings.front().length == 2);
+        const auto genitive_21_nodes = frontend.process("из 21 узлов.", ru);
+        CHECK(genitive_21_nodes.normalized_text == "из 21 узлов.");
+        CHECK(genitive_21_nodes.warnings.size() == 1);
         const auto malformed_genitive = frontend.process("после 21.5 попыток.", ru);
         CHECK(malformed_genitive.normalized_text == "после 21.5 попыток.");
         CHECK(malformed_genitive.warnings.size() == 1);
@@ -1175,18 +1180,55 @@ int main() {
         const auto result = frontend.process(input, ru);
         CHECK(result.normalized_text == "один рубль" + punctuation);
     }
+    CHECK(frontend.process("1 руб...,", ru).normalized_text == "один рубль...,");
     {
         TextFrontendOptions segmented;
         segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
         const auto mixed_unit = frontend.process("Use 1,5 кг", segmented);
         CHECK(mixed_unit.normalized_text == "Use одна целая пять десятых килограмма");
         CHECK(!mixed_unit.warnings.empty());
+        const auto mixed_gb = frontend.process("Используем 1,5 GB данных.", segmented);
+        CHECK(mixed_gb.normalized_text == "Используем одна целая пять десятых гигабайта данных.");
         const auto foreign_percent = frontend.process("Порог 0.5% задан для RTX-4090.", segmented);
         CHECK(foreign_percent.normalized_text == "Порог 0.5% задан для RTX-4090.");
         CHECK(foreign_percent.warnings.size() == 1);
         CHECK(foreign_percent.warnings.front().code == WarningCode::UnresolvedNumber);
         CHECK(foreign_percent.warnings.front().offset == 11);
         CHECK(foreign_percent.warnings.front().length == 4);
+    }
+    for (const auto& input : {std::string("1.5%/4"),
+                              std::string("1.5%#4"),
+                              std::string("1.5%$4"),
+                              std::string("1.5%word")}) {
+        const auto result = frontend.process(input, ru);
+        CHECK(result.normalized_text == input);
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().offset == 0);
+        CHECK(result.warnings.front().length == input.size());
+    }
+    {
+        const auto result = frontend.process("Порог 1.5% 123 задан", ru);
+        CHECK(result.normalized_text == "Порог 1.5% 123 задан");
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().offset == std::string("Порог ").size());
+        CHECK(result.warnings.front().length == std::string("1.5% 123").size());
+    }
+    for (const auto& input : {std::string("https://example.com/1.5%"),
+                              std::string("user1.5%@example.com"),
+                              std::string("RTX-1.5%")}) {
+        const auto result = frontend.process(input, ru);
+        CHECK(result.normalized_text == input);
+        CHECK(result.warnings.empty());
+    }
+    for (const auto& input : {std::string("February 29, 2020"), std::string("February 29, 2024")}) {
+        const auto result = frontend.process(input, en);
+        CHECK(result.normalized_text != input);
+        CHECK(result.warnings.empty());
+    }
+    {
+        const auto result = frontend.process("February 29, 2025", en);
+        CHECK(result.normalized_text == "February 29, 2025");
+        CHECK(result.warnings.size() == 1);
     }
     std::string many_protected;
     for (int i = 0; i < 35; ++i) {

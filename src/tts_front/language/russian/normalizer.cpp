@@ -9,6 +9,7 @@
 #include "tts_front/technical/admission.hpp"
 
 #include <cctype>
+#include <cstdlib>
 #include <string>
 #include <string_view>
 
@@ -28,25 +29,6 @@ number_or_original(const std::string& token, WarningSink& warnings, SourceRange 
 } // namespace
 
 MappedText normalize(MappedText text, WarningSink& warnings) {
-    text = replace_matches(
-        text,
-        russian::patterns().foreign_decimal_percent,
-        [&](const std::smatch& match, const MappedText& source) {
-            const auto begin = static_cast<std::size_t>(match.position());
-            const bool preceded_by_unicode_minus =
-                begin >= 3 && static_cast<unsigned char>(source.text[begin - 3]) == 0xE2 &&
-                static_cast<unsigned char>(source.text[begin - 2]) == 0x88 &&
-                static_cast<unsigned char>(source.text[begin - 1]) == 0x92;
-            if (begin != 0 && (source.text[begin - 1] == '+' || source.text[begin - 1] == '-' ||
-                               preceded_by_unicode_minus))
-                return match.str();
-            add_warning(warnings,
-                        WarningCode::UnresolvedNumber,
-                        "Unsupported dot-decimal Russian percentage",
-                        source,
-                        match);
-            return match.str();
-        });
     std::vector<ProtectedSpan> protected_spans;
     text = technical::protect_numeric_candidates(std::move(text), warnings, protected_spans);
     text = technical::protect(std::move(text), protected_spans);
@@ -226,9 +208,9 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                 : !fraction.empty() &&
                         (unit_source.find("мм") == 0 || unit_source.find("миллиметр") == 0)
                     ? "миллиметра"
-                : !fraction.empty() && unit_source == "м"  ? "метра"
-                : !fraction.empty() && unit_source == "ГБ" ? "гигабайта"
-                : !fraction.empty()                        ? "мегабайта"
+                : !fraction.empty() && unit_source == "м" ? "метра"
+                : !fraction.empty() && (unit_source == "ГБ" || unit_source == "GB") ? "гигабайта"
+                : !fraction.empty() ? "мегабайта"
                 : unit_source.find("кг") == 0 || unit_source.find("килограмм") == 0
                     ? plural_form(n, "килограмм", "килограмма", "килограммов")
                 : unit_source.find("км") == 0 || unit_source.find("километр") == 0
@@ -238,8 +220,9 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                 : unit_source.find("мм") == 0 || unit_source.find("миллиметр") == 0
                     ? plural_form(n, "миллиметр", "миллиметра", "миллиметров")
                 : unit_source == "м" ? plural_form(n, "метр", "метра", "метров")
-                : unit_source == "ГБ" ? plural_form(n, "гигабайт", "гигабайта", "гигабайт")
-                                      : plural_form(n, "мегабайт", "мегабайта", "мегабайт");
+                : (unit_source == "ГБ" || unit_source == "GB")
+                    ? plural_form(n, "гигабайт", "гигабайта", "гигабайт")
+                    : plural_form(n, "мегабайт", "мегабайта", "мегабайт");
             if (!fraction.empty())
                 return decimal(n, fraction) + " " + unit + match[4].str();
             return number_for_token(match[1].str(), n) + " " + unit + match[4].str();
@@ -295,6 +278,19 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
             long long value = 0;
             if (!try_parse_long(token, value))
                 return match.str();
+            // Agreement of compound genitives depends on the governed noun
+            // ("двадцати одного узла", "двадцати одной попытки", ...).
+            // We do not have a noun-aware inflector here; leave values >= 10
+            // for the final generic pass, which will preserve them with an
+            // explicit warning instead of emitting a grammatically unsafe
+            // rewrite.
+            if (std::llabs(value) >= 10) {
+                const auto begin = static_cast<std::size_t>(match.position(3));
+                warnings.add(WarningCode::UnresolvedNumber,
+                             "Unable to inflect compound genitive",
+                             source.source_range(begin, begin + match.length(3)));
+                return match.str();
+            }
             return match[1].str() + match[2].str() + genitive_number(value);
         });
     text = replace_numeric_matches(
@@ -303,6 +299,21 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
         [&](const std::smatch& match, const MappedText& source) {
             const auto number_begin = static_cast<std::size_t>(match.position(2));
             const auto number_end = number_begin + static_cast<std::size_t>(match.length(2));
+            long long parsed = 0;
+            const auto before = source.text.substr(0, number_begin);
+            const bool genitive_prefix =
+                (before.size() >= std::string("после ").size() &&
+                 before.compare(before.size() - std::string("после ").size(),
+                                std::string("после ").size(),
+                                "после ") == 0) ||
+                (before.size() >= std::string("из ").size() &&
+                 before.compare(before.size() - std::string("из ").size(),
+                                std::string("из ").size(),
+                                "из ") == 0);
+            if (genitive_prefix && try_parse_long(match[2].str(), parsed) &&
+                std::llabs(parsed) >= 10) {
+                return match[1].str() + match[2].str();
+            }
             return match[1].str() +
                    number_or_original(
                        match[2].str(), warnings, source.source_range(number_begin, number_end));

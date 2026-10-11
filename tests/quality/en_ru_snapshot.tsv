@@ -1,7 +1,7 @@
 version	1
-cases	373
-outcome	correct_transformation	338
-outcome	justified_preservation	35
+cases	387
+outcome	correct_transformation	342
+outcome	justified_preservation	45
 outcome	unnecessary_refusal	0
 outcome	incorrect_or_partial	0
 diagnostic_exception	en-preserve-4	unresolved_number@17:6

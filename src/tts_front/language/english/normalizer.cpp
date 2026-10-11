@@ -7,6 +7,7 @@
 #include "tts_front/normalization/normalizer_support.hpp"
 #include "tts_front/technical/admission.hpp"
 
+#include <regex>
 #include <string>
 #include <string_view>
 
@@ -44,9 +45,12 @@ int month_number(std::string_view month) {
 
 bool valid_calendar_date(int month, int day, int year) {
     static constexpr int days[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-    if (month < 1 || month > 12 || day < 1 || day > days[month])
+    if (month < 1 || month > 12 || day < 1)
         return false;
-    return month != 2 || day != 29 || year % 400 == 0 || (year % 4 == 0 && year % 100 != 0);
+    int limit = days[month];
+    if (month == 2 && (year % 400 == 0 || (year % 4 == 0 && year % 100 != 0)))
+        limit = 29;
+    return day <= limit;
 }
 
 } // namespace
@@ -55,6 +59,30 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
     text = technical::protect_numeric_candidates(std::move(text), warnings, protected_spans);
     text = technical::protect(std::move(text), protected_spans);
+    // Admit month-name dates before generic malformed-number shielding.  The
+    // day component of a valid leap date must reach this formatter instead of
+    // being hidden as an unrelated numeric candidate.  Technical ranges are
+    // already hidden, so dates embedded in URLs/identifiers are not diagnosed.
+    if (std::regex_search(text.text, english::patterns().date))
+        text = replace_matches(
+            text,
+            english::patterns().date,
+            [&](const std::smatch& match, const MappedText& source) {
+                long long day = 0, year_value = 0;
+                const auto month = month_number(match[1].str());
+                if (!try_parse_long(match[2].str(), day) ||
+                    !try_parse_long(match[3].str(), year_value) ||
+                    !valid_calendar_date(
+                        month, static_cast<int>(day), static_cast<int>(year_value))) {
+                    add_warning(warnings,
+                                WarningCode::UnresolvedNumber,
+                                "Unable to parse English calendar date",
+                                source,
+                                match);
+                    return match.str();
+                }
+                return match[1].str() + " " + ordinal(day) + ", " + year(year_value);
+            });
     text = protect_malformed_numeric_candidates(
         std::move(text), warnings, protected_spans, admission_rules());
     text = collapse_comma_grouped_numbers(text);
