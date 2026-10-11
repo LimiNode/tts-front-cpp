@@ -22,8 +22,13 @@ cross-domain shortcut.
 - A candidate is either transformed as one complete source span or preserved as
   one complete source span with a diagnostic. Never normalize a suffix or a
   continuation after rejecting the head.
-- `original_text` is byte-for-byte stable. Diagnostics use original byte
-  offsets, have non-overlapping spans, and never expose internal markers.
+- `original_text` is byte-for-byte stable. Span-bearing diagnostics use byte
+  offsets into `original_text`; zero-length global diagnostics are valid and
+  use offset 0, length 0. Duplicate warnings with identical
+  `(code, offset, length)` are forbidden. Distinct non-empty
+  `UnresolvedNumber` spans must not overlap. Global diagnostics and warnings
+  from different categories may overlap candidate-specific warnings. No
+  diagnostic may expose internal markers.
 - Technical protection is established before language passes can interpret a
   protected range. Any pre-pass must explicitly skip protected ranges.
 - All edits are source-mapped and applied through the shared edit machinery.

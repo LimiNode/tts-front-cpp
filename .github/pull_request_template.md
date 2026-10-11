@@ -31,9 +31,13 @@ why they cannot be split.
 
 ## Oracle and release safety
 
+Choose one oracle status:
+
 - [ ] No expected output or release archive changed.
-- [ ] If an oracle changed, the old result, new contract, and reason are stated
-      above and covered by a direct regression.
+- [ ] An expected output changed; the old result, new contract, and reason are
+      stated above and covered by a direct regression.
+
+- [ ] Published release archives remain unchanged.
 - [ ] The exact pushed HEAD was checked.
 - [ ] This PR does not claim merge/release readiness from push CI alone.
 

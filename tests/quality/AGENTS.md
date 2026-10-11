@@ -9,8 +9,10 @@ historical contract. They are different artifacts.
   oracle change in the PR description.
 - Keep generator output, TSV, snapshot, diagnostics, and checksums synchronized.
 - The audit must detect new mismatches, stale exceptions, changed normalized or
-  pronunciation output, diagnostic drift, duplicate/overlapping spans, marker
-  leakage, and original-text changes.
+  pronunciation output, diagnostic drift, duplicate warnings with identical
+  `(code, offset, length)`, overlapping distinct `UnresolvedNumber` spans,
+  marker leakage, and original-text changes. Global diagnostics and warnings
+  from different categories may overlap.
 - A zero-mismatch report is not sufficient when the oracle changed in the same
   commit. Report the before/after baseline and classify the change.
 - Every new quality case needs a positive/negative neighbor and, for numeric

@@ -12,8 +12,12 @@ describes the non-negotiable project contract and the development workflow.
 - Keep the core deterministic, thread-safe, UTF-8 based, and independent of
   Python, PyTorch, Qwen, networking, ICU, Pynini, OpenFST, and TTS runtimes.
 - The canonical public include is `<tts_front.hpp>`.
-- Unsupported or ambiguous input is fail-closed: preserve the original source
-  bytes and emit an honest diagnostic with a byte-accurate source span.
+- For valid UTF-8, unsupported or ambiguous normalization candidates are
+  fail-closed: preserve their original source bytes and emit an honest
+  candidate diagnostic with a byte-accurate span. Invalid UTF-8 is rejected
+  with `InvalidUtf8`; the bytes remain available in `original_text`, while
+  `normalized_text` need not be produced. Zero-length global diagnostics are
+  valid and use offset 0, length 0.
 - Do not add empty forwarding headers or speculative public abstractions.
 
 ## Ownership and decisions

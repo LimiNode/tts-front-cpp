@@ -10,7 +10,9 @@ language implementation.
 - A rejected candidate must block every later normalizer from rewriting its
   continuation, including whitespace-linked numbers and `/`, `#`, `$`, `%`,
   signs, Unicode dashes, and attached words.
-- Preserve diagnostic spans in original bytes and prevent duplicate or
-  overlapping warnings.
+- Preserve candidate spans in original bytes. Duplicate warnings with
+  identical `(code, offset, length)` are forbidden, and distinct non-empty
+  `UnresolvedNumber` spans must not overlap. Global diagnostics and warnings
+  from different categories may overlap candidate-specific warnings.
 - Any new pass must state its ordering relative to technical protection and
   explain why it cannot observe a protected range.
