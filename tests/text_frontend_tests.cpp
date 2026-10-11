@@ -1250,6 +1250,23 @@ int main() {
         CHECK(result.warnings.front().offset == 0);
         CHECK(result.warnings.front().length == input.size());
     }
+    // A connector without a lexical continuation is a hard boundary.  These
+    // cases must return promptly rather than retrying the same connector
+    // indefinitely.  The date and following number remain independent tokens.
+    for (const auto& input : {std::string("February 29, 2024# 4"),
+                              std::string("February 29, 2024/ 4"),
+                              std::string("February 29, 2024+ 4"),
+                              std::string("February 29, 2024- 4"),
+                              std::string("February 29, 2024. 4")}) {
+        const auto result = frontend.process(input, en);
+        CHECK(result.normalized_text.find("February twenty ninth") == 0);
+        CHECK(result.normalized_text.find("four") != std::string::npos);
+    }
+    {
+        const auto result = frontend.process("1.5%RTX- 4090", en);
+        CHECK(!result.normalized_text.empty());
+        CHECK(!result.warnings.empty());
+    }
     for (const auto& input : {std::string("1 руб...foo"), std::string("1,2 руб.../2")}) {
         const auto result = frontend.process(input, ru);
         CHECK(result.normalized_text == input);

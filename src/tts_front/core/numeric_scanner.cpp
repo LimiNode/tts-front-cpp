@@ -119,12 +119,12 @@ std::size_t scan_candidate_continuation(const Utf8Document& document,
                                         CandidateSurfaceKind kind) {
     const auto& points = document.points;
     auto end = begin;
-    const auto lexical = [&] {
-        return text::is_letter(points[end].value) || text::is_digit(points[end].value) ||
-               text::is_combining_mark(points[end].value) || points[end].value == '_';
+    const auto lexical = [&](std::size_t point) {
+        return text::is_letter(points[point].value) || text::is_digit(points[point].value) ||
+               text::is_combining_mark(points[point].value) || points[point].value == '_';
     };
     while (end < points.size()) {
-        while (end < points.size() && lexical())
+        while (end < points.size() && lexical(end))
             ++end;
         if (end >= points.size())
             break;
@@ -134,11 +134,15 @@ std::size_t scan_candidate_continuation(const Utf8Document& document,
                                 (value == '/' || value == '#' || value == '$'));
         if (!connector || end + 1 >= points.size())
             break;
-        const auto before = ++end;
-        while (end < points.size() && lexical())
+        const auto connector_point = end;
+        ++end;
+        const auto continuation_begin = end;
+        while (end < points.size() && lexical(end))
             ++end;
-        if (end == before)
-            --end;
+        if (end == continuation_begin) {
+            end = connector_point;
+            break;
+        }
     }
     return end;
 }
