@@ -1263,9 +1263,23 @@ int main() {
         CHECK(result.normalized_text.find("four") != std::string::npos);
     }
     {
-        const auto result = frontend.process("1.5%RTX- 4090", en);
-        CHECK(!result.normalized_text.empty());
-        CHECK(!result.warnings.empty());
+        for (const auto* options : {&en, &ru, &auto_options}) {
+            for (const auto& input : {std::string("1.5%RTX- 4090"),
+                                      std::string("1.5%RTX+ 4090"),
+                                      std::string("1.5%RTX-"),
+                                      std::string("1.5%RTX+"),
+                                      std::string("1.5%RTX."),
+                                      std::string("1.5%RTX/"),
+                                      std::string("1.5%RTX#"),
+                                      std::string("1.5%RTX$")}) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.normalized_text == input);
+                CHECK(result.warnings.size() == 1);
+                CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+                CHECK(result.warnings.front().offset == 0);
+                CHECK(result.warnings.front().length == input.size());
+            }
+        }
     }
     for (const auto& input : {std::string("1 руб...foo"), std::string("1,2 руб.../2")}) {
         const auto result = frontend.process(input, ru);

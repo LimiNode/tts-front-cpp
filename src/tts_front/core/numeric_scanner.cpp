@@ -132,13 +132,35 @@ std::size_t scan_candidate_continuation(const Utf8Document& document,
         const bool connector = value == '-' || value == '+' || value == '.' ||
                                (kind != CandidateSurfaceKind::Numeric &&
                                 (value == '/' || value == '#' || value == '$'));
-        if (!connector || end + 1 >= points.size())
+        if (!connector)
             break;
+        const bool has_lexical_stem = end > begin || (begin > 0 && lexical(begin - 1));
+        if (end + 1 >= points.size()) {
+            if (kind == CandidateSurfaceKind::Technical && has_lexical_stem)
+                ++end;
+            break;
+        }
         const auto connector_point = end;
         ++end;
         const auto continuation_begin = end;
         while (end < points.size() && lexical(end))
             ++end;
+        if (end == continuation_begin && kind == CandidateSurfaceKind::Technical &&
+            has_lexical_stem) {
+            // Technical tails may use a connector followed by horizontal
+            // space and another numeric token (for example `RTX- 4090`).
+            // Treat that as one unsupported surface, but only when the
+            // numeric continuation is actually present.
+            auto numeric_begin = end;
+            while (numeric_begin < points.size() &&
+                   text::is_horizontal_space(points[numeric_begin].value))
+                ++numeric_begin;
+            if (numeric_begin < points.size() && text::is_digit(points[numeric_begin].value)) {
+                end = numeric_begin;
+                while (end < points.size() && lexical(end))
+                    ++end;
+            }
+        }
         if (end == continuation_begin) {
             end = connector_point;
             break;

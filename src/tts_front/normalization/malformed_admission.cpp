@@ -436,17 +436,11 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         // span; consume its lexical tail here instead of emitting two
         // diagnostics.
         if (has_percent && end_index < points.size()) {
-            const auto value = points[end_index].value;
-            const bool attached_word = text::is_letter(value);
-            const bool continues_word =
-                end_index > 0 &&
-                (value == '-' || value == '+' || value == '.' || value == '#' || value == '$') &&
-                (text::is_letter(points[end_index - 1].value) ||
-                 text::is_digit(points[end_index - 1].value));
-            if (attached_word || continues_word) {
+            const auto continuation =
+                scan_candidate_continuation(document, end_index, CandidateSurfaceKind::Technical);
+            if (continuation != end_index) {
                 malformed_compound = true;
-                end_index = scan_candidate_continuation(
-                    document, end_index, CandidateSurfaceKind::Technical);
+                end_index = continuation;
             }
         }
         // A terminal currency/hash connector is not a supported postfix
