@@ -1,10 +1,122 @@
 version	1
-cases	399
-outcome	correct_transformation	345
-outcome	justified_preservation	54
+cases	655
+outcome	correct_transformation	531
+outcome	justified_preservation	88
 outcome	unnecessary_refusal	0
-outcome	incorrect_or_partial	0
-diagnostic_exception	en-preserve-4	unresolved_number@17:6
-diagnostic_exception	ru-preserve-12	unresolved_number@33:6
-diagnostic_exception	ru-mixed-14	unresolved_number@19:6
+outcome	incorrect_or_partial	36
+mismatch	en-v030-mixed-0-0
+mismatch	en-v030-mixed-2-0
+mismatch	en-v030-mixed-3-0
+mismatch	en-v030-mixed-6-1
+mismatch	en-v030-mixed-7-0
+mismatch	en-v030-year-0-a
+mismatch	en-v030-year-0-b
+mismatch	ru-v030-control-4
+mismatch	ru-v030-control-5
+mismatch	ru-v030-date-0-0
+mismatch	ru-v030-date-0-1
+mismatch	ru-v030-date-1-0
+mismatch	ru-v030-date-1-1
+mismatch	ru-v030-mixed-2-0
+mismatch	ru-v030-mixed-3-0
+mismatch	ru-v030-mixed-4-0
+mismatch	ru-v030-mixed-6-1
+mismatch	ru-v030-mixed-7-0
+mismatch	ru-v030-money-7-a
+mismatch	ru-v030-money-7-b
+mismatch	ru-v030-year-0-a
+mismatch	ru-v030-year-0-b
+mismatch	ru-v030-year-1-a
+mismatch	ru-v030-year-1-b
+mismatch	ru-v030-year-2-a
+mismatch	ru-v030-year-2-b
+mismatch	ru-v030-year-3-a
+mismatch	ru-v030-year-3-b
+mismatch	ru-v030-year-4-a
+mismatch	ru-v030-year-4-b
+mismatch	ru-v030-year-5-a
+mismatch	ru-v030-year-5-b
+mismatch	ru-v030-year-6-a
+mismatch	ru-v030-year-6-b
+mismatch	ru-v030-year-7-a
+mismatch	ru-v030-year-7-b
+mismatch_class	en-v030-mixed-0-0	mixed_language:incorrect_or_partial
+mismatch_class	en-v030-mixed-2-0	mixed_language:incorrect_or_partial
+mismatch_class	en-v030-mixed-3-0	mixed_language:incorrect_or_partial
+mismatch_class	en-v030-mixed-6-1	mixed_language:incorrect_or_partial
+mismatch_class	en-v030-mixed-7-0	mixed_language:incorrect_or_partial
+mismatch_class	en-v030-year-0-a	year:incorrect_or_partial
+mismatch_class	en-v030-year-0-b	year:incorrect_or_partial
+mismatch_class	ru-v030-control-4	grammar:incorrect_or_partial
+mismatch_class	ru-v030-control-5	grammar:incorrect_or_partial
+mismatch_class	ru-v030-date-0-0	date:incorrect_or_partial
+mismatch_class	ru-v030-date-0-1	date:incorrect_or_partial
+mismatch_class	ru-v030-date-1-0	date:incorrect_or_partial
+mismatch_class	ru-v030-date-1-1	date:incorrect_or_partial
+mismatch_class	ru-v030-mixed-2-0	mixed_language:incorrect_or_partial
+mismatch_class	ru-v030-mixed-3-0	mixed_language:incorrect_or_partial
+mismatch_class	ru-v030-mixed-4-0	mixed_language:incorrect_or_partial
+mismatch_class	ru-v030-mixed-6-1	mixed_language:incorrect_or_partial
+mismatch_class	ru-v030-mixed-7-0	mixed_language:incorrect_or_partial
+mismatch_class	ru-v030-money-7-a	currency:incorrect_or_partial
+mismatch_class	ru-v030-money-7-b	currency:incorrect_or_partial
+mismatch_class	ru-v030-year-0-a	year:incorrect_or_partial
+mismatch_class	ru-v030-year-0-b	year:incorrect_or_partial
+mismatch_class	ru-v030-year-1-a	year:incorrect_or_partial
+mismatch_class	ru-v030-year-1-b	year:incorrect_or_partial
+mismatch_class	ru-v030-year-2-a	year:incorrect_or_partial
+mismatch_class	ru-v030-year-2-b	year:incorrect_or_partial
+mismatch_class	ru-v030-year-3-a	year:incorrect_or_partial
+mismatch_class	ru-v030-year-3-b	year:incorrect_or_partial
+mismatch_class	ru-v030-year-4-a	year:incorrect_or_partial
+mismatch_class	ru-v030-year-4-b	year:incorrect_or_partial
+mismatch_class	ru-v030-year-5-a	year:incorrect_or_partial
+mismatch_class	ru-v030-year-5-b	year:incorrect_or_partial
+mismatch_class	ru-v030-year-6-a	year:incorrect_or_partial
+mismatch_class	ru-v030-year-6-b	year:incorrect_or_partial
+mismatch_class	ru-v030-year-7-a	year:incorrect_or_partial
+mismatch_class	ru-v030-year-7-b	year:incorrect_or_partial
 diagnostic_exception	en-mixed-19	unresolved_number@14:6
+diagnostic_exception	en-preserve-4	unresolved_number@17:6
+diagnostic_exception	en-v030-control-10	unresolved_number@5:18
+diagnostic_exception	en-v030-control-11	unresolved_number@5:22
+diagnostic_exception	en-v030-control-8	unresolved_number@10:11
+diagnostic_exception	en-v030-control-9	unresolved_number@10:12
+diagnostic_exception	ru-mixed-14	unresolved_number@19:6
+diagnostic_exception	ru-preserve-12	unresolved_number@33:6
+mismatch_output	en-v030-mixed-0-0	OpenAI API processed two запроса.	OpenAI API processed two запроса.
+mismatch_output	en-v030-mixed-2-0	RTX-4090 completed four задачи.	RTX-4090 completed four задачи.
+mismatch_output	en-v030-mixed-3-0	HTTP/2 returned five ошибок.	HTTP/2 returned five ошибок.
+mismatch_output	en-v030-mixed-6-1	Build семь passed в CI. Проверка завершена.	Build семь passed в CI. Проверка завершена.
+mismatch_output	en-v030-mixed-7-0	Version V2.1.0 includes three исправления.	Version V2.1.0 includes three исправления.
+mismatch_output	en-v030-year-0-a	The archive was created in one thousand nine hundred ninety nine.	The archive was created in one thousand nine hundred ninety nine.
+mismatch_output	en-v030-year-0-b	Records from one thousand nine hundred ninety nine remain available.	Records from one thousand nine hundred ninety nine remain available.
+mismatch_output	ru-v030-control-4	После два попыток система ответила.	После два попыток система ответила.
+mismatch_output	ru-v030-control-5	После двадцать два попыток система ответила.	После двадцать два попыток система ответила.
+mismatch_output	ru-v030-date-0-0	Встреча назначена на первое января две тысячи двадцать четвертого года.	Встреча назначена на первое января две тысячи двадцать четвертого года.
+mismatch_output	ru-v030-date-0-1	Подтвердите дату первое января две тысячи двадцать четвертого года.	Подтвердите дату первое января две тысячи двадцать четвертого года.
+mismatch_output	ru-v030-date-1-0	Встреча назначена на двадцать девятое февраля две тысячи двадцать четвертого года.	Встреча назначена на двадцать девятое февраля две тысячи двадцать четвертого года.
+mismatch_output	ru-v030-date-1-1	Подтвердите дату двадцать девятое февраля две тысячи двадцать четвертого года.	Подтвердите дату двадцать девятое февраля две тысячи двадцать четвертого года.
+mismatch_output	ru-v030-mixed-2-0	RTX-4090 завершил четыре tasks.	RTX-4090 завершил четыре tasks.
+mismatch_output	ru-v030-mixed-3-0	HTTP/2 вернул пять errors.	HTTP/2 вернул пять errors.
+mismatch_output	ru-v030-mixed-4-0	Отправьте два reports на dev@example.com.	Отправьте два reports на dev@example.com.
+mismatch_output	ru-v030-mixed-6-1	Сборка seven прошла в CI. Validation complete.	Сборка seven прошла в CI. Validation complete.
+mismatch_output	ru-v030-mixed-7-0	Версия V2.1.0 содержит три fixes.	Версия V2.1.0 содержит три fixes.
+mismatch_output	ru-v030-money-7-a	Итоговая цена — две целых пятьдесят сотых рубля.	Итоговая цена — две целых пятьдесят сотых рубля.
+mismatch_output	ru-v030-money-7-b	Бухгалтерия учла две целых пятьдесят сотых рубля сегодня.	Бухгалтерия учла две целых пятьдесят сотых рубля сегодня.
+mismatch_output	ru-v030-year-0-a	Архив создан в одна тысяча девятьсот девяносто девять году.	Архив создан в одна тысяча девятьсот девяносто девять году.
+mismatch_output	ru-v030-year-0-b	Отчёт за одна тысяча девятьсот девяносто девять год доступен.	Отчёт за одна тысяча девятьсот девяносто девять год доступен.
+mismatch_output	ru-v030-year-1-a	Архив создан в две тысячи году.	Архив создан в две тысячи году.
+mismatch_output	ru-v030-year-1-b	Отчёт за две тысячи год доступен.	Отчёт за две тысячи год доступен.
+mismatch_output	ru-v030-year-2-a	Архив создан в две тысячи один году.	Архив создан в две тысячи один году.
+mismatch_output	ru-v030-year-2-b	Отчёт за две тысячи один год доступен.	Отчёт за две тысячи один год доступен.
+mismatch_output	ru-v030-year-3-a	Архив создан в две тысячи двенадцать году.	Архив создан в две тысячи двенадцать году.
+mismatch_output	ru-v030-year-3-b	Отчёт за две тысячи двенадцать год доступен.	Отчёт за две тысячи двенадцать год доступен.
+mismatch_output	ru-v030-year-4-a	Архив создан в две тысячи двадцать году.	Архив создан в две тысячи двадцать году.
+mismatch_output	ru-v030-year-4-b	Отчёт за две тысячи двадцать год доступен.	Отчёт за две тысячи двадцать год доступен.
+mismatch_output	ru-v030-year-5-a	Архив создан в две тысячи двадцать четыре году.	Архив создан в две тысячи двадцать четыре году.
+mismatch_output	ru-v030-year-5-b	Отчёт за две тысячи двадцать четыре год доступен.	Отчёт за две тысячи двадцать четыре год доступен.
+mismatch_output	ru-v030-year-6-a	Архив создан в две тысячи двадцать шесть году.	Архив создан в две тысячи двадцать шесть году.
+mismatch_output	ru-v030-year-6-b	Отчёт за две тысячи двадцать шесть год доступен.	Отчёт за две тысячи двадцать шесть год доступен.
+mismatch_output	ru-v030-year-7-a	Архив создан в две тысячи сорок два году.	Архив создан в две тысячи сорок два году.
+mismatch_output	ru-v030-year-7-b	Отчёт за две тысячи сорок два год доступен.	Отчёт за две тысячи сорок два год доступен.

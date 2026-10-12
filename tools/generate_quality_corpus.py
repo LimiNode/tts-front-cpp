@@ -4,14 +4,41 @@
 import sys
 from pathlib import Path
 
+from natural_sentence_gold import natural_sentence_cases
+
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "tests" / "quality" / "en_ru_sentences.tsv"
-HEADER = "id\tlanguage\tmode\tcategory\texpectation\tinput\texpected\tdiagnostics"
+HEADER = (
+    "id\tlanguage\tmode\tcategory\texpectation\tinput\t"
+    "expected_normalized\texpected_pronunciation\tdiagnostics"
+)
 
 
-def row(case_id, language, mode, category, expectation, source, expected, diagnostics="none"):
-    fields = (case_id, language, mode, category, expectation, source, expected, diagnostics)
+def row(
+    case_id,
+    language,
+    mode,
+    category,
+    expectation,
+    source,
+    expected,
+    diagnostics="none",
+    pronunciation=None,
+):
+    if pronunciation is None:
+        pronunciation = expected
+    fields = (
+        case_id,
+        language,
+        mode,
+        category,
+        expectation,
+        source,
+        expected,
+        pronunciation,
+        diagnostics,
+    )
     assert all("\t" not in field and "\n" not in field for field in fields)
     assert language in {"en", "ru"}
     assert mode in {"explicit", "auto_segment"}
@@ -494,8 +521,31 @@ rows.append(row("ru-mixed-unit-gb-decimal", "ru", "auto_segment", "measurement",
 rows.append(row("ru-mixed-malformed-unit-suffix", "ru", "auto_segment", "measurement", "preserve",
                 "Use 1,5 кгfoo", "Use 1,5 кгfoo", warning("Use 1,5 кгfoo", "1,5 кгfoo")))
 
+
+def gold_diagnostics(source, specification):
+    if specification == "none":
+        return "none"
+    code, needle = specification
+    return warning(source, needle, code)
+
+
+for case in natural_sentence_cases():
+    rows.append(
+        row(
+            case["id"],
+            case["language"],
+            case["mode"],
+            case["category"],
+            case["expectation"],
+            case["source"],
+            case["normalized"],
+            gold_diagnostics(case["source"], case["diagnostics"]),
+            pronunciation=case["pronunciation"],
+        )
+    )
+
 ids = [item.split("\t", 1)[0] for item in rows]
-assert len(rows) >= 340, len(rows)
+assert len(rows) >= 650, len(rows)
 assert len(ids) == len(set(ids))
 OUTPUT.parent.mkdir(parents=True, exist_ok=True)
 content = HEADER + "\n" + "\n".join(rows) + "\n"

@@ -1377,6 +1377,55 @@ int main() {
     CHECK(frontend.process(bad_continuation, en).warnings.front().code == WarningCode::InvalidUtf8);
     std::string truncated("\xf0\x9f\x98", 3);
     CHECK(frontend.process(truncated, en).warnings.front().code == WarningCode::InvalidUtf8);
+    {
+        // Adversarial scanner matrix: every connector shape is exercised with
+        // whitespace, a terminal boundary, technical identifiers, URLs and
+        // email-like text.  The public API must return promptly, preserve the
+        // source bytes and never emit overlapping unresolved spans.
+        const std::vector<std::string> connectors = {
+            "-", "+", ".", "/", "#", "$", "=", "*", "\xE2\x88\x92", "\xE2\x80\x93", "\xE2\x80\x94"};
+        const std::vector<std::string> suffixes = {" 4090", "", " foo"};
+        const std::vector<std::string> prefixes = {"1.5%RTX", "abc1.5%RTX"};
+        const auto utf8_boundary = [](const std::string& value, std::size_t offset) {
+            return offset <= value.size() &&
+                   (offset == value.size() ||
+                    (static_cast<unsigned char>(value[offset]) & 0xC0U) != 0x80U);
+        };
+        for (const auto* options : {&en, &ru, &auto_options}) {
+            for (const auto& prefix : prefixes) {
+                for (const auto& connector : connectors) {
+                    for (const auto& suffix : suffixes) {
+                        const auto input = prefix + connector + suffix;
+                        const auto result = frontend.process(input, *options);
+                        CHECK(result.original_text == input);
+                        CHECK(result.normalized_text.find('\x01') == std::string::npos);
+                        CHECK(result.normalized_text.find('\x02') == std::string::npos);
+                        CHECK(result.pronunciation_text.find('\x01') == std::string::npos);
+                        CHECK(result.pronunciation_text.find('\x02') == std::string::npos);
+                        std::vector<std::pair<std::size_t, std::size_t>> spans;
+                        for (const auto& warning : result.warnings) {
+                            CHECK(warning.offset <= input.size());
+                            CHECK(warning.length <= input.size() - warning.offset);
+                            CHECK(utf8_boundary(input, warning.offset));
+                            CHECK(utf8_boundary(input, warning.offset + warning.length));
+                            if (warning.code == WarningCode::UnresolvedNumber && warning.length)
+                                spans.emplace_back(warning.offset, warning.offset + warning.length);
+                        }
+                        std::sort(spans.begin(), spans.end());
+                        for (std::size_t index = 1; index < spans.size(); ++index)
+                            CHECK(spans[index - 1].second <= spans[index].first);
+                    }
+                }
+            }
+            for (const auto& input : {std::string("https://example.com/1.5%RTX- 4090"),
+                                      std::string("user1.5%@example.com")}) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text.find('\x01') == std::string::npos);
+                CHECK(result.normalized_text.find('\x02') == std::string::npos);
+            }
+        }
+    }
     std::cout << "tts_front tests passed\n";
     return EXIT_SUCCESS;
 }
