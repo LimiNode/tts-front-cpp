@@ -159,6 +159,12 @@ std::size_t scan_candidate_continuation(const Utf8Document& document,
                 end = numeric_begin;
                 while (end < points.size() && lexical(end))
                     ++end;
+            } else if (numeric_begin > continuation_begin) {
+                // Horizontal space ends a lexical continuation.  Keep the
+                // connector attached to the malformed technical token while
+                // leaving the following word as an independent token.
+                end = continuation_begin;
+                break;
             }
         }
         if (end == continuation_begin) {

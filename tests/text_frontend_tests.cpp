@@ -1279,6 +1279,13 @@ int main() {
                 CHECK(result.warnings.front().offset == 0);
                 CHECK(result.warnings.front().length == input.size());
             }
+            const std::string lexical_suffix = "1.5%RTX- foo";
+            const auto result = frontend.process(lexical_suffix, *options);
+            CHECK(result.normalized_text == lexical_suffix);
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(result.warnings.front().offset == 0);
+            CHECK(result.warnings.front().length == lexical_suffix.find(' '));
         }
     }
     for (const auto& input : {std::string("1 руб...foo"), std::string("1,2 руб.../2")}) {
