@@ -8,6 +8,7 @@
 #include <map>
 #include <set>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -28,7 +29,8 @@ struct QualityCase {
     std::string category;
     std::string expectation;
     std::string input;
-    std::string expected;
+    std::string expected_normalized;
+    std::string expected_pronunciation;
     std::string diagnostics;
 };
 
@@ -36,6 +38,7 @@ struct Snapshot {
     std::size_t cases = 0;
     std::map<std::string, std::size_t> outcomes;
     std::set<std::string> mismatch_ids;
+    std::map<std::string, std::string> mismatch_classes;
     std::map<std::string, std::string> diagnostic_exceptions;
     std::map<std::string, std::pair<std::string, std::string>> mismatch_outputs;
 };
@@ -135,6 +138,12 @@ bool load_snapshot(const std::string& path, Snapshot& snapshot) {
                 return false;
             continue;
         }
+        if (fields.size() == 3 && fields[0] == "mismatch_class") {
+            if (fields[1].empty() || fields[2].empty() ||
+                !snapshot.mismatch_classes.emplace(fields[1], fields[2]).second)
+                return false;
+            continue;
+        }
         if (fields.size() == 3 && fields[0] == "diagnostic_exception") {
             if (fields[1].empty() || !valid_diagnostic_signature(fields[2]) ||
                 !snapshot.diagnostic_exceptions.emplace(fields[1], fields[2]).second)
@@ -206,12 +215,16 @@ bool contains_marker(const std::string& value) {
     return value.find('\x01') != std::string::npos || value.find('\x02') != std::string::npos;
 }
 
-Outcome classify(const QualityCase& item, const std::string& actual) {
+Outcome classify(const QualityCase& item,
+                 const std::string& actual_normalized,
+                 const std::string& actual_pronunciation) {
+    const bool matches_gold = actual_normalized == item.expected_normalized &&
+                              actual_pronunciation == item.expected_pronunciation;
     if (item.expectation == "preserve")
-        return actual == item.input ? Outcome::JustifiedPreservation : Outcome::IncorrectOrPartial;
-    if (actual == item.expected)
+        return matches_gold ? Outcome::JustifiedPreservation : Outcome::IncorrectOrPartial;
+    if (matches_gold)
         return Outcome::CorrectTransformation;
-    if (actual == item.input)
+    if (actual_normalized == item.input && actual_pronunciation == item.input)
         return Outcome::UnnecessaryRefusal;
     return Outcome::IncorrectOrPartial;
 }
@@ -229,6 +242,34 @@ std::string quoted(const std::string& value) {
     return result;
 }
 
+void write_snapshot(const std::string& path,
+                    std::size_t cases,
+                    const std::map<Outcome, std::size_t>& outcomes,
+                    const std::set<std::string>& mismatch_ids,
+                    const std::map<std::string, std::string>& mismatch_classes,
+                    const std::map<std::string, std::string>& diagnostic_exceptions,
+                    const std::map<std::string, std::pair<std::string, std::string>>& outputs) {
+    std::ofstream file(path, std::ios::binary | std::ios::trunc);
+    if (!file)
+        throw std::runtime_error("cannot write snapshot");
+    file << "version\t1\n" << "cases\t" << cases << "\n";
+    for (const auto outcome : {Outcome::CorrectTransformation,
+                               Outcome::JustifiedPreservation,
+                               Outcome::UnnecessaryRefusal,
+                               Outcome::IncorrectOrPartial})
+        file << "outcome\t" << name(outcome) << "\t"
+             << (outcomes.find(outcome) == outcomes.end() ? 0 : outcomes.at(outcome)) << "\n";
+    for (const auto& id : mismatch_ids)
+        file << "mismatch\t" << id << "\n";
+    for (const auto& item : mismatch_classes)
+        file << "mismatch_class\t" << item.first << "\t" << item.second << "\n";
+    for (const auto& item : diagnostic_exceptions)
+        file << "diagnostic_exception\t" << item.first << "\t" << item.second << "\n";
+    for (const auto& item : outputs)
+        file << "mismatch_output\t" << item.first << "\t" << item.second.first << "\t"
+             << item.second.second << "\n";
+}
+
 std::string diagnostic_signature(const std::vector<tts_front::TextWarning>& warnings) {
     if (warnings.empty())
         return "none";
@@ -244,7 +285,12 @@ std::string diagnostic_signature(const std::vector<tts_front::TextWarning>& warn
 
 } // namespace
 
-int main() {
+int main(int argc, char** argv) {
+    const bool write_mode = argc == 2 && std::string(argv[1]) == "--write-snapshot";
+    if (argc > 2 || (argc == 2 && !write_mode)) {
+        std::cerr << "usage: quality_corpus_audit [--write-snapshot]\n";
+        return EXIT_FAILURE;
+    }
     const std::string path =
         std::string(TTS_FRONT_SOURCE_DIR) + "/tests/quality/en_ru_sentences.tsv";
     std::ifstream file(path, std::ios::binary);
@@ -260,7 +306,8 @@ int main() {
     }
     if (!line.empty() && line.back() == '\r')
         line.pop_back();
-    if (line != "id\tlanguage\tmode\tcategory\texpectation\tinput\texpected\tdiagnostics") {
+    if (line != "id\tlanguage\tmode\tcategory\texpectation\tinput\texpected_normalized\t"
+                "expected_pronunciation\tdiagnostics") {
         std::cerr << "Unexpected quality corpus header\n";
         return EXIT_FAILURE;
     }
@@ -277,21 +324,29 @@ int main() {
         if (line.empty())
             continue;
         const auto fields = split_tabs(line);
-        if (fields.size() != 8) {
+        if (fields.size() != 9) {
             std::cerr << "Malformed TSV row at line " << line_number << "\n";
             return EXIT_FAILURE;
         }
-        QualityCase item{
-            fields[0], fields[1], fields[2], fields[3], fields[4], fields[5], fields[6], fields[7]};
+        QualityCase item{fields[0],
+                         fields[1],
+                         fields[2],
+                         fields[3],
+                         fields[4],
+                         fields[5],
+                         fields[6],
+                         fields[7],
+                         fields[8]};
         if (item.id.empty() || item.category.empty() || item.input.empty() ||
-            item.expected.empty() || !ids.insert(item.id).second ||
-            (item.language != "en" && item.language != "ru") ||
+            item.expected_normalized.empty() || item.expected_pronunciation.empty() ||
+            !ids.insert(item.id).second || (item.language != "en" && item.language != "ru") ||
             (item.mode != "explicit" && item.mode != "auto_segment") ||
             (item.expectation != "normalize" && item.expectation != "preserve") ||
-            (item.expectation == "preserve") != (item.input == item.expected) ||
+            (item.expectation == "preserve") != (item.input == item.expected_normalized) ||
             !valid_diagnostic_signature(item.diagnostics) || !valid_utf8(item.input) ||
-            !valid_utf8(item.expected) || contains_marker(item.input) ||
-            contains_marker(item.expected)) {
+            !valid_utf8(item.expected_normalized) || !valid_utf8(item.expected_pronunciation) ||
+            contains_marker(item.input) || contains_marker(item.expected_normalized) ||
+            contains_marker(item.expected_pronunciation)) {
             std::cerr << "Invalid quality case at line " << line_number << ": " << item.id << "\n";
             return EXIT_FAILURE;
         }
@@ -326,16 +381,23 @@ int main() {
             return EXIT_FAILURE;
         }
     }
+    for (const auto& mismatch : snapshot.mismatch_classes) {
+        if (ids.find(mismatch.first) == ids.end()) {
+            std::cerr << "Snapshot mismatch class references unknown case: " << mismatch.first
+                      << "\n";
+            return EXIT_FAILURE;
+        }
+    }
 
     tts_front::TextFrontend frontend;
     std::map<Outcome, std::size_t> outcomes;
     std::map<std::string, std::map<Outcome, std::size_t>> by_language;
     std::map<std::string, std::map<Outcome, std::size_t>> by_category;
     std::set<std::string> actual_mismatch_ids;
-    std::set<std::string> actual_diagnostic_exception_ids;
+    std::map<std::string, std::string> actual_mismatch_classes;
+    std::map<std::string, std::string> actual_diagnostic_exceptions;
     std::map<std::string, std::pair<std::string, std::string>> actual_mismatch_outputs;
     std::size_t diagnostic_mismatches = 0;
-    std::vector<std::string> unexpected_diagnostics;
     struct Mismatch {
         QualityCase item;
         Outcome outcome;
@@ -392,22 +454,18 @@ int main() {
             }
         }
         const auto actual_diagnostics = diagnostic_signature(result.warnings);
-        if (actual_diagnostics != item.diagnostics)
+        if (actual_diagnostics != item.diagnostics) {
             ++diagnostic_mismatches;
-        if (actual_diagnostics != item.diagnostics &&
-            snapshot.diagnostic_exceptions.find(item.id) != snapshot.diagnostic_exceptions.end() &&
-            snapshot.diagnostic_exceptions.at(item.id) == actual_diagnostics)
-            actual_diagnostic_exception_ids.insert(item.id);
-        else if (actual_diagnostics != item.diagnostics) {
-            unexpected_diagnostics.push_back(item.id + " expected " + item.diagnostics +
-                                             " actual " + actual_diagnostics);
+            actual_diagnostic_exceptions.emplace(item.id, actual_diagnostics);
         }
-        const auto outcome = classify(item, result.normalized_text);
+        const auto outcome = classify(item, result.normalized_text, result.pronunciation_text);
         ++outcomes[outcome];
         ++by_language[item.language][outcome];
         ++by_category[item.category][outcome];
         if (outcome == Outcome::UnnecessaryRefusal || outcome == Outcome::IncorrectOrPartial) {
             actual_mismatch_ids.insert(item.id);
+            actual_mismatch_classes.emplace(item.id,
+                                            std::string(item.category) + ":" + name(outcome));
             actual_mismatch_outputs.emplace(
                 item.id, std::make_pair(result.normalized_text, result.pronunciation_text));
             mismatches.push_back({item,
@@ -430,13 +488,24 @@ int main() {
                            found->second == outcomes[outcome];
     }
     snapshot_matches = snapshot_matches && actual_mismatch_ids == snapshot.mismatch_ids;
+    snapshot_matches = snapshot_matches && actual_mismatch_classes == snapshot.mismatch_classes;
     snapshot_matches = snapshot_matches && actual_mismatch_outputs == snapshot.mismatch_outputs;
-    snapshot_matches = snapshot_matches && actual_diagnostic_exception_ids.size() ==
-                                               snapshot.diagnostic_exceptions.size();
-    if (!unexpected_diagnostics.empty()) {
-        snapshot_matches = false;
-        for (const auto& diagnostic : unexpected_diagnostics)
-            std::cerr << "Unexpected diagnostics: " << diagnostic << "\n";
+    snapshot_matches =
+        snapshot_matches && actual_diagnostic_exceptions == snapshot.diagnostic_exceptions;
+    if (write_mode) {
+        try {
+            write_snapshot(snapshot_path,
+                           cases.size(),
+                           outcomes,
+                           actual_mismatch_ids,
+                           actual_mismatch_classes,
+                           actual_diagnostic_exceptions,
+                           actual_mismatch_outputs);
+        } catch (const std::exception& error) {
+            std::cerr << error.what() << "\n";
+            return EXIT_FAILURE;
+        }
+        snapshot_matches = true;
     }
     if (!snapshot_matches)
         std::cerr << "Quality snapshot mismatch; update it only with a reviewed baseline change\n";
@@ -469,7 +538,9 @@ int main() {
                   << " warnings=" << mismatch.warnings << " diagnostics=" << mismatch.diagnostics
                   << "\n"
                   << "    input=" << quoted(mismatch.item.input) << "\n"
-                  << "    expected=" << quoted(mismatch.item.expected) << "\n"
+                  << "    expected_normalized=" << quoted(mismatch.item.expected_normalized) << "\n"
+                  << "    expected_pronunciation=" << quoted(mismatch.item.expected_pronunciation)
+                  << "\n"
                   << "    actual=" << quoted(mismatch.actual) << "\n"
                   << "    pronunciation=" << quoted(mismatch.pronunciation) << "\n";
     }
