@@ -1288,6 +1288,24 @@ int main() {
             CHECK(result.warnings.front().length == lexical_suffix.find(' '));
         }
     }
+    {
+        const std::vector<std::string> unicode_connector_cases = {
+            std::string("1.5%RTX") + "\xE2\x88\x92" + " 4090",
+            std::string("1.5%RTX") + "\xE2\x80\x93" + " 4090",
+            std::string("1.5%RTX") + "\xE2\x80\x94" + " 4090",
+            "1.5%RTX= 4090",
+            "1.5%RTX* 4090"};
+        for (const auto* options : {&en, &ru, &auto_options}) {
+            for (const auto& input : unicode_connector_cases) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.normalized_text == input);
+                CHECK(result.warnings.size() == 1);
+                CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+                CHECK(result.warnings.front().offset == 0);
+                CHECK(result.warnings.front().length == input.size());
+            }
+        }
+    }
     for (const auto& input : {std::string("1 руб...foo"), std::string("1,2 руб.../2")}) {
         const auto result = frontend.process(input, ru);
         CHECK(result.normalized_text == input);

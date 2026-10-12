@@ -129,9 +129,11 @@ std::size_t scan_candidate_continuation(const Utf8Document& document,
         if (end >= points.size())
             break;
         const auto value = points[end].value;
-        const bool connector = value == '-' || value == '+' || value == '.' ||
-                               (kind != CandidateSurfaceKind::Numeric &&
-                                (value == '/' || value == '#' || value == '$'));
+        const bool connector =
+            value == '-' || value == '+' || value == '.' || text::is_range_connector(value) ||
+            (kind != CandidateSurfaceKind::Numeric &&
+             (value == '/' || value == '#' || value == '$')) ||
+            (kind == CandidateSurfaceKind::Technical && (value == '=' || value == '*'));
         if (!connector)
             break;
         const bool has_lexical_stem = end > begin || (begin > 0 && lexical(begin - 1));
