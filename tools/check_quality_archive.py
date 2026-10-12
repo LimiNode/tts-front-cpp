@@ -1,4 +1,4 @@
-"""Verify the immutable v0.2.0 and v0.2.1 quality archives."""
+"""Verify the immutable v0.2.0, v0.2.1, and v0.2.2 quality archives."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ import hashlib
 ROOT = Path(__file__).resolve().parents[1]
 ARCHIVE = ROOT / "tests" / "quality" / "archive" / "v0.2.0"
 CURRENT_ARCHIVE = ROOT / "tests" / "quality" / "archive" / "v0.2.1"
+NEXT_ARCHIVE = ROOT / "tests" / "quality" / "archive" / "v0.2.2"
 
 
 def verify_archive(
@@ -65,12 +66,30 @@ def main() -> int:
         "v0.2.1",
     )
 
+    verify_archive(
+        NEXT_ARCHIVE,
+        {
+            "en_ru_sentences.tsv": "bd5577c174f1c2933f58645e4a0c97af9169bfba5bbbf13d5b0f36caf14e50e2",
+            "en_ru_snapshot.tsv": "f7de9ec2e1883e4a5c854e76b5ecc2594000295719e89c610df22ec7c9566ccd",
+        },
+        {
+            "cases\t399",
+            "outcome\tcorrect_transformation\t345",
+            "outcome\tjustified_preservation\t54",
+            "outcome\tunnecessary_refusal\t0",
+            "outcome\tincorrect_or_partial\t0",
+        },
+        399,
+        "v0.2.2",
+    )
+
     snapshot = (ARCHIVE / "en_ru_snapshot.tsv").read_text(encoding="utf-8").splitlines()
     forbidden = ("negative-zero", "positive-sign", "negative-time", "unicode-minus")
     if any(any(token in line for token in forbidden) for line in snapshot):
         raise SystemExit("release snapshot contains post-release corrective IDs")
     print("v0.2.0 quality archive: 352 cases and baseline counts verified")
     print("v0.2.1 quality archive: 373 cases and baseline counts verified")
+    print("v0.2.2 quality archive: 399 cases and baseline counts verified")
     return 0
 
 

@@ -7,6 +7,14 @@ namespace tts_front::detail {
 
 NumericSurfaceIndex build_numeric_surface_index(const Utf8Document& document);
 
+CandidateSurface scan_candidate_surface(const Utf8Document& document,
+                                        std::size_t begin,
+                                        CandidateSurfaceKind kind = CandidateSurfaceKind::Numeric);
+
+std::size_t scan_candidate_continuation(const Utf8Document& document,
+                                        std::size_t begin,
+                                        CandidateSurfaceKind kind);
+
 std::size_t scan_numeric_continuation_points(const Utf8Document& document,
                                              std::size_t start,
                                              bool consume_lexical_suffix);

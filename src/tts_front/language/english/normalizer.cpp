@@ -1,5 +1,7 @@
 #include "tts_front/language/english/normalizer.hpp"
 
+#include "tts_front/core/numeric_scanner.hpp"
+#include "tts_front/core/utf8_document.hpp"
 #include "tts_front/language/english/admission.hpp"
 #include "tts_front/language/english/grouped_numbers.hpp"
 #include "tts_front/language/english/numbers.hpp"
@@ -7,6 +9,7 @@
 #include "tts_front/normalization/normalizer_support.hpp"
 #include "tts_front/technical/admission.hpp"
 
+#include <regex>
 #include <string>
 #include <string_view>
 
@@ -23,10 +26,94 @@ number_or_original(const std::string& token, WarningSink& warnings, SourceRange 
     return number_for_token(token, value);
 }
 
+int month_number(std::string_view month) {
+    static constexpr std::string_view names[] = {"January",
+                                                 "February",
+                                                 "March",
+                                                 "April",
+                                                 "May",
+                                                 "June",
+                                                 "July",
+                                                 "August",
+                                                 "September",
+                                                 "October",
+                                                 "November",
+                                                 "December"};
+    for (int index = 0; index < 12; ++index)
+        if (names[index] == month)
+            return index + 1;
+    return 0;
+}
+
+bool valid_calendar_date(int month, int day, int year) {
+    static constexpr int days[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    if (month < 1 || month > 12 || day < 1)
+        return false;
+    int limit = days[month];
+    if (month == 2 && (year % 400 == 0 || (year % 4 == 0 && year % 100 != 0)))
+        limit = 29;
+    return day <= limit;
+}
+
 } // namespace
 
 MappedText normalize(MappedText text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
+    // Admit month-name dates before any numeric or technical shielding.  A
+    // date continuation such as `2024#4` is one unsupported candidate and
+    // must not be split by the generic scanners.
+    if (std::regex_search(text.text, english::patterns().date)) {
+        const Utf8Document document(text.text);
+        std::vector<SourceEdit> date_edits;
+        for (std::sregex_iterator it(text.text.begin(), text.text.end(), english::patterns().date),
+             end;
+             it != end;
+             ++it) {
+            long long day = 0, year_value = 0;
+            const auto month = month_number((*it)[1].str());
+            const bool valid =
+                try_parse_long((*it)[2].str(), day) && try_parse_long((*it)[3].str(), year_value) &&
+                valid_calendar_date(month, static_cast<int>(day), static_cast<int>(year_value));
+            const auto match_begin = static_cast<std::size_t>(it->position());
+            const auto match_end = match_begin + static_cast<std::size_t>(it->length());
+            const auto continuation_begin = codepoint_index_at_or_after(document, match_end);
+            const auto continuation_end = scan_candidate_continuation(
+                document, continuation_begin, CandidateSurfaceKind::Date);
+            const bool has_continuation = continuation_end != continuation_begin;
+            if (valid && !has_continuation)
+                continue;
+            const auto begin = match_begin;
+            const auto finish = continuation_end != continuation_begin
+                                    ? document.span_from_codepoints(0, continuation_end).byte_end
+                                    : match_end;
+            add_protected_candidate(
+                text,
+                NumericCandidate{SourceSpan{begin, finish}, NumericCandidateKind::Numeric, true},
+                warnings,
+                protected_spans,
+                date_edits);
+        }
+        text = apply_source_edits(text, std::move(date_edits));
+        text = replace_matches(
+            text,
+            english::patterns().date,
+            [&](const std::smatch& match, const MappedText& source) {
+                long long day = 0, year_value = 0;
+                const auto month = month_number(match[1].str());
+                if (!try_parse_long(match[2].str(), day) ||
+                    !try_parse_long(match[3].str(), year_value) ||
+                    !valid_calendar_date(
+                        month, static_cast<int>(day), static_cast<int>(year_value))) {
+                    add_warning(warnings,
+                                WarningCode::UnresolvedNumber,
+                                "Unable to parse English calendar date",
+                                source,
+                                match);
+                    return match.str();
+                }
+                return match[1].str() + " " + ordinal(day) + ", " + year(year_value);
+            });
+    }
     text = technical::protect_numeric_candidates(std::move(text), warnings, protected_spans);
     text = technical::protect(std::move(text), protected_spans);
     text = protect_malformed_numeric_candidates(
@@ -120,6 +207,44 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
             return number(h) + (h == 1 ? " hour " : " hours ") + number(m) +
                    (m == 1 ? " minute" : " minutes");
         });
+    text = replace_matches(text,
+                           english::patterns().measurement,
+                           [&](const std::smatch& match, const MappedText& source) {
+                               long long n = 0;
+                               if (!try_parse_long(match[1].str(), n)) {
+                                   add_warning_without_suffix(warnings,
+                                                              WarningCode::UnresolvedNumber,
+                                                              "Unable to parse English measurement",
+                                                              source,
+                                                              match,
+                                                              4);
+                                   return match.str();
+                               }
+                               const auto fraction = match[2].str();
+                               const auto unit = match[3].str();
+                               const bool singular = n == 1 || n == -1;
+                               const auto unit_name = [&](bool singular_form) {
+                                   return unit == "kg" || unit.find("kilogram") == 0
+                                              ? (singular_form ? "kilogram" : "kilograms")
+                                          : unit == "km" || unit.find("kilomet") == 0
+                                              ? (singular_form ? "kilometer" : "kilometers")
+                                          : unit == "m" || unit == "meter" || unit == "meters" ||
+                                                  unit == "metres"
+                                              ? (singular_form ? "meter" : "meters")
+                                          : unit == "cm" || unit.find("centimet") == 0
+                                              ? (singular_form ? "centimeter" : "centimeters")
+                                          : unit == "mm" || unit.find("millimet") == 0
+                                              ? (singular_form ? "millimeter" : "millimeters")
+                                          : unit == "MB"
+                                              ? (singular_form ? "megabyte" : "megabytes")
+                                              : (singular_form ? "gigabyte" : "gigabytes");
+                               };
+                               const auto spoken_unit = unit_name(fraction.empty() && singular);
+                               auto spoken = number_for_token(match[1].str(), n);
+                               if (!fraction.empty())
+                                   spoken += " point " + digits(fraction);
+                               return spoken + " " + spoken_unit + match[4].str();
+                           });
     text = replace_numeric_matches(
         text, english::patterns().decimal, [&](const std::smatch& match, const MappedText& source) {
             const auto value = match[2].str();
@@ -136,36 +261,6 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
             }
             return match[1].str() + number_for_token(value.substr(0, dot), integer) + " point " +
                    digits(value.substr(dot + 1));
-        });
-    text = replace_matches(
-        text,
-        english::patterns().measurement,
-        [&](const std::smatch& match, const MappedText& source) {
-            long long n = 0;
-            if (!try_parse_long(match[1].str(), n)) {
-                add_warning_without_suffix(warnings,
-                                           WarningCode::UnresolvedNumber,
-                                           "Unable to parse English measurement",
-                                           source,
-                                           match,
-                                           3);
-                return match.str();
-            }
-            const auto unit = match[2].str();
-            const bool singular = n == 1 || n == -1;
-            const std::string spoken =
-                unit == "kg" || unit.find("kilogram") == 0 ? (singular ? "kilogram" : "kilograms")
-                : unit == "km" || unit.find("kilomet") == 0
-                    ? (singular ? "kilometer" : "kilometers")
-                : unit == "m" || unit == "meter" || unit == "meters" || unit == "metres"
-                    ? (singular ? "meter" : "meters")
-                : unit == "cm" || unit.find("centimet") == 0
-                    ? (singular ? "centimeter" : "centimeters")
-                : unit == "mm" || unit.find("millimet") == 0
-                    ? (singular ? "millimeter" : "millimeters")
-                : unit == "MB" ? (singular ? "megabyte" : "megabytes")
-                               : (singular ? "gigabyte" : "gigabytes");
-            return number_for_token(match[1].str(), n) + " " + spoken + match[3].str();
         });
     text = replace_numeric_matches(
         text,

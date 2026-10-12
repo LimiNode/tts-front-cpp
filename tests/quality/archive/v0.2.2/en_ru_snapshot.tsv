@@ -1,0 +1,10 @@
+version	1
+cases	399
+outcome	correct_transformation	345
+outcome	justified_preservation	54
+outcome	unnecessary_refusal	0
+outcome	incorrect_or_partial	0
+diagnostic_exception	en-preserve-4	unresolved_number@17:6
+diagnostic_exception	ru-preserve-12	unresolved_number@33:6
+diagnostic_exception	ru-mixed-14	unresolved_number@19:6
+diagnostic_exception	en-mixed-19	unresolved_number@14:6

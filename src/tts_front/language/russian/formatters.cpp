@@ -34,6 +34,42 @@ std::string feminine_number(long long value) {
     }
     return result;
 }
+std::string genitive_number(long long value) {
+    const auto absolute = std::llabs(value);
+    if (absolute <= 20) {
+        static const char* const forms[] = {
+            "ноля",       "одного",      "двух",       "трёх",         "четырёх",
+            "пяти",       "шести",       "семи",       "восьми",       "девяти",
+            "десяти",     "одиннадцати", "двенадцати", "тринадцати",   "четырнадцати",
+            "пятнадцати", "шестнадцати", "семнадцати", "восемнадцати", "девятнадцати",
+            "двадцати"};
+        const auto result = std::string(forms[absolute]);
+        return value < 0 ? "минус " + result : result;
+    }
+    const auto remainder = absolute % 10;
+    static const char* const tens_forms[] = {"",
+                                             "",
+                                             "двадцати",
+                                             "тридцати",
+                                             "сорока",
+                                             "пятидесяти",
+                                             "шестидесяти",
+                                             "семидесяти",
+                                             "восьмидесяти",
+                                             "девяноста"};
+    std::string result;
+    if (absolute < 100) {
+        result = tens_forms[absolute / 10];
+        if (remainder != 0)
+            result +=
+                result.empty() ? genitive_number(remainder) : " " + genitive_number(remainder);
+    } else {
+        result = number(value);
+    }
+    if (value < 0)
+        result = "минус " + result;
+    return result;
+}
 std::string ordinal_day(int day) {
     static const char* const ordinal[] = {"",
                                           "первое",
@@ -226,6 +262,22 @@ std::string decimal(long long integer, const std::string& fraction) {
            (std::llabs(integer) % 10 == 1 && std::llabs(integer) % 100 != 11 ? " целая "
                                                                              : " целых ") +
            feminine_number(fractional) + " " + denominator_word;
+}
+
+std::string decimal_genitive(long long integer, const std::string& fraction) {
+    const auto denominator = fraction.size() == 1   ? "десятая"
+                             : fraction.size() == 2 ? "сотая"
+                                                    : "тысячная";
+    const auto denominator_plural = fraction.size() == 1   ? "десятых"
+                                    : fraction.size() == 2 ? "сотых"
+                                                           : "тысячных";
+    const auto fractional = std::stoll(fraction);
+    const auto category = std::llabs(fractional) % 100;
+    const auto denominator_word = category % 10 == 1 && !(category >= 11 && category <= 14)
+                                      ? denominator
+                                      : denominator_plural;
+    return genitive_number(integer) + " целых " + genitive_number(fractional) + " " +
+           denominator_word;
 }
 
 } // namespace tts_front::detail::russian

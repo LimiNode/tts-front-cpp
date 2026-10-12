@@ -272,7 +272,7 @@ mixed_cases = [
     ("ru", "У меня 2 GPU и 3 ядра. Использую OpenAI API.",
      "У меня два GPU и три ядра. Использую OpenAI API."),
     ("ru", "Видеокарта RTX 4090 работает на 1.5 GB RAM.",
-     "Видеокарта RTX 4090 работает на one point five GB RAM."),
+     "Видеокарта RTX 4090 работает на one point five gigabytes RAM."),
     ("ru", "HTTP/2 вернул 2 ошибки.", "HTTP/2 вернул две ошибки."),
     ("ru", "Сборка 7 использует C++17.", "Сборка семь использует C++17."),
     ("ru", "Напишите dev42@example.com после 3 попыток.",
@@ -286,13 +286,13 @@ mixed_cases = [
     ("en", "The OpenAI API accepted 42 requests.",
      "The OpenAI API accepted forty two requests."),
     ("ru", "Устройство CUDA 13.3 потребляет 2 GB памяти.",
-     "Устройство CUDA 13.3 потребляет two GB памяти."),
+     "Устройство CUDA 13.3 потребляет two gigabytes памяти."),
     ("ru", "На сервере HTTP/2 работает 4 процесса.",
      "На сервере HTTP/2 работает четыре процесса."),
     ("ru", "OpenAI API обработал 12 запросов.",
      "OpenAI API обработал двенадцать запросов."),
     ("ru", "Порог 0.5% задан для RTX-4090.",
-     "Порог ноль point пять процентов задан для RTX-4090."),
+     "Порог 0.5% задан для RTX-4090."),
     ("ru", "Версия V2.1.0—123 отмечена номером 7.",
      "Версия V2.1.0—123 отмечена номером семь."),
     ("en", "Use 3 кг порошка with OpenAI API.",
@@ -306,16 +306,19 @@ mixed_cases = [
     ("en", "Version V2.1.0—123 is tagged 7.",
      "Version V2.1.0—123 is tagged seven."),
     ("ru", "У меня -0 kg", "У меня minus zero kilograms"),
-    ("ru", "У меня -0.0 kg", "У меня minus zero point zero kg"),
+    ("ru", "У меня -0.0 kg", "У меня minus zero point zero kilograms"),
 ]
 for index, (language, source, expected) in enumerate(mixed_cases):
     diagnostics = "none"
+    if index == 13:
+        diagnostics = warning(source, "0.5%")
     if index in {0, 1, 10, 12, 20, 21} and language == "ru":
         diagnostics = f"ambiguous_normalization@0:{len(source.encode('utf-8'))}"
     if index in {5, 15, 18} and language == "en":
         diagnostics = f"ambiguous_normalization@0:{len(source.encode('utf-8'))}"
+    expectation = "preserve" if index == 13 else "normalize"
     rows.append(row(f"{language}-mixed-{index}", language, "auto_segment", "mixed_language",
-                    "normalize", source, expected, diagnostics))
+                    expectation, source, expected, diagnostics))
 
 preserved = [
     ("en", "Deploy C++17 to RTX-4090 at https://example.com/v2.1.0.", "none"),
@@ -402,7 +405,7 @@ natural_cases = [
     ("ru-natural-04", "ru", "measurement", "normalize", "Расстояние составляет 12,5 км.",
      "Расстояние составляет двенадцать целых пять десятых километра.", "none"),
     ("ru-natural-05", "ru", "measurement", "normalize", "В резерве осталось 1,5 ГБ.",
-     "В резерве осталось одна целая пять десятых ГБ.", "none"),
+     "В резерве осталось одна целая пять десятых гигабайта.", "none"),
     ("ru-natural-06", "ru", "percent", "normalize", "Доля ошибок — 0,5%.",
      "Доля ошибок — ноль целых пять десятых процента.", "none"),
     ("ru-natural-07", "ru", "date", "normalize", "Срок — 31.12.2025.",
@@ -432,10 +435,64 @@ natural_cases = [
      warning("+1,2%", "+1,2%")),
     ("ru-unicode-minus-time-00", "ru", "time", "preserve", "−1:02", "−1:02",
      warning("−1:02", "−1:02")),
+    ("ru-foreign-percent-continuation-00", "ru", "percent", "preserve",
+     "Порог 1.5% 123 задан", "Порог 1.5% 123 задан", warning("Порог 1.5% 123 задан", "1.5% 123")),
+    ("ru-foreign-percent-continuation-01", "ru", "percent", "preserve",
+     "1.5%/4", "1.5%/4", warning("1.5%/4", "1.5%/4")),
+    ("ru-foreign-percent-continuation-02", "ru", "percent", "preserve",
+     "1.5%#4", "1.5%#4", warning("1.5%#4", "1.5%#4")),
+    ("ru-foreign-percent-continuation-03", "ru", "percent", "preserve",
+     "1.5%$4", "1.5%$4", warning("1.5%$4", "1.5%$4")),
+    ("ru-foreign-percent-continuation-04", "ru", "percent", "preserve",
+     "1.5%word", "1.5%word", warning("1.5%word", "1.5%word")),
+    ("ru-technical-dot-percent-00", "ru", "ambiguous_or_technical", "preserve",
+     "https://example.com/1.5%", "https://example.com/1.5%", "none"),
+    ("ru-technical-dot-percent-01", "ru", "ambiguous_or_technical", "preserve",
+     "user1.5%@example.com", "user1.5%@example.com", "none"),
+    ("ru-technical-dot-percent-02", "ru", "ambiguous_or_technical", "preserve",
+     "RTX-1.5%", "RTX-1.5%", "none"),
+    ("en-date-leap-00", "en", "date", "normalize", "February 29, 2020",
+     "February twenty ninth, two thousand twenty", "none"),
+    ("en-date-leap-01", "en", "date", "normalize", "February 29, 2024",
+     "February twenty ninth, two thousand twenty four", "none"),
+    ("en-date-leap-invalid", "en", "date", "preserve", "February 29, 2025",
+     "February 29, 2025", warning("February 29, 2025", "February 29, 2025")),
+    ("en-date-continuation-00", "en", "date", "preserve", "February 29, 2025foo",
+     "February 29, 2025foo", warning("February 29, 2025foo", "February 29, 2025foo")),
+    ("en-date-continuation-01", "en", "date", "preserve", "February 29, 2024#4",
+     "February 29, 2024#4", warning("February 29, 2024#4", "February 29, 2024#4")),
+    ("en-date-continuation-02", "en", "date", "preserve", "February 29, 2024/4",
+     "February 29, 2024/4", warning("February 29, 2024/4", "February 29, 2024/4")),
+    ("ru-genitive-compound-00", "ru", "integer", "preserve", "после 21 попыток.",
+     "после 21 попыток.", warning("после 21 попыток.", "21")),
+    ("ru-genitive-one-00", "ru", "integer", "preserve", "после 1 попытки.",
+     "после 1 попытки.", warning("после 1 попытки.", "1")),
+    ("ru-genitive-two-00", "ru", "integer", "normalize", "после 2 попыток.",
+     "после двух попыток.", "none"),
+    ("ru-genitive-compound-22", "ru", "integer", "normalize", "после 22 попыток.",
+     "после двадцати двух попыток.", "none"),
+    ("ru-genitive-compound-22-noun", "ru", "integer", "normalize", "из 22 узлов.",
+     "из двадцати двух узлов.", "none"),
+    ("ru-genitive-decimal-noun", "ru", "decimal", "preserve", "до 1,2 градусов.",
+     "до 1,2 градусов.", warning("до 1,2 градусов.", "1,2")),
+    ("ru-punctuation-ellipsis-00", "ru", "punctuation", "normalize", "1 руб...",
+     "один рубль...", "none"),
+    ("ru-punctuation-ellipsis-01", "ru", "punctuation", "preserve", "1 руб...foo",
+     "1 руб...foo", warning("1 руб...foo", "1 руб...foo")),
+    ("ru-punctuation-ellipsis-02", "ru", "punctuation", "preserve", "1,2 руб.../2",
+     "1,2 руб.../2", warning("1,2 руб.../2", "1,2 руб.../2")),
+    ("ru-technical-dot-percent-suffix", "ru", "ambiguous_or_technical", "preserve",
+     "1.5%RTX-4090", "1.5%RTX-4090", warning("1.5%RTX-4090", "1.5%RTX-4090")),
 ]
 for case_id, language, category, expectation, source, expected, diagnostics in natural_cases:
     rows.append(row(case_id, language, "explicit", category, expectation, source, expected,
                     diagnostics))
+rows.append(row("ru-mixed-unit-gb-decimal", "ru", "auto_segment", "measurement", "normalize",
+                "Используем 1,5 GB данных.",
+                "Используем одна целая пять десятых гигабайта данных.",
+                "ambiguous_normalization@0:41"))
+rows.append(row("ru-mixed-malformed-unit-suffix", "ru", "auto_segment", "measurement", "preserve",
+                "Use 1,5 кгfoo", "Use 1,5 кгfoo", warning("Use 1,5 кгfoo", "1,5 кгfoo")))
 
 ids = [item.split("\t", 1)[0] for item in rows]
 assert len(rows) >= 340, len(rows)

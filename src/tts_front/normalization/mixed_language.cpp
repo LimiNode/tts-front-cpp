@@ -214,7 +214,7 @@ Language detect_mixed_language(std::string_view text,
     has_latin = latin_count != 0;
     if (has_cyrillic && has_latin && cyrillic_count >= latin_count)
         return Language::Russian;
-    return has_cyrillic ? Language::Russian : Language::English;
+    return has_cyrillic && !has_latin ? Language::Russian : Language::English;
 }
 
 MappedText normalize_mixed_candidates(MappedText text,

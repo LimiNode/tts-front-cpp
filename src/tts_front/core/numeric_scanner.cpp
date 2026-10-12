@@ -95,6 +95,88 @@ NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t be
     return surface;
 }
 
+CandidateSurface
+scan_candidate_surface(const Utf8Document& document, std::size_t begin, CandidateSurfaceKind kind) {
+    CandidateSurface candidate;
+    candidate.kind = kind;
+    candidate.begin = begin;
+    candidate.numeric = scan_numeric_surface(document, begin);
+    candidate.core_end = candidate.numeric.end;
+    candidate.end = candidate.numeric.continuation_end;
+    if (!candidate.valid())
+        return candidate;
+
+    // Scientific and encoded numeric surfaces may continue through a
+    // connector and another numeric token.  Compute that continuation once
+    // here so technical and malformed admission share the same boundary.
+    if (candidate.numeric.exponent != ExponentState::None)
+        candidate.end = scan_numeric_continuation_points(document, candidate.end, false);
+    return candidate;
+}
+
+std::size_t scan_candidate_continuation(const Utf8Document& document,
+                                        std::size_t begin,
+                                        CandidateSurfaceKind kind) {
+    const auto& points = document.points;
+    auto end = begin;
+    const auto lexical = [&](std::size_t point) {
+        return text::is_letter(points[point].value) || text::is_digit(points[point].value) ||
+               text::is_combining_mark(points[point].value) || points[point].value == '_';
+    };
+    while (end < points.size()) {
+        while (end < points.size() && lexical(end))
+            ++end;
+        if (end >= points.size())
+            break;
+        const auto value = points[end].value;
+        const bool connector =
+            value == '-' || value == '+' || value == '.' || text::is_range_connector(value) ||
+            (kind != CandidateSurfaceKind::Numeric &&
+             (value == '/' || value == '#' || value == '$')) ||
+            (kind == CandidateSurfaceKind::Technical && (value == '=' || value == '*'));
+        if (!connector)
+            break;
+        const bool has_lexical_stem = end > begin || (begin > 0 && lexical(begin - 1));
+        if (end + 1 >= points.size()) {
+            if (kind == CandidateSurfaceKind::Technical && has_lexical_stem)
+                ++end;
+            break;
+        }
+        const auto connector_point = end;
+        ++end;
+        const auto continuation_begin = end;
+        while (end < points.size() && lexical(end))
+            ++end;
+        if (end == continuation_begin && kind == CandidateSurfaceKind::Technical &&
+            has_lexical_stem) {
+            // Technical tails may use a connector followed by horizontal
+            // space and another numeric token (for example `RTX- 4090`).
+            // Treat that as one unsupported surface, but only when the
+            // numeric continuation is actually present.
+            auto numeric_begin = end;
+            while (numeric_begin < points.size() &&
+                   text::is_horizontal_space(points[numeric_begin].value))
+                ++numeric_begin;
+            if (numeric_begin < points.size() && text::is_digit(points[numeric_begin].value)) {
+                end = numeric_begin;
+                while (end < points.size() && lexical(end))
+                    ++end;
+            } else if (numeric_begin > continuation_begin) {
+                // Horizontal space ends a lexical continuation.  Keep the
+                // connector attached to the malformed technical token while
+                // leaving the following word as an independent token.
+                end = continuation_begin;
+                break;
+            }
+        }
+        if (end == continuation_begin) {
+            end = connector_point;
+            break;
+        }
+    }
+    return end;
+}
+
 bool NumericSurfaceIndex::contains(std::size_t point) const {
     const auto found = std::lower_bound(
         ranges.begin(),
@@ -125,11 +207,12 @@ NumericSurfaceIndex build_numeric_surface_index(const Utf8Document& document) {
             text::is_digit(value) && (point == 0 || !text::is_digit(points[point - 1].value));
         if (!signed_start && !unsigned_start)
             continue;
-        const auto surface = scan_numeric_surface(document, point);
-        if (!surface.valid() || surface.exponent == ExponentState::None)
+        const auto candidate =
+            scan_candidate_surface(document, point, CandidateSurfaceKind::Technical);
+        if (!candidate.valid() || candidate.numeric.exponent == ExponentState::None)
             continue;
-        index.ranges.push_back({point, point + 1, surface.continuation_end});
-        point = std::max(point, surface.continuation_end - 1);
+        index.ranges.push_back({point, point + 1, candidate.end});
+        point = std::max(point, candidate.end - 1);
     }
     return index;
 }

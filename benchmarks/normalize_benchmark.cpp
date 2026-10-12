@@ -1,6 +1,8 @@
 #include "tts_front.hpp"
 #include "tts_front/core/mapped_text.hpp"
 #include "tts_front/core/normalization_support.hpp"
+#include "tts_front/core/numeric_scanner.hpp"
+#include "tts_front/core/utf8_document.hpp"
 #include "tts_front/technical/admission.hpp"
 
 #include <chrono>
@@ -49,6 +51,22 @@ void benchmark_technical_contiguous_numeric_scaling() {
                   << (elapsed / static_cast<double>(count) * 1e6) << " us/digit\n";
         if (mapped.text != text)
             std::cerr << "unexpected technical admission edit\n";
+    }
+}
+
+void benchmark_candidate_surface_scaling() {
+    for (const unsigned int count : {5000u, 10000u, 20000u}) {
+        const std::string text(count, '1');
+        const tts_front::detail::Utf8Document document(text);
+        const auto begin = std::chrono::steady_clock::now();
+        const auto surface = tts_front::detail::scan_candidate_surface(
+            document, 0, tts_front::detail::CandidateSurfaceKind::Numeric);
+        const auto elapsed =
+            std::chrono::duration<double>(std::chrono::steady_clock::now() - begin).count();
+        std::cout << count << " candidate-surface digits, " << elapsed << " s, "
+                  << (elapsed / static_cast<double>(count) * 1e6) << " us/digit\n";
+        if (!surface.valid() || surface.end != document.points.size())
+            std::cerr << "unexpected candidate surface boundary\n";
     }
 }
 
@@ -120,6 +138,7 @@ int main() {
               << " us/request\n";
     benchmark_numeric_scaling();
     benchmark_technical_contiguous_numeric_scaling();
+    benchmark_candidate_surface_scaling();
     benchmark_mixed_candidate_scaling();
     benchmark_technical_heavy_scaling();
 }

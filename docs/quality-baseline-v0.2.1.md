@@ -18,5 +18,7 @@ carried forward as known quality debt: English dates, Russian contextual
 agreement, units, and mixed-language cases. They are not silently promoted to
 correct behavior by this patch release.
 
-The archive is checked by `tools/check_quality_archive.py` and executed by the
-strict CTest `tts_front_quality_v021_archive`.
+The archive is checked by `tools/check_quality_archive.py` and retained as an
+immutable historical corpus. The current implementation executes it through
+the compatibility smoke test; the strict snapshot gate is applied to the
+current `v0.2.2` archive.

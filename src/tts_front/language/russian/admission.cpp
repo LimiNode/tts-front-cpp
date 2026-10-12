@@ -10,7 +10,7 @@ void classify_surface(std::string_view unit, bool& known_stem, bool& valid_surfa
     const auto starts_with = [unit](std::string_view prefix) {
         return unit.size() >= prefix.size() && unit.compare(0, prefix.size(), prefix) == 0;
     };
-    static constexpr std::array<std::string_view, 12> stems = {"руб",
+    static constexpr std::array<std::string_view, 14> stems = {"руб",
                                                                "кг",
                                                                "килограмм",
                                                                "км",
@@ -21,13 +21,15 @@ void classify_surface(std::string_view unit, bool& known_stem, bool& valid_surfa
                                                                "миллиметр",
                                                                "м",
                                                                "ГБ",
-                                                               "МБ"};
-    static constexpr std::array<std::string_view, 27> surfaces = {
+                                                               "МБ",
+                                                               "GB",
+                                                               "MB"};
+    static constexpr std::array<std::string_view, 29> surfaces = {
         "руб",        "руб.",       "рубль",       "рубля",      "рублей",      "кг",
         "килограмм",  "килограмма", "килограммов", "км",         "километр",    "километра",
         "километров", "см",         "сантиметр",   "сантиметра", "сантиметров", "мм",
         "миллиметр",  "миллиметра", "миллиметров", "ГБ",         "МБ",          "м",
-        "метр",       "метра",      "метров"};
+        "метр",       "метра",      "метров",      "GB",         "MB"};
     for (const auto stem : stems)
         known_stem = known_stem || (stem == "м" ? unit == "м" : starts_with(stem));
     for (const auto surface : surfaces)

@@ -300,7 +300,7 @@ en-date-preserve-1	en	explicit	date	preserve	Keep the machine-readable date 02/0
 en-date-preserve-2	en	explicit	date	preserve	Keep the machine-readable date 2026-02-01.	Keep the machine-readable date 2026-02-01.	unresolved_number@31:10
 en-date-preserve-3	en	explicit	date	preserve	Keep the machine-readable date 2025-12-31.	Keep the machine-readable date 2025-12-31.	unresolved_number@31:10
 ru-mixed-0	ru	auto_segment	mixed_language	normalize	У меня 2 GPU и 3 ядра. Использую OpenAI API.	У меня два GPU и три ядра. Использую OpenAI API.	ambiguous_normalization@0:63
-ru-mixed-1	ru	auto_segment	mixed_language	normalize	Видеокарта RTX 4090 работает на 1.5 GB RAM.	Видеокарта RTX 4090 работает на one point five GB RAM.	ambiguous_normalization@0:63
+ru-mixed-1	ru	auto_segment	mixed_language	normalize	Видеокарта RTX 4090 работает на 1.5 GB RAM.	Видеокарта RTX 4090 работает на one point five gigabytes RAM.	ambiguous_normalization@0:63
 ru-mixed-2	ru	auto_segment	mixed_language	normalize	HTTP/2 вернул 2 ошибки.	HTTP/2 вернул две ошибки.	none
 ru-mixed-3	ru	auto_segment	mixed_language	normalize	Сборка 7 использует C++17.	Сборка семь использует C++17.	none
 ru-mixed-4	ru	auto_segment	mixed_language	normalize	Напишите dev42@example.com после 3 попыток.	Напишите dev42@example.com после трёх попыток.	none
@@ -309,10 +309,10 @@ en-mixed-6	en	auto_segment	mixed_language	normalize	Build 7 targets RTX-4090.	Bu
 en-mixed-7	en	auto_segment	mixed_language	normalize	HTTP/2 returned 3 errors.	HTTP/2 returned three errors.	none
 en-mixed-8	en	auto_segment	mixed_language	normalize	Email dev42@example.com after 2 attempts.	Email dev42@example.com after two attempts.	none
 en-mixed-9	en	auto_segment	mixed_language	normalize	The OpenAI API accepted 42 requests.	The OpenAI API accepted forty two requests.	none
-ru-mixed-10	ru	auto_segment	mixed_language	normalize	Устройство CUDA 13.3 потребляет 2 GB памяти.	Устройство CUDA 13.3 потребляет two GB памяти.	ambiguous_normalization@0:70
+ru-mixed-10	ru	auto_segment	mixed_language	normalize	Устройство CUDA 13.3 потребляет 2 GB памяти.	Устройство CUDA 13.3 потребляет two gigabytes памяти.	ambiguous_normalization@0:70
 ru-mixed-11	ru	auto_segment	mixed_language	normalize	На сервере HTTP/2 работает 4 процесса.	На сервере HTTP/2 работает четыре процесса.	none
 ru-mixed-12	ru	auto_segment	mixed_language	normalize	OpenAI API обработал 12 запросов.	OpenAI API обработал двенадцать запросов.	ambiguous_normalization@0:50
-ru-mixed-13	ru	auto_segment	mixed_language	normalize	Порог 0.5% задан для RTX-4090.	Порог ноль point пять процентов задан для RTX-4090.	none
+ru-mixed-13	ru	auto_segment	mixed_language	preserve	Порог 0.5% задан для RTX-4090.	Порог 0.5% задан для RTX-4090.	unresolved_number@11:4
 ru-mixed-14	ru	auto_segment	mixed_language	normalize	Версия V2.1.0—123 отмечена номером 7.	Версия V2.1.0—123 отмечена номером семь.	none
 en-mixed-15	en	auto_segment	mixed_language	normalize	Use 3 кг порошка with OpenAI API.	Use три килограмма порошка with OpenAI API.	ambiguous_normalization@0:42
 en-mixed-16	en	auto_segment	mixed_language	normalize	The GPU RTX 4090 needs 8 GB of memory.	The GPU RTX 4090 needs eight gigabytes of memory.	none
@@ -320,7 +320,7 @@ en-mixed-17	en	auto_segment	mixed_language	normalize	Build 12 on HTTP/2 passed v
 en-mixed-18	en	auto_segment	mixed_language	normalize	Deploy 5 replicas в the cluster.	Deploy five replicas в the cluster.	ambiguous_normalization@0:33
 en-mixed-19	en	auto_segment	mixed_language	normalize	Version V2.1.0—123 is tagged 7.	Version V2.1.0—123 is tagged seven.	none
 ru-mixed-20	ru	auto_segment	mixed_language	normalize	У меня -0 kg	У меня minus zero kilograms	ambiguous_normalization@0:17
-ru-mixed-21	ru	auto_segment	mixed_language	normalize	У меня -0.0 kg	У меня minus zero point zero kg	ambiguous_normalization@0:19
+ru-mixed-21	ru	auto_segment	mixed_language	normalize	У меня -0.0 kg	У меня minus zero point zero kilograms	ambiguous_normalization@0:19
 en-preserve-0	en	explicit	ambiguous_or_technical	preserve	Deploy C++17 to RTX-4090 at https://example.com/v2.1.0.	Deploy C++17 to RTX-4090 at https://example.com/v2.1.0.	none
 en-preserve-1	en	explicit	ambiguous_or_technical	preserve	The endpoint HTTP/2 returned code #123.	The endpoint HTTP/2 returned code #123.	none
 en-preserve-2	en	explicit	ambiguous_or_technical	preserve	Keep malformed value 1.2..3 unchanged.	Keep malformed value 1.2..3 unchanged.	unresolved_number@21:6
@@ -354,7 +354,7 @@ ru-natural-01	ru	explicit	currency	normalize	Стоимость заказа —
 ru-natural-02	ru	explicit	decimal	normalize	Температура опустилась до -4,5.	Температура опустилась до минус четырёх целых пяти десятых.	none
 ru-natural-03	ru	explicit	punctuation	normalize	Нажмите «2», затем выберите 4.	Нажмите «два», затем выберите четыре.	none
 ru-natural-04	ru	explicit	measurement	normalize	Расстояние составляет 12,5 км.	Расстояние составляет двенадцать целых пять десятых километра.	none
-ru-natural-05	ru	explicit	measurement	normalize	В резерве осталось 1,5 ГБ.	В резерве осталось одна целая пять десятых ГБ.	none
+ru-natural-05	ru	explicit	measurement	normalize	В резерве осталось 1,5 ГБ.	В резерве осталось одна целая пять десятых гигабайта.	none
 ru-natural-06	ru	explicit	percent	normalize	Доля ошибок — 0,5%.	Доля ошибок — ноль целых пять десятых процента.	none
 ru-natural-07	ru	explicit	date	normalize	Срок — 31.12.2025.	Срок — тридцать первое декабря две тысячи двадцать пятого года.	none
 ru-natural-08	ru	explicit	currency	preserve	Оплата в евро: €7.	Оплата в евро: €7.	unresolved_number@26:4
@@ -372,3 +372,29 @@ en-unicode-minus-time-00	en	explicit	time	preserve	−1:02	−1:02	unresolved_nu
 ru-positive-sign-00	ru	explicit	measurement	preserve	+1.2 kg	+1.2 kg	unresolved_number@0:7
 ru-positive-sign-01	ru	explicit	percent	preserve	+1,2%	+1,2%	unresolved_number@0:5
 ru-unicode-minus-time-00	ru	explicit	time	preserve	−1:02	−1:02	unresolved_number@0:7
+ru-foreign-percent-continuation-00	ru	explicit	percent	preserve	Порог 1.5% 123 задан	Порог 1.5% 123 задан	unresolved_number@11:8
+ru-foreign-percent-continuation-01	ru	explicit	percent	preserve	1.5%/4	1.5%/4	unresolved_number@0:6
+ru-foreign-percent-continuation-02	ru	explicit	percent	preserve	1.5%#4	1.5%#4	unresolved_number@0:6
+ru-foreign-percent-continuation-03	ru	explicit	percent	preserve	1.5%$4	1.5%$4	unresolved_number@0:6
+ru-foreign-percent-continuation-04	ru	explicit	percent	preserve	1.5%word	1.5%word	unresolved_number@0:8
+ru-technical-dot-percent-00	ru	explicit	ambiguous_or_technical	preserve	https://example.com/1.5%	https://example.com/1.5%	none
+ru-technical-dot-percent-01	ru	explicit	ambiguous_or_technical	preserve	user1.5%@example.com	user1.5%@example.com	none
+ru-technical-dot-percent-02	ru	explicit	ambiguous_or_technical	preserve	RTX-1.5%	RTX-1.5%	none
+en-date-leap-00	en	explicit	date	normalize	February 29, 2020	February twenty ninth, two thousand twenty	none
+en-date-leap-01	en	explicit	date	normalize	February 29, 2024	February twenty ninth, two thousand twenty four	none
+en-date-leap-invalid	en	explicit	date	preserve	February 29, 2025	February 29, 2025	unresolved_number@0:17
+en-date-continuation-00	en	explicit	date	preserve	February 29, 2025foo	February 29, 2025foo	unresolved_number@0:20
+en-date-continuation-01	en	explicit	date	preserve	February 29, 2024#4	February 29, 2024#4	unresolved_number@0:19
+en-date-continuation-02	en	explicit	date	preserve	February 29, 2024/4	February 29, 2024/4	unresolved_number@0:19
+ru-genitive-compound-00	ru	explicit	integer	preserve	после 21 попыток.	после 21 попыток.	unresolved_number@11:2
+ru-genitive-one-00	ru	explicit	integer	preserve	после 1 попытки.	после 1 попытки.	unresolved_number@11:1
+ru-genitive-two-00	ru	explicit	integer	normalize	после 2 попыток.	после двух попыток.	none
+ru-genitive-compound-22	ru	explicit	integer	normalize	после 22 попыток.	после двадцати двух попыток.	none
+ru-genitive-compound-22-noun	ru	explicit	integer	normalize	из 22 узлов.	из двадцати двух узлов.	none
+ru-genitive-decimal-noun	ru	explicit	decimal	preserve	до 1,2 градусов.	до 1,2 градусов.	unresolved_number@5:3
+ru-punctuation-ellipsis-00	ru	explicit	punctuation	normalize	1 руб...	один рубль...	none
+ru-punctuation-ellipsis-01	ru	explicit	punctuation	preserve	1 руб...foo	1 руб...foo	unresolved_number@0:14
+ru-punctuation-ellipsis-02	ru	explicit	punctuation	preserve	1,2 руб.../2	1,2 руб.../2	unresolved_number@0:15
+ru-technical-dot-percent-suffix	ru	explicit	ambiguous_or_technical	preserve	1.5%RTX-4090	1.5%RTX-4090	unresolved_number@0:12
+ru-mixed-unit-gb-decimal	ru	auto_segment	measurement	normalize	Используем 1,5 GB данных.	Используем одна целая пять десятых гигабайта данных.	ambiguous_normalization@0:41
+ru-mixed-malformed-unit-suffix	ru	auto_segment	measurement	preserve	Use 1,5 кгfoo	Use 1,5 кгfoo	unresolved_number@4:11

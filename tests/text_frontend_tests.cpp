@@ -1,4 +1,6 @@
 #include "tts_front.hpp"
+#include "tts_front/core/numeric_scanner.hpp"
+#include "tts_front/core/utf8_document.hpp"
 
 #include <algorithm>
 #include <cstdio>
@@ -22,13 +24,21 @@ int main() {
     TextFrontend frontend;
     TextFrontendOptions ru;
     ru.language = Language::Russian;
+    {
+        const tts_front::detail::Utf8Document document("+1e+3#4");
+        const auto surface = tts_front::detail::scan_candidate_surface(
+            document, 0, tts_front::detail::CandidateSurfaceKind::Technical);
+        CHECK(surface.valid());
+        CHECK(surface.numeric.exponent == tts_front::detail::ExponentState::Complete);
+        CHECK(surface.end == document.points.size());
+    }
     CHECK(frontend.process("У меня 42 яблока.", ru).normalized_text == "У меня сорок два яблока.");
     CHECK(frontend.process("1% 2% 5% 11% 21%", ru).normalized_text ==
           "один процент два процента пять процентов одиннадцать процентов двадцать один процент");
     CHECK(frontend.process("1:01 2:02 5:05", ru).normalized_text ==
           "один час одна минута два часа две минуты пять часов пять минут");
     CHECK(frontend.process("1 руб. 2 руб. 5 руб.", ru).normalized_text ==
-          "один рубль два рубля пять рублей");
+          "один рубль два рубля пять рублей.");
     CHECK(frontend.process("7,5 12 500 -42", ru).normalized_text ==
           "семь целых пять десятых двенадцать тысяч пятьсот минус сорок два");
     CHECK(frontend.process("В 2026 г.", ru).normalized_text == "В две тысячи двадцать шестом году");
@@ -776,7 +786,7 @@ int main() {
         const auto negative_zero = frontend.process("У меня -0 kg", segmented);
         CHECK(negative_zero.normalized_text == "У меня minus zero kilograms");
         const auto negative_zero_decimal = frontend.process("У меня -0.0 kg", segmented);
-        CHECK(negative_zero_decimal.normalized_text == "У меня minus zero point zero kg");
+        CHECK(negative_zero_decimal.normalized_text == "У меня minus zero point zero kilograms");
     }
     {
         TextFrontendOptions segmented;
@@ -848,7 +858,8 @@ int main() {
         segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
         const auto result =
             frontend.process("Видеокарта RTX 4090 работает на 1.5 GB RAM.", segmented);
-        CHECK(result.normalized_text == "Видеокарта RTX 4090 работает на one point five GB RAM.");
+        CHECK(result.normalized_text ==
+              "Видеокарта RTX 4090 работает на one point five gigabytes RAM.");
         CHECK(!result.warnings.empty());
         CHECK(result.warnings.front().code == WarningCode::AmbiguousNormalization);
     }
@@ -893,7 +904,7 @@ int main() {
           "тысячных");
     CHECK(frontend.process("1,1234", ru).normalized_text == "1,1234");
     CHECK(frontend.process("7,5%", ru).normalized_text == "семь целых пять десятых процента");
-    CHECK(frontend.process("1,2 руб.", ru).normalized_text == "одна целая две десятых рубля");
+    CHECK(frontend.process("1,2 руб.", ru).normalized_text == "одна целая две десятых рубля.");
     CHECK(frontend.process("1,2% -3,4%", ru).normalized_text ==
           "одна целая две десятых процента минус три целых четыре десятых процента");
     {
@@ -1147,6 +1158,202 @@ int main() {
         CHECK(malformed_date.warnings.size() == 1);
         CHECK(malformed_date.warnings.front().offset == 0);
         CHECK(malformed_date.warnings.front().length == std::string("99.99.2026").size());
+    }
+    {
+        const auto invalid_english_date = frontend.process("February 31, 2026.", en);
+        CHECK(invalid_english_date.normalized_text == "February 31, 2026.");
+        CHECK(invalid_english_date.warnings.size() == 1);
+        CHECK(invalid_english_date.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(invalid_english_date.warnings.front().offset == 0);
+        CHECK(invalid_english_date.warnings.front().length ==
+              std::string("February 31, 2026").size());
+    }
+    {
+        const auto genitive_21 = frontend.process("после 21 попыток.", ru);
+        CHECK(genitive_21.normalized_text == "после 21 попыток.");
+        CHECK(genitive_21.warnings.size() == 1);
+        CHECK(genitive_21.warnings.front().offset == genitive_21.original_text.find("21"));
+        CHECK(genitive_21.warnings.front().length == 2);
+        const auto genitive_21_nodes = frontend.process("из 21 узлов.", ru);
+        CHECK(genitive_21_nodes.normalized_text == "из 21 узлов.");
+        CHECK(genitive_21_nodes.warnings.size() == 1);
+        const auto malformed_genitive = frontend.process("после 21.5 попыток.", ru);
+        CHECK(malformed_genitive.normalized_text == "после 21.5 попыток.");
+        CHECK(malformed_genitive.warnings.size() == 1);
+        CHECK(malformed_genitive.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(malformed_genitive.warnings.front().offset ==
+              malformed_genitive.original_text.find("21.5"));
+        CHECK(malformed_genitive.warnings.front().length == 4);
+    }
+    for (const auto& punctuation : {std::string("!"), std::string("?"), std::string(")")}) {
+        const auto input = "1 руб." + punctuation;
+        const auto result = frontend.process(input, ru);
+        CHECK(result.normalized_text == "один рубль" + punctuation);
+    }
+    CHECK(frontend.process("1 руб...,", ru).normalized_text == "один рубль...,");
+    {
+        TextFrontendOptions segmented;
+        segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        const auto mixed_unit = frontend.process("Use 1,5 кг", segmented);
+        CHECK(mixed_unit.normalized_text == "Use одна целая пять десятых килограмма");
+        CHECK(!mixed_unit.warnings.empty());
+        const auto mixed_gb = frontend.process("Используем 1,5 GB данных.", segmented);
+        CHECK(mixed_gb.normalized_text == "Используем одна целая пять десятых гигабайта данных.");
+        const auto foreign_percent = frontend.process("Порог 0.5% задан для RTX-4090.", segmented);
+        CHECK(foreign_percent.normalized_text == "Порог 0.5% задан для RTX-4090.");
+        CHECK(foreign_percent.warnings.size() == 1);
+        CHECK(foreign_percent.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(foreign_percent.warnings.front().offset == 11);
+        CHECK(foreign_percent.warnings.front().length == 4);
+    }
+    for (const auto& input : {std::string("1.5%/4"),
+                              std::string("1.5%#4"),
+                              std::string("1.5%$4"),
+                              std::string("1.5%word")}) {
+        const auto result = frontend.process(input, ru);
+        CHECK(result.normalized_text == input);
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().offset == 0);
+        CHECK(result.warnings.front().length == input.size());
+    }
+    {
+        const auto result = frontend.process("Порог 1.5% 123 задан", ru);
+        CHECK(result.normalized_text == "Порог 1.5% 123 задан");
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().offset == std::string("Порог ").size());
+        CHECK(result.warnings.front().length == std::string("1.5% 123").size());
+    }
+    for (const auto& input : {std::string("https://example.com/1.5%"),
+                              std::string("user1.5%@example.com"),
+                              std::string("RTX-1.5%")}) {
+        const auto result = frontend.process(input, ru);
+        CHECK(result.normalized_text == input);
+        CHECK(result.warnings.empty());
+    }
+    for (const auto& input : {std::string("February 29, 2020"), std::string("February 29, 2024")}) {
+        const auto result = frontend.process(input, en);
+        CHECK(result.normalized_text != input);
+        CHECK(result.warnings.empty());
+    }
+    {
+        const auto result = frontend.process("February 29, 2025", en);
+        CHECK(result.normalized_text == "February 29, 2025");
+        CHECK(result.warnings.size() == 1);
+    }
+    for (const auto& input : {std::string("February 29, 2025foo"),
+                              std::string("February 29, 2024#4"),
+                              std::string("February 29, 2024/4")}) {
+        const auto result = frontend.process(input, en);
+        CHECK(result.normalized_text == input);
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(result.warnings.front().offset == 0);
+        CHECK(result.warnings.front().length == input.size());
+    }
+    // A connector without a lexical continuation is a hard boundary.  These
+    // cases must return promptly rather than retrying the same connector
+    // indefinitely.  The date and following number remain independent tokens.
+    for (const auto& input : {std::string("February 29, 2024# 4"),
+                              std::string("February 29, 2024/ 4"),
+                              std::string("February 29, 2024+ 4"),
+                              std::string("February 29, 2024- 4"),
+                              std::string("February 29, 2024. 4")}) {
+        const auto result = frontend.process(input, en);
+        CHECK(result.normalized_text.find("February twenty ninth") == 0);
+        CHECK(result.normalized_text.find("four") != std::string::npos);
+    }
+    {
+        for (const auto* options : {&en, &ru, &auto_options}) {
+            for (const auto& input : {std::string("1.5%RTX- 4090"),
+                                      std::string("1.5%RTX+ 4090"),
+                                      std::string("1.5%RTX-"),
+                                      std::string("1.5%RTX+"),
+                                      std::string("1.5%RTX."),
+                                      std::string("1.5%RTX/"),
+                                      std::string("1.5%RTX#"),
+                                      std::string("1.5%RTX$")}) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.normalized_text == input);
+                CHECK(result.warnings.size() == 1);
+                CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+                CHECK(result.warnings.front().offset == 0);
+                CHECK(result.warnings.front().length == input.size());
+            }
+            const std::string lexical_suffix = "1.5%RTX- foo";
+            const auto result = frontend.process(lexical_suffix, *options);
+            CHECK(result.normalized_text == lexical_suffix);
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(result.warnings.front().offset == 0);
+            CHECK(result.warnings.front().length == lexical_suffix.find(' '));
+        }
+    }
+    {
+        const std::vector<std::string> unicode_connector_cases = {
+            std::string("1.5%RTX") + "\xE2\x88\x92" + " 4090",
+            std::string("1.5%RTX") + "\xE2\x80\x93" + " 4090",
+            std::string("1.5%RTX") + "\xE2\x80\x94" + " 4090",
+            "1.5%RTX= 4090",
+            "1.5%RTX* 4090"};
+        for (const auto* options : {&en, &ru, &auto_options}) {
+            for (const auto& input : unicode_connector_cases) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.normalized_text == input);
+                CHECK(result.warnings.size() == 1);
+                CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+                CHECK(result.warnings.front().offset == 0);
+                CHECK(result.warnings.front().length == input.size());
+            }
+        }
+    }
+    for (const auto& input : {std::string("1 руб...foo"), std::string("1,2 руб.../2")}) {
+        const auto result = frontend.process(input, ru);
+        CHECK(result.normalized_text == input);
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(result.warnings.front().offset == 0);
+        CHECK(result.warnings.front().length == input.size());
+    }
+    for (const auto& input : {std::string("после 1 попытки."),
+                              std::string("после 21 попыток."),
+                              std::string("из 21 узлов.")}) {
+        const auto result = frontend.process(input, ru);
+        CHECK(result.normalized_text == input);
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+    }
+    CHECK(frontend.process("после 2 попыток.", ru).normalized_text == "после двух попыток.");
+    CHECK(frontend.process("после 22 попыток.", ru).normalized_text ==
+          "после двадцати двух попыток.");
+    {
+        const auto result = frontend.process("до 1,2 градусов.", ru);
+        CHECK(result.normalized_text == "до 1,2 градусов.");
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(result.warnings.front().offset == std::string("до ").size());
+        CHECK(result.warnings.front().length == std::string("1,2").size());
+    }
+    {
+        const auto result = frontend.process("1.5%RTX-4090", ru);
+        CHECK(result.normalized_text == "1.5%RTX-4090");
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(result.warnings.front().offset == 0);
+        CHECK(result.warnings.front().length == result.original_text.size());
+    }
+    {
+        TextFrontendOptions segmented;
+        segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        const auto result = frontend.process("Use 1,5 кгfoo", segmented);
+        CHECK(result.normalized_text == "Use 1,5 кгfoo");
+        CHECK(std::count_if(
+                  result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
+                      return warning.code == WarningCode::UnresolvedNumber;
+                  }) == 1);
+        CHECK(std::none_of(
+            result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
+                return warning.code == WarningCode::AmbiguousNormalization;
+            }));
     }
     std::string many_protected;
     for (int i = 0; i < 35; ++i) {

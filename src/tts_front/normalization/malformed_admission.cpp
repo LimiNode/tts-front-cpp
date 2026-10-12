@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cstdint>
 #include <iterator>
 #include <regex>
 #include <stdexcept>
@@ -28,6 +29,25 @@ bool valid_date(int day, int month, int year) {
     if (month == 2 && (year % 400 == 0 || (year % 4 == 0 && year % 100 != 0)))
         limit = 29;
     return day <= limit;
+}
+
+std::size_t scan_nonterminal_ellipsis(const std::vector<CodePoint>& points, std::size_t begin) {
+    if (begin + 1 >= points.size() || points[begin].value != '.' || points[begin + 1].value != '.')
+        return begin;
+    auto continuation = begin;
+    while (continuation < points.size() && points[continuation].value == '.')
+        ++continuation;
+    if (continuation >= points.size() ||
+        (!text::is_letter(points[continuation].value) &&
+         !text::is_digit(points[continuation].value) && points[continuation].value != '/' &&
+         points[continuation].value != '#' && points[continuation].value != '$'))
+        return begin;
+    while (continuation < points.size() &&
+           (text::is_letter(points[continuation].value) ||
+            text::is_digit(points[continuation].value) || points[continuation].value == '/' ||
+            points[continuation].value == '#' || points[continuation].value == '$'))
+        ++continuation;
+    return continuation;
 }
 
 MappedText protect_malformed_numeric_candidates(MappedText text,
@@ -71,7 +91,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                                            points[currency_context_probe - 1].value == 0x20ac ||
                                            points[currency_context_probe - 1].value == 0xa3 ||
                                            points[currency_context_probe - 1].value == 0xa5);
-        const auto surface = scan_numeric_surface(document, index);
+        const auto candidate_surface = scan_candidate_surface(document, index);
+        const auto& surface = candidate_surface.numeric;
         const bool positive_numeric = [&] {
             if (points[index].value != '+' || index + 1 >= points.size() ||
                 !text::is_digit(points[index + 1].value))
@@ -123,10 +144,11 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
              (points[index - 1].value == '$' || points[index - 1].value == 0x20ac ||
               points[index - 1].value == 0xa3 || points[index - 1].value == 0xa5));
         std::size_t end_index = index + 1;
-        if (surface.exponent != ExponentState::None && surface.continuation_end > end_index)
-            end_index = surface.continuation_end;
+        if (surface.exponent != ExponentState::None && candidate_surface.end > end_index)
+            end_index = candidate_surface.end;
         std::size_t separators = 0;
         bool has_percent = false;
+        bool has_dot_decimal = false;
         bool percent_attached_to_numeric = false;
         bool has_range_connector = false;
         bool has_unsupported_numeric_connector = false;
@@ -258,7 +280,12 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 }
                 if (value == ')' && parenthesized_prefix)
                     break;
+                if (value == '[' || value == ']')
+                    break;
                 if (text::is_numeric_connector(value)) {
+                    if (rules.dotted_dates && value == '.' && end_index + 1 < points.size() &&
+                        text::is_digit(points[end_index + 1].value))
+                        has_dot_decimal = true;
                     if (grouped_seen && (value == '.' || value == ',' || value == ':'))
                         malformed_compound = true;
                     if (value == '%') {
@@ -371,6 +398,29 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         }
         if (currency_context && has_percent)
             end_index = scan_numeric_continuation_points(document, end_index, false);
+        if (rules.dotted_dates && has_dot_decimal && has_percent) {
+            malformed_compound = true;
+            const auto continuation = scan_numeric_continuation_points(document, end_index, false);
+            if (continuation != end_index)
+                end_index = continuation;
+            auto suffix_end = end_index;
+            while (suffix_end < points.size() && text::is_letter(points[suffix_end].value))
+                ++suffix_end;
+            if (suffix_end > end_index) {
+                malformed_compound = true;
+                end_index = suffix_end;
+            }
+            if (end_index < points.size() &&
+                (points[end_index].value == '/' || points[end_index].value == '#' ||
+                 points[end_index].value == '$')) {
+                ++end_index;
+                while (end_index < points.size() &&
+                       (text::is_digit(points[end_index].value) ||
+                        text::is_letter(points[end_index].value) ||
+                        text::is_combining_mark(points[end_index].value)))
+                    ++end_index;
+            }
+        }
         if (has_percent && end_index < points.size() &&
             text::is_lexical_numeric_boundary(points[end_index].value)) {
             while (end_index < points.size() &&
@@ -378,6 +428,20 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                     text::is_combining_mark(points[end_index].value)))
                 ++end_index;
             percent_attached_to_numeric = true;
+        }
+        // A dotted foreign percentage immediately followed by a technical
+        // identifier is one unsupported candidate (for example
+        // `1.5%RTX-4090`).  The technical pass deliberately leaves that
+        // identifier visible so the warning can cover the complete source
+        // span; consume its lexical tail here instead of emitting two
+        // diagnostics.
+        if (has_percent && end_index < points.size()) {
+            const auto continuation =
+                scan_candidate_continuation(document, end_index, CandidateSurfaceKind::Technical);
+            if (continuation != end_index) {
+                malformed_compound = true;
+                end_index = continuation;
+            }
         }
         // A terminal currency/hash connector is not a supported postfix
         // notation. Preserve it atomically instead of letting the generic
@@ -433,6 +497,17 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 if (known_stem && (!valid_surface || suffix_end != word_end)) {
                     malformed_compound = true;
                     end_index = suffix_end;
+                }
+                // An abbreviation ellipsis is terminal only when it is
+                // followed by ordinary punctuation or the end of input.
+                // `руб...foo` and `руб.../2` are unsupported continuations
+                // and must remain one atomic candidate.
+                if (known_stem && suffix_end == word_end) {
+                    const auto continuation = scan_nonterminal_ellipsis(points, suffix_end);
+                    if (continuation != suffix_end) {
+                        malformed_compound = true;
+                        end_index = continuation;
+                    }
                 }
             }
         }
