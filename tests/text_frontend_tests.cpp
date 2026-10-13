@@ -1592,16 +1592,34 @@ int main() {
         }
     }
     {
-        const std::vector<std::string> arithmetic_cases = {
-            "1 / 2", "1 = 2", "1 * 2", "1 + 2 = 3", "1 / 2 = 0.5"};
-        for (const auto* options : {&en, &ru, &auto_options}) {
-            for (const auto& input : arithmetic_cases) {
-                const auto result = frontend.process(input, *options);
-                CHECK(result.original_text == input);
-                CHECK(result.warnings.empty());
-                CHECK(result.normalized_text != input);
-            }
-        }
+        const auto arithmetic_matches =
+            [&](const TextFrontendOptions& options,
+                const std::vector<std::pair<std::string, std::string>>& cases) {
+                for (const auto& [input, expected] : cases) {
+                    const auto result = frontend.process(input, options);
+                    if (result.original_text != input || !result.warnings.empty() ||
+                        result.normalized_text != expected || result.pronunciation_text != expected)
+                        return false;
+                }
+                return true;
+            };
+        const std::vector<std::pair<std::string, std::string>> english_cases = {
+            {"1 / 2", "one / two"},
+            {"1 = 2", "one = two"},
+            {"1 * 2", "one * two"},
+            {"1 + 2 = 3", "one + two = three"},
+            {"1 / 2 = 0.5", "one / two = zero point five"}};
+        const std::vector<std::pair<std::string, std::string>> russian_expected = {
+            {"1 / 2", "\xD0\xBE\xD0\xB4\xD0\xB8\xD0\xBD / \xD0\xB4\xD0\xB2\xD0\xB0"},
+            {"1 = 2", "\xD0\xBE\xD0\xB4\xD0\xB8\xD0\xBD = \xD0\xB4\xD0\xB2\xD0\xB0"},
+            {"1 * 2", "\xD0\xBE\xD0\xB4\xD0\xB8\xD0\xBD * \xD0\xB4\xD0\xB2\xD0\xB0"},
+            {"1 + 2 = 3",
+             "\xD0\xBE\xD0\xB4\xD0\xB8\xD0\xBD + \xD0\xB4\xD0\xB2\xD0\xB0 = "
+             "\xD1\x82\xD1\x80\xD0\xB8"},
+            {"1 / 2 = 0.5", "\xD0\xBE\xD0\xB4\xD0\xB8\xD0\xBD / \xD0\xB4\xD0\xB2\xD0\xB0 = 0.5"}};
+        CHECK(arithmetic_matches(en, english_cases));
+        CHECK(arithmetic_matches(ru, russian_expected));
+        CHECK(arithmetic_matches(auto_options, english_cases));
     }
     std::cout << "tts_front tests passed\n";
     return EXIT_SUCCESS;
