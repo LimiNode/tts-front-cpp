@@ -198,10 +198,10 @@ std::size_t scan_spaced_numeric_continuation(const Utf8Document& document,
         return begin;
 
     const auto value = points[connector].value;
-    const bool compound_connector = value == '/' || value == '=' || value == '*' ||
-                                    (kind != CandidateSurfaceKind::Numeric &&
-                                     (value == '#' || value == '$' || value == '+' ||
-                                      value == '-' || text::is_range_connector(value)));
+    const bool compound_connector =
+        kind != CandidateSurfaceKind::Numeric &&
+        (value == '/' || value == '#' || value == '$' || value == '=' || value == '*' ||
+         value == '+' || value == '-' || text::is_range_connector(value));
     if (!compound_connector)
         return begin;
 

@@ -63,17 +63,6 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
     // one forward state instead of searching backwards through the text for
     // every codepoint; this keeps the candidate admission pass linear.
     bool inside_marker = false;
-    const auto has_genitive_word = [&](std::size_t point) {
-        const auto prefix = document.bytes.substr(0, points[point].offset);
-        for (const auto word : {std::string_view("после "),
-                                std::string_view("После "),
-                                std::string_view("из "),
-                                std::string_view("Из ")}) {
-            if (prefix.size() >= word.size() && prefix.substr(prefix.size() - word.size()) == word)
-                return true;
-        }
-        return false;
-    };
     for (std::size_t index = 0; index < points.size();) {
         if (points[index].value == 0x01) {
             inside_marker = true;
@@ -83,6 +72,10 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         if (inside_marker) {
             if (points[index].value == 0x02)
                 inside_marker = false;
+            ++index;
+            continue;
+        }
+        if (overlaps_preserved_range(text, points[index].offset, points[index].offset + 1)) {
             ++index;
             continue;
         }
@@ -104,11 +97,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                                            points[currency_context_probe - 1].value == 0xa5);
         const auto candidate_surface = scan_candidate_surface(document, index);
         const auto& surface = candidate_surface.numeric;
-        const auto spaced_continuation = scan_spaced_numeric_continuation(
-            document,
-            surface.end,
-            has_genitive_word(index) ? CandidateSurfaceKind::Technical
-                                     : CandidateSurfaceKind::Numeric);
+        const auto spaced_continuation =
+            scan_spaced_numeric_continuation(document, surface.end, CandidateSurfaceKind::Numeric);
         const bool positive_numeric = [&] {
             if (points[index].value != '+' || index + 1 >= points.size() ||
                 !text::is_digit(points[index + 1].value))

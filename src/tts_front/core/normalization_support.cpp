@@ -61,4 +61,21 @@ std::string marker_for(std::string_view text, std::size_t index) {
     return marker;
 }
 
+bool overlaps_preserved_range(const MappedText& text, std::size_t begin, std::size_t end) {
+    if (!text.preserved_ranges || begin >= end)
+        return false;
+    const auto source = text.source_range(begin, end);
+    const auto& ranges = *text.preserved_ranges;
+    const auto overlaps = [source](const SourceRange& range) {
+        return source.offset < range.offset + range.length &&
+               range.offset < source.offset + source.length;
+    };
+    const auto next = std::lower_bound(
+        ranges.begin(), ranges.end(), source.offset, [](const SourceRange& range, std::size_t at) {
+            return range.offset < at;
+        });
+    return (next != ranges.end() && overlaps(*next)) ||
+           (next != ranges.begin() && overlaps(*std::prev(next)));
+}
+
 } // namespace tts_front::detail

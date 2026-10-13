@@ -129,6 +129,27 @@ std::size_t unsupported_genitive_end(const MappedText& source,
     return special_end == 0 ? 0 : special_end;
 }
 
+MappedText protect_unsupported_genitive_candidates(MappedText text, WarningSink& warnings) {
+    const Utf8Document document(text.text);
+    if (!document.valid)
+        return text;
+    for (std::sregex_iterator
+             it(text.text.begin(), text.text.end(), russian::patterns().genitive_context),
+         end;
+         it != end;
+         ++it) {
+        const auto number_begin = static_cast<std::size_t>(it->position(3));
+        if (!has_genitive_prefix(text, number_begin))
+            continue;
+        const auto unsupported_end = unsupported_genitive_end(text, document, number_begin);
+        if (unsupported_end > number_begin)
+            warnings.add(WarningCode::UnresolvedNumber,
+                         "Unable to inflect a compound numeric surface",
+                         text.source_range(number_begin, unsupported_end));
+    }
+    return text;
+}
+
 bool genitive_requires_noun_gender(const long long value) {
     const auto absolute = std::llabs(value);
     return absolute == 1 || (absolute % 10 == 1 && absolute % 100 != 11);
@@ -148,6 +169,7 @@ number_or_original(const std::string& token, WarningSink& warnings, SourceRange 
 
 MappedText normalize(MappedText text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
+    text = protect_unsupported_genitive_candidates(std::move(text), warnings);
     text = technical::protect_numeric_candidates(std::move(text), warnings, protected_spans);
     text = technical::protect(std::move(text), protected_spans);
     text = protect_malformed_numeric_candidates(

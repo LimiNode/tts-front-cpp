@@ -1415,7 +1415,7 @@ int main() {
                                                                  "после 2= 3",
                                                                  "после 2* 3",
                                                                  "после 2$ 3"};
-        for (const auto* options : {&en, &ru, &auto_options}) {
+        for (const auto* options : {&ru, &auto_options}) {
             for (const auto& input : spaced_connector_cases) {
                 const auto result = frontend.process(input, *options);
                 CHECK(result.original_text == input);
@@ -1588,6 +1588,18 @@ int main() {
                 CHECK(result.original_text == input);
                 CHECK(result.normalized_text.find('\x01') == std::string::npos);
                 CHECK(result.normalized_text.find('\x02') == std::string::npos);
+            }
+        }
+    }
+    {
+        const std::vector<std::string> arithmetic_cases = {
+            "1 / 2", "1 = 2", "1 * 2", "1 + 2 = 3", "1 / 2 = 0.5"};
+        for (const auto* options : {&en, &ru, &auto_options}) {
+            for (const auto& input : arithmetic_cases) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.original_text == input);
+                CHECK(result.warnings.empty());
+                CHECK(result.normalized_text != input);
             }
         }
     }
