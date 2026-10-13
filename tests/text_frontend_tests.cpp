@@ -1363,6 +1363,8 @@ int main() {
                                                                "после 2 GB",
                                                                "после 2:30",
                                                                "после 2,5",
+                                                               "после 2,foo",
+                                                               "после 2:foo",
                                                                "после 2-3",
                                                                "после 2 reports"};
         for (const auto& input : unsupported_surfaces) {
@@ -1373,6 +1375,18 @@ int main() {
             CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
             CHECK(result.warnings.front().offset == number_begin);
             CHECK(result.warnings.front().length == input.size() - number_begin);
+        }
+    }
+    {
+        const std::vector<std::pair<std::string, std::string>> combining_contexts = {
+            {"x\xCC\x81из 2", "x\xCC\x81из два"}, {"x1из 2", "x1из два"}};
+        for (const auto& test : combining_contexts) {
+            const auto result = frontend.process(test.first, ru);
+            CHECK(result.normalized_text == test.second);
+            CHECK(std::none_of(
+                result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
+                    return warning.code == WarningCode::AmbiguousNormalization;
+                }));
         }
     }
     {

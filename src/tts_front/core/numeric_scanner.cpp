@@ -130,7 +130,8 @@ std::size_t scan_candidate_continuation(const Utf8Document& document,
             break;
         const auto value = points[end].value;
         const bool connector =
-            value == '-' || value == '+' || value == '.' || text::is_range_connector(value) ||
+            value == '-' || value == '+' || value == '.' || value == ',' || value == ':' ||
+            value == '%' || text::is_range_connector(value) ||
             (kind != CandidateSurfaceKind::Numeric &&
              (value == '/' || value == '#' || value == '$')) ||
             (kind == CandidateSurfaceKind::Technical && (value == '=' || value == '*'));
