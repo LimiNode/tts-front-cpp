@@ -1345,6 +1345,41 @@ int main() {
             CHECK(result.warnings.empty());
         }
     }
+    {
+        const std::vector<std::pair<std::string, std::string>> embedded_contexts = {
+            {"вниз 2,5", "вниз две целых пять десятых"},
+            {"эскиз 2", "эскиз два"},
+            {"непосле 2", "непосле два"}};
+        for (const auto& test : embedded_contexts) {
+            const auto result = frontend.process(test.first, ru);
+            CHECK(result.normalized_text == test.second);
+            CHECK(result.warnings.empty());
+        }
+    }
+    {
+        const std::vector<std::string> unsupported_surfaces = {"после 2%",
+                                                               "после 2 кг",
+                                                               "после 2 руб.",
+                                                               "после 2 GB",
+                                                               "после 2:30",
+                                                               "после 2,5",
+                                                               "после 2-3",
+                                                               "после 2 reports"};
+        for (const auto& input : unsupported_surfaces) {
+            const auto result = frontend.process(input, ru);
+            const auto number_begin = input.find('2');
+            CHECK(result.normalized_text == input);
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(result.warnings.front().offset == number_begin);
+            CHECK(result.warnings.front().length == input.size() - number_begin);
+        }
+    }
+    {
+        const auto result = frontend.process("после 11 попыток", ru);
+        CHECK(result.normalized_text == "после одиннадцати попыток");
+        CHECK(result.warnings.empty());
+    }
     const std::vector<RussianAgreementCase> temporal_cases = {
         {"за 1 год.", "за один год.", false},
         {"за 2 года.", "за два года.", false},
