@@ -99,6 +99,11 @@ std::size_t unsupported_genitive_end(const MappedText& source,
                                        regex_end_at(patterns.currency_decimal, source.text, begin),
                                        regex_end_at(patterns.measurement, source.text, begin)});
 
+    const auto spaced_continuation = scan_spaced_numeric_continuation(
+        document, candidate.numeric.end, CandidateSurfaceKind::Technical);
+    if (spaced_continuation > candidate.numeric.end)
+        return document.span_from_codepoints(point, spaced_continuation).byte_end;
+
     const auto continuation = scan_candidate_continuation(
         document, candidate.numeric.end, CandidateSurfaceKind::Technical);
     if (continuation > candidate.numeric.end)

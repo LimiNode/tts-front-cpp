@@ -308,6 +308,17 @@ MappedText protect_numeric_candidates(MappedText text,
         return text;
     const auto& points = document.points;
     const auto scientific_index = build_numeric_surface_index(document);
+    const auto has_genitive_word = [&](std::size_t point) {
+        const auto prefix = document.bytes.substr(0, points[point].offset);
+        for (const auto word : {std::string_view("после "),
+                                std::string_view("После "),
+                                std::string_view("из "),
+                                std::string_view("Из ")}) {
+            if (prefix.size() >= word.size() && prefix.substr(prefix.size() - word.size()) == word)
+                return true;
+        }
+        return false;
+    };
 
     std::vector<SourceEdit> edits;
     for (std::size_t index = 0; index < points.size();) {
@@ -398,6 +409,12 @@ MappedText protect_numeric_candidates(MappedText text,
 
         std::size_t suffix_end = end_index;
         bool encoded_suffix = false;
+        const auto spaced_continuation =
+            scan_spaced_numeric_continuation(document, end_index, CandidateSurfaceKind::Technical);
+        if (spaced_continuation > end_index && has_genitive_word(index)) {
+            ++index;
+            continue;
+        }
         if (end_index < points.size() &&
             (points[end_index].value == '#' || points[end_index].value == '$')) {
             auto probe = end_index + 1;

@@ -186,6 +186,37 @@ std::size_t scan_candidate_continuation(const Utf8Document& document,
     return end;
 }
 
+std::size_t scan_spaced_numeric_continuation(const Utf8Document& document,
+                                             std::size_t begin,
+                                             CandidateSurfaceKind kind) {
+    const auto& points = document.points;
+    auto connector = begin;
+    const auto connector_start = connector;
+    while (connector < points.size() && text::is_horizontal_space(points[connector].value))
+        ++connector;
+    if (connector >= points.size())
+        return begin;
+
+    const auto value = points[connector].value;
+    const bool compound_connector = value == '/' || value == '=' || value == '*' ||
+                                    (kind != CandidateSurfaceKind::Numeric &&
+                                     (value == '#' || value == '$' || value == '+' ||
+                                      value == '-' || text::is_range_connector(value)));
+    if (!compound_connector)
+        return begin;
+
+    auto numeric_begin = connector + 1;
+    const auto numeric_start = numeric_begin;
+    while (numeric_begin < points.size() && text::is_horizontal_space(points[numeric_begin].value))
+        ++numeric_begin;
+    if (connector == connector_start && numeric_begin == numeric_start)
+        return begin;
+    if (numeric_begin >= points.size())
+        return begin;
+    const auto numeric = scan_numeric_surface(document, numeric_begin);
+    return numeric.valid() ? numeric.continuation_end : begin;
+}
+
 bool NumericSurfaceIndex::contains(std::size_t point) const {
     const auto found = std::lower_bound(
         ranges.begin(),

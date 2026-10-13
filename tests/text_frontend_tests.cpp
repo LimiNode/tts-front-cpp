@@ -1406,6 +1406,28 @@ int main() {
             CHECK(result.warnings.empty());
         }
     }
+    {
+        const std::vector<std::string> spaced_connector_cases = {"после 2/ 3",
+                                                                 "после 2 + 3",
+                                                                 "после 2 / 3",
+                                                                 "после 2# 3",
+                                                                 "после 2- 3",
+                                                                 "после 2= 3",
+                                                                 "после 2* 3",
+                                                                 "после 2$ 3"};
+        for (const auto* options : {&en, &ru, &auto_options}) {
+            for (const auto& input : spaced_connector_cases) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text == input);
+                CHECK(result.warnings.size() == 1);
+                CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+                const auto begin = input.find('2');
+                CHECK(result.warnings.front().offset == begin);
+                CHECK(result.warnings.front().length == input.size() - begin);
+            }
+        }
+    }
     const std::vector<RussianAgreementCase> temporal_cases = {
         {"за 1 год.", "за один год.", false},
         {"за 2 года.", "за два года.", false},
