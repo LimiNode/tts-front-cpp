@@ -21,7 +21,7 @@ struct Patterns {
     const std::regex feminine_count{
         R"((^|[^A-Za-zА-Яа-яЁё0-9])(-?\d+)\s+(ошибка|ошибки|ошибок)([^A-Za-zА-Яа-яЁё0-9]|$))"};
     const std::regex genitive_context{
-        R"((после|из)(\s+)(-?\d+(?:[.,]\d+)?)(?![A-Za-zА-Яа-яЁё0-9]))"};
+        R"(([Пп]осле|[Ии]з)(\s+)(-?\d+(?:[.,]\d+)?)(?![A-Za-zА-Яа-яЁё0-9]|[.,:]\d))"};
     const std::regex genitive_decimal_context{R"((до\s+)(-?\d+),([0-9]+)([^0-9]|$))"};
     const std::regex generic_number{R"((^|[^A-Za-z0-9_,.:])(-?\d+)(?![0-9]*[.,:][0-9]))"};
     const std::regex abbreviation_td{R"((^|[^A-Za-zА-Яа-яЁё])т\.д\.)"};

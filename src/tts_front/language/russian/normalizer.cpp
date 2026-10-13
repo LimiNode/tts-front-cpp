@@ -18,6 +18,19 @@
 namespace tts_front::detail::russian {
 namespace {
 
+bool has_genitive_prefix(const std::string_view text, const std::size_t position) {
+    auto end = position;
+    while (end > 0 && std::isspace(static_cast<unsigned char>(text[end - 1])))
+        --end;
+    const auto before = text.substr(0, end);
+    const auto has_suffix = [&](const std::string_view suffix) {
+        return before.size() >= suffix.size() &&
+               before.compare(before.size() - suffix.size(), suffix.size(), suffix) == 0;
+    };
+    return has_suffix("после") || has_suffix("После") || has_suffix("из") ||
+           has_suffix("Из");
+}
+
 std::string
 number_or_original(const std::string& token, WarningSink& warnings, SourceRange source) {
     long long value = 0;
@@ -82,8 +95,41 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
         });
     text = replace_matches(
         text,
+        russian::patterns().genitive_context,
+        [&](const std::smatch& match, const MappedText& source) {
+            const auto token = match[3].str();
+            if (token.find('.') != std::string::npos || token.find(',') != std::string::npos) {
+                const auto begin = static_cast<std::size_t>(match.position(3));
+                warnings.add(WarningCode::UnresolvedNumber,
+                             "Unable to inflect a genitive decimal",
+                             source.source_range(begin, begin + match.length(3)));
+                return match.str();
+            }
+            long long value = 0;
+            if (!try_parse_long(token, value))
+                return match.str();
+            // Agreement of compound genitives depends on the governed noun
+            // ("двадцати одного узла", "двадцати одной попытки", ...).
+            // Values ending in one require noun gender ("одного" versus
+            // "одной"). Preserve those until a noun-aware inflector exists;
+            // the remaining compound genitives are gender-neutral enough for
+            // the supported plural contexts.
+            const auto absolute = std::llabs(value);
+            if (absolute % 10 == 1 || absolute > 999) {
+                const auto begin = static_cast<std::size_t>(match.position(3));
+                warnings.add(WarningCode::UnresolvedNumber,
+                             "Unable to inflect compound genitive",
+                             source.source_range(begin, begin + match.length(3)));
+                return match.str();
+            }
+            return match[1].str() + match[2].str() + genitive_number(value);
+        });
+    text = replace_matches(
+        text,
         russian::patterns().decimal_percent,
         [&](const std::smatch& match, const MappedText& source) {
+            if (has_genitive_prefix(source.text, static_cast<std::size_t>(match.position())))
+                return match.str();
             long long integer = 0, fraction = 0;
             if (!try_parse_long(match[1].str(), integer) ||
                 !try_parse_long(match[2].str(), fraction) || match[2].str().size() > 3) {
@@ -103,6 +149,8 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
         text,
         russian::patterns().currency_decimal,
         [&](const std::smatch& match, const MappedText& source) {
+            if (has_genitive_prefix(source.text, static_cast<std::size_t>(match.position())))
+                return match.str();
             long long integer = 0, fraction = 0;
             if (!try_parse_long(match[1].str(), integer) ||
                 !try_parse_long(match[2].str(), fraction) || match[2].str().size() > 3) {
@@ -128,6 +176,8 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
         });
     text = replace_numeric_matches(
         text, russian::patterns().percent, [&](const std::smatch& match, const MappedText& source) {
+            if (has_genitive_prefix(source.text, static_cast<std::size_t>(match.position())))
+                return match.str();
             long long n = 0;
             if (!try_parse_long(match[1].str(), n)) {
                 add_warning(warnings,
@@ -144,6 +194,8 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
         text,
         russian::patterns().currency,
         [&](const std::smatch& match, const MappedText& source) {
+            if (has_genitive_prefix(source.text, static_cast<std::size_t>(match.position())))
+                return match.str();
             long long n = 0;
             if (!try_parse_long(match[1].str(), n)) {
                 add_warning_without_suffix(warnings,
@@ -168,6 +220,14 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
         });
     text = replace_numeric_matches(
         text, russian::patterns().time, [&](const std::smatch& match, const MappedText& source) {
+            if (has_genitive_prefix(source.text, static_cast<std::size_t>(match.position()))) {
+                add_warning(warnings,
+                            WarningCode::UnresolvedNumber,
+                            "Unable to inflect time in a genitive context",
+                            source,
+                            match);
+                return match.str();
+            }
             long long h = 0, m = 0;
             if (!try_parse_long(match[1].str(), h) || !try_parse_long(match[2].str(), m) ||
                 h > 23 || m > 59) {
@@ -185,6 +245,8 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
         text,
         russian::patterns().measurement,
         [&](const std::smatch& match, const MappedText& source) {
+            if (has_genitive_prefix(source.text, static_cast<std::size_t>(match.position())))
+                return match.str();
             long long n = 0;
             const auto fraction = match[2].str();
             if (!try_parse_long(match[1].str(), n) || fraction.size() > 3) {
@@ -260,6 +322,8 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
         });
     text = replace_numeric_matches(
         text, russian::patterns().decimal, [&](const std::smatch& match, const MappedText& source) {
+            if (has_genitive_prefix(source.text, static_cast<std::size_t>(match.position())))
+                return match.str();
             long long integer = 0, fraction = 0;
             if (!try_parse_long(match[1].str(), integer) ||
                 !try_parse_long(match[2].str(), fraction) || match[2].str().size() > 3) {
@@ -285,37 +349,6 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
             return match[1].str() + feminine_number(value) + " " +
                    plural_form(value, "ошибка", "ошибки", "ошибок") + match[4].str();
         });
-    text = replace_matches(
-        text,
-        russian::patterns().genitive_context,
-        [&](const std::smatch& match, const MappedText& source) {
-            const auto token = match[3].str();
-            if (token.find('.') != std::string::npos || token.find(',') != std::string::npos) {
-                const auto begin = static_cast<std::size_t>(match.position(3));
-                warnings.add(WarningCode::UnresolvedNumber,
-                             "Unable to inflect a genitive decimal",
-                             source.source_range(begin, begin + match.length(3)));
-                return match.str();
-            }
-            long long value = 0;
-            if (!try_parse_long(token, value))
-                return match.str();
-            // Agreement of compound genitives depends on the governed noun
-            // ("двадцати одного узла", "двадцати одной попытки", ...).
-            // Values ending in one require noun gender ("одного" versus
-            // "одной").  Preserve those until a noun-aware inflector exists;
-            // the remaining compound genitives are gender-neutral enough for
-            // the supported plural contexts.
-            const auto absolute = std::llabs(value);
-            if (absolute % 10 == 1) {
-                const auto begin = static_cast<std::size_t>(match.position(3));
-                warnings.add(WarningCode::UnresolvedNumber,
-                             "Unable to inflect compound genitive",
-                             source.source_range(begin, begin + match.length(3)));
-                return match.str();
-            }
-            return match[1].str() + match[2].str() + genitive_number(value);
-        });
     text = replace_numeric_matches(
         text,
         russian::patterns().generic_number,
@@ -323,17 +356,8 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
             const auto number_begin = static_cast<std::size_t>(match.position(2));
             const auto number_end = number_begin + static_cast<std::size_t>(match.length(2));
             long long parsed = 0;
-            const auto before = source.text.substr(0, number_begin);
-            const bool genitive_prefix =
-                (before.size() >= std::string("после ").size() &&
-                 before.compare(before.size() - std::string("после ").size(),
-                                std::string("после ").size(),
-                                "после ") == 0) ||
-                (before.size() >= std::string("из ").size() &&
-                 before.compare(before.size() - std::string("из ").size(),
-                                std::string("из ").size(),
-                                "из ") == 0);
-            if (genitive_prefix && try_parse_long(match[2].str(), parsed) &&
+            if (has_genitive_prefix(source.text, number_begin) &&
+                try_parse_long(match[2].str(), parsed) &&
                 std::llabs(parsed) % 10 == 1) {
                 return match[1].str() + match[2].str();
             }

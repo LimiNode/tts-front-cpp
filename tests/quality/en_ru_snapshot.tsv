@@ -1,9 +1,9 @@
 version	1
 cases	655
-outcome	correct_transformation	531
+outcome	correct_transformation	533
 outcome	justified_preservation	88
 outcome	unnecessary_refusal	0
-outcome	incorrect_or_partial	36
+outcome	incorrect_or_partial	34
 mismatch	en-v030-mixed-0-0
 mismatch	en-v030-mixed-2-0
 mismatch	en-v030-mixed-3-0
@@ -11,8 +11,6 @@ mismatch	en-v030-mixed-6-1
 mismatch	en-v030-mixed-7-0
 mismatch	en-v030-year-0-a
 mismatch	en-v030-year-0-b
-mismatch	ru-v030-control-4
-mismatch	ru-v030-control-5
 mismatch	ru-v030-date-0-0
 mismatch	ru-v030-date-0-1
 mismatch	ru-v030-date-1-0
@@ -47,8 +45,6 @@ mismatch_class	en-v030-mixed-6-1	mixed_language:incorrect_or_partial
 mismatch_class	en-v030-mixed-7-0	mixed_language:incorrect_or_partial
 mismatch_class	en-v030-year-0-a	year:incorrect_or_partial
 mismatch_class	en-v030-year-0-b	year:incorrect_or_partial
-mismatch_class	ru-v030-control-4	grammar:incorrect_or_partial
-mismatch_class	ru-v030-control-5	grammar:incorrect_or_partial
 mismatch_class	ru-v030-date-0-0	date:incorrect_or_partial
 mismatch_class	ru-v030-date-0-1	date:incorrect_or_partial
 mismatch_class	ru-v030-date-1-0	date:incorrect_or_partial
@@ -91,8 +87,6 @@ mismatch_output	en-v030-mixed-6-1	Build семь passed в CI. Проверка 
 mismatch_output	en-v030-mixed-7-0	Version V2.1.0 includes three исправления.	Version V2.1.0 includes three исправления.
 mismatch_output	en-v030-year-0-a	The archive was created in one thousand nine hundred ninety nine.	The archive was created in one thousand nine hundred ninety nine.
 mismatch_output	en-v030-year-0-b	Records from one thousand nine hundred ninety nine remain available.	Records from one thousand nine hundred ninety nine remain available.
-mismatch_output	ru-v030-control-4	После два попыток система ответила.	После два попыток система ответила.
-mismatch_output	ru-v030-control-5	После двадцать два попыток система ответила.	После двадцать два попыток система ответила.
 mismatch_output	ru-v030-date-0-0	Встреча назначена на первое января две тысячи двадцать четвертого года.	Встреча назначена на первое января две тысячи двадцать четвертого года.
 mismatch_output	ru-v030-date-0-1	Подтвердите дату первое января две тысячи двадцать четвертого года.	Подтвердите дату первое января две тысячи двадцать четвертого года.
 mismatch_output	ru-v030-date-1-0	Встреча назначена на двадцать девятое февраля две тысячи двадцать четвертого года.	Встреча назначена на двадцать девятое февраля две тысячи двадцать четвертого года.

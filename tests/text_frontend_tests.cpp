@@ -1314,17 +1314,99 @@ int main() {
         CHECK(result.warnings.front().offset == 0);
         CHECK(result.warnings.front().length == input.size());
     }
-    for (const auto& input : {std::string("после 1 попытки."),
-                              std::string("после 21 попыток."),
-                              std::string("из 21 узлов.")}) {
+    struct RussianAgreementCase {
+        const char* input;
+        const char* expected;
+        bool preserve;
+    };
+    const std::vector<RussianAgreementCase> genitive_cases = {
+        {"после 1 попыток.", "после 1 попыток.", true},
+        {"после 2 попыток.", "после двух попыток.", false},
+        {"после 5 попыток.", "после пяти попыток.", false},
+        {"после 21 попыток.", "после 21 попыток.", true},
+        {"после 22 попыток.", "после двадцати двух попыток.", false},
+        {"после 42 ошибок.", "после сорока двух ошибок.", false},
+        {"после 100 попыток.", "после ста попыток.", false},
+        {"После 2 попыток.", "После двух попыток.", false},
+        {"Из 5 узлов.", "Из пяти узлов.", false},
+        {"из 42 файлов.", "из сорока двух файлов.", false},
+        {"из 100 узлов.", "из ста узлов.", false},
+        {"из 21 узлов.", "из 21 узлов.", true},
+    };
+    for (const auto& test : genitive_cases) {
+        const auto result = frontend.process(test.input, ru);
+        CHECK(result.original_text == test.input);
+        CHECK(result.normalized_text == test.expected);
+        CHECK(result.pronunciation_text == test.expected);
+        if (test.preserve) {
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        } else {
+            CHECK(result.warnings.empty());
+        }
+    }
+    const std::vector<RussianAgreementCase> temporal_cases = {
+        {"за 1 год.", "за один год.", false},
+        {"за 2 года.", "за два года.", false},
+        {"за 5 лет.", "за пять лет.", false},
+        {"за 21 день.", "за двадцать один день.", false},
+        {"за 22 дня.", "за двадцать два дня.", false},
+        {"за 42 дня.", "за сорок два дня.", false},
+        {"За 100 лет.", "За сто лет.", false},
+    };
+    for (const auto& test : temporal_cases) {
+        const auto result = frontend.process(test.input, ru);
+        CHECK(result.original_text == test.input);
+        CHECK(result.normalized_text == test.expected);
+        CHECK(result.pronunciation_text == test.expected);
+        CHECK(result.warnings.empty());
+    }
+    for (const auto& input : {std::string("после 2,5 попыток."),
+                              std::string("после 2.5 попыток."),
+                              std::string("из 21.5 узлов.")}) {
         const auto result = frontend.process(input, ru);
         CHECK(result.normalized_text == input);
         CHECK(result.warnings.size() == 1);
         CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        const auto token = input.find("21.5") != std::string::npos
+                               ? std::string("21.5")
+                               : input.find("2.5") != std::string::npos ? std::string("2.5")
+                                                                         : std::string("2,5");
+        CHECK(result.warnings.front().offset == input.find(token));
+        CHECK(result.warnings.front().length >= token.size());
     }
-    CHECK(frontend.process("после 2 попыток.", ru).normalized_text == "после двух попыток.");
-    CHECK(frontend.process("после 22 попыток.", ru).normalized_text ==
-          "после двадцати двух попыток.");
+    {
+        const std::string input = "после 2:30 попыток.";
+        const auto result = frontend.process(input, ru);
+        CHECK(result.normalized_text == input);
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(result.warnings.front().offset == input.find("2:30"));
+        CHECK(result.warnings.front().length == std::string("2:30").size());
+    }
+    for (const auto& input : {std::string("https://example.com/2"),
+                              std::string("user2@example.com"),
+                              std::string("RTX-2")}) {
+        const auto result = frontend.process(input, ru);
+        CHECK(result.normalized_text == input);
+        CHECK(result.warnings.empty());
+    }
+    {
+        TextFrontendOptions segmented;
+        segmented.language = Language::Auto;
+        segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        const auto result = frontend.process("после 2 reports.", segmented);
+        CHECK(result.original_text == "после 2 reports.");
+        CHECK(result.normalized_text == "после two reports.");
+        CHECK(std::count_if(result.warnings.begin(), result.warnings.end(), [](const auto& warning) {
+                  return warning.code == WarningCode::AmbiguousNormalization;
+              }) == 1);
+    }
+    {
+        const auto result = frontend.process("из-за 2 узлов.", ru);
+        CHECK(result.normalized_text == "из-за два узлов.");
+        CHECK(result.warnings.empty());
+    }
     {
         const auto result = frontend.process("до 1,2 градусов.", ru);
         CHECK(result.normalized_text == "до 1,2 градусов.");
