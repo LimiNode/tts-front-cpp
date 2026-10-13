@@ -1368,10 +1368,9 @@ int main() {
         CHECK(result.normalized_text == input);
         CHECK(result.warnings.size() == 1);
         CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
-        const auto token = input.find("21.5") != std::string::npos
-                               ? std::string("21.5")
-                               : input.find("2.5") != std::string::npos ? std::string("2.5")
-                                                                         : std::string("2,5");
+        const auto token = input.find("21.5") != std::string::npos  ? std::string("21.5")
+                           : input.find("2.5") != std::string::npos ? std::string("2.5")
+                                                                    : std::string("2,5");
         CHECK(result.warnings.front().offset == input.find(token));
         CHECK(result.warnings.front().length >= token.size());
     }
@@ -1398,9 +1397,10 @@ int main() {
         const auto result = frontend.process("после 2 reports.", segmented);
         CHECK(result.original_text == "после 2 reports.");
         CHECK(result.normalized_text == "после two reports.");
-        CHECK(std::count_if(result.warnings.begin(), result.warnings.end(), [](const auto& warning) {
-                  return warning.code == WarningCode::AmbiguousNormalization;
-              }) == 1);
+        CHECK(
+            std::count_if(result.warnings.begin(), result.warnings.end(), [](const auto& warning) {
+                return warning.code == WarningCode::AmbiguousNormalization;
+            }) == 1);
     }
     {
         const auto result = frontend.process("из-за 2 узлов.", ru);

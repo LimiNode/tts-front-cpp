@@ -27,8 +27,7 @@ bool has_genitive_prefix(const std::string_view text, const std::size_t position
         return before.size() >= suffix.size() &&
                before.compare(before.size() - suffix.size(), suffix.size(), suffix) == 0;
     };
-    return has_suffix("после") || has_suffix("После") || has_suffix("из") ||
-           has_suffix("Из");
+    return has_suffix("после") || has_suffix("После") || has_suffix("из") || has_suffix("Из");
 }
 
 std::string
@@ -357,8 +356,7 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
             const auto number_end = number_begin + static_cast<std::size_t>(match.length(2));
             long long parsed = 0;
             if (has_genitive_prefix(source.text, number_begin) &&
-                try_parse_long(match[2].str(), parsed) &&
-                std::llabs(parsed) % 10 == 1) {
+                try_parse_long(match[2].str(), parsed) && std::llabs(parsed) % 10 == 1) {
                 return match[1].str() + match[2].str();
             }
             return match[1].str() +
