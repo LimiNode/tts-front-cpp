@@ -137,6 +137,14 @@ std::size_t scan_candidate_continuation(const Utf8Document& document,
             (kind == CandidateSurfaceKind::Technical && (value == '=' || value == '*'));
         if (!connector)
             break;
+        const bool punctuation_connector = value == '.' || value == ',' || value == ':';
+        const bool technical_word_stem =
+            end > begin || (begin > 0 && (text::is_letter(points[begin - 1].value) ||
+                                          points[begin - 1].value == '_'));
+        if (punctuation_connector &&
+            (end + 1 >= points.size() || text::is_horizontal_space(points[end + 1].value)) &&
+            !(kind == CandidateSurfaceKind::Technical && technical_word_stem))
+            break;
         const bool has_lexical_stem = end > begin || (begin > 0 && lexical(begin - 1));
         if (end + 1 >= points.size()) {
             if (kind == CandidateSurfaceKind::Technical && has_lexical_stem)

@@ -1394,6 +1394,18 @@ int main() {
         CHECK(result.normalized_text == "после одиннадцати попыток");
         CHECK(result.warnings.empty());
     }
+    {
+        const std::vector<std::pair<std::string, std::string>> punctuation_cases = {
+            {"после 2.", "после двух."},
+            {"из 2,", "из двух,"},
+            {"после 2:", "после двух:"},
+            {"после 2, 3", "после двух, три"}};
+        for (const auto& test : punctuation_cases) {
+            const auto result = frontend.process(test.first, ru);
+            CHECK(result.normalized_text == test.second);
+            CHECK(result.warnings.empty());
+        }
+    }
     const std::vector<RussianAgreementCase> temporal_cases = {
         {"за 1 год.", "за один год.", false},
         {"за 2 года.", "за два года.", false},
