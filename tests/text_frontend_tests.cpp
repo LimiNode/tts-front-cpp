@@ -1314,17 +1314,182 @@ int main() {
         CHECK(result.warnings.front().offset == 0);
         CHECK(result.warnings.front().length == input.size());
     }
-    for (const auto& input : {std::string("после 1 попытки."),
-                              std::string("после 21 попыток."),
-                              std::string("из 21 узлов.")}) {
+    struct RussianAgreementCase {
+        const char* input;
+        const char* expected;
+        bool preserve;
+    };
+    const std::vector<RussianAgreementCase> genitive_cases = {
+        {"после 1 попыток.", "после 1 попыток.", true},
+        {"после 2 попыток.", "после двух попыток.", false},
+        {"после 5 попыток.", "после пяти попыток.", false},
+        {"после 21 попыток.", "после 21 попыток.", true},
+        {"после 22 попыток.", "после двадцати двух попыток.", false},
+        {"после 42 ошибок.", "после сорока двух ошибок.", false},
+        {"после 100 попыток.", "после ста попыток.", false},
+        {"После 2 попыток.", "После двух попыток.", false},
+        {"Из 5 узлов.", "Из пяти узлов.", false},
+        {"из 42 файлов.", "из сорока двух файлов.", false},
+        {"из 100 узлов.", "из ста узлов.", false},
+        {"из 21 узлов.", "из 21 узлов.", true},
+    };
+    for (const auto& test : genitive_cases) {
+        const auto result = frontend.process(test.input, ru);
+        CHECK(result.original_text == test.input);
+        CHECK(result.normalized_text == test.expected);
+        CHECK(result.pronunciation_text == test.expected);
+        if (test.preserve) {
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        } else {
+            CHECK(result.warnings.empty());
+        }
+    }
+    {
+        const std::vector<std::pair<std::string, std::string>> embedded_contexts = {
+            {"вниз 2,5", "вниз две целых пять десятых"},
+            {"эскиз 2", "эскиз два"},
+            {"непосле 2", "непосле два"}};
+        for (const auto& test : embedded_contexts) {
+            const auto result = frontend.process(test.first, ru);
+            CHECK(result.normalized_text == test.second);
+            CHECK(result.warnings.empty());
+        }
+    }
+    {
+        const std::vector<std::string> unsupported_surfaces = {"после 2%",
+                                                               "после 2 кг",
+                                                               "после 2 руб.",
+                                                               "после 2 GB",
+                                                               "после 2:30",
+                                                               "после 2,5",
+                                                               "после 2,foo",
+                                                               "после 2:foo",
+                                                               "после 2-3",
+                                                               "после 2 reports"};
+        for (const auto& input : unsupported_surfaces) {
+            const auto result = frontend.process(input, ru);
+            const auto number_begin = input.find('2');
+            CHECK(result.normalized_text == input);
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(result.warnings.front().offset == number_begin);
+            CHECK(result.warnings.front().length == input.size() - number_begin);
+        }
+    }
+    {
+        const std::vector<std::pair<std::string, std::string>> combining_contexts = {
+            {"x\xCC\x81из 2", "x\xCC\x81из два"}, {"x1из 2", "x1из два"}};
+        for (const auto& test : combining_contexts) {
+            const auto result = frontend.process(test.first, ru);
+            CHECK(result.normalized_text == test.second);
+            CHECK(std::none_of(
+                result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
+                    return warning.code == WarningCode::AmbiguousNormalization;
+                }));
+        }
+    }
+    {
+        const auto result = frontend.process("после 11 попыток", ru);
+        CHECK(result.normalized_text == "после одиннадцати попыток");
+        CHECK(result.warnings.empty());
+    }
+    {
+        const std::vector<std::pair<std::string, std::string>> punctuation_cases = {
+            {"после 2.", "после двух."},
+            {"из 2,", "из двух,"},
+            {"после 2:", "после двух:"},
+            {"после 2, 3", "после двух, три"}};
+        for (const auto& test : punctuation_cases) {
+            const auto result = frontend.process(test.first, ru);
+            CHECK(result.normalized_text == test.second);
+            CHECK(result.warnings.empty());
+        }
+    }
+    {
+        const std::vector<std::string> spaced_connector_cases = {"после 2/ 3",
+                                                                 "после 2 + 3",
+                                                                 "после 2 / 3",
+                                                                 "после 2# 3",
+                                                                 "после 2- 3",
+                                                                 "после 2= 3",
+                                                                 "после 2* 3",
+                                                                 "после 2$ 3"};
+        for (const auto* options : {&ru, &auto_options}) {
+            for (const auto& input : spaced_connector_cases) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text == input);
+                CHECK(result.warnings.size() == 1);
+                CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+                const auto begin = input.find('2');
+                CHECK(result.warnings.front().offset == begin);
+                CHECK(result.warnings.front().length == input.size() - begin);
+            }
+        }
+    }
+    const std::vector<RussianAgreementCase> temporal_cases = {
+        {"за 1 год.", "за один год.", false},
+        {"за 2 года.", "за два года.", false},
+        {"за 5 лет.", "за пять лет.", false},
+        {"за 21 день.", "за двадцать один день.", false},
+        {"за 22 дня.", "за двадцать два дня.", false},
+        {"за 42 дня.", "за сорок два дня.", false},
+        {"За 100 лет.", "За сто лет.", false},
+    };
+    for (const auto& test : temporal_cases) {
+        const auto result = frontend.process(test.input, ru);
+        CHECK(result.original_text == test.input);
+        CHECK(result.normalized_text == test.expected);
+        CHECK(result.pronunciation_text == test.expected);
+        CHECK(result.warnings.empty());
+    }
+    for (const auto& input : {std::string("после 2,5 попыток."),
+                              std::string("после 2.5 попыток."),
+                              std::string("из 21.5 узлов.")}) {
         const auto result = frontend.process(input, ru);
         CHECK(result.normalized_text == input);
         CHECK(result.warnings.size() == 1);
         CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        const auto token = input.find("21.5") != std::string::npos  ? std::string("21.5")
+                           : input.find("2.5") != std::string::npos ? std::string("2.5")
+                                                                    : std::string("2,5");
+        CHECK(result.warnings.front().offset == input.find(token));
+        CHECK(result.warnings.front().length >= token.size());
     }
-    CHECK(frontend.process("после 2 попыток.", ru).normalized_text == "после двух попыток.");
-    CHECK(frontend.process("после 22 попыток.", ru).normalized_text ==
-          "после двадцати двух попыток.");
+    {
+        const std::string input = "после 2:30 попыток.";
+        const auto result = frontend.process(input, ru);
+        CHECK(result.normalized_text == input);
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(result.warnings.front().offset == input.find("2:30"));
+        CHECK(result.warnings.front().length == std::string("2:30").size());
+    }
+    for (const auto& input : {std::string("https://example.com/2"),
+                              std::string("user2@example.com"),
+                              std::string("RTX-2")}) {
+        const auto result = frontend.process(input, ru);
+        CHECK(result.normalized_text == input);
+        CHECK(result.warnings.empty());
+    }
+    {
+        TextFrontendOptions segmented;
+        segmented.language = Language::Auto;
+        segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        const auto result = frontend.process("после 2 reports.", segmented);
+        CHECK(result.original_text == "после 2 reports.");
+        CHECK(result.normalized_text == "после two reports.");
+        CHECK(
+            std::count_if(result.warnings.begin(), result.warnings.end(), [](const auto& warning) {
+                return warning.code == WarningCode::AmbiguousNormalization;
+            }) == 1);
+    }
+    {
+        const auto result = frontend.process("из-за 2 узлов.", ru);
+        CHECK(result.normalized_text == "из-за два узлов.");
+        CHECK(result.warnings.empty());
+    }
     {
         const auto result = frontend.process("до 1,2 градусов.", ru);
         CHECK(result.normalized_text == "до 1,2 градусов.");
@@ -1425,6 +1590,36 @@ int main() {
                 CHECK(result.normalized_text.find('\x02') == std::string::npos);
             }
         }
+    }
+    {
+        const auto arithmetic_matches =
+            [&](const TextFrontendOptions& options,
+                const std::vector<std::pair<std::string, std::string>>& cases) {
+                for (const auto& [input, expected] : cases) {
+                    const auto result = frontend.process(input, options);
+                    if (result.original_text != input || !result.warnings.empty() ||
+                        result.normalized_text != expected || result.pronunciation_text != expected)
+                        return false;
+                }
+                return true;
+            };
+        const std::vector<std::pair<std::string, std::string>> english_cases = {
+            {"1 / 2", "one / two"},
+            {"1 = 2", "one = two"},
+            {"1 * 2", "one * two"},
+            {"1 + 2 = 3", "one + two = three"},
+            {"1 / 2 = 0.5", "one / two = zero point five"}};
+        const std::vector<std::pair<std::string, std::string>> russian_expected = {
+            {"1 / 2", "\xD0\xBE\xD0\xB4\xD0\xB8\xD0\xBD / \xD0\xB4\xD0\xB2\xD0\xB0"},
+            {"1 = 2", "\xD0\xBE\xD0\xB4\xD0\xB8\xD0\xBD = \xD0\xB4\xD0\xB2\xD0\xB0"},
+            {"1 * 2", "\xD0\xBE\xD0\xB4\xD0\xB8\xD0\xBD * \xD0\xB4\xD0\xB2\xD0\xB0"},
+            {"1 + 2 = 3",
+             "\xD0\xBE\xD0\xB4\xD0\xB8\xD0\xBD + \xD0\xB4\xD0\xB2\xD0\xB0 = "
+             "\xD1\x82\xD1\x80\xD0\xB8"},
+            {"1 / 2 = 0.5", "\xD0\xBE\xD0\xB4\xD0\xB8\xD0\xBD / \xD0\xB4\xD0\xB2\xD0\xB0 = 0.5"}};
+        CHECK(arithmetic_matches(en, english_cases));
+        CHECK(arithmetic_matches(ru, russian_expected));
+        CHECK(arithmetic_matches(auto_options, english_cases));
     }
     std::cout << "tts_front tests passed\n";
     return EXIT_SUCCESS;

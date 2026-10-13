@@ -75,6 +75,10 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             ++index;
             continue;
         }
+        if (overlaps_preserved_range(text, points[index].offset, points[index].offset + 1)) {
+            ++index;
+            continue;
+        }
         auto currency_context_probe = index;
         while (currency_context_probe > 0 && (points[currency_context_probe - 1].value == ' ' ||
                                               points[currency_context_probe - 1].value == '\t'))
@@ -93,6 +97,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                                            points[currency_context_probe - 1].value == 0xa5);
         const auto candidate_surface = scan_candidate_surface(document, index);
         const auto& surface = candidate_surface.numeric;
+        const auto spaced_continuation =
+            scan_spaced_numeric_continuation(document, surface.end, CandidateSurfaceKind::Numeric);
         const bool positive_numeric = [&] {
             if (points[index].value != '+' || index + 1 >= points.size() ||
                 !text::is_digit(points[index + 1].value))
@@ -155,6 +161,10 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         bool malformed_grouped = false;
         bool malformed_compound = false;
         bool grouped_seen = false;
+        if (!currency_context && spaced_continuation > surface.end) {
+            malformed_compound = true;
+            end_index = spaced_continuation;
+        }
         if (surface.exponent != ExponentState::None)
             malformed_compound = true;
         auto initial_digit_index = index + (signed_number || positive_numeric ? 1 : 0);

@@ -311,6 +311,10 @@ MappedText protect_numeric_candidates(MappedText text,
 
     std::vector<SourceEdit> edits;
     for (std::size_t index = 0; index < points.size();) {
+        if (overlaps_preserved_range(text, points[index].offset, points[index].offset + 1)) {
+            ++index;
+            continue;
+        }
         if (index > 0 && text::is_digit(points[index].value) &&
             (points[index - 1].value == 0x20ac || points[index - 1].value == 0xa3 ||
              points[index - 1].value == 0xa5)) {

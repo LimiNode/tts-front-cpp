@@ -1,5 +1,6 @@
 #include "tts_front/language/russian/normalizer.hpp"
 
+#include "tts_front/core/numeric_scanner.hpp"
 #include "tts_front/core/text/codepoint_classification.hpp"
 #include "tts_front/core/utf8.hpp"
 #include "tts_front/core/utf8_document.hpp"
@@ -10,13 +11,149 @@
 #include "tts_front/normalization/normalizer_support.hpp"
 #include "tts_front/technical/admission.hpp"
 
+#include <algorithm>
 #include <cctype>
 #include <cstdlib>
+#include <regex>
 #include <string>
 #include <string_view>
 
 namespace tts_front::detail::russian {
 namespace {
+
+bool has_genitive_prefix(const MappedText& source, const std::size_t position) {
+    const auto& text = source.text;
+    auto end = position;
+    while (end > 0 && std::isspace(static_cast<unsigned char>(text[end - 1])))
+        --end;
+    const auto before = text.substr(0, end);
+    const auto previous_codepoint = [](const std::string_view value, std::size_t boundary) {
+        if (boundary == 0)
+            return std::uint32_t{0};
+        auto begin = boundary - 1;
+        while (begin > 0 && (static_cast<unsigned char>(value[begin]) & 0xc0) == 0x80)
+            --begin;
+        const auto length = utf8_sequence_length(static_cast<unsigned char>(value[begin]));
+        if (length == 0 || begin + length > boundary)
+            return std::uint32_t{0};
+        auto codepoint = static_cast<std::uint32_t>(static_cast<unsigned char>(value[begin]) &
+                                                    (length == 2   ? 0x1f
+                                                     : length == 3 ? 0x0f
+                                                     : length == 4 ? 0x07
+                                                                   : 0x7f));
+        for (std::size_t offset = 1; offset < length; ++offset)
+            codepoint =
+                (codepoint << 6) | (static_cast<unsigned char>(value[begin + offset]) & 0x3f);
+        return codepoint;
+    };
+    const auto has_suffix = [&](const std::string_view suffix) {
+        if (before.size() < suffix.size() ||
+            before.compare(before.size() - suffix.size(), suffix.size(), suffix) != 0)
+            return false;
+        auto boundary = before.size() - suffix.size();
+        if (boundary > 0 && text[boundary - 1] == '\x02') {
+            const auto marker =
+                std::find_if(source.runs.begin(), source.runs.end(), [&](const MappedRun& run) {
+                    return run.output_end == boundary;
+                });
+            if (marker != source.runs.end() && !marker->direct_copy && marker->source.length != 0)
+                return false;
+        }
+        auto previous = previous_codepoint(text, boundary);
+        while (text::is_combining_mark(previous) && boundary > 0) {
+            auto begin = boundary - 1;
+            while (begin > 0 && (static_cast<unsigned char>(text[begin]) & 0xc0) == 0x80)
+                --begin;
+            boundary = begin;
+            previous = previous_codepoint(text, boundary);
+        }
+        return !text::is_letter(previous) && !text::is_digit(previous) && previous != '_';
+    };
+    return has_suffix("после") || has_suffix("После") || has_suffix("из") || has_suffix("Из");
+}
+
+std::size_t
+regex_end_at(const std::regex& pattern, const std::string_view text, const std::size_t begin) {
+    if (begin >= text.size())
+        return 0;
+    std::cmatch match;
+    const auto* first = text.data() + begin;
+    const auto* last = text.data() + text.size();
+    return std::regex_search(first, last, match, pattern, std::regex_constants::match_continuous)
+               ? begin + static_cast<std::size_t>(match.length())
+               : 0;
+}
+
+std::size_t unsupported_genitive_end(const MappedText& source,
+                                     const Utf8Document& document,
+                                     const std::size_t begin) {
+    const auto point = codepoint_index_at_or_after(document, begin);
+    if (!document.valid || point >= document.points.size())
+        return 0;
+    const auto candidate = scan_candidate_surface(document, point, CandidateSurfaceKind::Numeric);
+    if (!candidate.valid())
+        return 0;
+
+    const auto& patterns = russian::patterns();
+    const auto special_end = std::max({regex_end_at(patterns.currency, source.text, begin),
+                                       regex_end_at(patterns.currency_decimal, source.text, begin),
+                                       regex_end_at(patterns.measurement, source.text, begin)});
+
+    const auto spaced_continuation = scan_spaced_numeric_continuation(
+        document, candidate.numeric.end, CandidateSurfaceKind::Technical);
+    if (spaced_continuation > candidate.numeric.end)
+        return document.span_from_codepoints(point, spaced_continuation).byte_end;
+
+    const auto continuation = scan_candidate_continuation(
+        document, candidate.numeric.end, CandidateSurfaceKind::Technical);
+    if (continuation > candidate.numeric.end)
+        return document.span_from_codepoints(point, continuation).byte_end;
+
+    if (candidate.end == candidate.numeric.end)
+        return special_end == 0 ? 0 : special_end;
+    const auto suffix_point = candidate.numeric.end;
+    auto suffix = suffix_point;
+    while (suffix < document.points.size() &&
+           text::is_horizontal_space(document.points[suffix].value))
+        ++suffix;
+    if (suffix >= document.points.size() || !text::is_letter(document.points[suffix].value))
+        return document.span_from_codepoints(point, candidate.end).byte_end;
+
+    // A Cyrillic noun ("попыток", "ошибок", ...) is the supported
+    // continuation of an explicit genitive context.  ASCII/foreign lexical
+    // tails are not Russian agreement targets and must remain atomic.
+    const auto byte = document.points[suffix].offset;
+    if (byte < source.text.size() && static_cast<unsigned char>(source.text[byte]) < 0x80 &&
+        std::isalpha(static_cast<unsigned char>(source.text[byte])))
+        return document.span_from_codepoints(point, candidate.end).byte_end;
+    return special_end == 0 ? 0 : special_end;
+}
+
+MappedText protect_unsupported_genitive_candidates(MappedText text, WarningSink& warnings) {
+    const Utf8Document document(text.text);
+    if (!document.valid)
+        return text;
+    for (std::sregex_iterator
+             it(text.text.begin(), text.text.end(), russian::patterns().genitive_context),
+         end;
+         it != end;
+         ++it) {
+        const auto number_begin = static_cast<std::size_t>(it->position(3));
+        if (!has_genitive_prefix(text, number_begin))
+            continue;
+        const auto unsupported_end = unsupported_genitive_end(text, document, number_begin);
+        if (unsupported_end > number_begin)
+            warnings.add(WarningCode::UnresolvedNumber,
+                         "Unable to inflect a compound numeric surface",
+                         text.source_range(number_begin, unsupported_end));
+    }
+    return text;
+}
+
+bool genitive_requires_noun_gender(const long long value) {
+    const auto absolute = std::llabs(value);
+    return absolute == 1 || (absolute % 10 == 1 && absolute % 100 != 11);
+}
 
 std::string
 number_or_original(const std::string& token, WarningSink& warnings, SourceRange source) {
@@ -32,6 +169,7 @@ number_or_original(const std::string& token, WarningSink& warnings, SourceRange 
 
 MappedText normalize(MappedText text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
+    text = protect_unsupported_genitive_candidates(std::move(text), warnings);
     text = technical::protect_numeric_candidates(std::move(text), warnings, protected_spans);
     text = technical::protect(std::move(text), protected_spans);
     text = protect_malformed_numeric_candidates(
@@ -80,10 +218,55 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
             }
             return year_locative(static_cast<int>(year)) + " году";
         });
+    const Utf8Document genitive_document(text.text);
+    text = replace_matches(
+        text,
+        russian::patterns().genitive_context,
+        [&](const std::smatch& match, const MappedText& source) {
+            const auto token = match[3].str();
+            const auto number_begin = static_cast<std::size_t>(match.position(3));
+            if (!has_genitive_prefix(source, number_begin))
+                return match.str();
+            const auto unsupported_end =
+                unsupported_genitive_end(source, genitive_document, number_begin);
+            if (unsupported_end > number_begin) {
+                warnings.add(WarningCode::UnresolvedNumber,
+                             "Unable to inflect a compound numeric surface",
+                             source.source_range(number_begin, unsupported_end));
+                return match.str();
+            }
+            if (token.find('.') != std::string::npos || token.find(',') != std::string::npos) {
+                warnings.add(WarningCode::UnresolvedNumber,
+                             "Unable to inflect a genitive decimal",
+                             source.source_range(number_begin, number_begin + match.length(3)));
+                return match.str();
+            }
+            long long value = 0;
+            if (!try_parse_long(token, value))
+                return match.str();
+            // Agreement of compound genitives depends on the governed noun
+            // ("двадцати одного узла", "двадцати одной попытки", ...).
+            // Values ending in one require noun gender ("одного" versus
+            // "одной"), except for the fixed teens form "одиннадцати".
+            // Preserve the genuinely ambiguous forms until a noun-aware
+            // inflector exists; the remaining compound genitives are
+            // gender-neutral enough for the supported plural contexts.
+            const auto absolute = std::llabs(value);
+            if (genitive_requires_noun_gender(value) || absolute > 999) {
+                const auto begin = static_cast<std::size_t>(match.position(3));
+                warnings.add(WarningCode::UnresolvedNumber,
+                             "Unable to inflect compound genitive",
+                             source.source_range(begin, begin + match.length(3)));
+                return match.str();
+            }
+            return match[1].str() + match[2].str() + genitive_number(value);
+        });
     text = replace_matches(
         text,
         russian::patterns().decimal_percent,
         [&](const std::smatch& match, const MappedText& source) {
+            if (has_genitive_prefix(source, static_cast<std::size_t>(match.position())))
+                return match.str();
             long long integer = 0, fraction = 0;
             if (!try_parse_long(match[1].str(), integer) ||
                 !try_parse_long(match[2].str(), fraction) || match[2].str().size() > 3) {
@@ -103,6 +286,8 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
         text,
         russian::patterns().currency_decimal,
         [&](const std::smatch& match, const MappedText& source) {
+            if (has_genitive_prefix(source, static_cast<std::size_t>(match.position())))
+                return match.str();
             long long integer = 0, fraction = 0;
             if (!try_parse_long(match[1].str(), integer) ||
                 !try_parse_long(match[2].str(), fraction) || match[2].str().size() > 3) {
@@ -128,6 +313,8 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
         });
     text = replace_numeric_matches(
         text, russian::patterns().percent, [&](const std::smatch& match, const MappedText& source) {
+            if (has_genitive_prefix(source, static_cast<std::size_t>(match.position())))
+                return match.str();
             long long n = 0;
             if (!try_parse_long(match[1].str(), n)) {
                 add_warning(warnings,
@@ -144,6 +331,8 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
         text,
         russian::patterns().currency,
         [&](const std::smatch& match, const MappedText& source) {
+            if (has_genitive_prefix(source, static_cast<std::size_t>(match.position())))
+                return match.str();
             long long n = 0;
             if (!try_parse_long(match[1].str(), n)) {
                 add_warning_without_suffix(warnings,
@@ -168,6 +357,14 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
         });
     text = replace_numeric_matches(
         text, russian::patterns().time, [&](const std::smatch& match, const MappedText& source) {
+            if (has_genitive_prefix(source, static_cast<std::size_t>(match.position()))) {
+                add_warning(warnings,
+                            WarningCode::UnresolvedNumber,
+                            "Unable to inflect time in a genitive context",
+                            source,
+                            match);
+                return match.str();
+            }
             long long h = 0, m = 0;
             if (!try_parse_long(match[1].str(), h) || !try_parse_long(match[2].str(), m) ||
                 h > 23 || m > 59) {
@@ -185,6 +382,8 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
         text,
         russian::patterns().measurement,
         [&](const std::smatch& match, const MappedText& source) {
+            if (has_genitive_prefix(source, static_cast<std::size_t>(match.position())))
+                return match.str();
             long long n = 0;
             const auto fraction = match[2].str();
             if (!try_parse_long(match[1].str(), n) || fraction.size() > 3) {
@@ -260,6 +459,8 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
         });
     text = replace_numeric_matches(
         text, russian::patterns().decimal, [&](const std::smatch& match, const MappedText& source) {
+            if (has_genitive_prefix(source, static_cast<std::size_t>(match.position())))
+                return match.str();
             long long integer = 0, fraction = 0;
             if (!try_parse_long(match[1].str(), integer) ||
                 !try_parse_long(match[2].str(), fraction) || match[2].str().size() > 3) {
@@ -285,37 +486,7 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
             return match[1].str() + feminine_number(value) + " " +
                    plural_form(value, "ошибка", "ошибки", "ошибок") + match[4].str();
         });
-    text = replace_matches(
-        text,
-        russian::patterns().genitive_context,
-        [&](const std::smatch& match, const MappedText& source) {
-            const auto token = match[3].str();
-            if (token.find('.') != std::string::npos || token.find(',') != std::string::npos) {
-                const auto begin = static_cast<std::size_t>(match.position(3));
-                warnings.add(WarningCode::UnresolvedNumber,
-                             "Unable to inflect a genitive decimal",
-                             source.source_range(begin, begin + match.length(3)));
-                return match.str();
-            }
-            long long value = 0;
-            if (!try_parse_long(token, value))
-                return match.str();
-            // Agreement of compound genitives depends on the governed noun
-            // ("двадцати одного узла", "двадцати одной попытки", ...).
-            // Values ending in one require noun gender ("одного" versus
-            // "одной").  Preserve those until a noun-aware inflector exists;
-            // the remaining compound genitives are gender-neutral enough for
-            // the supported plural contexts.
-            const auto absolute = std::llabs(value);
-            if (absolute % 10 == 1) {
-                const auto begin = static_cast<std::size_t>(match.position(3));
-                warnings.add(WarningCode::UnresolvedNumber,
-                             "Unable to inflect compound genitive",
-                             source.source_range(begin, begin + match.length(3)));
-                return match.str();
-            }
-            return match[1].str() + match[2].str() + genitive_number(value);
-        });
+    const Utf8Document generic_document(text.text);
     text = replace_numeric_matches(
         text,
         russian::patterns().generic_number,
@@ -323,18 +494,10 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
             const auto number_begin = static_cast<std::size_t>(match.position(2));
             const auto number_end = number_begin + static_cast<std::size_t>(match.length(2));
             long long parsed = 0;
-            const auto before = source.text.substr(0, number_begin);
-            const bool genitive_prefix =
-                (before.size() >= std::string("после ").size() &&
-                 before.compare(before.size() - std::string("после ").size(),
-                                std::string("после ").size(),
-                                "после ") == 0) ||
-                (before.size() >= std::string("из ").size() &&
-                 before.compare(before.size() - std::string("из ").size(),
-                                std::string("из ").size(),
-                                "из ") == 0);
-            if (genitive_prefix && try_parse_long(match[2].str(), parsed) &&
-                std::llabs(parsed) % 10 == 1) {
+            if (has_genitive_prefix(source, number_begin) &&
+                try_parse_long(match[2].str(), parsed) &&
+                (genitive_requires_noun_gender(parsed) ||
+                 unsupported_genitive_end(source, generic_document, number_begin) > number_begin)) {
                 return match[1].str() + match[2].str();
             }
             return match[1].str() +

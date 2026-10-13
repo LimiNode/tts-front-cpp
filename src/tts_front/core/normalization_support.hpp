@@ -32,4 +32,6 @@ void add_protected_candidate(const MappedText& text,
                              std::vector<ProtectedSpan>& protected_spans,
                              std::vector<SourceEdit>& edits);
 
+bool overlaps_preserved_range(const MappedText& text, std::size_t begin, std::size_t end);
+
 } // namespace tts_front::detail

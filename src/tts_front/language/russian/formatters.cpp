@@ -63,6 +63,21 @@ std::string genitive_number(long long value) {
         if (remainder != 0)
             result +=
                 result.empty() ? genitive_number(remainder) : " " + genitive_number(remainder);
+    } else if (absolute < 1000) {
+        static const char* const hundreds_forms[] = {"",
+                                                     "ста",
+                                                     "двухсот",
+                                                     "трёхсот",
+                                                     "четырёхсот",
+                                                     "пятисот",
+                                                     "шестисот",
+                                                     "семисот",
+                                                     "восьмисот",
+                                                     "девятисот"};
+        result = hundreds_forms[absolute / 100];
+        const auto hundreds_remainder = absolute % 100;
+        if (hundreds_remainder != 0)
+            result += " " + genitive_number(hundreds_remainder);
     } else {
         result = number(value);
     }
