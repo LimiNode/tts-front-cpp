@@ -97,7 +97,9 @@ std::size_t unsupported_genitive_end(const MappedText& source,
     const auto& patterns = russian::patterns();
     const auto special_end = std::max({regex_end_at(patterns.currency, source.text, begin),
                                        regex_end_at(patterns.currency_decimal, source.text, begin),
-                                       regex_end_at(patterns.measurement, source.text, begin)});
+                                       regex_end_at(patterns.measurement, source.text, begin),
+                                       regex_end_at(patterns.percent, source.text, begin),
+                                       regex_end_at(patterns.decimal_percent, source.text, begin)});
 
     const auto spaced_continuation = scan_spaced_numeric_continuation(
         document, candidate.numeric.end, CandidateSurfaceKind::Technical);
@@ -109,8 +111,26 @@ std::size_t unsupported_genitive_end(const MappedText& source,
     if (continuation > candidate.numeric.end)
         return document.span_from_codepoints(point, continuation).byte_end;
 
-    if (candidate.end == candidate.numeric.end)
-        return special_end == 0 ? 0 : special_end;
+    if (candidate.end == candidate.numeric.end) {
+        if (special_end == 0)
+            return 0;
+        // A numeric token after a spaced percent/unit/currency suffix belongs
+        // to the same unsupported surface (for example `2 % 3`).  Preserve
+        // it atomically instead of normalizing the head and leaving the tail
+        // for a second pass.
+        const auto suffix_point = codepoint_index_at_or_after(document, special_end);
+        auto next = suffix_point;
+        while (next < document.points.size() &&
+               text::is_horizontal_space(document.points[next].value))
+            ++next;
+        if (next < document.points.size() && text::is_digit(document.points[next].value)) {
+            const auto tail =
+                scan_candidate_surface(document, next, CandidateSurfaceKind::Technical);
+            if (tail.valid())
+                return document.span_from_codepoints(point, tail.end).byte_end;
+        }
+        return special_end;
+    }
     const auto suffix_point = candidate.numeric.end;
     auto suffix = suffix_point;
     while (suffix < document.points.size() &&

@@ -3,6 +3,7 @@
 #include "tts_front/core/utf8_document.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -1184,6 +1185,68 @@ int main() {
         CHECK(malformed_genitive.warnings.front().offset ==
               malformed_genitive.original_text.find("21.5"));
         CHECK(malformed_genitive.warnings.front().length == 4);
+    }
+    {
+        TextFrontendOptions segmented = auto_options;
+        segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        const std::vector<std::string> unsupported_compounds = {"после 2 %",
+                                                                "из 2 %",
+                                                                "после 2 % 3",
+                                                                "после 2кг",
+                                                                "после 2 кг",
+                                                                "после 2GB",
+                                                                "после 2 руб."};
+        for (const auto& input : unsupported_compounds) {
+            const std::array<std::pair<const char*, TextFrontendOptions>, 3> modes = {
+                std::pair{"ru", ru},
+                std::pair{"auto", auto_options},
+                std::pair{"segment", segmented}};
+            for (const auto& [mode, options] : modes) {
+                const auto result = frontend.process(input, options);
+                CHECK(result.original_text == input);
+                if (input == "после 2GB" && mode == std::string("segment")) {
+                    CHECK(result.normalized_text == "после two gigabytes");
+                    CHECK(result.pronunciation_text == "после two gigabytes");
+                    CHECK(std::count_if(result.warnings.begin(),
+                                        result.warnings.end(),
+                                        [](const auto& warning) {
+                                            return warning.code ==
+                                                   WarningCode::AmbiguousNormalization;
+                                        }) == 1);
+                    CHECK(std::none_of(
+                        result.warnings.begin(), result.warnings.end(), [](const auto& warning) {
+                            return warning.code == WarningCode::UnresolvedNumber;
+                        }));
+                    continue;
+                }
+                CHECK(result.normalized_text == input);
+                CHECK(result.pronunciation_text == input);
+                const auto unresolved = std::count_if(
+                    result.warnings.begin(), result.warnings.end(), [](const auto& warning) {
+                        return warning.code == WarningCode::UnresolvedNumber;
+                    });
+                CHECK(unresolved == 1);
+                const auto& warning = *std::find_if(
+                    result.warnings.begin(), result.warnings.end(), [](const auto& warning) {
+                        return warning.code == WarningCode::UnresolvedNumber;
+                    });
+                CHECK(warning.offset == input.find('2'));
+                CHECK(warning.length == input.size() - input.find('2'));
+            }
+        }
+        CHECK(frontend.process("после 2, 3", ru).normalized_text == "после двух, три");
+        CHECK(frontend.process("после 2 %.", ru).normalized_text == "после 2 %.");
+        CHECK(frontend.process("after 2 %", en).normalized_text == "after two percent");
+        CHECK(frontend.process("after 2 kg", en).normalized_text == "after two kilograms");
+        CHECK(frontend.process("after 2 GB", en).normalized_text == "after two gigabytes");
+        for (const auto& input : {std::string("https://example.com/2GB"),
+                                  std::string("user2%@example.com"),
+                                  std::string("RTX-2GB")}) {
+            const auto result = frontend.process(input, ru);
+            CHECK(result.original_text == input);
+            CHECK(result.normalized_text == input);
+            CHECK(result.warnings.empty());
+        }
     }
     for (const auto& punctuation : {std::string("!"), std::string("?"), std::string(")")}) {
         const auto input = "1 руб." + punctuation;

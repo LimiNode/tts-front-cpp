@@ -20,8 +20,11 @@ struct Patterns {
         R"((-?\d+)(?:,([0-9]+))?\s*(километров|километра|километр|км|килограммов|килограмма|килограмм|кг|сантиметров|сантиметра|сантиметр|см|миллиметров|миллиметра|миллиметр|мм|ГБ|МБ|GB|MB|м)([^А-Яа-яЁёA-Za-z0-9]|$))"};
     const std::regex feminine_count{
         R"((^|[^A-Za-zА-Яа-яЁё0-9])(-?\d+)\s+(ошибка|ошибки|ошибок)([^A-Za-zА-Яа-яЁё0-9]|$))"};
-    const std::regex genitive_context{
-        R"(([Пп]осле|[Ии]з)(\s+)(-?\d+(?:[.,]\d+)?)(?![A-Za-zА-Яа-яЁё0-9]|[.,:]\d))"};
+    // Capture the numeric head even when a compound suffix follows it.  The
+    // admission pass decides whether the complete surface is supported or
+    // must be preserved atomically; a lookahead here would hide attached
+    // units and percent/currency tails from that policy.
+    const std::regex genitive_context{R"(([Пп]осле|[Ии]з)(\s+)(-?\d+(?:[.,]\d+)?))"};
     const std::regex genitive_decimal_context{R"((до\s+)(-?\d+),([0-9]+)([^0-9]|$))"};
     const std::regex generic_number{R"((^|[^A-Za-z0-9_,.:])(-?\d+)(?![0-9]*[.,:][0-9]))"};
     const std::regex abbreviation_td{R"((^|[^A-Za-zА-Яа-яЁё])т\.д\.)"};
