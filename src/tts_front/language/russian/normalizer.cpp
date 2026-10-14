@@ -101,6 +101,39 @@ std::size_t unsupported_genitive_end(const MappedText& source,
                                        regex_end_at(patterns.percent, source.text, begin),
                                        regex_end_at(patterns.decimal_percent, source.text, begin)});
 
+    const auto extend_after_special = [&](const std::size_t special) {
+        if (special == 0)
+            return std::size_t{0};
+        auto end = codepoint_index_at_or_after(document, special);
+        const auto lexical = [&](const std::size_t point) {
+            return text::is_letter(document.points[point].value) ||
+                   text::is_digit(document.points[point].value) ||
+                   text::is_combining_mark(document.points[point].value) ||
+                   document.points[point].value == '_';
+        };
+        const auto attached_begin = end;
+        while (end < document.points.size() && lexical(end))
+            ++end;
+        if (end > attached_begin) {
+            const auto continuation =
+                scan_candidate_continuation(document, end, CandidateSurfaceKind::Technical);
+            if (continuation > end)
+                end = continuation;
+        }
+
+        auto next = end;
+        while (next < document.points.size() &&
+               text::is_horizontal_space(document.points[next].value))
+            ++next;
+        if (next < document.points.size() && text::is_digit(document.points[next].value)) {
+            const auto tail =
+                scan_candidate_surface(document, next, CandidateSurfaceKind::Technical);
+            if (tail.valid())
+                end = tail.end;
+        }
+        return document.span_from_codepoints(point, end).byte_end;
+    };
+
     const auto spaced_continuation = scan_spaced_numeric_continuation(
         document, candidate.numeric.end, CandidateSurfaceKind::Technical);
     if (spaced_continuation > candidate.numeric.end)
@@ -118,18 +151,7 @@ std::size_t unsupported_genitive_end(const MappedText& source,
         // to the same unsupported surface (for example `2 % 3`).  Preserve
         // it atomically instead of normalizing the head and leaving the tail
         // for a second pass.
-        const auto suffix_point = codepoint_index_at_or_after(document, special_end);
-        auto next = suffix_point;
-        while (next < document.points.size() &&
-               text::is_horizontal_space(document.points[next].value))
-            ++next;
-        if (next < document.points.size() && text::is_digit(document.points[next].value)) {
-            const auto tail =
-                scan_candidate_surface(document, next, CandidateSurfaceKind::Technical);
-            if (tail.valid())
-                return document.span_from_codepoints(point, tail.end).byte_end;
-        }
-        return special_end;
+        return extend_after_special(special_end);
     }
     const auto suffix_point = candidate.numeric.end;
     auto suffix = suffix_point;
@@ -146,7 +168,7 @@ std::size_t unsupported_genitive_end(const MappedText& source,
     if (byte < source.text.size() && static_cast<unsigned char>(source.text[byte]) < 0x80 &&
         std::isalpha(static_cast<unsigned char>(source.text[byte])))
         return document.span_from_codepoints(point, candidate.end).byte_end;
-    return special_end == 0 ? 0 : special_end;
+    return special_end == 0 ? 0 : extend_after_special(special_end);
 }
 
 MappedText protect_unsupported_genitive_candidates(MappedText text, WarningSink& warnings) {
@@ -162,7 +184,8 @@ MappedText protect_unsupported_genitive_candidates(MappedText text, WarningSink&
         if (!has_genitive_prefix(text, number_begin))
             continue;
         const auto unsupported_end = unsupported_genitive_end(text, document, number_begin);
-        if (unsupported_end > number_begin)
+        if (unsupported_end > number_begin &&
+            !overlaps_preserved_range(text, number_begin, unsupported_end))
             warnings.add(WarningCode::UnresolvedNumber,
                          "Unable to inflect a compound numeric surface",
                          text.source_range(number_begin, unsupported_end));

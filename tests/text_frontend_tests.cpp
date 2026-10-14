@@ -1192,8 +1192,14 @@ int main() {
         const std::vector<std::string> unsupported_compounds = {"после 2 %",
                                                                 "из 2 %",
                                                                 "после 2 % 3",
+                                                                "после 2 %foo",
+                                                                "после 2 %foo 3",
+                                                                "после 2 %RTX-4090",
                                                                 "после 2кг",
                                                                 "после 2 кг",
+                                                                "после 2 kgfoo",
+                                                                "после 2GBfoo",
+                                                                "после 2 руб.foo",
                                                                 "после 2GB",
                                                                 "после 2 руб."};
         for (const auto& input : unsupported_compounds) {
