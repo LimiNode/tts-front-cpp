@@ -1245,6 +1245,35 @@ int main() {
         CHECK(frontend.process("after 2 %", en).normalized_text == "after two percent");
         CHECK(frontend.process("after 2 kg", en).normalized_text == "after two kilograms");
         CHECK(frontend.process("after 2 GB", en).normalized_text == "after two gigabytes");
+        const std::vector<std::string> decimal_genitive_compounds = {
+            "после 2,5 %", "после 2,5 % 3", "после 2,5 кг", "после 2,5 руб.", "после -2,5 %"};
+        for (const auto* options : {&ru, &auto_options, &segmented}) {
+            for (const auto& input : decimal_genitive_compounds) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text == input);
+                CHECK(result.pronunciation_text == input);
+                CHECK(result.warnings.size() == 1);
+                const auto& warning = result.warnings.front();
+                CHECK(warning.code == WarningCode::UnresolvedNumber);
+                const auto begin = input.find(input.find('-') == std::string::npos ? '2' : '-');
+                CHECK(warning.offset == begin);
+                CHECK(warning.length == input.size() - begin);
+            }
+        }
+        // A number after a completed currency surface is a separate token;
+        // only the unsupported compound itself is preserved atomically.
+        {
+            const std::string input = "после 2 руб. 3";
+            const auto result = frontend.process(input, ru);
+            CHECK(result.original_text == input);
+            CHECK(result.normalized_text == "после 2 руб. три");
+            CHECK(result.pronunciation_text == result.normalized_text);
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(result.warnings.front().offset == input.find('2'));
+            CHECK(result.warnings.front().length == std::string("2 руб.").size());
+        }
         for (const auto& input : {std::string("https://example.com/2GB"),
                                   std::string("user2%@example.com"),
                                   std::string("RTX-2GB")}) {

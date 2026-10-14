@@ -95,13 +95,15 @@ std::size_t unsupported_genitive_end(const MappedText& source,
         return 0;
 
     const auto& patterns = russian::patterns();
+    const auto percent_end = std::max(regex_end_at(patterns.percent, source.text, begin),
+                                      regex_end_at(patterns.decimal_percent, source.text, begin));
     const auto special_end = std::max({regex_end_at(patterns.currency, source.text, begin),
                                        regex_end_at(patterns.currency_decimal, source.text, begin),
                                        regex_end_at(patterns.measurement, source.text, begin),
-                                       regex_end_at(patterns.percent, source.text, begin),
-                                       regex_end_at(patterns.decimal_percent, source.text, begin)});
+                                       percent_end});
 
-    const auto extend_after_special = [&](const std::size_t special) {
+    const auto extend_after_special = [&](const std::size_t special,
+                                          const bool include_spaced_numeric) {
         if (special == 0)
             return std::size_t{0};
         auto end = codepoint_index_at_or_after(document, special);
@@ -121,28 +123,39 @@ std::size_t unsupported_genitive_end(const MappedText& source,
                 end = continuation;
         }
 
-        auto next = end;
-        while (next < document.points.size() &&
-               text::is_horizontal_space(document.points[next].value))
-            ++next;
-        if (next < document.points.size() && text::is_digit(document.points[next].value)) {
-            const auto tail =
-                scan_candidate_surface(document, next, CandidateSurfaceKind::Technical);
-            if (tail.valid())
-                end = tail.end;
+        if (include_spaced_numeric || end > attached_begin) {
+            auto next = end;
+            while (next < document.points.size() &&
+                   text::is_horizontal_space(document.points[next].value))
+                ++next;
+            if (next < document.points.size() && text::is_digit(document.points[next].value)) {
+                const auto tail =
+                    scan_candidate_surface(document, next, CandidateSurfaceKind::Technical);
+                if (tail.valid())
+                    end = tail.end;
+            }
         }
         return document.span_from_codepoints(point, end).byte_end;
     };
 
+    std::size_t continuation_end = candidate.numeric.end;
     const auto spaced_continuation = scan_spaced_numeric_continuation(
         document, candidate.numeric.end, CandidateSurfaceKind::Technical);
     if (spaced_continuation > candidate.numeric.end)
-        return document.span_from_codepoints(point, spaced_continuation).byte_end;
+        continuation_end = spaced_continuation;
 
     const auto continuation = scan_candidate_continuation(
         document, candidate.numeric.end, CandidateSurfaceKind::Technical);
     if (continuation > candidate.numeric.end)
-        return document.span_from_codepoints(point, continuation).byte_end;
+        continuation_end = std::max(continuation_end, continuation);
+
+    if (continuation_end > candidate.numeric.end) {
+        const auto continuation_byte_end =
+            document.span_from_codepoints(point, continuation_end).byte_end;
+        if (special_end > continuation_byte_end)
+            return extend_after_special(special_end, percent_end == special_end);
+        return continuation_byte_end;
+    }
 
     if (candidate.end == candidate.numeric.end) {
         if (special_end == 0)
@@ -151,7 +164,7 @@ std::size_t unsupported_genitive_end(const MappedText& source,
         // to the same unsupported surface (for example `2 % 3`).  Preserve
         // it atomically instead of normalizing the head and leaving the tail
         // for a second pass.
-        return extend_after_special(special_end);
+        return extend_after_special(special_end, percent_end == special_end);
     }
     const auto suffix_point = candidate.numeric.end;
     auto suffix = suffix_point;
@@ -168,7 +181,7 @@ std::size_t unsupported_genitive_end(const MappedText& source,
     if (byte < source.text.size() && static_cast<unsigned char>(source.text[byte]) < 0x80 &&
         std::isalpha(static_cast<unsigned char>(source.text[byte])))
         return document.span_from_codepoints(point, candidate.end).byte_end;
-    return special_end == 0 ? 0 : extend_after_special(special_end);
+    return special_end == 0 ? 0 : extend_after_special(special_end, percent_end == special_end);
 }
 
 MappedText protect_unsupported_genitive_candidates(MappedText text, WarningSink& warnings) {
