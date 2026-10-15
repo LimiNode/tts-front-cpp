@@ -14,6 +14,7 @@ struct GenitiveSurfaceAdmission {
     CandidateSurfaceKind kind = CandidateSurfaceKind::Contextual;
 };
 
-GenitiveSurfaceAdmission classify_genitive_surface(std::string_view text, std::size_t begin);
+GenitiveSurfaceAdmission
+classify_genitive_surface(std::string_view text, std::size_t begin, bool malformed_combining);
 
 } // namespace tts_front::detail::russian

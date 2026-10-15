@@ -47,7 +47,8 @@ void classify_surface(std::string_view unit, bool& known_stem, bool& valid_surfa
 } // namespace
 
 GenitiveSurfaceAdmission classify_genitive_surface(const std::string_view text,
-                                                   const std::size_t begin) {
+                                                   const std::size_t begin,
+                                                   const bool malformed_combining) {
     const auto end_at = [text, begin](const std::regex& pattern) {
         if (begin >= text.size())
             return std::size_t{0};
@@ -59,19 +60,21 @@ GenitiveSurfaceAdmission classify_genitive_surface(const std::string_view text,
                    ? begin + static_cast<std::size_t>(match.length())
                    : std::size_t{0};
     };
-    const auto end_at_without_combining = [text, begin](const std::regex& pattern) {
-        if (begin >= text.size())
-            return std::size_t{0};
-        // Admission patterns only inspect the immediate numeric suffix.  Keep
-        // this fallback bounded so a malformed mark cannot make every match
-        // rescan the remainder of a document.
-        const auto limit = std::min(text.size(), begin + std::size_t{256});
-        const Utf8Document document(text.substr(begin, limit - begin));
+    std::string compact;
+    std::vector<std::size_t> original_end;
+    std::size_t projection_limit = 0;
+    bool projection_ready = false;
+    const auto project_without_combining = [&] {
+        if (projection_ready || !malformed_combining || begin >= text.size())
+            return;
+        projection_ready = true;
+        // Admission patterns inspect only the immediate suffix. Build one
+        // bounded projection and reuse it for all language-owned patterns.
+        projection_limit = std::min(text.size(), begin + std::size_t{256});
+        const Utf8Document document(text.substr(begin, projection_limit - begin));
         if (!document.valid)
-            return std::size_t{0};
-
-        std::string compact;
-        std::vector<std::size_t> original_end(1, begin);
+            return;
+        original_end.assign(1, begin);
         for (const auto& point : document.points) {
             const auto absolute_end = begin + point.offset + point.length;
             if (text::is_combining_mark(point.value)) {
@@ -83,16 +86,21 @@ GenitiveSurfaceAdmission classify_genitive_surface(const std::string_view text,
             for (std::size_t index = 0; index < bytes.size(); ++index)
                 original_end.push_back(absolute_end);
         }
+    };
+    const auto end_at_projected = [&](const std::regex& pattern) {
+        project_without_combining();
+        if (compact.empty())
+            return std::size_t{0};
         std::cmatch match;
         if (!std::regex_search(
                 compact.c_str(), match, pattern, std::regex_constants::match_continuous))
             return std::size_t{0};
         const auto compact_end = static_cast<std::size_t>(match.length());
-        return compact_end < original_end.size() ? original_end[compact_end] : limit;
+        return compact_end < original_end.size() ? original_end[compact_end] : projection_limit;
     };
     const auto classify_end = [&](const std::regex& pattern) {
         const auto direct = end_at(pattern);
-        return direct != 0 ? direct : end_at_without_combining(pattern);
+        return direct != 0 ? direct : end_at_projected(pattern);
     };
     const auto& russian_patterns = patterns();
     const auto percent_end = classify_end(russian_patterns.admission_percent);
