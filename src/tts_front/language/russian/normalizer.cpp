@@ -132,6 +132,10 @@ std::size_t unsupported_genitive_end(const MappedText& source,
             if (continuation > end)
                 end = continuation;
         }
+        const auto spaced_continuation =
+            scan_spaced_numeric_continuation(document, end, CandidateSurfaceKind::Technical);
+        if (spaced_continuation > end)
+            end = spaced_continuation;
 
         if (include_spaced_numeric || end > attached_begin) {
             auto next = end;
@@ -147,6 +151,31 @@ std::size_t unsupported_genitive_end(const MappedText& source,
         }
         return document.span_from_codepoints(point, end).byte_end;
     };
+
+    // A combining mark immediately after the digits is part of the malformed
+    // numeric surface.  Continue from the next lexical/technical token so a
+    // suffix such as "kgfoo" or "%foo" cannot be normalized independently.
+    auto combining_end = candidate.numeric.end;
+    while (combining_end < document.points.size() &&
+           text::is_combining_mark(document.points[combining_end].value))
+        ++combining_end;
+    if (combining_end > candidate.numeric.end) {
+        auto tail = combining_end;
+        while (tail < document.points.size() &&
+               text::is_horizontal_space(document.points[tail].value))
+            ++tail;
+        if (tail < document.points.size()) {
+            const auto continuation =
+                scan_candidate_continuation(document, tail, CandidateSurfaceKind::Technical);
+            if (continuation > tail)
+                return document.span_from_codepoints(point, continuation).byte_end;
+            if (text::is_letter(document.points[tail].value) ||
+                text::is_combining_mark(document.points[tail].value) ||
+                document.points[tail].value == '%')
+                return document.span_from_codepoints(point, tail + 1).byte_end;
+        }
+        return document.span_from_codepoints(point, combining_end).byte_end;
+    }
 
     std::size_t continuation_end = candidate.numeric.end;
     const auto spaced_continuation = scan_spaced_numeric_continuation(
