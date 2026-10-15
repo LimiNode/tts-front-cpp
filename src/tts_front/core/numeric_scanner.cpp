@@ -132,6 +132,13 @@ scan_candidate_surface(const Utf8Document& document, std::size_t begin, Candidat
     if (!candidate.valid())
         return candidate;
 
+    const auto combining_probe =
+        std::max(candidate.end, scan_candidate_continuation(document, candidate.numeric.end, kind));
+    candidate.has_combining = std::any_of(
+        document.points.begin() + static_cast<std::ptrdiff_t>(candidate.numeric.end),
+        document.points.begin() + static_cast<std::ptrdiff_t>(combining_probe),
+        [](const Utf8CodePoint& point) { return text::is_combining_mark(point.value); });
+
     // Scientific and encoded numeric surfaces may continue through a
     // connector and another numeric token.  Compute that continuation once
     // here so technical and malformed admission share the same boundary.

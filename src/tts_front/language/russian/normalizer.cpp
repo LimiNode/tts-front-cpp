@@ -80,8 +80,8 @@ std::size_t unsupported_genitive_end(const MappedText& source,
     if (!candidate.valid())
         return 0;
 
-    const auto special = russian::classify_genitive_surface(
-        source.text, begin, candidate.numeric.malformed_combining);
+    const auto special =
+        russian::classify_genitive_surface(source.text, begin, candidate.has_combining);
     const auto special_end = special.end;
     auto end = candidate.end;
     if (special_end > 0)

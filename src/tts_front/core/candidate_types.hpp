@@ -45,6 +45,7 @@ struct CandidateSurface {
     std::size_t core_end = 0;
     std::size_t end = 0;
     NumericSurface numeric;
+    bool has_combining = false;
 
     bool valid() const {
         return numeric.valid();

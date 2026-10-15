@@ -1432,6 +1432,35 @@ int main() {
                 CHECK(result.warnings.front().length == expected_end - begin);
             }
         }
+        struct CombiningAdmissionCase {
+            const char* input;
+            const char* normalized;
+            std::size_t warning_length;
+        };
+        const std::vector<CombiningAdmissionCase> combining_admission_matrix = {
+            {"после 2 м\xCC\x81", "после 2 м\xCC\x81", 6},
+            {"после 2 м\xCC\x81 3", "после 2 м\xCC\x81 три", 6},
+            {"после 2 руб\xCC\x81.", "после 2 руб\xCC\x81.", 11},
+            {"после 2,5\xCC\x81 кг", "после 2,5\xCC\x81 кг", 10},
+            {"после 2.5\xCC\x81 кг", "после 2.5\xCC\x81 кг", 10}};
+        for (const auto* options : {&ru, &auto_options, &segmented}) {
+            for (const auto& test : combining_admission_matrix) {
+                const auto result = frontend.process(test.input, *options);
+                CHECK(result.original_text == test.input);
+                CHECK(result.normalized_text == test.normalized);
+                CHECK(result.pronunciation_text == test.normalized);
+                CHECK(result.warnings.size() == 1);
+                CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+                CHECK(result.warnings.front().offset == result.original_text.find('2'));
+                CHECK(result.warnings.front().length == test.warning_length);
+            }
+        }
+        for (const auto* options : {&ru, &auto_options, &segmented}) {
+            const auto result = frontend.process("после 2 рубежей", *options);
+            CHECK(result.normalized_text == "после двух рубежей");
+            CHECK(result.pronunciation_text == result.normalized_text);
+            CHECK(result.warnings.empty());
+        }
         const std::vector<std::pair<std::string, std::string>> unit_punctuation = {
             {"после 2 кг!", "после 2 кг!"},
             {"после 2,5 кг, 3", "после 2,5 кг, три"},

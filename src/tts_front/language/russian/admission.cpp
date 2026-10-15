@@ -18,30 +18,24 @@ void classify_surface(std::string_view unit, bool& known_stem, bool& valid_surfa
     const auto starts_with = [unit](std::string_view prefix) {
         return unit.size() >= prefix.size() && unit.compare(0, prefix.size(), prefix) == 0;
     };
-    static constexpr std::array<std::string_view, 14> stems = {"руб",
-                                                               "кг",
-                                                               "килограмм",
-                                                               "км",
-                                                               "километр",
-                                                               "см",
-                                                               "сантиметр",
-                                                               "мм",
-                                                               "миллиметр",
-                                                               "м",
-                                                               "ГБ",
-                                                               "МБ",
-                                                               "GB",
-                                                               "MB"};
     static constexpr std::array<std::string_view, 29> surfaces = {
         "руб",        "руб.",       "рубль",       "рубля",      "рублей",      "кг",
         "килограмм",  "килограмма", "килограммов", "км",         "километр",    "километра",
         "километров", "см",         "сантиметр",   "сантиметра", "сантиметров", "мм",
         "миллиметр",  "миллиметра", "миллиметров", "ГБ",         "МБ",          "м",
         "метр",       "метра",      "метров",      "GB",         "MB"};
-    for (const auto stem : stems)
-        known_stem = known_stem || (stem == "м" ? unit == "м" : starts_with(stem));
-    for (const auto surface : surfaces)
-        valid_surface = valid_surface || unit == surface;
+    for (const auto surface : surfaces) {
+        if (unit == surface) {
+            valid_surface = true;
+            known_stem = true;
+        } else if (surface != "м" && starts_with(surface)) {
+            // Attached technical tails are ASCII (`kgfoo`, `руб.foo`). A
+            // Cyrillic continuation belongs to an ordinary Russian word such
+            // as `рубежей`, not to the unit/currency catalog.
+            const auto continuation = static_cast<unsigned char>(unit[surface.size()]);
+            known_stem = known_stem || continuation < 0x80;
+        }
+    }
 }
 
 } // namespace
@@ -100,12 +94,16 @@ GenitiveSurfaceAdmission classify_genitive_surface(const std::string_view text,
     };
     const auto classify_end = [&](const std::regex& pattern) {
         const auto direct = end_at(pattern);
-        return direct != 0 ? direct : end_at_projected(pattern);
+        return malformed_combining ? std::max(direct, end_at_projected(pattern)) : direct;
     };
     const auto& russian_patterns = patterns();
     const auto percent_end = classify_end(russian_patterns.admission_percent);
     const auto measurement_end = classify_end(russian_patterns.admission_measurement);
-    const auto currency_end = classify_end(russian_patterns.admission_currency);
+    auto currency_end = classify_end(russian_patterns.admission_currency);
+    for (std::size_t dots = 0;
+         malformed_combining && currency_end < text.size() && text[currency_end] == '.' && dots < 3;
+         ++dots)
+        ++currency_end;
     const auto special_end = std::max({percent_end, measurement_end, currency_end});
     return {special_end,
             percent_end != 0 && percent_end == special_end ? CandidateSurfaceKind::Percent
