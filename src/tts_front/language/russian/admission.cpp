@@ -1,6 +1,10 @@
 #include "tts_front/language/russian/admission.hpp"
 
+#include "tts_front/language/russian/patterns.hpp"
+
+#include <algorithm>
 #include <array>
+#include <regex>
 #include <string_view>
 
 namespace tts_front::detail::russian {
@@ -37,6 +41,29 @@ void classify_surface(std::string_view unit, bool& known_stem, bool& valid_surfa
 }
 
 } // namespace
+
+GenitiveSurfaceAdmission classify_genitive_surface(const std::string_view text,
+                                                   const std::size_t begin) {
+    const auto end_at = [text, begin](const std::regex& pattern) {
+        if (begin >= text.size())
+            return std::size_t{0};
+        std::cmatch match;
+        const auto* first = text.data() + begin;
+        const auto* last = text.data() + text.size();
+        return std::regex_search(
+                   first, last, match, pattern, std::regex_constants::match_continuous)
+                   ? begin + static_cast<std::size_t>(match.length())
+                   : std::size_t{0};
+    };
+    const auto& russian_patterns = patterns();
+    const auto percent_end = end_at(russian_patterns.admission_percent);
+    const auto measurement_end = end_at(russian_patterns.admission_measurement);
+    const auto currency_end = end_at(russian_patterns.admission_currency);
+    const auto special_end = std::max({percent_end, measurement_end, currency_end});
+    return {special_end,
+            percent_end != 0 && percent_end == special_end ? CandidateSurfaceKind::Percent
+                                                           : CandidateSurfaceKind::Contextual};
+}
 
 const AdmissionRules& admission_rules() {
     static const AdmissionRules rules{nullptr, nullptr, false, true, &classify_surface};

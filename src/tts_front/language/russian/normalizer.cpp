@@ -70,18 +70,6 @@ bool has_genitive_prefix(const MappedText& source, const std::size_t position) {
     return has_suffix("после") || has_suffix("После") || has_suffix("из") || has_suffix("Из");
 }
 
-std::size_t
-regex_end_at(const std::regex& pattern, const std::string_view text, const std::size_t begin) {
-    if (begin >= text.size())
-        return 0;
-    std::cmatch match;
-    const auto* first = text.data() + begin;
-    const auto* last = text.data() + text.size();
-    return std::regex_search(first, last, match, pattern, std::regex_constants::match_continuous)
-               ? begin + static_cast<std::size_t>(match.length())
-               : 0;
-}
-
 std::size_t unsupported_genitive_end(const MappedText& source,
                                      const Utf8Document& document,
                                      const std::size_t begin) {
@@ -92,21 +80,14 @@ std::size_t unsupported_genitive_end(const MappedText& source,
     if (!candidate.valid())
         return 0;
 
-    const auto& patterns = russian::patterns();
-    const auto percent_end = regex_end_at(patterns.admission_percent, source.text, begin);
-    const auto special_end =
-        std::max({percent_end,
-                  regex_end_at(patterns.admission_measurement, source.text, begin),
-                  regex_end_at(patterns.admission_currency, source.text, begin)});
+    const auto special = russian::classify_genitive_surface(source.text, begin);
+    const auto special_end = special.end;
     auto end = candidate.end;
     if (special_end > 0)
         end = std::max(end, codepoint_index_at_or_after(document, special_end));
     auto admission = candidate;
     admission.end = end;
-    const auto admission_kind = percent_end != 0 && percent_end == special_end
-                                    ? CandidateSurfaceKind::Percent
-                                    : CandidateSurfaceKind::Contextual;
-    const auto full_end = scan_candidate_admission_end(document, admission, admission_kind);
+    const auto full_end = scan_candidate_admission_end(document, admission, special.kind);
 
     bool has_cyrillic_suffix = false;
     bool has_foreign_suffix = false;
