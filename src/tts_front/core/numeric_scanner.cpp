@@ -74,6 +74,9 @@ NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t be
     // Combining marks belong to the numeric surface even though they are not
     // part of the digit grammar.  Keeping them in continuation_end lets all
     // admission paths apply the same byte-accurate boundary policy.
+    if (surface.continuation_end < document.points.size() &&
+        text::is_combining_mark(document.points[surface.continuation_end].value))
+        surface.malformed_combining = true;
     while (surface.continuation_end < document.points.size() &&
            text::is_combining_mark(document.points[surface.continuation_end].value))
         ++surface.continuation_end;
@@ -239,6 +242,15 @@ std::size_t scan_candidate_admission_end(const Utf8Document& document,
         return candidate.begin;
 
     auto end = candidate.end;
+    if (candidate.numeric.malformed_combining) {
+        auto suffix = end;
+        while (suffix < document.points.size() &&
+               text::is_horizontal_space(document.points[suffix].value))
+            ++suffix;
+        if (suffix < document.points.size() &&
+            is_spaced_connector(document.points[suffix].value, kind))
+            end = suffix + 1;
+    }
     for (;;) {
         const auto attached = scan_candidate_continuation(document, end, kind);
         const auto spaced = scan_spaced_numeric_continuation(document, end, kind);

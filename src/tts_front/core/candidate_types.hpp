@@ -29,6 +29,7 @@ struct NumericSurface {
     std::size_t continuation_end = 0;
     NumericSign sign = NumericSign::None;
     ExponentState exponent = ExponentState::None;
+    bool malformed_combining = false;
 
     bool valid() const {
         return digits_end > digits_begin;

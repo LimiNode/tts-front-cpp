@@ -1,11 +1,15 @@
 #include "tts_front/language/russian/admission.hpp"
 
+#include "tts_front/core/text/codepoint_classification.hpp"
+#include "tts_front/core/utf8_document.hpp"
 #include "tts_front/language/russian/patterns.hpp"
 
 #include <algorithm>
 #include <array>
 #include <regex>
+#include <string>
 #include <string_view>
+#include <vector>
 
 namespace tts_front::detail::russian {
 namespace {
@@ -55,10 +59,45 @@ GenitiveSurfaceAdmission classify_genitive_surface(const std::string_view text,
                    ? begin + static_cast<std::size_t>(match.length())
                    : std::size_t{0};
     };
+    const auto end_at_without_combining = [text, begin](const std::regex& pattern) {
+        if (begin >= text.size())
+            return std::size_t{0};
+        // Admission patterns only inspect the immediate numeric suffix.  Keep
+        // this fallback bounded so a malformed mark cannot make every match
+        // rescan the remainder of a document.
+        const auto limit = std::min(text.size(), begin + std::size_t{256});
+        const Utf8Document document(text.substr(begin, limit - begin));
+        if (!document.valid)
+            return std::size_t{0};
+
+        std::string compact;
+        std::vector<std::size_t> original_end(1, begin);
+        for (const auto& point : document.points) {
+            const auto absolute_end = begin + point.offset + point.length;
+            if (text::is_combining_mark(point.value)) {
+                original_end.back() = absolute_end;
+                continue;
+            }
+            const auto bytes = text.substr(begin + point.offset, point.length);
+            compact.append(bytes);
+            for (std::size_t index = 0; index < bytes.size(); ++index)
+                original_end.push_back(absolute_end);
+        }
+        std::cmatch match;
+        if (!std::regex_search(
+                compact.c_str(), match, pattern, std::regex_constants::match_continuous))
+            return std::size_t{0};
+        const auto compact_end = static_cast<std::size_t>(match.length());
+        return compact_end < original_end.size() ? original_end[compact_end] : limit;
+    };
+    const auto classify_end = [&](const std::regex& pattern) {
+        const auto direct = end_at(pattern);
+        return direct != 0 ? direct : end_at_without_combining(pattern);
+    };
     const auto& russian_patterns = patterns();
-    const auto percent_end = end_at(russian_patterns.admission_percent);
-    const auto measurement_end = end_at(russian_patterns.admission_measurement);
-    const auto currency_end = end_at(russian_patterns.admission_currency);
+    const auto percent_end = classify_end(russian_patterns.admission_percent);
+    const auto measurement_end = classify_end(russian_patterns.admission_measurement);
+    const auto currency_end = classify_end(russian_patterns.admission_currency);
     const auto special_end = std::max({percent_end, measurement_end, currency_end});
     return {special_end,
             percent_end != 0 && percent_end == special_end ? CandidateSurfaceKind::Percent

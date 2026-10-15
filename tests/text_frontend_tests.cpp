@@ -1411,6 +1411,27 @@ int main() {
                 CHECK(result.warnings.front().length == input.size() - begin);
             }
         }
+        const std::vector<std::string> combining_suffix_matrix = {"после 2\xCC\x81 кг",
+                                                                  "после 2\xCC\x81 попыток",
+                                                                  "после 2\xCC\x81 ошибок",
+                                                                  "после 2\xCC\x81 руб.",
+                                                                  "после 2\xCC\x81 руб.../2",
+                                                                  "после 2\xCC\x81 %",
+                                                                  "после 2\xCC\x81 кг!"};
+        for (const auto* options : {&ru, &auto_options, &segmented}) {
+            for (const auto& input : combining_suffix_matrix) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text == input);
+                CHECK(result.pronunciation_text == input);
+                CHECK(result.warnings.size() == 1);
+                CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+                const auto begin = input.find('2');
+                CHECK(result.warnings.front().offset == begin);
+                const auto expected_end = input.back() == '!' ? input.size() - 1 : input.size();
+                CHECK(result.warnings.front().length == expected_end - begin);
+            }
+        }
         const std::vector<std::pair<std::string, std::string>> unit_punctuation = {
             {"после 2 кг!", "после 2 кг!"},
             {"после 2,5 кг, 3", "после 2,5 кг, три"},

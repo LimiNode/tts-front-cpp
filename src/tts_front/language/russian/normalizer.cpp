@@ -100,7 +100,8 @@ std::size_t unsupported_genitive_end(const MappedText& source,
         else
             has_foreign_suffix = true;
     }
-    if (special_end == 0 && full_end == candidate.end && has_cyrillic_suffix && !has_foreign_suffix)
+    if (!candidate.numeric.malformed_combining && special_end == 0 && full_end == candidate.end &&
+        has_cyrillic_suffix && !has_foreign_suffix)
         return 0;
 
     if (special_end == 0 && full_end == candidate.numeric.end &&
