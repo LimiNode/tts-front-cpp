@@ -1334,6 +1334,25 @@ int main() {
                 CHECK(warning.length == input.size() - begin);
             }
         }
+        for (const auto* options : {&ru, &auto_options, &segmented}) {
+            const std::string input = "после 2 руб.../2";
+            const auto result = frontend.process(input, *options);
+            CHECK(result.original_text == input);
+            CHECK(result.normalized_text == input);
+            CHECK(result.pronunciation_text == input);
+            const auto unresolved = std::count_if(
+                result.warnings.begin(), result.warnings.end(), [](const auto& warning) {
+                    return warning.code == WarningCode::UnresolvedNumber;
+                });
+            CHECK(unresolved == 1);
+            const auto& warning =
+                *std::find_if(result.warnings.begin(), result.warnings.end(), [](const auto& item) {
+                    return item.code == WarningCode::UnresolvedNumber;
+                });
+            const auto begin = input.find('2');
+            CHECK(warning.offset == begin);
+            CHECK(warning.length == input.size() - begin);
+        }
         const std::vector<std::pair<std::string, std::string>> unit_punctuation = {
             {"после 2 кг!", "после 2 кг!"},
             {"после 2,5 кг, 3", "после 2,5 кг, три"},

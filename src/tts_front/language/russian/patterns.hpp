@@ -22,7 +22,7 @@ struct Patterns {
     const std::regex admission_measurement{
         R"((-?\d+(?:[.,][0-9]+)?)\s*(километров|километра|километр|км|килограммов|килограмма|килограмм|кг|kg|сантиметров|сантиметра|сантиметр|см|миллиметров|миллиметра|миллиметр|мм|ГБ|МБ|GB|MB|м))"};
     const std::regex admission_currency{
-        R"((-?\d+(?:[.,][0-9]+)?)\s*(рублей|рубля|рубль|руб)(?:\.)?)"};
+        R"((-?\d+(?:[.,][0-9]+)?)\s*(рублей|рубля|рубль|руб)(?:\.{1,3})?)"};
     const std::regex feminine_count{
         R"((^|[^A-Za-zА-Яа-яЁё0-9])(-?\d+)\s+(ошибка|ошибки|ошибок)([^A-Za-zА-Яа-яЁё0-9]|$))"};
     // Capture the numeric head even when a compound suffix follows it.  The
