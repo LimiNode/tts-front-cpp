@@ -6,6 +6,23 @@
 
 namespace tts_front::detail {
 
+namespace {
+
+bool is_continuation_connector(const std::uint32_t value, const CandidateSurfaceKind kind) {
+    return value == '-' || value == '+' || value == '.' || value == ',' || value == ':' ||
+           value == '%' || text::is_range_connector(value) ||
+           (kind != CandidateSurfaceKind::Numeric &&
+            (value == '/' || value == '#' || value == '$' || value == '=' || value == '*'));
+}
+
+bool is_spaced_connector(const std::uint32_t value, const CandidateSurfaceKind kind) {
+    return kind != CandidateSurfaceKind::Numeric &&
+           (value == '/' || value == '#' || value == '$' || value == '%' || value == '=' ||
+            value == '*' || value == '+' || value == '-' || text::is_range_connector(value));
+}
+
+} // namespace
+
 NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t begin) {
     NumericSurface surface;
     surface.digits_begin = begin;
@@ -54,6 +71,12 @@ NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t be
         }
     }
     surface.continuation_end = surface.end;
+    // Combining marks belong to the numeric surface even though they are not
+    // part of the digit grammar.  Keeping them in continuation_end lets all
+    // admission paths apply the same byte-accurate boundary policy.
+    while (surface.continuation_end < document.points.size() &&
+           text::is_combining_mark(document.points[surface.continuation_end].value))
+        ++surface.continuation_end;
     if (surface.exponent != ExponentState::None && surface.end < document.points.size() &&
         (document.points[surface.end].value == '#' || document.points[surface.end].value == '$')) {
         auto suffix_end = surface.end + 1;
@@ -80,16 +103,16 @@ NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t be
         ++suffix_end;
     if (suffix_end > suffix_begin)
         surface.continuation_end = suffix_end;
-    else if (surface.continuation_end == surface.end && surface.end < document.points.size() &&
-             (document.points[surface.end].value == '/' ||
-              document.points[surface.end].value == '%')) {
-        auto connector_end = surface.end + 1;
+    else if (suffix_begin < document.points.size() &&
+             (document.points[suffix_begin].value == '/' ||
+              document.points[suffix_begin].value == '%')) {
+        auto connector_end = suffix_begin + 1;
         while (connector_end < document.points.size() &&
                (text::is_letter(document.points[connector_end].value) ||
                 text::is_combining_mark(document.points[connector_end].value) ||
                 text::is_digit(document.points[connector_end].value)))
             ++connector_end;
-        if (connector_end > surface.end + 1)
+        if (connector_end > suffix_begin + 1)
             surface.continuation_end = connector_end;
     }
     return surface;
@@ -129,18 +152,14 @@ std::size_t scan_candidate_continuation(const Utf8Document& document,
         if (end >= points.size())
             break;
         const auto value = points[end].value;
-        const bool connector =
-            value == '-' || value == '+' || value == '.' || value == ',' || value == ':' ||
-            value == '%' || text::is_range_connector(value) ||
-            (kind != CandidateSurfaceKind::Numeric &&
-             (value == '/' || value == '#' || value == '$')) ||
-            (kind == CandidateSurfaceKind::Technical && (value == '=' || value == '*'));
+        const bool connector = is_continuation_connector(value, kind);
         if (!connector)
             break;
         const bool punctuation_connector = value == '.' || value == ',' || value == ':';
         const bool technical_word_stem =
-            end > begin || (begin > 0 && (text::is_letter(points[begin - 1].value) ||
-                                          points[begin - 1].value == '_'));
+            kind == CandidateSurfaceKind::Technical &&
+            (end > begin || (begin > 0 && (text::is_letter(points[begin - 1].value) ||
+                                           points[begin - 1].value == '_')));
         if (punctuation_connector &&
             (end + 1 >= points.size() || text::is_horizontal_space(points[end + 1].value)) &&
             !(kind == CandidateSurfaceKind::Technical && technical_word_stem))
@@ -198,11 +217,7 @@ std::size_t scan_spaced_numeric_continuation(const Utf8Document& document,
         return begin;
 
     const auto value = points[connector].value;
-    const bool compound_connector =
-        kind != CandidateSurfaceKind::Numeric &&
-        (value == '/' || value == '#' || value == '$' || value == '=' || value == '*' ||
-         value == '+' || value == '-' || text::is_range_connector(value));
-    if (!compound_connector)
+    if (!is_spaced_connector(value, kind))
         return begin;
 
     auto numeric_begin = connector + 1;
@@ -215,6 +230,43 @@ std::size_t scan_spaced_numeric_continuation(const Utf8Document& document,
         return begin;
     const auto numeric = scan_numeric_surface(document, numeric_begin);
     return numeric.valid() ? numeric.continuation_end : begin;
+}
+
+std::size_t scan_candidate_admission_end(const Utf8Document& document,
+                                         const CandidateSurface& candidate,
+                                         CandidateSurfaceKind kind) {
+    if (!candidate.valid())
+        return candidate.begin;
+
+    auto end = candidate.end;
+    for (;;) {
+        const auto attached = scan_candidate_continuation(document, end, kind);
+        const auto spaced = scan_spaced_numeric_continuation(document, end, kind);
+        auto next = std::max(attached, spaced);
+        if (end > candidate.begin) {
+            const auto previous = document.points[end - 1].value;
+            if (is_spaced_connector(previous, kind)) {
+                next = std::max(next, scan_candidate_continuation(document, end - 1, kind));
+                next = std::max(next, scan_spaced_numeric_continuation(document, end - 1, kind));
+            }
+        }
+        if (kind == CandidateSurfaceKind::Percent) {
+            auto numeric_begin = next > end ? next : end;
+            while (numeric_begin < document.points.size() &&
+                   text::is_horizontal_space(document.points[numeric_begin].value))
+                ++numeric_begin;
+            if (numeric_begin < document.points.size() &&
+                text::is_digit(document.points[numeric_begin].value)) {
+                const auto tail = scan_numeric_surface(document, numeric_begin);
+                if (tail.valid())
+                    next = std::max(next, tail.continuation_end);
+            }
+        }
+        if (next <= end)
+            break;
+        end = next;
+    }
+    return end;
 }
 
 bool NumericSurfaceIndex::contains(std::size_t point) const {

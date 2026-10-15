@@ -26,7 +26,6 @@ bool has_genitive_prefix(const MappedText& source, const std::size_t position) {
     auto end = position;
     while (end > 0 && std::isspace(static_cast<unsigned char>(text[end - 1])))
         --end;
-    const auto before = text.substr(0, end);
     const auto previous_codepoint = [](const std::string_view value, std::size_t boundary) {
         if (boundary == 0)
             return std::uint32_t{0};
@@ -47,10 +46,9 @@ bool has_genitive_prefix(const MappedText& source, const std::size_t position) {
         return codepoint;
     };
     const auto has_suffix = [&](const std::string_view suffix) {
-        if (before.size() < suffix.size() ||
-            before.compare(before.size() - suffix.size(), suffix.size(), suffix) != 0)
+        if (end < suffix.size() || text.compare(end - suffix.size(), suffix.size(), suffix) != 0)
             return false;
-        auto boundary = before.size() - suffix.size();
+        auto boundary = end - suffix.size();
         if (boundary > 0 && text[boundary - 1] == '\x02') {
             const auto marker =
                 std::find_if(source.runs.begin(), source.runs.end(), [&](const MappedRun& run) {
@@ -96,131 +94,38 @@ std::size_t unsupported_genitive_end(const MappedText& source,
 
     const auto& patterns = russian::patterns();
     const auto percent_end = regex_end_at(patterns.admission_percent, source.text, begin);
-    const auto measurement_end = regex_end_at(patterns.admission_measurement, source.text, begin);
-    const auto currency_end = regex_end_at(patterns.admission_currency, source.text, begin);
-    const auto special_end = std::max({percent_end, measurement_end, currency_end});
-    const auto percent_surface = percent_end == special_end;
+    const auto special_end =
+        std::max({percent_end,
+                  regex_end_at(patterns.admission_measurement, source.text, begin),
+                  regex_end_at(patterns.admission_currency, source.text, begin)});
+    auto end = candidate.end;
+    if (special_end > 0)
+        end = std::max(end, codepoint_index_at_or_after(document, special_end));
+    auto admission = candidate;
+    admission.end = end;
+    const auto admission_kind = percent_end != 0 && percent_end == special_end
+                                    ? CandidateSurfaceKind::Percent
+                                    : CandidateSurfaceKind::Contextual;
+    const auto full_end = scan_candidate_admission_end(document, admission, admission_kind);
 
-    const auto extend_after_special = [&](const std::size_t special,
-                                          const bool include_spaced_numeric) {
-        if (special == 0)
-            return std::size_t{0};
-        auto end = codepoint_index_at_or_after(document, special);
-        while (end > point && text::is_horizontal_space(document.points[end - 1].value))
-            --end;
-        const auto lexical = [&](const std::size_t point) {
-            return text::is_letter(document.points[point].value) ||
-                   text::is_digit(document.points[point].value) ||
-                   text::is_combining_mark(document.points[point].value) ||
-                   document.points[point].value == '_';
-        };
-        const auto attached_begin = end;
-        while (end < document.points.size() && lexical(end))
-            ++end;
-        const auto boundary_punctuation = [&](const std::size_t point) {
-            if (point >= document.points.size())
-                return false;
-            const auto value = document.points[point].value;
-            if (value != '.' && value != ',' && value != ':')
-                return false;
-            return point + 1 >= document.points.size() ||
-                   text::is_horizontal_space(document.points[point + 1].value);
-        };
-        if (!boundary_punctuation(end)) {
-            const auto continuation =
-                scan_candidate_continuation(document, end, CandidateSurfaceKind::Technical);
-            if (continuation > end)
-                end = continuation;
-        }
-        const auto spaced_continuation =
-            scan_spaced_numeric_continuation(document, end, CandidateSurfaceKind::Technical);
-        if (spaced_continuation > end)
-            end = spaced_continuation;
-
-        if (include_spaced_numeric || end > attached_begin) {
-            auto next = end;
-            while (next < document.points.size() &&
-                   text::is_horizontal_space(document.points[next].value))
-                ++next;
-            if (next < document.points.size() && text::is_digit(document.points[next].value)) {
-                const auto tail =
-                    scan_candidate_surface(document, next, CandidateSurfaceKind::Technical);
-                if (tail.valid())
-                    end = tail.end;
-            }
-        }
-        return document.span_from_codepoints(point, end).byte_end;
-    };
-
-    // A combining mark immediately after the digits is part of the malformed
-    // numeric surface.  Continue from the next lexical/technical token so a
-    // suffix such as "kgfoo" or "%foo" cannot be normalized independently.
-    auto combining_end = candidate.numeric.end;
-    while (combining_end < document.points.size() &&
-           text::is_combining_mark(document.points[combining_end].value))
-        ++combining_end;
-    if (combining_end > candidate.numeric.end) {
-        auto tail = combining_end;
-        while (tail < document.points.size() &&
-               text::is_horizontal_space(document.points[tail].value))
-            ++tail;
-        if (tail < document.points.size()) {
-            const auto continuation =
-                scan_candidate_continuation(document, tail, CandidateSurfaceKind::Technical);
-            if (continuation > tail)
-                return document.span_from_codepoints(point, continuation).byte_end;
-            if (text::is_letter(document.points[tail].value) ||
-                text::is_combining_mark(document.points[tail].value) ||
-                document.points[tail].value == '%')
-                return document.span_from_codepoints(point, tail + 1).byte_end;
-        }
-        return document.span_from_codepoints(point, combining_end).byte_end;
+    bool has_cyrillic_suffix = false;
+    bool has_foreign_suffix = false;
+    for (auto suffix = candidate.numeric.end; suffix < candidate.end; ++suffix) {
+        const auto value = document.points[suffix].value;
+        if (text::is_horizontal_space(value) || text::is_combining_mark(value))
+            continue;
+        if (text::is_cyrillic(value))
+            has_cyrillic_suffix = true;
+        else
+            has_foreign_suffix = true;
     }
+    if (special_end == 0 && full_end == candidate.end && has_cyrillic_suffix && !has_foreign_suffix)
+        return 0;
 
-    std::size_t continuation_end = candidate.numeric.end;
-    const auto spaced_continuation = scan_spaced_numeric_continuation(
-        document, candidate.numeric.end, CandidateSurfaceKind::Technical);
-    if (spaced_continuation > candidate.numeric.end)
-        continuation_end = spaced_continuation;
-
-    const auto continuation = scan_candidate_continuation(
-        document, candidate.numeric.end, CandidateSurfaceKind::Technical);
-    if (continuation > candidate.numeric.end)
-        continuation_end = std::max(continuation_end, continuation);
-
-    if (continuation_end > candidate.numeric.end) {
-        const auto continuation_byte_end =
-            document.span_from_codepoints(point, continuation_end).byte_end;
-        if (special_end > continuation_byte_end)
-            return extend_after_special(special_end, percent_surface);
-        return continuation_byte_end;
-    }
-
-    if (candidate.end == candidate.numeric.end) {
-        if (special_end == 0)
-            return 0;
-        // A numeric token after a spaced percent/unit/currency suffix belongs
-        // to the same unsupported surface (for example `2 % 3`).  Preserve
-        // it atomically instead of normalizing the head and leaving the tail
-        // for a second pass.
-        return extend_after_special(special_end, percent_surface);
-    }
-    const auto suffix_point = candidate.numeric.end;
-    auto suffix = suffix_point;
-    while (suffix < document.points.size() &&
-           text::is_horizontal_space(document.points[suffix].value))
-        ++suffix;
-    if (suffix >= document.points.size() || !text::is_letter(document.points[suffix].value))
-        return document.span_from_codepoints(point, candidate.end).byte_end;
-
-    // A Cyrillic noun ("попыток", "ошибок", ...) is the supported
-    // continuation of an explicit genitive context.  ASCII/foreign lexical
-    // tails are not Russian agreement targets and must remain atomic.
-    const auto byte = document.points[suffix].offset;
-    if (byte < source.text.size() && static_cast<unsigned char>(source.text[byte]) < 0x80 &&
-        std::isalpha(static_cast<unsigned char>(source.text[byte])))
-        return document.span_from_codepoints(point, candidate.end).byte_end;
-    return special_end == 0 ? 0 : extend_after_special(special_end, percent_surface);
+    if (special_end == 0 && full_end == candidate.numeric.end &&
+        candidate.end == candidate.numeric.end)
+        return 0;
+    return full_end > point ? document.span_from_codepoints(point, full_end).byte_end : 0;
 }
 
 MappedText protect_unsupported_genitive_candidates(MappedText text, WarningSink& warnings) {

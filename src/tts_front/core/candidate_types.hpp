@@ -9,7 +9,7 @@ namespace tts_front::detail {
 
 enum class NumericCandidateKind { Technical, Numeric, Grouped, Currency };
 
-enum class CandidateSurfaceKind { Numeric, Percent, Currency, Unit, Date, Technical };
+enum class CandidateSurfaceKind { Numeric, Percent, Currency, Unit, Date, Contextual, Technical };
 
 struct NumericCandidate {
     SourceSpan span;

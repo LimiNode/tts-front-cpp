@@ -22,6 +22,14 @@ std::size_t scan_spaced_numeric_continuation(const Utf8Document& document,
                                              std::size_t begin,
                                              CandidateSurfaceKind kind);
 
+// Returns the complete admission boundary for a typed surface.  The result
+// combines attached lexical suffixes, spaced connectors and a following
+// numeric token in one pass so callers cannot accidentally normalize a tail
+// after rejecting the numeric head.
+std::size_t scan_candidate_admission_end(const Utf8Document& document,
+                                         const CandidateSurface& candidate,
+                                         CandidateSurfaceKind kind);
+
 std::size_t scan_numeric_continuation_points(const Utf8Document& document,
                                              std::size_t start,
                                              bool consume_lexical_suffix);
