@@ -1261,6 +1261,52 @@ int main() {
                 CHECK(warning.length == input.size() - begin);
             }
         }
+        const std::vector<std::string> completed_unit_tails = {
+            "после 2 кг 3", "после 2GB 3", "после 2,5 кг 3"};
+        for (const auto* options : {&ru, &auto_options, &segmented}) {
+            for (const auto& input : completed_unit_tails) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.original_text == input);
+                const auto expected = input.find("GB") != std::string::npos && options == &segmented
+                                          ? "после two gigabytes три"
+                                          : input.substr(0, input.rfind('3')) + "три";
+                CHECK(result.normalized_text == expected);
+                CHECK(result.pronunciation_text == result.normalized_text);
+                const auto unresolved = std::count_if(
+                    result.warnings.begin(), result.warnings.end(), [](const auto& warning) {
+                        return warning.code == WarningCode::UnresolvedNumber;
+                    });
+                if (input.find("GB") != std::string::npos && options == &segmented) {
+                    CHECK(unresolved == 0);
+                    CHECK(result.warnings.size() == 1);
+                    CHECK(result.warnings.front().code == WarningCode::AmbiguousNormalization);
+                    continue;
+                }
+                CHECK(unresolved == 1);
+                const auto& warning = *std::find_if(
+                    result.warnings.begin(), result.warnings.end(), [](const auto& item) {
+                        return item.code == WarningCode::UnresolvedNumber;
+                    });
+                const auto begin = input.find(input.find('-') == std::string::npos ? '2' : '-');
+                CHECK(warning.offset == begin);
+                CHECK(warning.length == input.rfind(" 3") - begin);
+            }
+        }
+        const std::vector<std::string> foreign_decimal_compounds = {"после 2.5 % 3",
+                                                                    "после 2.5 кг"};
+        for (const auto* options : {&ru, &auto_options, &segmented}) {
+            for (const auto& input : foreign_decimal_compounds) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text == input);
+                CHECK(result.pronunciation_text == input);
+                CHECK(result.warnings.size() == 1);
+                CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+                const auto begin = input.find('2');
+                CHECK(result.warnings.front().offset == begin);
+                CHECK(result.warnings.front().length == input.size() - begin);
+            }
+        }
         // A number after a completed currency surface is a separate token;
         // only the unsupported compound itself is preserved atomically.
         {
