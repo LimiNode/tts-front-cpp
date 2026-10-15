@@ -1307,6 +1307,54 @@ int main() {
                 CHECK(result.warnings.front().length == input.size() - begin);
             }
         }
+        const std::vector<std::string> attached_decimal_tails = {"после 2.5 kgfoo",
+                                                                 "после 2.5 GBfoo",
+                                                                 "после 2.5 руб.foo",
+                                                                 "после 2,5 kgfoo",
+                                                                 "после -2.5 kgfoo",
+                                                                 "после -2,5 kgfoo"};
+        for (const auto* options : {&ru, &auto_options, &segmented}) {
+            for (const auto& input : attached_decimal_tails) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text == input);
+                CHECK(result.pronunciation_text == input);
+                const auto unresolved = std::count_if(
+                    result.warnings.begin(), result.warnings.end(), [](const auto& warning) {
+                        return warning.code == WarningCode::UnresolvedNumber;
+                    });
+                CHECK(unresolved == 1);
+                const auto& warning = *std::find_if(
+                    result.warnings.begin(), result.warnings.end(), [](const auto& item) {
+                        return item.code == WarningCode::UnresolvedNumber;
+                    });
+                const auto begin =
+                    input.find('-') == std::string::npos ? input.find('2') : input.find('-');
+                CHECK(warning.offset == begin);
+                CHECK(warning.length == input.size() - begin);
+            }
+        }
+        const std::vector<std::pair<std::string, std::string>> unit_punctuation = {
+            {"после 2 кг!", "после 2 кг!"},
+            {"после 2,5 кг, 3", "после 2,5 кг, три"},
+            {"после 2.5 кг.", "после 2.5 кг."}};
+        for (const auto* options : {&ru, &auto_options, &segmented}) {
+            for (const auto& [input, expected] : unit_punctuation) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text == expected);
+                CHECK(result.pronunciation_text == expected);
+                CHECK(result.warnings.size() == 1);
+                CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+                const auto begin = input.find('2');
+                CHECK(result.warnings.front().offset == begin);
+                const auto expected_length =
+                    input.find("2,5") != std::string::npos   ? std::string("2,5 кг").size()
+                    : input.find("2.5") != std::string::npos ? std::string("2.5 кг").size()
+                                                             : std::string("2 кг").size();
+                CHECK(result.warnings.front().length == expected_length);
+            }
+        }
         // A number after a completed currency surface is a separate token;
         // only the unsupported compound itself is preserved atomically.
         {

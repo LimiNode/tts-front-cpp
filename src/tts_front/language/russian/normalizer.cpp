@@ -95,18 +95,11 @@ std::size_t unsupported_genitive_end(const MappedText& source,
         return 0;
 
     const auto& patterns = russian::patterns();
-    const auto percent_end = std::max(regex_end_at(patterns.percent, source.text, begin),
-                                      regex_end_at(patterns.decimal_percent, source.text, begin));
-    const auto foreign_percent_end =
-        regex_end_at(patterns.foreign_decimal_percent, source.text, begin);
-    const auto special_end =
-        std::max({regex_end_at(patterns.currency, source.text, begin),
-                  regex_end_at(patterns.currency_decimal, source.text, begin),
-                  regex_end_at(patterns.measurement, source.text, begin),
-                  foreign_percent_end,
-                  regex_end_at(patterns.foreign_decimal_measurement, source.text, begin),
-                  percent_end});
-    const auto percent_surface = percent_end == special_end || foreign_percent_end == special_end;
+    const auto percent_end = regex_end_at(patterns.admission_percent, source.text, begin);
+    const auto measurement_end = regex_end_at(patterns.admission_measurement, source.text, begin);
+    const auto currency_end = regex_end_at(patterns.admission_currency, source.text, begin);
+    const auto special_end = std::max({percent_end, measurement_end, currency_end});
+    const auto percent_surface = percent_end == special_end;
 
     const auto extend_after_special = [&](const std::size_t special,
                                           const bool include_spaced_numeric) {
@@ -124,7 +117,16 @@ std::size_t unsupported_genitive_end(const MappedText& source,
         const auto attached_begin = end;
         while (end < document.points.size() && lexical(end))
             ++end;
-        if (end > attached_begin) {
+        const auto boundary_punctuation = [&](const std::size_t point) {
+            if (point >= document.points.size())
+                return false;
+            const auto value = document.points[point].value;
+            if (value != '.' && value != ',' && value != ':')
+                return false;
+            return point + 1 >= document.points.size() ||
+                   text::is_horizontal_space(document.points[point + 1].value);
+        };
+        if (!boundary_punctuation(end)) {
             const auto continuation =
                 scan_candidate_continuation(document, end, CandidateSurfaceKind::Technical);
             if (continuation > end)
