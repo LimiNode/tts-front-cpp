@@ -18,36 +18,31 @@ void classify_surface(std::string_view unit, bool& known_stem, bool& valid_surfa
     const auto starts_with = [unit](std::string_view prefix) {
         return unit.size() >= prefix.size() && unit.compare(0, prefix.size(), prefix) == 0;
     };
-    static constexpr std::array<std::string_view, 14> stems = {"руб",
-                                                               "кг",
-                                                               "килограмм",
-                                                               "км",
-                                                               "километр",
-                                                               "см",
-                                                               "сантиметр",
-                                                               "мм",
-                                                               "миллиметр",
-                                                               "м",
-                                                               "ГБ",
-                                                               "МБ",
-                                                               "GB",
-                                                               "MB"};
     static constexpr std::array<std::string_view, 29> surfaces = {
         "руб",        "руб.",       "рубль",       "рубля",      "рублей",      "кг",
         "килограмм",  "килограмма", "килограммов", "км",         "километр",    "километра",
         "километров", "см",         "сантиметр",   "сантиметра", "сантиметров", "мм",
         "миллиметр",  "миллиметра", "миллиметров", "ГБ",         "МБ",          "м",
         "метр",       "метра",      "метров",      "GB",         "MB"};
-    for (const auto stem : stems)
-        known_stem = known_stem || (stem == "м" ? unit == "м" : starts_with(stem));
-    for (const auto surface : surfaces)
-        valid_surface = valid_surface || unit == surface;
+    for (const auto surface : surfaces) {
+        if (unit == surface) {
+            valid_surface = true;
+            known_stem = true;
+        } else if (surface != "м" && starts_with(surface)) {
+            // Attached technical tails are ASCII (`kgfoo`, `руб.foo`). A
+            // Cyrillic continuation belongs to an ordinary Russian word such
+            // as `рубежей`, not to the unit/currency catalog.
+            const auto continuation = static_cast<unsigned char>(unit[surface.size()]);
+            known_stem = known_stem || continuation < 0x80;
+        }
+    }
 }
 
 } // namespace
 
 GenitiveSurfaceAdmission classify_genitive_surface(const std::string_view text,
-                                                   const std::size_t begin) {
+                                                   const std::size_t begin,
+                                                   const bool malformed_combining) {
     const auto end_at = [text, begin](const std::regex& pattern) {
         if (begin >= text.size())
             return std::size_t{0};
@@ -59,19 +54,21 @@ GenitiveSurfaceAdmission classify_genitive_surface(const std::string_view text,
                    ? begin + static_cast<std::size_t>(match.length())
                    : std::size_t{0};
     };
-    const auto end_at_without_combining = [text, begin](const std::regex& pattern) {
-        if (begin >= text.size())
-            return std::size_t{0};
-        // Admission patterns only inspect the immediate numeric suffix.  Keep
-        // this fallback bounded so a malformed mark cannot make every match
-        // rescan the remainder of a document.
-        const auto limit = std::min(text.size(), begin + std::size_t{256});
-        const Utf8Document document(text.substr(begin, limit - begin));
+    std::string compact;
+    std::vector<std::size_t> original_end;
+    std::size_t projection_limit = 0;
+    bool projection_ready = false;
+    const auto project_without_combining = [&] {
+        if (projection_ready || !malformed_combining || begin >= text.size())
+            return;
+        projection_ready = true;
+        // Admission patterns inspect only the immediate suffix. Build one
+        // bounded projection and reuse it for all language-owned patterns.
+        projection_limit = std::min(text.size(), begin + std::size_t{256});
+        const Utf8Document document(text.substr(begin, projection_limit - begin));
         if (!document.valid)
-            return std::size_t{0};
-
-        std::string compact;
-        std::vector<std::size_t> original_end(1, begin);
+            return;
+        original_end.assign(1, begin);
         for (const auto& point : document.points) {
             const auto absolute_end = begin + point.offset + point.length;
             if (text::is_combining_mark(point.value)) {
@@ -83,21 +80,30 @@ GenitiveSurfaceAdmission classify_genitive_surface(const std::string_view text,
             for (std::size_t index = 0; index < bytes.size(); ++index)
                 original_end.push_back(absolute_end);
         }
+    };
+    const auto end_at_projected = [&](const std::regex& pattern) {
+        project_without_combining();
+        if (compact.empty())
+            return std::size_t{0};
         std::cmatch match;
         if (!std::regex_search(
                 compact.c_str(), match, pattern, std::regex_constants::match_continuous))
             return std::size_t{0};
         const auto compact_end = static_cast<std::size_t>(match.length());
-        return compact_end < original_end.size() ? original_end[compact_end] : limit;
+        return compact_end < original_end.size() ? original_end[compact_end] : projection_limit;
     };
     const auto classify_end = [&](const std::regex& pattern) {
         const auto direct = end_at(pattern);
-        return direct != 0 ? direct : end_at_without_combining(pattern);
+        return malformed_combining ? std::max(direct, end_at_projected(pattern)) : direct;
     };
     const auto& russian_patterns = patterns();
     const auto percent_end = classify_end(russian_patterns.admission_percent);
     const auto measurement_end = classify_end(russian_patterns.admission_measurement);
-    const auto currency_end = classify_end(russian_patterns.admission_currency);
+    auto currency_end = classify_end(russian_patterns.admission_currency);
+    for (std::size_t dots = 0;
+         malformed_combining && currency_end < text.size() && text[currency_end] == '.' && dots < 3;
+         ++dots)
+        ++currency_end;
     const auto special_end = std::max({percent_end, measurement_end, currency_end});
     return {special_end,
             percent_end != 0 && percent_end == special_end ? CandidateSurfaceKind::Percent
