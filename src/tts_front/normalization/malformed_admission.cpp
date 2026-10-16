@@ -324,6 +324,23 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 break;
             }
         }
+        if (candidate_surface.has_combining) {
+            malformed_compound = true;
+            auto combining_end = end_index;
+            while (combining_end < points.size() &&
+                   text::is_combining_mark(points[combining_end].value))
+                ++combining_end;
+            auto suffix_begin = combining_end;
+            while (suffix_begin < points.size() &&
+                   text::is_horizontal_space(points[suffix_begin].value))
+                ++suffix_begin;
+            auto suffix_end = suffix_begin;
+            while (suffix_end < points.size() &&
+                   (text::is_letter(points[suffix_end].value) ||
+                    text::is_combining_mark(points[suffix_end].value)))
+                ++suffix_end;
+            end_index = std::max(end_index, suffix_end);
+        }
         if ((positive_numeric || points[index].value == 0x2212) && end_index < points.size()) {
             if (surface.exponent != ExponentState::None) {
                 malformed_compound = true;

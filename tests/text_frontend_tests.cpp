@@ -62,6 +62,8 @@ int main() {
     en.language = Language::English;
     TextFrontendOptions auto_options = en;
     auto_options.language = Language::Auto;
+    TextFrontendOptions segmented = en;
+    segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
     CHECK(frontend.process("7.5%", en).normalized_text == "seven point five percent");
     CHECK(frontend.process("-0 -0.0 -0%", en).normalized_text ==
           "minus zero minus zero point zero minus zero percent");
@@ -1943,6 +1945,18 @@ int main() {
         CHECK(arithmetic_matches(en, english_cases));
         CHECK(arithmetic_matches(ru, russian_expected));
         CHECK(arithmetic_matches(auto_options, english_cases));
+    }
+    for (const auto* options : {&ru, &auto_options, &segmented}) {
+        for (const auto& input : {std::string("2,5\xCC\x81 кг"), std::string("2 kg\xCC\x81")}) {
+            const auto result = frontend.process(input, *options);
+            CHECK(result.original_text == input);
+            CHECK(result.normalized_text == input);
+            CHECK(result.pronunciation_text == input);
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(result.warnings.front().offset == 0);
+            CHECK(result.warnings.front().length == input.size());
+        }
     }
     std::cout << "tts_front tests passed\n";
     return EXIT_SUCCESS;
