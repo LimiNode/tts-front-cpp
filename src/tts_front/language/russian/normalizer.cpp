@@ -26,7 +26,6 @@ bool has_genitive_prefix(const MappedText& source, const std::size_t position) {
     auto end = position;
     while (end > 0 && std::isspace(static_cast<unsigned char>(text[end - 1])))
         --end;
-    const auto before = text.substr(0, end);
     const auto previous_codepoint = [](const std::string_view value, std::size_t boundary) {
         if (boundary == 0)
             return std::uint32_t{0};
@@ -47,10 +46,9 @@ bool has_genitive_prefix(const MappedText& source, const std::size_t position) {
         return codepoint;
     };
     const auto has_suffix = [&](const std::string_view suffix) {
-        if (before.size() < suffix.size() ||
-            before.compare(before.size() - suffix.size(), suffix.size(), suffix) != 0)
+        if (end < suffix.size() || text.compare(end - suffix.size(), suffix.size(), suffix) != 0)
             return false;
-        auto boundary = before.size() - suffix.size();
+        auto boundary = end - suffix.size();
         if (boundary > 0 && text[boundary - 1] == '\x02') {
             const auto marker =
                 std::find_if(source.runs.begin(), source.runs.end(), [&](const MappedRun& run) {
@@ -72,18 +70,6 @@ bool has_genitive_prefix(const MappedText& source, const std::size_t position) {
     return has_suffix("после") || has_suffix("После") || has_suffix("из") || has_suffix("Из");
 }
 
-std::size_t
-regex_end_at(const std::regex& pattern, const std::string_view text, const std::size_t begin) {
-    if (begin >= text.size())
-        return 0;
-    std::cmatch match;
-    const auto* first = text.data() + begin;
-    const auto* last = text.data() + text.size();
-    return std::regex_search(first, last, match, pattern, std::regex_constants::match_continuous)
-               ? begin + static_cast<std::size_t>(match.length())
-               : 0;
-}
-
 std::size_t unsupported_genitive_end(const MappedText& source,
                                      const Utf8Document& document,
                                      const std::size_t begin) {
@@ -94,39 +80,35 @@ std::size_t unsupported_genitive_end(const MappedText& source,
     if (!candidate.valid())
         return 0;
 
-    const auto& patterns = russian::patterns();
-    const auto special_end = std::max({regex_end_at(patterns.currency, source.text, begin),
-                                       regex_end_at(patterns.currency_decimal, source.text, begin),
-                                       regex_end_at(patterns.measurement, source.text, begin)});
+    const auto special =
+        russian::classify_genitive_surface(source.text, begin, candidate.has_combining);
+    const auto special_end = special.end;
+    auto end = candidate.end;
+    if (special_end > 0)
+        end = std::max(end, codepoint_index_at_or_after(document, special_end));
+    auto admission = candidate;
+    admission.end = end;
+    const auto full_end = scan_candidate_admission_end(document, admission, special.kind);
 
-    const auto spaced_continuation = scan_spaced_numeric_continuation(
-        document, candidate.numeric.end, CandidateSurfaceKind::Technical);
-    if (spaced_continuation > candidate.numeric.end)
-        return document.span_from_codepoints(point, spaced_continuation).byte_end;
+    bool has_cyrillic_suffix = false;
+    bool has_foreign_suffix = false;
+    for (auto suffix = candidate.numeric.end; suffix < candidate.end; ++suffix) {
+        const auto value = document.points[suffix].value;
+        if (text::is_horizontal_space(value) || text::is_combining_mark(value))
+            continue;
+        if (text::is_cyrillic(value))
+            has_cyrillic_suffix = true;
+        else
+            has_foreign_suffix = true;
+    }
+    if (!candidate.numeric.malformed_combining && special_end == 0 && full_end == candidate.end &&
+        has_cyrillic_suffix && !has_foreign_suffix)
+        return 0;
 
-    const auto continuation = scan_candidate_continuation(
-        document, candidate.numeric.end, CandidateSurfaceKind::Technical);
-    if (continuation > candidate.numeric.end)
-        return document.span_from_codepoints(point, continuation).byte_end;
-
-    if (candidate.end == candidate.numeric.end)
-        return special_end == 0 ? 0 : special_end;
-    const auto suffix_point = candidate.numeric.end;
-    auto suffix = suffix_point;
-    while (suffix < document.points.size() &&
-           text::is_horizontal_space(document.points[suffix].value))
-        ++suffix;
-    if (suffix >= document.points.size() || !text::is_letter(document.points[suffix].value))
-        return document.span_from_codepoints(point, candidate.end).byte_end;
-
-    // A Cyrillic noun ("попыток", "ошибок", ...) is the supported
-    // continuation of an explicit genitive context.  ASCII/foreign lexical
-    // tails are not Russian agreement targets and must remain atomic.
-    const auto byte = document.points[suffix].offset;
-    if (byte < source.text.size() && static_cast<unsigned char>(source.text[byte]) < 0x80 &&
-        std::isalpha(static_cast<unsigned char>(source.text[byte])))
-        return document.span_from_codepoints(point, candidate.end).byte_end;
-    return special_end == 0 ? 0 : special_end;
+    if (special_end == 0 && full_end == candidate.numeric.end &&
+        candidate.end == candidate.numeric.end)
+        return 0;
+    return full_end > point ? document.span_from_codepoints(point, full_end).byte_end : 0;
 }
 
 MappedText protect_unsupported_genitive_candidates(MappedText text, WarningSink& warnings) {
@@ -142,7 +124,8 @@ MappedText protect_unsupported_genitive_candidates(MappedText text, WarningSink&
         if (!has_genitive_prefix(text, number_begin))
             continue;
         const auto unsupported_end = unsupported_genitive_end(text, document, number_begin);
-        if (unsupported_end > number_begin)
+        if (unsupported_end > number_begin &&
+            !overlaps_preserved_range(text, number_begin, unsupported_end))
             warnings.add(WarningCode::UnresolvedNumber,
                          "Unable to inflect a compound numeric surface",
                          text.source_range(number_begin, unsupported_end));

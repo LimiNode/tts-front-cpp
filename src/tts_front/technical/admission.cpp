@@ -187,6 +187,8 @@ MappedText protect_numeric_candidates(MappedText text,
             if (begin < cursor)
                 continue;
             const auto base_finish = begin + static_cast<std::size_t>(it->length());
+            if (overlaps_preserved_range(text, begin, base_finish))
+                continue;
             const auto base = it->str(1);
             const auto base_point = codepoint_index_at_or_after(document, begin);
             const auto base_end_point = codepoint_index_at_or_after(document, base_finish);

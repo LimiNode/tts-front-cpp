@@ -9,7 +9,7 @@ namespace tts_front::detail {
 
 enum class NumericCandidateKind { Technical, Numeric, Grouped, Currency };
 
-enum class CandidateSurfaceKind { Numeric, Percent, Currency, Unit, Date, Technical };
+enum class CandidateSurfaceKind { Numeric, Percent, Currency, Unit, Date, Contextual, Technical };
 
 struct NumericCandidate {
     SourceSpan span;
@@ -29,6 +29,7 @@ struct NumericSurface {
     std::size_t continuation_end = 0;
     NumericSign sign = NumericSign::None;
     ExponentState exponent = ExponentState::None;
+    bool malformed_combining = false;
 
     bool valid() const {
         return digits_end > digits_begin;
@@ -44,6 +45,7 @@ struct CandidateSurface {
     std::size_t core_end = 0;
     std::size_t end = 0;
     NumericSurface numeric;
+    bool has_combining = false;
 
     bool valid() const {
         return numeric.valid();

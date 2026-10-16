@@ -1,10 +1,14 @@
 #include "tts_front/language/russian/mixed_candidates.hpp"
 
+#include "tts_front/core/numeric_scanner.hpp"
+#include "tts_front/core/utf8_document.hpp"
+#include "tts_front/language/russian/admission.hpp"
 #include "tts_front/language/russian/formatters.hpp"
 #include "tts_front/language/russian/numbers.hpp"
 #include "tts_front/language/russian/patterns.hpp"
 #include "tts_front/normalization/admission.hpp"
 
+#include <algorithm>
 #include <optional>
 #include <regex>
 #include <string>
@@ -22,7 +26,7 @@ const std::regex& candidate_pattern() {
 
 const std::regex& malformed_pattern() {
     static const std::regex pattern{
-        R"((?:^|[^0-9.,])(-?[0-9]+(?:,[0-9]+)?[ \t]*(?:рублей|рубля|рубль|руб\.?|километров|километра|километр|км|килограммов|килограмма|килограмм|кг|сантиметров|сантиметра|сантиметр|см|миллиметров|миллиметра|миллиметр|мм|ГБ|МБ|GB|MB|м)[A-Za-zА-Яа-яЁё]*))"};
+        R"((?:^|[^0-9.,])(-?[0-9]+(?:,[0-9]+)?[ \t]*(?:рублей|рубля|рубль|руб\.?(?![А-Яа-яЁё])|километров|километра|километр|км|килограммов|килограмма|килограмм|кг|сантиметров|сантиметра|сантиметр|см|миллиметров|миллиметра|миллиметр|мм|ГБ|МБ|GB|MB|м(?![А-Яа-яЁёA-Za-z]))[A-Za-zА-Яа-яЁё]*))"};
     return pattern;
 }
 
@@ -106,12 +110,20 @@ std::vector<MixedCandidateMatch> scan_candidate_matches(std::string_view text) {
 
 std::vector<MixedCandidateMatch> scan_malformed_matches(std::string_view text) {
     std::vector<MixedCandidateMatch> matches;
+    const Utf8Document document(text);
     using Iterator = std::regex_iterator<std::string_view::const_iterator>;
     for (Iterator it(text.begin(), text.end(), malformed_pattern()), end; it != end; ++it) {
         const auto begin = static_cast<std::size_t>(it->position(1));
-        matches.push_back({begin,
-                           begin + static_cast<std::size_t>(it->length(1)),
-                           text.substr(begin, static_cast<std::size_t>(it->length(1)))});
+        auto match_end = begin + static_cast<std::size_t>(it->length(1));
+        if (document.valid) {
+            const auto point = codepoint_index_at_or_after(document, begin);
+            const auto surface =
+                scan_candidate_surface(document, point, CandidateSurfaceKind::Contextual);
+            if (surface.valid())
+                match_end = std::max(
+                    match_end, classify_genitive_surface(text, begin, surface.has_combining).end);
+        }
+        matches.push_back({begin, match_end, text.substr(begin, match_end - begin)});
     }
     return matches;
 }

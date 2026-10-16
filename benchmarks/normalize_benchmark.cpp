@@ -58,7 +58,7 @@ void benchmark_russian_genitive_scaling() {
     tts_front::TextFrontend frontend;
     tts_front::TextFrontendOptions options;
     options.language = tts_front::Language::Russian;
-    for (const unsigned int count : {1000u, 2000u, 5000u}) {
+    for (const unsigned int count : {1000u, 2000u, 5000u, 10000u, 40000u, 80000u}) {
         std::string text;
         text.reserve(static_cast<std::size_t>(count) * 18);
         for (unsigned int index = 0; index < count; ++index) {
