@@ -15,6 +15,8 @@ std::size_t scan_candidate_continuation(const Utf8Document& document,
                                         std::size_t begin,
                                         CandidateSurfaceKind kind);
 
+NumericSurfaceRange scan_lexical_suffix(const Utf8Document& document, std::size_t begin);
+
 // Extends a numeric candidate across a connector separated from the next
 // numeric token by horizontal whitespace.  This is deliberately limited to
 // compound connectors; comma, dot and colon remain list/terminal boundaries.

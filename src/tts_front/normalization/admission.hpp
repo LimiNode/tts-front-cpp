@@ -10,7 +10,8 @@
 
 namespace tts_front::detail {
 
-using SurfaceClassifier = void (*)(std::string_view, bool&, bool&);
+using SurfaceClassifier =
+    void (*)(std::string_view, const Utf8Document&, std::size_t, bool&, bool&);
 
 struct AdmissionRules {
     const std::regex* comma_grouped_value = nullptr;

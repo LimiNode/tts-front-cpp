@@ -324,7 +324,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 break;
             }
         }
-        if (surface.malformed_combining || candidate_surface.malformed_combining_suffix ||
+        if (surface.malformed_combining ||
             (candidate_surface.has_combining && end_index < points.size() &&
              text::is_combining_mark(points[end_index].value))) {
             malformed_compound = true;
@@ -496,48 +496,40 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         // suffix is one malformed candidate.  Letting the generic number
         // pass see only the leading digits would otherwise produce partial
         // rewrites such as `one kgfoo` or `один руб.foo`.
-        if (end_index < points.size()) {
-            auto suffix_begin = end_index;
-            while (suffix_begin < points.size() &&
-                   (points[suffix_begin].value == ' ' || points[suffix_begin].value == '\t'))
-                ++suffix_begin;
-            auto word_end = suffix_begin;
-            while (word_end < points.size() && (text::is_letter(points[word_end].value) ||
-                                                text::is_combining_mark(points[word_end].value)))
-                ++word_end;
-            if (word_end != suffix_begin) {
-                auto suffix_end = word_end;
-                // Include a dotted continuation such as `руб.foo`; a final
-                // period by itself remains a valid Russian abbreviation.
-                if (suffix_end < points.size() && points[suffix_end].value == '.' &&
-                    suffix_end + 1 < points.size() &&
-                    text::is_letter(points[suffix_end + 1].value)) {
+        const auto lexical_suffix = scan_lexical_suffix(document, end_index);
+        if (lexical_suffix.end > lexical_suffix.continuation_begin) {
+            const auto suffix_begin = lexical_suffix.continuation_begin;
+            const auto word_end = lexical_suffix.end;
+            auto suffix_end = word_end;
+            // Include a dotted continuation such as `руб.foo`; a final
+            // period by itself remains a valid Russian abbreviation.
+            if (suffix_end < points.size() && points[suffix_end].value == '.' &&
+                suffix_end + 1 < points.size() && text::is_letter(points[suffix_end + 1].value)) {
+                ++suffix_end;
+                while (suffix_end < points.size() && text::is_letter(points[suffix_end].value))
                     ++suffix_end;
-                    while (suffix_end < points.size() && text::is_letter(points[suffix_end].value))
-                        ++suffix_end;
-                }
-                const auto unit =
-                    text.text.substr(points[suffix_begin].offset,
-                                     points[suffix_end - 1].offset + points[suffix_end - 1].length -
-                                         points[suffix_begin].offset);
-                bool known_stem = false;
-                bool valid_surface = false;
-                if (rules.classify_surface != nullptr)
-                    rules.classify_surface(unit, known_stem, valid_surface);
-                if (known_stem && (!valid_surface || suffix_end != word_end)) {
+            }
+            const auto unit =
+                text.text.substr(points[suffix_begin].offset,
+                                 points[suffix_end - 1].offset + points[suffix_end - 1].length -
+                                     points[suffix_begin].offset);
+            bool known_stem = false;
+            bool valid_surface = false;
+            if (rules.classify_surface != nullptr)
+                rules.classify_surface(unit, document, suffix_begin, known_stem, valid_surface);
+            if (known_stem && (!valid_surface || suffix_end != word_end)) {
+                malformed_compound = true;
+                end_index = suffix_end;
+            }
+            // An abbreviation ellipsis is terminal only when it is
+            // followed by ordinary punctuation or the end of input.
+            // `руб...foo` and `руб.../2` are unsupported continuations
+            // and must remain one atomic candidate.
+            if (known_stem && suffix_end == word_end) {
+                const auto continuation = scan_nonterminal_ellipsis(points, suffix_end);
+                if (continuation != suffix_end) {
                     malformed_compound = true;
-                    end_index = suffix_end;
-                }
-                // An abbreviation ellipsis is terminal only when it is
-                // followed by ordinary punctuation or the end of input.
-                // `руб...foo` and `руб.../2` are unsupported continuations
-                // and must remain one atomic candidate.
-                if (known_stem && suffix_end == word_end) {
-                    const auto continuation = scan_nonterminal_ellipsis(points, suffix_end);
-                    if (continuation != suffix_end) {
-                        malformed_compound = true;
-                        end_index = continuation;
-                    }
+                    end_index = continuation;
                 }
             }
         }

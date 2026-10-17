@@ -14,7 +14,11 @@
 namespace tts_front::detail::russian {
 namespace {
 
-void classify_surface(std::string_view unit, bool& known_stem, bool& valid_surface) {
+void classify_surface(std::string_view unit,
+                      const Utf8Document& document,
+                      const std::size_t unit_begin,
+                      bool& known_stem,
+                      bool& valid_surface) {
     const auto starts_with = [unit](std::string_view prefix) {
         return unit.size() >= prefix.size() && unit.compare(0, prefix.size(), prefix) == 0;
     };
@@ -24,12 +28,12 @@ void classify_surface(std::string_view unit, bool& known_stem, bool& valid_surfa
         "километра", "километров", "см",         "сантиметр",   "сантиметра", "сантиметров",
         "мм",        "миллиметр",  "миллиметра", "миллиметров", "ГБ",         "МБ",
         "м",         "метр",       "метра",      "метров",      "GB",         "MB"};
-    const auto has_combining_suffix = [unit](const std::size_t byte_offset) {
-        const Utf8Document document(unit);
-        if (!document.valid)
+    const auto has_combining_suffix = [unit, &document, unit_begin](const std::size_t byte_offset) {
+        if (unit_begin >= document.points.size())
             return false;
-        auto point = codepoint_index_at_or_after(document, byte_offset);
-        if (point >= document.points.size() || document.points[point].offset != byte_offset ||
+        const auto absolute_offset = document.points[unit_begin].offset + byte_offset;
+        auto point = codepoint_index_at_or_after(document, absolute_offset);
+        if (point >= document.points.size() || document.points[point].offset != absolute_offset ||
             !text::is_combining_mark(document.points[point].value))
             return false;
         // A mark after a known unit stem is malformed only when it terminates

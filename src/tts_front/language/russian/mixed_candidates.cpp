@@ -1,6 +1,7 @@
 #include "tts_front/language/russian/mixed_candidates.hpp"
 
 #include "tts_front/core/numeric_scanner.hpp"
+#include "tts_front/core/text/codepoint_classification.hpp"
 #include "tts_front/core/utf8_document.hpp"
 #include "tts_front/language/russian/admission.hpp"
 #include "tts_front/language/russian/formatters.hpp"
@@ -119,11 +120,65 @@ std::vector<MixedCandidateMatch> scan_malformed_matches(std::string_view text) {
             const auto point = codepoint_index_at_or_after(document, begin);
             const auto surface =
                 scan_candidate_surface(document, point, CandidateSurfaceKind::Contextual);
-            if (surface.valid())
+            if (surface.valid()) {
                 match_end = std::max(
                     match_end, classify_genitive_surface(text, begin, surface.has_combining).end);
+                const auto suffix = scan_lexical_suffix(document, surface.numeric.end);
+                if (suffix.end > suffix.continuation_begin &&
+                    document.points[suffix.continuation_begin].value == 0x043c &&
+                    suffix.continuation_begin + 1 < suffix.end &&
+                    tts_front::detail::text::is_combining_mark(
+                        document.points[suffix.continuation_begin + 1].value)) {
+                    auto after_mark = suffix.continuation_begin + 1;
+                    while (after_mark < suffix.end && tts_front::detail::text::is_combining_mark(
+                                                          document.points[after_mark].value))
+                        ++after_mark;
+                    if (after_mark == suffix.end ||
+                        !tts_front::detail::text::is_cyrillic(document.points[after_mark].value))
+                        match_end = std::max(match_end,
+                                             document.points[suffix.end - 1].offset +
+                                                 document.points[suffix.end - 1].length);
+                }
+            }
         }
         matches.push_back({begin, match_end, text.substr(begin, match_end - begin)});
+    }
+    // The regex admission above cannot see combining marks. Add the same
+    // Russian short-unit boundary explicitly so SegmentCandidates protects
+    // `2 м́`, `2 м́foo`, and `2 м́.` before the foreign formatter sees `2`.
+    if (document.valid) {
+        for (std::size_t point = 0; point < document.points.size(); ++point) {
+            if (!text::is_digit(document.points[point].value) ||
+                (point > 0 && text::is_digit(document.points[point - 1].value)))
+                continue;
+            const auto surface =
+                scan_candidate_surface(document, point, CandidateSurfaceKind::Contextual);
+            if (!surface.valid())
+                continue;
+            const auto suffix = scan_lexical_suffix(document, surface.numeric.end);
+            if (suffix.end <= suffix.continuation_begin ||
+                document.points[suffix.continuation_begin].value != 0x043c ||
+                suffix.continuation_begin + 1 >= suffix.end ||
+                !tts_front::detail::text::is_combining_mark(
+                    document.points[suffix.continuation_begin + 1].value))
+                continue;
+            auto after_mark = suffix.continuation_begin + 1;
+            while (after_mark < suffix.end &&
+                   tts_front::detail::text::is_combining_mark(document.points[after_mark].value))
+                ++after_mark;
+            if (after_mark != suffix.end &&
+                tts_front::detail::text::is_cyrillic(document.points[after_mark].value))
+                continue;
+            const auto begin = document.points[point].offset;
+            const auto end =
+                document.points[suffix.end - 1].offset + document.points[suffix.end - 1].length;
+            const auto present =
+                std::any_of(matches.begin(), matches.end(), [&](const auto& match) {
+                    return match.begin <= begin && match.end >= end;
+                });
+            if (!present)
+                matches.push_back({begin, end, text.substr(begin, end - begin)});
+        }
     }
     return matches;
 }

@@ -1491,6 +1491,10 @@ int main() {
                 CHECK(result.pronunciation_text == input);
                 if (input.find("foo") == std::string::npos)
                     CHECK(result.warnings.size() == 1);
+                CHECK(std::count_if(
+                          result.warnings.begin(), result.warnings.end(), [](const auto& warning) {
+                              return warning.code == WarningCode::UnresolvedNumber;
+                          }) == 1);
                 const auto unresolved = std::find_if(
                     result.warnings.begin(), result.warnings.end(), [](const auto& warning) {
                         return warning.code == WarningCode::UnresolvedNumber;
@@ -1509,6 +1513,15 @@ int main() {
                 CHECK(result.pronunciation_text == expected);
                 CHECK(result.warnings.empty());
             }
+        }
+        const std::vector<std::pair<std::string, std::string>> english_combining_controls = {
+            {"2 с\xCC\x81", "two с\xCC\x81"}, {"2 а\xCC\x81.", "two а\xCC\x81."}};
+        for (const auto& [input, expected] : english_combining_controls) {
+            const auto result = frontend.process(input, en);
+            CHECK(result.original_text == input);
+            CHECK(result.normalized_text == expected);
+            CHECK(result.pronunciation_text == expected);
+            CHECK(result.warnings.empty());
         }
         const std::vector<std::pair<std::string, std::string>> unit_punctuation = {
             {"после 2 кг!", "после 2 кг!"},
