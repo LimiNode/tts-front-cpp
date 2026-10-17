@@ -18,12 +18,20 @@ void classify_surface(std::string_view unit, bool& known_stem, bool& valid_surfa
     const auto starts_with = [unit](std::string_view prefix) {
         return unit.size() >= prefix.size() && unit.compare(0, prefix.size(), prefix) == 0;
     };
-    static constexpr std::array<std::string_view, 29> surfaces = {
-        "руб",        "руб.",       "рубль",       "рубля",      "рублей",      "кг",
-        "килограмм",  "килограмма", "килограммов", "км",         "километр",    "километра",
-        "километров", "см",         "сантиметр",   "сантиметра", "сантиметров", "мм",
-        "миллиметр",  "миллиметра", "миллиметров", "ГБ",         "МБ",          "м",
-        "метр",       "метра",      "метров",      "GB",         "MB"};
+    static constexpr std::array<std::string_view, 30> surfaces = {
+        "руб",       "руб.",       "рубль",      "рубля",       "рублей",     "кг",
+        "kg",        "килограмм",  "килограмма", "килограммов", "км",         "километр",
+        "километра", "километров", "см",         "сантиметр",   "сантиметра", "сантиметров",
+        "мм",        "миллиметр",  "миллиметра", "миллиметров", "ГБ",         "МБ",
+        "м",         "метр",       "метра",      "метров",      "GB",         "MB"};
+    const auto has_combining_suffix = [unit](const std::size_t byte_offset) {
+        const Utf8Document document(unit);
+        if (!document.valid)
+            return false;
+        const auto point = codepoint_index_at_or_after(document, byte_offset);
+        return point < document.points.size() && document.points[point].offset == byte_offset &&
+               text::is_combining_mark(document.points[point].value);
+    };
     for (const auto surface : surfaces) {
         if (unit == surface) {
             valid_surface = true;
@@ -33,7 +41,7 @@ void classify_surface(std::string_view unit, bool& known_stem, bool& valid_surfa
             // Cyrillic continuation belongs to an ordinary Russian word such
             // as `рубежей`, not to the unit/currency catalog.
             const auto continuation = static_cast<unsigned char>(unit[surface.size()]);
-            known_stem = known_stem || continuation < 0x80;
+            known_stem = known_stem || continuation < 0x80 || has_combining_suffix(surface.size());
         }
     }
 }

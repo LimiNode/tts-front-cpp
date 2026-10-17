@@ -1958,6 +1958,19 @@ int main() {
             CHECK(result.warnings.front().length == input.size());
         }
     }
+    const std::vector<std::pair<const TextFrontendOptions*, std::pair<std::string, std::string>>>
+        decomposed_word_controls = {{&en, {"2 cafe\xCC\x81", "two cafe\xCC\x81"}},
+                                    {&en, {"2 foo\xCC\x81", "two foo\xCC\x81"}},
+                                    {&ru, {"2 месяца\xCC\x81", "два месяца\xCC\x81"}},
+                                    {&auto_options, {"2 cafe\xCC\x81", "two cafe\xCC\x81"}},
+                                    {&segmented, {"2 cafe\xCC\x81", "two cafe\xCC\x81"}}};
+    for (const auto& [options, test] : decomposed_word_controls) {
+        const auto result = frontend.process(test.first, *options);
+        CHECK(result.original_text == test.first);
+        CHECK(result.normalized_text == test.second);
+        CHECK(result.pronunciation_text == test.second);
+        CHECK(result.warnings.empty());
+    }
     std::cout << "tts_front tests passed\n";
     return EXIT_SUCCESS;
 }

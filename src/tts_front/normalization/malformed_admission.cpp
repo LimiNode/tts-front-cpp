@@ -324,7 +324,9 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 break;
             }
         }
-        if (candidate_surface.has_combining) {
+        if (surface.malformed_combining ||
+            (candidate_surface.has_combining && end_index < points.size() &&
+             text::is_combining_mark(points[end_index].value))) {
             malformed_compound = true;
             auto combining_end = end_index;
             while (combining_end < points.size() &&
@@ -500,7 +502,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                    (points[suffix_begin].value == ' ' || points[suffix_begin].value == '\t'))
                 ++suffix_begin;
             auto word_end = suffix_begin;
-            while (word_end < points.size() && text::is_letter(points[word_end].value))
+            while (word_end < points.size() && (text::is_letter(points[word_end].value) ||
+                                                text::is_combining_mark(points[word_end].value)))
                 ++word_end;
             if (word_end != suffix_begin) {
                 auto suffix_end = word_end;
