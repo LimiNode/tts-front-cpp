@@ -324,6 +324,21 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 break;
             }
         }
+        // Signed numeric candidates are already fail-closed when their
+        // lexical continuation contains a combining mark. Extend the same
+        // atomic span across a spaced suffix so a mixed path cannot leave
+        // the mark outside the diagnostic (for example `+2.5 м́`).
+        if ((positive_numeric || signed_number) && end_index < points.size()) {
+            const auto suffix = scan_lexical_suffix(document, end_index);
+            const auto has_combining = std::any_of(
+                points.begin() + static_cast<std::ptrdiff_t>(suffix.continuation_begin),
+                points.begin() + static_cast<std::ptrdiff_t>(suffix.end),
+                [](const auto& point) { return text::is_combining_mark(point.value); });
+            if (has_combining) {
+                malformed_compound = true;
+                end_index = suffix.end;
+            }
+        }
         if (surface.malformed_combining ||
             (candidate_surface.has_combining && end_index < points.size() &&
              text::is_combining_mark(points[end_index].value))) {

@@ -109,6 +109,44 @@ std::vector<MixedCandidateMatch> scan_candidate_matches(std::string_view text) {
     return matches;
 }
 
+struct ShortUnitCombiningRange {
+    std::size_t begin = 0;
+    std::size_t end = 0;
+};
+
+constexpr std::uint32_t kShortMeterCodePoint = 0x043c;
+
+std::optional<ShortUnitCombiningRange> scan_short_unit_combining(
+    const Utf8Document& document, const std::size_t begin) {
+    const auto surface = scan_candidate_surface(document, begin, CandidateSurfaceKind::Contextual);
+    if (!surface.valid())
+        return std::nullopt;
+
+    // Start from the complete numeric continuation boundary. In particular,
+    // this consumes dot/comma decimals before looking for the lexical suffix,
+    // so a mixed-language match can never begin at the fractional digit.
+    // Keep the lexical suffix itself for the short-unit check below.
+    const auto numeric_end =
+        scan_candidate_continuation(document, surface.numeric.end, CandidateSurfaceKind::Contextual);
+    const auto suffix = scan_lexical_suffix(document, numeric_end);
+    if (suffix.end <= suffix.continuation_begin ||
+        document.points[suffix.continuation_begin].value != kShortMeterCodePoint ||
+        suffix.continuation_begin + 1 >= suffix.end ||
+        !text::is_combining_mark(document.points[suffix.continuation_begin + 1].value))
+        return std::nullopt;
+
+    auto after_mark = suffix.continuation_begin + 1;
+    while (after_mark < suffix.end && text::is_combining_mark(document.points[after_mark].value))
+        ++after_mark;
+    if (after_mark != suffix.end && text::is_cyrillic(document.points[after_mark].value))
+        return std::nullopt;
+
+    const auto range_begin = document.points[begin].offset;
+    const auto range_end = document.points[suffix.end - 1].offset +
+                           document.points[suffix.end - 1].length;
+    return ShortUnitCombiningRange{range_begin, range_end};
+}
+
 std::vector<MixedCandidateMatch> scan_malformed_matches(std::string_view text) {
     std::vector<MixedCandidateMatch> matches;
     const Utf8Document document(text);
@@ -123,61 +161,39 @@ std::vector<MixedCandidateMatch> scan_malformed_matches(std::string_view text) {
             if (surface.valid()) {
                 match_end = std::max(
                     match_end, classify_genitive_surface(text, begin, surface.has_combining).end);
-                const auto suffix = scan_lexical_suffix(document, surface.numeric.end);
-                if (suffix.end > suffix.continuation_begin &&
-                    document.points[suffix.continuation_begin].value == 0x043c &&
-                    suffix.continuation_begin + 1 < suffix.end &&
-                    tts_front::detail::text::is_combining_mark(
-                        document.points[suffix.continuation_begin + 1].value)) {
-                    auto after_mark = suffix.continuation_begin + 1;
-                    while (after_mark < suffix.end && tts_front::detail::text::is_combining_mark(
-                                                          document.points[after_mark].value))
-                        ++after_mark;
-                    if (after_mark == suffix.end ||
-                        !tts_front::detail::text::is_cyrillic(document.points[after_mark].value))
-                        match_end = std::max(match_end,
-                                             document.points[suffix.end - 1].offset +
-                                                 document.points[suffix.end - 1].length);
-                }
             }
         }
         matches.push_back({begin, match_end, text.substr(begin, match_end - begin)});
     }
-    // The regex admission above cannot see combining marks. Add the same
-    // Russian short-unit boundary explicitly so SegmentCandidates protects
-    // `2 м́`, `2 м́foo`, and `2 м́.` before the foreign formatter sees `2`.
+    // The regex admission above cannot see combining marks. Scan every full
+    // numeric start once so signs and dot/comma decimals receive the same
+    // short-unit boundary as integer candidates.
     if (document.valid) {
         for (std::size_t point = 0; point < document.points.size(); ++point) {
-            if (!text::is_digit(document.points[point].value) ||
-                (point > 0 && text::is_digit(document.points[point - 1].value)))
+            const auto value = document.points[point].value;
+            const auto signed_start =
+                (value == '+' || value == '-' || value == 0x2212) &&
+                point + 1 < document.points.size() && text::is_digit(document.points[point + 1].value);
+            const auto unsigned_start =
+                text::is_digit(value) && (point == 0 || !text::is_digit(document.points[point - 1].value));
+            if (!signed_start && !unsigned_start)
                 continue;
-            const auto surface =
-                scan_candidate_surface(document, point, CandidateSurfaceKind::Contextual);
-            if (!surface.valid())
+            const auto range = scan_short_unit_combining(document, point);
+            if (!range)
                 continue;
-            const auto suffix = scan_lexical_suffix(document, surface.numeric.end);
-            if (suffix.end <= suffix.continuation_begin ||
-                document.points[suffix.continuation_begin].value != 0x043c ||
-                suffix.continuation_begin + 1 >= suffix.end ||
-                !tts_front::detail::text::is_combining_mark(
-                    document.points[suffix.continuation_begin + 1].value))
-                continue;
-            auto after_mark = suffix.continuation_begin + 1;
-            while (after_mark < suffix.end &&
-                   tts_front::detail::text::is_combining_mark(document.points[after_mark].value))
-                ++after_mark;
-            if (after_mark != suffix.end &&
-                tts_front::detail::text::is_cyrillic(document.points[after_mark].value))
-                continue;
-            const auto begin = document.points[point].offset;
-            const auto end =
-                document.points[suffix.end - 1].offset + document.points[suffix.end - 1].length;
-            const auto present =
-                std::any_of(matches.begin(), matches.end(), [&](const auto& match) {
-                    return match.begin <= begin && match.end >= end;
-                });
+            const auto present = std::any_of(matches.begin(), matches.end(), [&](auto& match) {
+                const auto overlaps = match.begin < range->end && range->begin < match.end;
+                if (overlaps) {
+                    match.begin = std::min(match.begin, range->begin);
+                    match.end = std::max(match.end, range->end);
+                    match.value = text.substr(match.begin, match.end - match.begin);
+                    return true;
+                }
+                return false;
+            });
             if (!present)
-                matches.push_back({begin, end, text.substr(begin, end - begin)});
+                matches.push_back({range->begin, range->end,
+                                   text.substr(range->begin, range->end - range->begin)});
         }
     }
     return matches;

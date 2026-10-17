@@ -1514,6 +1514,23 @@ int main() {
                 CHECK(result.warnings.empty());
             }
         }
+        const std::vector<std::string> decimal_separators = {".", ","};
+        const std::vector<std::string> numeric_signs = {"", "+", "-", "\xE2\x88\x92"};
+        for (const auto* options : {&ru, &auto_options, &segmented}) {
+            for (const auto& sign : numeric_signs) {
+                for (const auto& separator : decimal_separators) {
+                    const auto input = sign + "2" + separator + "5 м\xCC\x81";
+                    const auto result = frontend.process(input, *options);
+                    CHECK(result.original_text == input);
+                    CHECK(result.normalized_text == input);
+                    CHECK(result.pronunciation_text == input);
+                    CHECK(result.warnings.size() == 1);
+                    CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+                    CHECK(result.warnings.front().offset == 0);
+                    CHECK(result.warnings.front().length == input.size());
+                }
+            }
+        }
         const std::vector<std::pair<std::string, std::string>> english_combining_controls = {
             {"2 с\xCC\x81", "two с\xCC\x81"}, {"2 а\xCC\x81.", "two а\xCC\x81."}};
         for (const auto& [input, expected] : english_combining_controls) {

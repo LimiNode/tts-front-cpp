@@ -21,3 +21,21 @@ For `Auto` and `SegmentCandidates`, an overlapping broad mixed-language
 diagnostic may still be emitted by their explicit policy; the matrix requires
 exactly one `UnresolvedNumber` for each malformed short-unit case and checks its
 complete byte span. English has no Russian short-unit admission rule.
+
+## Decimal/sign mixed-candidate correction
+
+The following cases were compared against PR #20 HEAD `791e0f2`. The old
+segmented path began at the fractional tail or omitted the combining mark;
+the corrected path preserves the complete UTF-8 candidate in RU, Auto and
+SegmentCandidates.
+
+| Input | Base span | Corrected span | Modes |
+| --- | ---: | ---: | --- |
+| `2.5 м́` | `2:6` | `0:8` | RU/Auto/SegmentCandidates |
+| `2,5 м́` | `2:6` | `0:8` | RU/Auto/SegmentCandidates |
+| `+2.5 м́` | `3:6` | `0:9` | RU/Auto/SegmentCandidates |
+| `+2,5 м́` | `3:6` | `0:9` | RU/Auto/SegmentCandidates |
+| `-2.5 м́` | `3:6` | `0:9` | RU/Auto/SegmentCandidates |
+| `-2,5 м́` | `3:6` | `0:9` | RU/Auto/SegmentCandidates |
+| `−2.5 м́` | `5:6` | `0:11` | RU/Auto/SegmentCandidates |
+| `−2,5 м́` | `5:6` | `0:11` | RU/Auto/SegmentCandidates |
