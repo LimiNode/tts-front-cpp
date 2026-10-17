@@ -138,6 +138,25 @@ scan_candidate_surface(const Utf8Document& document, std::size_t begin, Candidat
         document.points.begin() + static_cast<std::ptrdiff_t>(candidate.numeric.end),
         document.points.begin() + static_cast<std::ptrdiff_t>(combining_probe),
         [](const Utf8CodePoint& point) { return text::is_combining_mark(point.value); });
+    // A combining mark immediately after a one-letter Cyrillic lexical stem
+    // is ambiguous: it may be a decomposed short unit (`м́`) or an ordinary
+    // word.  Treat it as malformed only when the continuation after the mark
+    // is not Cyrillic; ordinary words such as `м́ежей` remain normalizable.
+    auto lexical_suffix = candidate.numeric.end;
+    while (lexical_suffix < document.points.size() &&
+           text::is_horizontal_space(document.points[lexical_suffix].value))
+        ++lexical_suffix;
+    if (lexical_suffix + 1 < document.points.size() &&
+        text::is_cyrillic(document.points[lexical_suffix].value) &&
+        text::is_combining_mark(document.points[lexical_suffix + 1].value)) {
+        auto after_mark = lexical_suffix + 1;
+        while (after_mark < document.points.size() &&
+               text::is_combining_mark(document.points[after_mark].value))
+            ++after_mark;
+        candidate.malformed_combining_suffix =
+            after_mark == document.points.size() ||
+            !text::is_cyrillic(document.points[after_mark].value);
+    }
 
     // Scientific and encoded numeric surfaces may continue through a
     // connector and another numeric token.  Compute that continuation once

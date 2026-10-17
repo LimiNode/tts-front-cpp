@@ -45,12 +45,14 @@ void classify_surface(std::string_view unit, bool& known_stem, bool& valid_surfa
         if (unit == surface) {
             valid_surface = true;
             known_stem = true;
-        } else if (surface != "м" && starts_with(surface)) {
+        } else if (starts_with(surface)) {
             // Attached technical tails are ASCII (`kgfoo`, `руб.foo`). A
             // Cyrillic continuation belongs to an ordinary Russian word such
             // as `рубежей`, not to the unit/currency catalog.
             const auto continuation = static_cast<unsigned char>(unit[surface.size()]);
-            known_stem = known_stem || continuation < 0x80 || has_combining_suffix(surface.size());
+            const auto combining_tail = has_combining_suffix(surface.size());
+            if (surface != "м" || combining_tail)
+                known_stem = known_stem || continuation < 0x80 || combining_tail;
         }
     }
 }

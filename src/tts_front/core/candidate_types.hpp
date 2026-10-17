@@ -46,6 +46,7 @@ struct CandidateSurface {
     std::size_t end = 0;
     NumericSurface numeric;
     bool has_combining = false;
+    bool malformed_combining_suffix = false;
 
     bool valid() const {
         return numeric.valid();

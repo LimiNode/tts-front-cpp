@@ -324,7 +324,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 break;
             }
         }
-        if (surface.malformed_combining ||
+        if (surface.malformed_combining || candidate_surface.malformed_combining_suffix ||
             (candidate_surface.has_combining && end_index < points.size() &&
              text::is_combining_mark(points[end_index].value))) {
             malformed_compound = true;

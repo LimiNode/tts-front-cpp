@@ -1477,6 +1477,39 @@ int main() {
                 CHECK(result.warnings.empty());
             }
         }
+        const std::vector<std::pair<std::string, std::size_t>> short_unit_combining = {
+            {"2 м\xCC\x81", std::string("2 м\xCC\x81").size()},
+            {"2 м\xCC\x81"
+             "foo",
+             (std::string("2 м\xCC\x81") + "foo").size()},
+            {"2 м\xCC\x81.", std::string("2 м\xCC\x81").size()}};
+        for (const auto* options : {&ru, &auto_options, &segmented}) {
+            for (const auto& [input, warning_length] : short_unit_combining) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text == input);
+                CHECK(result.pronunciation_text == input);
+                if (input.find("foo") == std::string::npos)
+                    CHECK(result.warnings.size() == 1);
+                const auto unresolved = std::find_if(
+                    result.warnings.begin(), result.warnings.end(), [](const auto& warning) {
+                        return warning.code == WarningCode::UnresolvedNumber;
+                    });
+                CHECK(unresolved != result.warnings.end());
+                CHECK(unresolved->offset == 0);
+                CHECK(unresolved->length == warning_length);
+            }
+        }
+        for (const auto* options : {&ru, &auto_options, &segmented}) {
+            for (const auto& [input, expected] : std::vector<std::pair<std::string, std::string>>{
+                     {"2 месяцев", "два месяцев"}, {"2 м\xCC\x81ежей", "два м\xCC\x81ежей"}}) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text == expected);
+                CHECK(result.pronunciation_text == expected);
+                CHECK(result.warnings.empty());
+            }
+        }
         const std::vector<std::pair<std::string, std::string>> unit_punctuation = {
             {"после 2 кг!", "после 2 кг!"},
             {"после 2,5 кг, 3", "после 2,5 кг, три"},
