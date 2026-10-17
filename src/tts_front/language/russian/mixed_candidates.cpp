@@ -116,8 +116,8 @@ struct ShortUnitCombiningRange {
 
 constexpr std::uint32_t kShortMeterCodePoint = 0x043c;
 
-std::optional<ShortUnitCombiningRange> scan_short_unit_combining(
-    const Utf8Document& document, const std::size_t begin) {
+std::optional<ShortUnitCombiningRange> scan_short_unit_combining(const Utf8Document& document,
+                                                                 const std::size_t begin) {
     const auto surface = scan_candidate_surface(document, begin, CandidateSurfaceKind::Contextual);
     if (!surface.valid())
         return std::nullopt;
@@ -126,8 +126,8 @@ std::optional<ShortUnitCombiningRange> scan_short_unit_combining(
     // this consumes dot/comma decimals before looking for the lexical suffix,
     // so a mixed-language match can never begin at the fractional digit.
     // Keep the lexical suffix itself for the short-unit check below.
-    const auto numeric_end =
-        scan_candidate_continuation(document, surface.numeric.end, CandidateSurfaceKind::Contextual);
+    const auto numeric_end = scan_candidate_continuation(
+        document, surface.numeric.end, CandidateSurfaceKind::Contextual);
     const auto suffix = scan_lexical_suffix(document, numeric_end);
     if (suffix.end <= suffix.continuation_begin ||
         document.points[suffix.continuation_begin].value != kShortMeterCodePoint ||
@@ -142,8 +142,8 @@ std::optional<ShortUnitCombiningRange> scan_short_unit_combining(
         return std::nullopt;
 
     const auto range_begin = document.points[begin].offset;
-    const auto range_end = document.points[suffix.end - 1].offset +
-                           document.points[suffix.end - 1].length;
+    const auto range_end =
+        document.points[suffix.end - 1].offset + document.points[suffix.end - 1].length;
     return ShortUnitCombiningRange{range_begin, range_end};
 }
 
@@ -171,11 +171,12 @@ std::vector<MixedCandidateMatch> scan_malformed_matches(std::string_view text) {
     if (document.valid) {
         for (std::size_t point = 0; point < document.points.size(); ++point) {
             const auto value = document.points[point].value;
-            const auto signed_start =
-                (value == '+' || value == '-' || value == 0x2212) &&
-                point + 1 < document.points.size() && text::is_digit(document.points[point + 1].value);
+            const auto signed_start = (value == '+' || value == '-' || value == 0x2212) &&
+                                      point + 1 < document.points.size() &&
+                                      text::is_digit(document.points[point + 1].value);
             const auto unsigned_start =
-                text::is_digit(value) && (point == 0 || !text::is_digit(document.points[point - 1].value));
+                text::is_digit(value) &&
+                (point == 0 || !text::is_digit(document.points[point - 1].value));
             if (!signed_start && !unsigned_start)
                 continue;
             const auto range = scan_short_unit_combining(document, point);
@@ -192,7 +193,8 @@ std::vector<MixedCandidateMatch> scan_malformed_matches(std::string_view text) {
                 return false;
             });
             if (!present)
-                matches.push_back({range->begin, range->end,
+                matches.push_back({range->begin,
+                                   range->end,
                                    text.substr(range->begin, range->end - range->begin)});
         }
     }

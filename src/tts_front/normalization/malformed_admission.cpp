@@ -330,10 +330,10 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         // the mark outside the diagnostic (for example `+2.5 м́`).
         if ((positive_numeric || signed_number) && end_index < points.size()) {
             const auto suffix = scan_lexical_suffix(document, end_index);
-            const auto has_combining = std::any_of(
-                points.begin() + static_cast<std::ptrdiff_t>(suffix.continuation_begin),
-                points.begin() + static_cast<std::ptrdiff_t>(suffix.end),
-                [](const auto& point) { return text::is_combining_mark(point.value); });
+            const auto has_combining =
+                std::any_of(points.begin() + static_cast<std::ptrdiff_t>(suffix.continuation_begin),
+                            points.begin() + static_cast<std::ptrdiff_t>(suffix.end),
+                            [](const auto& point) { return text::is_combining_mark(point.value); });
             if (has_combining) {
                 malformed_compound = true;
                 end_index = suffix.end;
