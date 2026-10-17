@@ -28,9 +28,18 @@ void classify_surface(std::string_view unit, bool& known_stem, bool& valid_surfa
         const Utf8Document document(unit);
         if (!document.valid)
             return false;
-        const auto point = codepoint_index_at_or_after(document, byte_offset);
-        return point < document.points.size() && document.points[point].offset == byte_offset &&
-               text::is_combining_mark(document.points[point].value);
+        auto point = codepoint_index_at_or_after(document, byte_offset);
+        if (point >= document.points.size() || document.points[point].offset != byte_offset ||
+            !text::is_combining_mark(document.points[point].value))
+            return false;
+        // A mark after a known unit stem is malformed only when it terminates
+        // the surface or continues into a non-Cyrillic tail.  In a decomposed
+        // ordinary word (`руб́ежей`, `метр́ов`) the next Cyrillic letter proves
+        // that the prefix is lexical rather than a unit/currency surface.
+        while (point < document.points.size() &&
+               text::is_combining_mark(document.points[point].value))
+            ++point;
+        return point == document.points.size() || !text::is_cyrillic(document.points[point].value);
     };
     for (const auto surface : surfaces) {
         if (unit == surface) {

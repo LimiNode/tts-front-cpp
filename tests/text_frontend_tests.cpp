@@ -1463,6 +1463,20 @@ int main() {
             CHECK(result.pronunciation_text == result.normalized_text);
             CHECK(result.warnings.empty());
         }
+        const std::vector<std::pair<std::string, std::string>> decomposed_lexical_controls = {
+            {"после 2 руб\xCC\x81ежей", "после двух руб\xCC\x81ежей"},
+            {"после 2 руб\xCC\x81инов", "после двух руб\xCC\x81инов"},
+            {"после 2 метр\xCC\x81ов", "после двух метр\xCC\x81ов"},
+            {"после 2 метр\xCC\x81ополитенов", "после двух метр\xCC\x81ополитенов"}};
+        for (const auto* options : {&ru, &auto_options, &segmented}) {
+            for (const auto& [input, expected] : decomposed_lexical_controls) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text == expected);
+                CHECK(result.pronunciation_text == expected);
+                CHECK(result.warnings.empty());
+            }
+        }
         const std::vector<std::pair<std::string, std::string>> unit_punctuation = {
             {"после 2 кг!", "после 2 кг!"},
             {"после 2,5 кг, 3", "после 2,5 кг, три"},
