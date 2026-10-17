@@ -39,6 +39,14 @@ describes the non-negotiable project contract and the development workflow.
   changes, architecture refactors, formatting-only changes, and release work.
 - Every new behavior needs a focused regression test and an adversarial neighbor
   test. A green corpus snapshot alone is not evidence of correctness.
+- Any admission or candidate-boundary change must include a boundary matrix for
+  each affected mode: a known suffix followed by a combining mark, a combining
+  mark followed by an ordinary lexical word, an ASCII continuation, a Cyrillic
+  continuation, punctuation, and end-of-string. Compare every matrix row with
+  the base commit and record exact text, diagnostics, and byte spans for both
+  the changed case and its unchanged neighbors; cover RU, Auto, and
+  SegmentCandidates, plus EN whenever the shared scanner or admission path is
+  affected.
 - Do not change an expected output merely to make an audit pass. Any oracle
   change must show the old result, the new contract, the reason, and a regression
   test; release archives are immutable after publication.
