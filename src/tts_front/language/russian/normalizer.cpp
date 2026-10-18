@@ -153,6 +153,7 @@ number_or_original(const std::string& token, WarningSink& warnings, SourceRange 
 MappedText normalize(MappedText text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
     text = protect_unsupported_genitive_candidates(std::move(text), warnings);
+    text = protect_short_unit_combining_candidates(std::move(text), warnings, protected_spans);
     text = technical::protect_numeric_candidates(std::move(text), warnings, protected_spans);
     text = technical::protect(std::move(text), protected_spans);
     text = protect_malformed_numeric_candidates(

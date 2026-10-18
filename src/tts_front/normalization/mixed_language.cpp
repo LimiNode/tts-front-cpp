@@ -177,7 +177,15 @@ void protect_malformed_candidates(const MappedText& input,
                          input.source_range(begin, candidate_end));
             continue;
         }
-        if (candidate_end != finish || !rules.formatter(match.value))
+        const auto combining_inside = [&] {
+            const auto first = codepoint_index_at_or_after(document, begin);
+            const auto last = codepoint_index_at_or_after(document, candidate_end);
+            return std::any_of(
+                document.points.begin() + static_cast<std::ptrdiff_t>(first),
+                document.points.begin() + static_cast<std::ptrdiff_t>(last),
+                [](const auto& point) { return text::is_combining_mark(point.value); });
+        }();
+        if (candidate_end != finish || combining_inside || !rules.formatter(match.value))
             warnings.add(WarningCode::UnresolvedNumber,
                          "Unsupported mixed-language numeric candidate",
                          input.source_range(begin, candidate_end));
@@ -223,8 +231,8 @@ MappedText normalize_mixed_candidates(MappedText text,
                                       const MixedLanguageRules& foreign,
                                       const TechnicalRangeIndex& technical_index) {
     std::vector<SourceEdit> edits;
-    protect_malformed_candidates(text, foreign, technical_index, warnings);
     protect_malformed_candidates(text, dominant, technical_index, warnings);
+    protect_malformed_candidates(text, foreign, technical_index, warnings);
     collect_candidates(text, foreign, technical_index, warnings, edits);
     return apply_source_edits(text, std::move(edits));
 }

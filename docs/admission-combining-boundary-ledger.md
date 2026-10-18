@@ -39,3 +39,19 @@ SegmentCandidates.
 | `-2,5 м́` | `3:6` | `0:9` | RU/Auto/SegmentCandidates |
 | `−2.5 м́` | `5:6` | `0:11` | RU/Auto/SegmentCandidates |
 | `−2,5 м́` | `5:6` | `0:11` | RU/Auto/SegmentCandidates |
+
+## Continuation after a combining short unit
+
+The base `3c4a7c5` stopped the malformed range at `м́`, allowing a numeric
+tail to be normalized separately. The corrective boundary consumes attached
+numeric/connector continuations while keeping terminal punctuation outside.
+
+| Input | Base diagnostics | Corrected diagnostics | Modes |
+| --- | --- | --- | --- |
+| `2 м́%1` | `0:6`; tail rewritten | one `UnresolvedNumber 0:8` | RU/Auto/SegmentCandidates |
+| `2 м́1` | `0:6`, `6:1` | one `UnresolvedNumber 0:7` | RU/Auto/SegmentCandidates |
+| `2 м́/1` | `0:6`, `7:1` | one `UnresolvedNumber 0:8` | RU/Auto/SegmentCandidates |
+| `+2.5 м́%1` | `0:9`; tail rewritten | one `UnresolvedNumber 0:11` | RU/Auto/SegmentCandidates |
+| `+2 %́` | `0:2` | one `UnresolvedNumber 0:6` | RU/Auto/SegmentCandidates |
+| `2 /́3` | partial warning/tail rewrite | one `UnresolvedNumber 0:6` | RU/Auto/SegmentCandidates |
+| `2 #́3` | partial warning/tail rewrite | one `UnresolvedNumber 0:6` | RU/Auto/SegmentCandidates |

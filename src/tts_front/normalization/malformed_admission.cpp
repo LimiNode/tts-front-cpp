@@ -324,6 +324,40 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 break;
             }
         }
+        // Use the shared contextual scanner to catch a combining-mark tail
+        // after a connector or lexical short-unit surface. This keeps
+        // `2 м́1`, `2 м́/1`, and `2 /́3` atomic without affecting ordinary
+        // decomposed words such as `2 café`.
+        const auto contextual_end = scan_candidate_admission_end(
+            document, candidate_surface, CandidateSurfaceKind::Contextual);
+        const auto combining_connector_surface = [&] {
+            const auto first =
+                points.begin() + static_cast<std::ptrdiff_t>(candidate_surface.numeric.end);
+            const auto last = points.begin() + static_cast<std::ptrdiff_t>(candidate_surface.end);
+            const auto has_combining = std::any_of(first, last, [](const auto& point) {
+                return text::is_combining_mark(point.value);
+            });
+            const auto has_connector = std::any_of(first, last, [](const auto& point) {
+                return point.value == '/' || point.value == '#' || point.value == '$' ||
+                       point.value == '%' || point.value == '=' || point.value == '*' ||
+                       text::is_range_connector(point.value);
+            });
+            return has_combining && has_connector;
+        }();
+        if (combining_connector_surface && candidate_surface.end > end_index) {
+            malformed_compound = true;
+            end_index = candidate_surface.end;
+        }
+        if (contextual_end > candidate_surface.end) {
+            const auto has_combining = std::any_of(
+                points.begin() + static_cast<std::ptrdiff_t>(candidate_surface.numeric.end),
+                points.begin() + static_cast<std::ptrdiff_t>(contextual_end),
+                [](const auto& point) { return text::is_combining_mark(point.value); });
+            if (has_combining) {
+                malformed_compound = true;
+                end_index = contextual_end;
+            }
+        }
         // Signed numeric candidates are already fail-closed when their
         // lexical continuation contains a combining mark. Extend the same
         // atomic span across a spaced suffix so a mixed path cannot leave
@@ -337,7 +371,23 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             if (has_combining) {
                 malformed_compound = true;
                 end_index = suffix.end;
+                const auto continuation = scan_candidate_continuation(
+                    document, end_index, CandidateSurfaceKind::Contextual);
+                end_index = std::max(end_index, continuation);
             }
+        }
+        const auto numeric_continuation = scan_candidate_continuation(
+            document, candidate_surface.numeric.end, CandidateSurfaceKind::Numeric);
+        const auto numeric_has_combining =
+            std::any_of(points.begin() + static_cast<std::ptrdiff_t>(candidate_surface.numeric.end),
+                        points.begin() + static_cast<std::ptrdiff_t>(numeric_continuation),
+                        [](const auto& point) { return text::is_combining_mark(point.value); });
+        if (numeric_has_combining) {
+            malformed_compound = true;
+            end_index = std::max(end_index, numeric_continuation);
+            const auto suffix = scan_lexical_suffix(document, end_index);
+            if (suffix.end > suffix.continuation_begin)
+                end_index = suffix.end;
         }
         if (surface.malformed_combining ||
             (candidate_surface.has_combining && end_index < points.size() &&
@@ -535,6 +585,15 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             if (known_stem && (!valid_surface || suffix_end != word_end)) {
                 malformed_compound = true;
                 end_index = suffix_end;
+                // Once a language-owned suffix is rejected, consume any
+                // attached or spaced continuation through the shared scanner
+                // before the next normalizer can see a trailing number.
+                end_index = std::max(end_index,
+                                     scan_candidate_continuation(
+                                         document, end_index, CandidateSurfaceKind::Contextual));
+                end_index = std::max(end_index,
+                                     scan_spaced_numeric_continuation(
+                                         document, end_index, CandidateSurfaceKind::Contextual));
             }
             // An abbreviation ellipsis is terminal only when it is
             // followed by ordinary punctuation or the end of input.

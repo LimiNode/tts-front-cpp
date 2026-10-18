@@ -1,5 +1,7 @@
 #include "tts_front/language/russian/admission.hpp"
 
+#include "tts_front/core/edit_script.hpp"
+#include "tts_front/core/numeric_scanner.hpp"
 #include "tts_front/core/text/codepoint_classification.hpp"
 #include "tts_front/core/utf8_document.hpp"
 #include "tts_front/language/russian/patterns.hpp"
@@ -9,6 +11,7 @@
 #include <regex>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace tts_front::detail::russian {
@@ -62,6 +65,83 @@ void classify_surface(std::string_view unit,
 }
 
 } // namespace
+
+std::optional<SourceRange> scan_short_unit_combining(const Utf8Document& document,
+                                                     const std::size_t begin) {
+    // Keep the short-unit spelling language-owned without coupling this
+    // boundary helper to a numeric code point literal.
+    constexpr std::string_view short_meter = "\xD0\xBC";
+    const auto surface = scan_candidate_surface(document, begin, CandidateSurfaceKind::Contextual);
+    if (!surface.valid())
+        return std::nullopt;
+
+    const auto numeric_end = scan_candidate_continuation(
+        document, surface.numeric.end, CandidateSurfaceKind::Contextual);
+    const auto suffix = scan_lexical_suffix(document, numeric_end);
+    if (suffix.end <= suffix.continuation_begin ||
+        document.bytes.substr(document.points[suffix.continuation_begin].offset,
+                              document.points[suffix.continuation_begin].length) != short_meter ||
+        suffix.continuation_begin + 1 >= suffix.end ||
+        !text::is_combining_mark(document.points[suffix.continuation_begin + 1].value))
+        return std::nullopt;
+
+    auto after_mark = suffix.continuation_begin + 1;
+    while (after_mark < suffix.end && text::is_combining_mark(document.points[after_mark].value))
+        ++after_mark;
+    if (after_mark != suffix.end && text::is_cyrillic(document.points[after_mark].value))
+        return std::nullopt;
+
+    auto full_end = suffix.end;
+    for (;;) {
+        const auto attached =
+            scan_candidate_continuation(document, full_end, CandidateSurfaceKind::Contextual);
+        const auto spaced =
+            scan_spaced_numeric_continuation(document, full_end, CandidateSurfaceKind::Contextual);
+        const auto next = std::max(attached, spaced);
+        if (next <= full_end)
+            break;
+        full_end = next;
+    }
+    const auto range_begin = document.points[begin].offset;
+    const auto range_end =
+        document.points[full_end - 1].offset + document.points[full_end - 1].length;
+    return SourceRange{range_begin, range_end - range_begin};
+}
+
+MappedText protect_short_unit_combining_candidates(MappedText text,
+                                                   WarningSink& warnings,
+                                                   std::vector<ProtectedSpan>& protected_spans) {
+    const Utf8Document document(text.text);
+    if (!document.valid)
+        return text;
+
+    std::vector<SourceEdit> edits;
+    for (std::size_t point = 0; point < document.points.size(); ++point) {
+        const auto value = document.points[point].value;
+        const auto signed_start = (value == '+' || value == '-' || value == 0x2212) &&
+                                  point + 1 < document.points.size() &&
+                                  text::is_digit(document.points[point + 1].value);
+        const auto unsigned_start =
+            text::is_digit(value) &&
+            (point == 0 || !text::is_digit(document.points[point - 1].value));
+        if (!signed_start && !unsigned_start)
+            continue;
+
+        const auto range = scan_short_unit_combining(document, point);
+        if (!range || overlaps_preserved_range(text, range->offset, range->offset + range->length))
+            continue;
+
+        const auto span = document.span_from_bytes(range->offset, range->offset + range->length);
+        add_protected_candidate(
+            text,
+            NumericCandidate{span, NumericCandidateKind::Grouped, true, false, false},
+            warnings,
+            protected_spans,
+            edits);
+        point = codepoint_index_at_or_after(document, range->offset + range->length);
+    }
+    return apply_source_edits(text, std::move(edits));
+}
 
 GenitiveSurfaceAdmission classify_genitive_surface(const std::string_view text,
                                                    const std::size_t begin,

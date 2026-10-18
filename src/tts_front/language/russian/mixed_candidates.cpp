@@ -109,44 +109,6 @@ std::vector<MixedCandidateMatch> scan_candidate_matches(std::string_view text) {
     return matches;
 }
 
-struct ShortUnitCombiningRange {
-    std::size_t begin = 0;
-    std::size_t end = 0;
-};
-
-constexpr std::uint32_t kShortMeterCodePoint = 0x043c;
-
-std::optional<ShortUnitCombiningRange> scan_short_unit_combining(const Utf8Document& document,
-                                                                 const std::size_t begin) {
-    const auto surface = scan_candidate_surface(document, begin, CandidateSurfaceKind::Contextual);
-    if (!surface.valid())
-        return std::nullopt;
-
-    // Start from the complete numeric continuation boundary. In particular,
-    // this consumes dot/comma decimals before looking for the lexical suffix,
-    // so a mixed-language match can never begin at the fractional digit.
-    // Keep the lexical suffix itself for the short-unit check below.
-    const auto numeric_end = scan_candidate_continuation(
-        document, surface.numeric.end, CandidateSurfaceKind::Contextual);
-    const auto suffix = scan_lexical_suffix(document, numeric_end);
-    if (suffix.end <= suffix.continuation_begin ||
-        document.points[suffix.continuation_begin].value != kShortMeterCodePoint ||
-        suffix.continuation_begin + 1 >= suffix.end ||
-        !text::is_combining_mark(document.points[suffix.continuation_begin + 1].value))
-        return std::nullopt;
-
-    auto after_mark = suffix.continuation_begin + 1;
-    while (after_mark < suffix.end && text::is_combining_mark(document.points[after_mark].value))
-        ++after_mark;
-    if (after_mark != suffix.end && text::is_cyrillic(document.points[after_mark].value))
-        return std::nullopt;
-
-    const auto range_begin = document.points[begin].offset;
-    const auto range_end =
-        document.points[suffix.end - 1].offset + document.points[suffix.end - 1].length;
-    return ShortUnitCombiningRange{range_begin, range_end};
-}
-
 std::vector<MixedCandidateMatch> scan_malformed_matches(std::string_view text) {
     std::vector<MixedCandidateMatch> matches;
     const Utf8Document document(text);
@@ -182,23 +144,42 @@ std::vector<MixedCandidateMatch> scan_malformed_matches(std::string_view text) {
             const auto range = scan_short_unit_combining(document, point);
             if (!range)
                 continue;
+            const auto range_end = range->offset + range->length;
             const auto present = std::any_of(matches.begin(), matches.end(), [&](auto& match) {
-                const auto overlaps = match.begin < range->end && range->begin < match.end;
+                const auto overlaps = match.begin < range_end && range->offset < match.end;
                 if (overlaps) {
-                    match.begin = std::min(match.begin, range->begin);
-                    match.end = std::max(match.end, range->end);
+                    match.begin = std::min(match.begin, range->offset);
+                    match.end = std::max(match.end, range_end);
                     match.value = text.substr(match.begin, match.end - match.begin);
                     return true;
                 }
                 return false;
             });
             if (!present)
-                matches.push_back({range->begin,
-                                   range->end,
-                                   text.substr(range->begin, range->end - range->begin)});
+                matches.push_back(
+                    {range->offset, range_end, text.substr(range->offset, range->length)});
         }
     }
-    return matches;
+    // Regex and typed scans may discover the same malformed surface from
+    // different anchors (for example the currency tail and the full
+    // combining-unit candidate).  Canonicalize overlaps before admission so
+    // only the widest atomic span reaches the mixed pipeline.
+    std::sort(matches.begin(), matches.end(), [](const auto& left, const auto& right) {
+        if (left.begin != right.begin)
+            return left.begin < right.begin;
+        return left.end > right.end;
+    });
+    std::vector<MixedCandidateMatch> merged;
+    for (const auto& match : matches) {
+        if (!merged.empty() && match.begin < merged.back().end) {
+            merged.back().end = std::max(merged.back().end, match.end);
+            merged.back().value =
+                text.substr(merged.back().begin, merged.back().end - merged.back().begin);
+        } else {
+            merged.push_back(match);
+        }
+    }
+    return merged;
 }
 
 } // namespace

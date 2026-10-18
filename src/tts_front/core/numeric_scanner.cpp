@@ -250,6 +250,19 @@ std::size_t scan_spaced_numeric_continuation(const Utf8Document& document,
         return begin;
     if (numeric_begin >= points.size())
         return begin;
+    // A combining mark immediately after a connector is part of the same
+    // unsupported compound. If a numeric token follows it, consume that token
+    // atomically; otherwise retain the connector and mark as the boundary.
+    auto combining_end = numeric_begin;
+    while (combining_end < points.size() && text::is_combining_mark(points[combining_end].value))
+        ++combining_end;
+    if (combining_end > numeric_begin) {
+        if (combining_end < points.size() && text::is_digit(points[combining_end].value)) {
+            const auto tail = scan_numeric_surface(document, combining_end);
+            return tail.valid() ? tail.continuation_end : combining_end;
+        }
+        return combining_end;
+    }
     const auto numeric = scan_numeric_surface(document, numeric_begin);
     return numeric.valid() ? numeric.continuation_end : begin;
 }

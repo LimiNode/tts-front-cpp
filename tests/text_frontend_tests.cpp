@@ -1531,6 +1531,57 @@ int main() {
                 }
             }
         }
+        std::vector<std::string> combining_short_unit_tails = {"2 м\xCC\x81%1",
+                                                               "2 м\xCC\x81"
+                                                               "1",
+                                                               "2 м\xCC\x81/1",
+                                                               "+2.5 м\xCC\x81%1"};
+        const std::vector<std::string> combining_short_unit_continuations = {
+            "%1", "/1", "#1", "$1", "foo"};
+        for (const auto& sign : numeric_signs) {
+            for (const auto& separator : decimal_separators) {
+                for (const auto& continuation : combining_short_unit_continuations) {
+                    combining_short_unit_tails.push_back(sign + "2" + separator + "5 м\xCC\x81" +
+                                                         continuation);
+                }
+            }
+        }
+        const std::vector<std::string> combining_connector_tails = {"+2 %\xCC\x81",
+                                                                    "2 /\xCC\x81"
+                                                                    "3",
+                                                                    "2 #\xCC\x81"
+                                                                    "3",
+                                                                    "2 $\xCC\x81"
+                                                                    "3"};
+        for (const auto* options : {&ru, &auto_options, &segmented}) {
+            for (const auto& input : combining_short_unit_tails) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text == input);
+                CHECK(result.pronunciation_text == input);
+                CHECK(std::count_if(
+                          result.warnings.begin(), result.warnings.end(), [](const auto& warning) {
+                              return warning.code == WarningCode::UnresolvedNumber;
+                          }) == 1);
+                const auto unresolved = std::find_if(
+                    result.warnings.begin(), result.warnings.end(), [](const auto& warning) {
+                        return warning.code == WarningCode::UnresolvedNumber;
+                    });
+                CHECK(unresolved != result.warnings.end());
+                CHECK(unresolved->offset == 0);
+                CHECK(unresolved->length == input.size());
+            }
+            for (const auto& input : combining_connector_tails) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text == input);
+                CHECK(result.pronunciation_text == input);
+                CHECK(result.warnings.size() == 1);
+                CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+                CHECK(result.warnings.front().offset == 0);
+                CHECK(result.warnings.front().length == input.size());
+            }
+        }
         const std::vector<std::pair<std::string, std::string>> english_combining_controls = {
             {"2 с\xCC\x81", "two с\xCC\x81"}, {"2 а\xCC\x81.", "two а\xCC\x81."}};
         for (const auto& [input, expected] : english_combining_controls) {
