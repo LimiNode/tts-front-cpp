@@ -141,7 +141,7 @@ std::vector<MixedCandidateMatch> scan_malformed_matches(std::string_view text) {
                 (point == 0 || !text::is_digit(document.points[point - 1].value));
             if (!signed_start && !unsigned_start)
                 continue;
-            const auto range = scan_short_unit_combining(document, point);
+            const auto range = scan_combining_suffix(document, point);
             if (!range)
                 continue;
             const auto range_end = range->offset + range->length;

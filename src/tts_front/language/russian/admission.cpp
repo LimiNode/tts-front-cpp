@@ -66,11 +66,8 @@ void classify_surface(std::string_view unit,
 
 } // namespace
 
-std::optional<SourceRange> scan_short_unit_combining(const Utf8Document& document,
-                                                     const std::size_t begin) {
-    // Keep the short-unit spelling language-owned without coupling this
-    // boundary helper to a numeric code point literal.
-    constexpr std::string_view short_meter = "\xD0\xBC";
+std::optional<SourceRange> scan_combining_suffix(const Utf8Document& document,
+                                                 const std::size_t begin) {
     const auto surface = scan_candidate_surface(document, begin, CandidateSurfaceKind::Contextual);
     if (!surface.valid())
         return std::nullopt;
@@ -78,20 +75,55 @@ std::optional<SourceRange> scan_short_unit_combining(const Utf8Document& documen
     const auto numeric_end = scan_candidate_continuation(
         document, surface.numeric.end, CandidateSurfaceKind::Contextual);
     const auto suffix = scan_lexical_suffix(document, numeric_end);
-    if (suffix.end <= suffix.continuation_begin ||
-        document.bytes.substr(document.points[suffix.continuation_begin].offset,
-                              document.points[suffix.continuation_begin].length) != short_meter ||
-        suffix.continuation_begin + 1 >= suffix.end ||
-        !text::is_combining_mark(document.points[suffix.continuation_begin + 1].value))
+    const auto numeric_combining =
+        std::any_of(document.points.begin() + static_cast<std::ptrdiff_t>(surface.numeric.end),
+                    document.points.begin() + static_cast<std::ptrdiff_t>(numeric_end),
+                    [](const auto& point) { return text::is_combining_mark(point.value); });
+    const auto suffix_combining = std::find_if(
+        document.points.begin() + static_cast<std::ptrdiff_t>(suffix.continuation_begin),
+        document.points.begin() + static_cast<std::ptrdiff_t>(suffix.end),
+        [](const auto& point) { return text::is_combining_mark(point.value); });
+    if (!numeric_combining &&
+        (suffix.end <= suffix.continuation_begin ||
+         suffix_combining == document.points.begin() + static_cast<std::ptrdiff_t>(suffix.end)))
         return std::nullopt;
 
-    auto after_mark = suffix.continuation_begin + 1;
-    while (after_mark < suffix.end && text::is_combining_mark(document.points[after_mark].value))
-        ++after_mark;
-    if (after_mark != suffix.end && text::is_cyrillic(document.points[after_mark].value))
+    auto after_mark =
+        suffix_combining == document.points.begin() + static_cast<std::ptrdiff_t>(suffix.end)
+            ? suffix.continuation_begin
+            : static_cast<std::size_t>(suffix_combining - document.points.begin());
+    if (!numeric_combining) {
+        while (after_mark < suffix.end &&
+               text::is_combining_mark(document.points[after_mark].value))
+            ++after_mark;
+        if (after_mark != suffix.end && text::is_cyrillic(document.points[after_mark].value))
+            return std::nullopt;
+    }
+
+    auto suffix_end =
+        numeric_combining && suffix.end <= suffix.continuation_begin ? numeric_end : suffix.end;
+    bool known_stem = numeric_combining && suffix.end <= suffix.continuation_begin;
+    bool valid_surface = false;
+    std::string_view unit;
+    if (!known_stem) {
+        const auto unit_end =
+            document.points[suffix.end - 1].offset + document.points[suffix.end - 1].length;
+        unit = document.bytes.substr(document.points[suffix.continuation_begin].offset,
+                                     unit_end - document.points[suffix.continuation_begin].offset);
+        classify_surface(unit, document, suffix.continuation_begin, known_stem, valid_surface);
+    }
+    if (!known_stem || (valid_surface && !numeric_combining))
         return std::nullopt;
 
-    auto full_end = suffix.end;
+    if (unit.size() >= std::string_view("руб").size() &&
+        unit.compare(0, std::string_view("руб").size(), "руб") == 0 &&
+        suffix_end < document.points.size() && document.points[suffix_end].value == '.')
+        ++suffix_end;
+
+    auto admitted = surface;
+    admitted.end = suffix_end;
+    auto full_end =
+        scan_candidate_admission_end(document, admitted, CandidateSurfaceKind::Contextual);
     for (;;) {
         const auto attached =
             scan_candidate_continuation(document, full_end, CandidateSurfaceKind::Contextual);
@@ -108,9 +140,9 @@ std::optional<SourceRange> scan_short_unit_combining(const Utf8Document& documen
     return SourceRange{range_begin, range_end - range_begin};
 }
 
-MappedText protect_short_unit_combining_candidates(MappedText text,
-                                                   WarningSink& warnings,
-                                                   std::vector<ProtectedSpan>& protected_spans) {
+MappedText protect_combining_suffix_candidates(MappedText text,
+                                               WarningSink& warnings,
+                                               std::vector<ProtectedSpan>& protected_spans) {
     const Utf8Document document(text.text);
     if (!document.valid)
         return text;
@@ -127,18 +159,49 @@ MappedText protect_short_unit_combining_candidates(MappedText text,
         if (!signed_start && !unsigned_start)
             continue;
 
-        const auto range = scan_short_unit_combining(document, point);
-        if (!range || overlaps_preserved_range(text, range->offset, range->offset + range->length))
+        const auto range = scan_combining_suffix(document, point);
+        const auto candidate =
+            scan_candidate_surface(document, point, CandidateSurfaceKind::Contextual);
+        const auto numeric_end = candidate.valid()
+                                     ? scan_candidate_continuation(document,
+                                                                   candidate.numeric.end,
+                                                                   CandidateSurfaceKind::Contextual)
+                                     : point;
+        auto admission_candidate = candidate;
+        admission_candidate.end = std::max(admission_candidate.end, numeric_end);
+        const auto admission_end =
+            admission_candidate.valid()
+                ? scan_candidate_admission_end(
+                      document, admission_candidate, CandidateSurfaceKind::Contextual)
+                : point;
+        const auto numeric_combining =
+            candidate.valid() &&
+            std::any_of(document.points.begin() +
+                            static_cast<std::ptrdiff_t>(candidate.numeric.end),
+                        document.points.begin() + static_cast<std::ptrdiff_t>(numeric_end),
+                        [](const auto& value) { return text::is_combining_mark(value.value); });
+        if (!range && (!numeric_combining || admission_end <= candidate.end))
             continue;
 
-        const auto span = document.span_from_bytes(range->offset, range->offset + range->length);
+        const auto candidate_range =
+            range ? *range
+                  : SourceRange{document.points[point].offset,
+                                document.span_from_codepoints(point, admission_end).byte_end -
+                                    document.points[point].offset};
+        if (overlaps_preserved_range(
+                text, candidate_range.offset, candidate_range.offset + candidate_range.length))
+            continue;
+
+        const auto span = document.span_from_bytes(candidate_range.offset,
+                                                   candidate_range.offset + candidate_range.length);
         add_protected_candidate(
             text,
             NumericCandidate{span, NumericCandidateKind::Grouped, true, false, false},
             warnings,
             protected_spans,
             edits);
-        point = codepoint_index_at_or_after(document, range->offset + range->length);
+        point =
+            codepoint_index_at_or_after(document, candidate_range.offset + candidate_range.length);
     }
     return apply_source_edits(text, std::move(edits));
 }

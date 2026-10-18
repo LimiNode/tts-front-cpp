@@ -1,6 +1,7 @@
 #include "tts_front/normalization/mixed_language.hpp"
 
 #include "tts_front/core/edit_script.hpp"
+#include "tts_front/core/numeric_scanner.hpp"
 #include "tts_front/core/text/codepoint_classification.hpp"
 #include "tts_front/core/utf8.hpp"
 #include "tts_front/core/utf8_document.hpp"
@@ -129,41 +130,21 @@ void protect_malformed_candidates(const MappedText& input,
             technical_overlap && technical_index.ranges[technical_cursor].offset <= begin;
         if (candidate_inside_technical || preserved(input, begin, finish))
             continue;
-        std::size_t index = codepoint_index_at_or_after(document, finish);
-        const auto continuation_start = index;
-        while (index < document.points.size()) {
-            auto connector = index;
-            while (connector < document.points.size() &&
-                   text::is_horizontal_space(document.points[connector].value))
-                ++connector;
-            if (connector >= document.points.size())
+        auto continuation = codepoint_index_at_or_after(document, finish);
+        for (;;) {
+            const auto attached = scan_candidate_continuation(
+                document, continuation, CandidateSurfaceKind::Contextual);
+            const auto spaced = scan_spaced_numeric_continuation(
+                document, continuation, CandidateSurfaceKind::Contextual);
+            const auto next = std::max(attached, spaced);
+            if (next <= continuation)
                 break;
-            const auto value = document.points[connector].value;
-            if (value != '/' && value != '-' && value != '+' && value != '=' && value != '%' &&
-                value != '*' && !text::is_range_connector(value))
-                break;
-            auto number = connector + 1;
-            while (number < document.points.size() &&
-                   text::is_horizontal_space(document.points[number].value))
-                ++number;
-            if (number >= document.points.size() || !text::is_digit(document.points[number].value))
-                break;
-            while (number < document.points.size() && text::is_digit(document.points[number].value))
-                ++number;
-            if (number + 1 < document.points.size() &&
-                (document.points[number].value == '.' || document.points[number].value == ',') &&
-                text::is_digit(document.points[number + 1].value)) {
-                number += 2;
-                while (number < document.points.size() &&
-                       text::is_digit(document.points[number].value))
-                    ++number;
-            }
-            index = number;
+            continuation = next;
         }
-        const auto candidate_end =
-            index == continuation_start
-                ? finish
-                : document.span_from_codepoints(continuation_start, index).byte_end;
+        const auto continuation_begin = codepoint_index_at_or_after(document, finish);
+        const auto continued_end =
+            document.span_from_codepoints(continuation_begin, continuation).byte_end;
+        const auto candidate_end = continued_end > finish ? continued_end : finish;
         const auto point_index = codepoint_index_at_or_after(document, begin);
         const auto previous = point_index == 0 ? 0U : document.points[point_index - 1].value;
         const bool valid_prefix = point_index == 0 || text::is_horizontal_space(previous) ||

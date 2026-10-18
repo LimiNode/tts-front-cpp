@@ -21,6 +21,38 @@ bool is_spaced_connector(const std::uint32_t value, const CandidateSurfaceKind k
             value == '*' || value == '+' || value == '-' || text::is_range_connector(value));
 }
 
+std::size_t scan_punctuated_continuation(const Utf8Document& document,
+                                         const std::size_t begin,
+                                         const CandidateSurfaceKind kind) {
+    const auto& points = document.points;
+    auto punctuation = begin;
+    while (punctuation < points.size() &&
+           (points[punctuation].value == '.' || points[punctuation].value == ',' ||
+            points[punctuation].value == ':'))
+        ++punctuation;
+    if (punctuation == begin || punctuation >= points.size())
+        return begin;
+
+    const auto connector = points[punctuation].value;
+    const auto connector_allowed = connector == '/' || connector == '#' || connector == '$' ||
+                                   connector == '%' || connector == '=' || connector == '*' ||
+                                   connector == '+' || connector == '-' ||
+                                   text::is_range_connector(connector);
+    if (!connector_allowed || kind == CandidateSurfaceKind::Numeric)
+        return begin;
+
+    auto next = punctuation + 1;
+    while (next < points.size() && text::is_horizontal_space(points[next].value))
+        ++next;
+    if (next >= points.size())
+        return begin;
+    const auto numeric = scan_numeric_surface(document, next);
+    if (numeric.valid())
+        return numeric.continuation_end;
+    const auto lexical = scan_candidate_continuation(document, punctuation, kind);
+    return lexical > punctuation ? lexical : begin;
+}
+
 } // namespace
 
 NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t begin) {
@@ -286,7 +318,8 @@ std::size_t scan_candidate_admission_end(const Utf8Document& document,
     for (;;) {
         const auto attached = scan_candidate_continuation(document, end, kind);
         const auto spaced = scan_spaced_numeric_continuation(document, end, kind);
-        auto next = std::max(attached, spaced);
+        const auto punctuated = scan_punctuated_continuation(document, end, kind);
+        auto next = std::max({attached, spaced, punctuated});
         if (end > candidate.begin) {
             const auto previous = document.points[end - 1].value;
             if (is_spaced_connector(previous, kind)) {

@@ -388,6 +388,16 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             const auto suffix = scan_lexical_suffix(document, end_index);
             if (suffix.end > suffix.continuation_begin)
                 end_index = suffix.end;
+            for (;;) {
+                const auto attached = scan_candidate_continuation(
+                    document, end_index, CandidateSurfaceKind::Contextual);
+                const auto spaced = scan_spaced_numeric_continuation(
+                    document, end_index, CandidateSurfaceKind::Contextual);
+                const auto next = std::max(attached, spaced);
+                if (next <= end_index)
+                    break;
+                end_index = next;
+            }
         }
         if (surface.malformed_combining ||
             (candidate_surface.has_combining && end_index < points.size() &&
@@ -407,6 +417,21 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                     text::is_combining_mark(points[suffix_end].value)))
                 ++suffix_end;
             end_index = std::max(end_index, suffix_end);
+        }
+        if (numeric_has_combining || surface.malformed_combining ||
+            candidate_surface.has_combining) {
+            while (end_index < points.size() && text::is_combining_mark(points[end_index].value))
+                ++end_index;
+            for (;;) {
+                const auto attached = scan_candidate_continuation(
+                    document, end_index, CandidateSurfaceKind::Contextual);
+                const auto spaced = scan_spaced_numeric_continuation(
+                    document, end_index, CandidateSurfaceKind::Contextual);
+                const auto next = std::max(attached, spaced);
+                if (next <= end_index)
+                    break;
+                end_index = next;
+            }
         }
         if ((positive_numeric || points[index].value == 0x2212) && end_index < points.size()) {
             if (surface.exponent != ExponentState::None) {

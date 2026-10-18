@@ -49,6 +49,15 @@ MappedText protect(MappedText text, std::vector<ProtectedSpan>& protected_spans)
             const auto match_end_point = codepoint_index_at_or_after(document, finish);
             const auto& value = it->str();
             const bool generic_identifier = pattern == &patterns.technical_identifier;
+            if (generic_identifier) {
+                auto predecessor = match_point;
+                while (predecessor > 0 &&
+                       text::is_horizontal_space(document.points[predecessor - 1].value))
+                    --predecessor;
+                if (predecessor > 0 &&
+                    text::is_combining_mark(document.points[predecessor - 1].value))
+                    continue;
+            }
             // A hash suffix immediately following an unsupported dot-decimal
             // percentage belongs to that numeric candidate, not to a
             // standalone C#-style technical token.  Leave it visible for the

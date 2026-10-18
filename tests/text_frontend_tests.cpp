@@ -1582,6 +1582,33 @@ int main() {
                 CHECK(result.warnings.front().length == input.size());
             }
         }
+        const std::vector<std::string> combining_chain_cases = {"2 м\xCC\x81.%1",
+                                                                "2 кг\xCC\x81.%1",
+                                                                "2 руб\xCC\x81.%1",
+                                                                "2,5\xCC\x81 кг%1",
+                                                                "2,5\xCC\x81 #1",
+                                                                "2 м\xCC\x81.+1",
+                                                                "после 2,5 руб\xCC\x81.%1"};
+        for (const auto* options : {&ru, &auto_options, &segmented}) {
+            for (const auto& input : combining_chain_cases) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text == input);
+                CHECK(result.pronunciation_text == input);
+                CHECK(std::count_if(
+                          result.warnings.begin(), result.warnings.end(), [](const auto& warning) {
+                              return warning.code == WarningCode::UnresolvedNumber;
+                          }) == 1);
+                const auto unresolved = std::find_if(
+                    result.warnings.begin(), result.warnings.end(), [](const auto& warning) {
+                        return warning.code == WarningCode::UnresolvedNumber;
+                    });
+                CHECK(unresolved != result.warnings.end());
+                const auto begin = input.find("2");
+                CHECK(unresolved->offset == begin);
+                CHECK(unresolved->length == input.size() - begin);
+            }
+        }
         const std::vector<std::pair<std::string, std::string>> english_combining_controls = {
             {"2 с\xCC\x81", "two с\xCC\x81"}, {"2 а\xCC\x81.", "two а\xCC\x81."}};
         for (const auto& [input, expected] : english_combining_controls) {
@@ -1591,6 +1618,21 @@ int main() {
             CHECK(result.pronunciation_text == expected);
             CHECK(result.warnings.empty());
         }
+        const auto english_combining_chain = frontend.process("2,5\xCC\x81 #1", en);
+        CHECK(english_combining_chain.normalized_text == english_combining_chain.original_text);
+        CHECK(english_combining_chain.pronunciation_text == english_combining_chain.original_text);
+        CHECK(std::count_if(english_combining_chain.warnings.begin(),
+                            english_combining_chain.warnings.end(),
+                            [](const auto& warning) {
+                                return warning.code == WarningCode::UnresolvedNumber;
+                            }) == 1);
+        const auto english_unresolved = std::find_if(
+            english_combining_chain.warnings.begin(),
+            english_combining_chain.warnings.end(),
+            [](const auto& warning) { return warning.code == WarningCode::UnresolvedNumber; });
+        CHECK(english_unresolved != english_combining_chain.warnings.end());
+        CHECK(english_unresolved->offset == 0);
+        CHECK(english_unresolved->length == english_combining_chain.original_text.size());
         const std::vector<std::pair<std::string, std::string>> unit_punctuation = {
             {"после 2 кг!", "после 2 кг!"},
             {"после 2,5 кг, 3", "после 2,5 кг, три"},

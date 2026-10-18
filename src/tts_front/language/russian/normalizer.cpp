@@ -80,6 +80,10 @@ std::size_t unsupported_genitive_end(const MappedText& source,
     if (!candidate.valid())
         return 0;
 
+    const auto combining = scan_combining_suffix(document, point);
+    if (combining)
+        return combining->offset + combining->length;
+
     const auto special =
         russian::classify_genitive_surface(source.text, begin, candidate.has_combining);
     const auto special_end = special.end;
@@ -152,8 +156,8 @@ number_or_original(const std::string& token, WarningSink& warnings, SourceRange 
 
 MappedText normalize(MappedText text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
+    text = protect_combining_suffix_candidates(std::move(text), warnings, protected_spans);
     text = protect_unsupported_genitive_candidates(std::move(text), warnings);
-    text = protect_short_unit_combining_candidates(std::move(text), warnings, protected_spans);
     text = technical::protect_numeric_candidates(std::move(text), warnings, protected_spans);
     text = technical::protect(std::move(text), protected_spans);
     text = protect_malformed_numeric_candidates(
