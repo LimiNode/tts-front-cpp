@@ -22,6 +22,14 @@ vertical slice to test the idea.
 - Prefer the smallest existing abstraction that expresses the contract.
 - Search for an existing scanner, formatter, source-map helper, or policy before
   adding another one.
+- Treat candidate admission as a shared boundary decision. A language normalizer
+  must not special-case one currency, unit, sign, or punctuation prefix by
+  skipping the common scanner. Extend the scanner's typed continuation policy
+  instead, then make all language and mixed paths consume that result.
+- Before accepting a boundary fix, run a neighbor matrix that varies sign,
+  grouping, attached versus spaced continuation, connector versus independent
+  token, and language mode. Record preserved text, diagnostics, and byte spans;
+  do not infer coverage from a single hand-picked example.
 - Keep the implementation understandable at the level being changed. A helper
   that only reduces line count is not automatically a useful abstraction.
 - For an ambiguous input, choose preservation plus a diagnostic unless the
@@ -35,8 +43,10 @@ vertical slice to test the idea.
 2. Run the adversarial neighbor matrix.
 3. Run the full relevant tests and quality checks.
 4. Review the diff for new dependencies, duplicated policy, and unnecessary
-   code. After several corrective patches, perform a simplification review or
-   compare an independent implementation in a temporary worktree.
+   code. In particular, reject new wrapper-level early exits that duplicate or
+   weaken scanner policy. After several corrective patches, perform a
+   simplification review or compare an independent implementation in a
+   temporary worktree.
 5. Only then create a PR.
 
 Architecture, language policy, public API, and oracle changes need explicit
