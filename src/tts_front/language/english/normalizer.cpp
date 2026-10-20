@@ -55,6 +55,55 @@ bool valid_calendar_date(int month, int day, int year) {
     return day <= limit;
 }
 
+void protect_typed_continuations(MappedText& text,
+                                 WarningSink& warnings,
+                                 std::vector<ProtectedSpan>& protected_spans,
+                                 std::vector<SourceEdit>& edits) {
+    const Utf8Document document(text.text);
+    if (!document.valid)
+        return;
+
+    const auto protect_matches = [&](const std::regex& pattern,
+                                     const CandidateSurfaceKind kind,
+                                     const int core_end_group) {
+        for (std::sregex_iterator it(text.text.begin(), text.text.end(), pattern), end; it != end;
+             ++it) {
+            const auto match_begin = static_cast<std::size_t>(it->position());
+            const auto core_end = core_end_group >= 0
+                                      ? static_cast<std::size_t>(it->position(core_end_group))
+                                      : match_begin + static_cast<std::size_t>(it->length());
+            const auto continuation_begin = codepoint_index_at_or_after(document, core_end);
+            if (kind == CandidateSurfaceKind::Currency &&
+                continuation_begin < document.points.size() &&
+                (document.points[continuation_begin].value == ',' ||
+                 document.points[continuation_begin].value == '.' ||
+                 document.points[continuation_begin].value == ':'))
+                continue;
+            const auto continuation_end =
+                scan_typed_admission_end(document, continuation_begin, kind);
+            if (continuation_end <= continuation_begin)
+                continue;
+            const auto finish = document.span_from_codepoints(0, continuation_end).byte_end;
+            if (overlaps_preserved_range(text, match_begin, finish))
+                continue;
+            add_protected_candidate(text,
+                                    NumericCandidate{SourceSpan{match_begin, finish},
+                                                     NumericCandidateKind::Numeric,
+                                                     true},
+                                    warnings,
+                                    protected_spans,
+                                    edits);
+        }
+    };
+
+    // The regexes intentionally recognize only the supported core.  Any
+    // connector or lexical tail is admitted by the shared scanner before the
+    // formatter gets a chance to rewrite the head.
+    protect_matches(patterns().measurement, CandidateSurfaceKind::Unit, 4);
+    protect_matches(patterns().currency_decimal, CandidateSurfaceKind::Currency, -1);
+    protect_matches(patterns().currency_integer, CandidateSurfaceKind::Currency, -1);
+}
+
 } // namespace
 
 MappedText normalize(MappedText text, WarningSink& warnings) {
@@ -77,8 +126,8 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
             const auto match_begin = static_cast<std::size_t>(it->position());
             const auto match_end = match_begin + static_cast<std::size_t>(it->length());
             const auto continuation_begin = codepoint_index_at_or_after(document, match_end);
-            const auto continuation_end = scan_candidate_continuation(
-                document, continuation_begin, CandidateSurfaceKind::Date);
+            const auto continuation_end =
+                scan_typed_admission_end(document, continuation_begin, CandidateSurfaceKind::Date);
             const bool has_continuation = continuation_end != continuation_begin;
             if (valid && !has_continuation)
                 continue;
@@ -114,6 +163,9 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                 return match[1].str() + " " + ordinal(day) + ", " + year(year_value);
             });
     }
+    std::vector<SourceEdit> typed_edits;
+    protect_typed_continuations(text, warnings, protected_spans, typed_edits);
+    text = apply_source_edits(text, std::move(typed_edits));
     text = technical::protect_numeric_candidates(std::move(text), warnings, protected_spans);
     text = technical::protect(std::move(text), protected_spans);
     text = protect_malformed_numeric_candidates(

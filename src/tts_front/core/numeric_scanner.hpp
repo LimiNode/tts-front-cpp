@@ -32,6 +32,14 @@ std::size_t scan_candidate_admission_end(const Utf8Document& document,
                                          const CandidateSurface& candidate,
                                          CandidateSurfaceKind kind);
 
+// Returns the continuation boundary for a typed surface whose core was
+// recognized by a language-specific matcher (for example a month-name date
+// or a unit/currency regex).  The matcher supplies the first codepoint after
+// the core; the shared scanner owns all attached/spaced continuation rules.
+std::size_t scan_typed_admission_end(const Utf8Document& document,
+                                     std::size_t begin,
+                                     CandidateSurfaceKind kind);
+
 std::size_t scan_numeric_continuation_points(const Utf8Document& document,
                                              std::size_t start,
                                              bool consume_lexical_suffix);

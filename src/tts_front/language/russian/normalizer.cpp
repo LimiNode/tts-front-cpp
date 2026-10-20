@@ -152,10 +152,48 @@ number_or_original(const std::string& token, WarningSink& warnings, SourceRange 
     return number_for_token(token, value);
 }
 
+void protect_typed_continuations(MappedText& text,
+                                 WarningSink& warnings,
+                                 std::vector<ProtectedSpan>& protected_spans,
+                                 std::vector<SourceEdit>& edits) {
+    const Utf8Document document(text.text);
+    if (!document.valid)
+        return;
+
+    const auto protect_matches = [&](const std::regex& pattern, const CandidateSurfaceKind kind) {
+        for (std::sregex_iterator it(text.text.begin(), text.text.end(), pattern), end; it != end;
+             ++it) {
+            const auto match_begin = static_cast<std::size_t>(it->position());
+            const auto core_end = match_begin + static_cast<std::size_t>(it->length());
+            const auto continuation_begin = codepoint_index_at_or_after(document, core_end);
+            const auto continuation_end =
+                scan_typed_admission_end(document, continuation_begin, kind);
+            if (continuation_end <= continuation_begin)
+                continue;
+            const auto finish = document.span_from_codepoints(0, continuation_end).byte_end;
+            if (overlaps_preserved_range(text, match_begin, finish))
+                continue;
+            add_protected_candidate(text,
+                                    NumericCandidate{SourceSpan{match_begin, finish},
+                                                     NumericCandidateKind::Numeric,
+                                                     true},
+                                    warnings,
+                                    protected_spans,
+                                    edits);
+        }
+    };
+
+    protect_matches(patterns().admission_measurement, CandidateSurfaceKind::Unit);
+    protect_matches(patterns().admission_currency, CandidateSurfaceKind::Currency);
+}
+
 } // namespace
 
 MappedText normalize(MappedText text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
+    std::vector<SourceEdit> typed_edits;
+    protect_typed_continuations(text, warnings, protected_spans, typed_edits);
+    text = apply_source_edits(text, std::move(typed_edits));
     text = protect_combining_suffix_candidates(std::move(text), warnings, protected_spans);
     text = protect_unsupported_genitive_candidates(std::move(text), warnings);
     text = technical::protect_numeric_candidates(std::move(text), warnings, protected_spans);

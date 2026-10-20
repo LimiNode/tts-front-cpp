@@ -1172,6 +1172,36 @@ int main() {
               std::string("February 31, 2026").size());
     }
     {
+        // Date cores are admitted atomically before formatting.  Every
+        // unsupported continuation must preserve the complete UTF-8 source
+        // span, including a spaced percent continuation.
+        for (const auto& input : {std::string("February 29, 2024%foo"),
+                                  std::string("February 29, 2024+4"),
+                                  std::string("February 29, 2024% 4"),
+                                  std::string("February 29, 2024 %foo")}) {
+            const auto result = frontend.process(input, en);
+            CHECK(result.normalized_text == input);
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(result.warnings.front().offset == 0);
+            CHECK(result.warnings.front().length == input.size());
+        }
+    }
+    {
+        // Unit/currency formatters must not rewrite a supported core when an
+        // unsupported connector tail follows it.
+        for (const auto& [input, options] : {std::pair{std::string("2 kg#3"), en},
+                                             std::pair{std::string("2 руб.$3"), ru},
+                                             std::pair{std::string("2 кг#3"), ru}}) {
+            const auto result = frontend.process(input, options);
+            CHECK(result.normalized_text == input);
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(result.warnings.front().offset == 0);
+            CHECK(result.warnings.front().length == input.size());
+        }
+    }
+    {
         const auto genitive_21 = frontend.process("после 21 попыток.", ru);
         CHECK(genitive_21.normalized_text == "после 21 попыток.");
         CHECK(genitive_21.warnings.size() == 1);
@@ -2014,6 +2044,22 @@ int main() {
             result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
                 return warning.code == WarningCode::AmbiguousNormalization;
             }));
+    }
+    {
+        // The document-level mixed-language diagnostic is independent from
+        // a candidate-specific unresolved warning in another span.
+        TextFrontendOptions segmented;
+        segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        const auto result = frontend.process("Используем 2 GB и 3 kgfoo", segmented);
+        CHECK(result.normalized_text == "Используем two gigabytes и 3 kgfoo");
+        CHECK(std::count_if(
+                  result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
+                      return warning.code == WarningCode::AmbiguousNormalization;
+                  }) == 1);
+        CHECK(std::count_if(
+                  result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
+                      return warning.code == WarningCode::UnresolvedNumber;
+                  }) == 1);
     }
     std::string many_protected;
     for (int i = 0; i < 35; ++i) {

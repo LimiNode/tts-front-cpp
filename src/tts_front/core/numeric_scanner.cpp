@@ -213,6 +213,13 @@ std::size_t scan_candidate_continuation(const Utf8Document& document,
         }
         const auto connector_point = end;
         ++end;
+        // A typed candidate may continue through a connector followed by
+        // horizontal space (for example `2024% 4` or `kg# foo`).  Keep the
+        // whitespace inside the admitted source span; it is part of the
+        // unsupported surface and must not be normalized independently.
+        if (points[connector_point].value == '%')
+            while (end < points.size() && text::is_horizontal_space(points[end].value))
+                ++end;
         const auto continuation_begin = end;
         while (end < points.size() && lexical(end))
             ++end;
@@ -239,6 +246,9 @@ std::size_t scan_candidate_continuation(const Utf8Document& document,
             }
         }
         if (end == continuation_begin) {
+            if (kind != CandidateSurfaceKind::Numeric && end < points.size() &&
+                is_continuation_connector(points[end].value, kind))
+                continue;
             end = connector_point;
             break;
         }
@@ -278,6 +288,8 @@ std::size_t scan_spaced_numeric_continuation(const Utf8Document& document,
     const auto numeric_start = numeric_begin;
     while (numeric_begin < points.size() && text::is_horizontal_space(points[numeric_begin].value))
         ++numeric_begin;
+    if (kind == CandidateSurfaceKind::Date && numeric_begin != numeric_start && value != '%')
+        return begin;
     if (connector == connector_start && numeric_begin == numeric_start)
         return begin;
     if (numeric_begin >= points.size())
@@ -296,7 +308,32 @@ std::size_t scan_spaced_numeric_continuation(const Utf8Document& document,
         return combining_end;
     }
     const auto numeric = scan_numeric_surface(document, numeric_begin);
-    return numeric.valid() ? numeric.continuation_end : begin;
+    if (numeric.valid())
+        return numeric.continuation_end;
+    if (kind != CandidateSurfaceKind::Numeric) {
+        const auto lexical = scan_candidate_continuation(document, connector, kind);
+        if (lexical > connector)
+            return lexical;
+    }
+    return begin;
+}
+
+std::size_t scan_typed_admission_end(const Utf8Document& document,
+                                     const std::size_t begin,
+                                     const CandidateSurfaceKind kind) {
+    auto end = begin;
+    for (;;) {
+        if (kind != CandidateSurfaceKind::Date && end < document.points.size() &&
+            text::is_horizontal_space(document.points[end].value))
+            break;
+        const auto attached = scan_candidate_continuation(document, end, kind);
+        const auto spaced = scan_spaced_numeric_continuation(document, end, kind);
+        const auto next = std::max(attached, spaced);
+        if (next <= end)
+            break;
+        end = next;
+    }
+    return end;
 }
 
 std::size_t scan_candidate_admission_end(const Utf8Document& document,

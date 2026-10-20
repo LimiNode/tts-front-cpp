@@ -94,6 +94,7 @@ void collect_candidates(const MappedText& input,
                         WarningSink& warnings,
                         std::vector<SourceEdit>& edits) {
     std::size_t technical_cursor = 0;
+    const Utf8Document document(input.text);
     for (const auto& match : rules.scan_candidates(input.text)) {
         const auto begin = match.begin;
         const auto finish = match.end;
@@ -102,6 +103,15 @@ void collect_candidates(const MappedText& input,
         const bool candidate_inside_technical =
             technical_overlap && technical_index.ranges[technical_cursor].offset <= begin;
         if (candidate_inside_technical || preserved(input, begin, finish))
+            continue;
+        // A recognized mixed-language core is not independently formatable
+        // when the shared admission scanner sees an attached/spaced tail.
+        // The malformed pass has already emitted the single atomic warning;
+        // leave this core byte-identical instead of rewriting its head.
+        const auto continuation_begin = codepoint_index_at_or_after(document, finish);
+        if (scan_typed_admission_end(document,
+                                     continuation_begin,
+                                     CandidateSurfaceKind::Contextual) > continuation_begin)
             continue;
         const auto replacement = rules.formatter(match.value);
         if (!replacement) {
