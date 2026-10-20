@@ -83,22 +83,6 @@ void protect_typed_continuations(MappedText& text,
             }
             const auto continuation_begin = codepoint_index_at_or_after(document, core_end);
             if (kind == CandidateSurfaceKind::Currency &&
-                continuation_begin < document.points.size() && text.text[match_begin] == '$' &&
-                tts_front::detail::text::is_horizontal_space(
-                    document.points[continuation_begin].value)) {
-                auto connector = continuation_begin;
-                while (
-                    connector < document.points.size() &&
-                    tts_front::detail::text::is_horizontal_space(document.points[connector].value))
-                    ++connector;
-                const auto value =
-                    connector < document.points.size() ? document.points[connector].value : 0U;
-                const bool compound_connector =
-                    value == '#' || value == '%' || value == '/' || value == '=' || value == '*';
-                if (!compound_connector)
-                    continue;
-            }
-            if (kind == CandidateSurfaceKind::Currency &&
                 continuation_begin < document.points.size() &&
                 (document.points[continuation_begin].value == ',' ||
                  document.points[continuation_begin].value == '.' ||

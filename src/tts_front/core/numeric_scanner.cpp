@@ -21,6 +21,16 @@ bool is_spaced_connector(const std::uint32_t value, const CandidateSurfaceKind k
             value == '*' || value == '+' || value == '-' || text::is_range_connector(value));
 }
 
+bool has_dollar_prefix(const Utf8Document& document, std::size_t begin) {
+    const auto& points = document.points;
+    while (begin > 0 && text::is_horizontal_space(points[begin - 1].value))
+        --begin;
+    while (begin > 0 && (text::is_digit(points[begin - 1].value) ||
+                         points[begin - 1].value == '.' || points[begin - 1].value == ','))
+        --begin;
+    return begin > 0 && points[begin - 1].value == '$';
+}
+
 std::size_t scan_punctuated_continuation(const Utf8Document& document,
                                          const std::size_t begin,
                                          const CandidateSurfaceKind kind) {
@@ -304,6 +314,9 @@ std::size_t scan_spaced_numeric_continuation(const Utf8Document& document,
 
     const auto value = points[connector].value;
     if (!is_spaced_connector(value, kind))
+        return begin;
+    if (kind == CandidateSurfaceKind::Currency && value == '$' &&
+        has_dollar_prefix(document, begin))
         return begin;
 
     auto numeric_begin = connector + 1;
