@@ -12,6 +12,11 @@ struct Patterns {
     const std::regex comma_grouped_percent{R"(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?%)"};
     const std::regex currency_decimal{R"(\$([0-9]+)\.([0-9]{1,}))"};
     const std::regex currency_integer{R"(\$([0-9]+)(?![0-9]|\.[0-9]))"};
+    // Admission-only pattern for grouped currency.  Grouped values are
+    // collapsed before the currency formatter runs, so this pattern is used
+    // to protect an unsupported continuation while the source is still
+    // intact; it is not a formatting rule.
+    const std::regex currency_grouped{R"(\$[0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?)"};
     const std::regex ordinal{R"((^|[^A-Za-z0-9-])(-?[0-9]+)(st|nd|rd|th)\b)"};
     const std::regex percent{R"((-?[0-9]+(?:\.[0-9]+)?)\s*%)"};
     const std::regex time{R"(\b(\d{1,2}):(\d{2})\b)"};

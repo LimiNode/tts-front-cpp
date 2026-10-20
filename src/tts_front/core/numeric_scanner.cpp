@@ -223,6 +223,28 @@ std::size_t scan_candidate_continuation(const Utf8Document& document,
         const auto continuation_begin = end;
         while (end < points.size() && lexical(end))
             ++end;
+        // Once a compound connector has been admitted, a numeric token after
+        // horizontal space remains part of the same unsupported surface.  Do
+        // this in the shared scanner so typed language paths do not split
+        // forms such as `$1,234%123 456` into a protected head and a rewritten
+        // tail.  A plain space without a connector is intentionally handled
+        // by scan_spaced_numeric_continuation and remains an independent
+        // token (`$1 2`).
+        const bool compound_connector =
+            kind != CandidateSurfaceKind::Date && (value == '/' || value == '#' || value == '$' ||
+                                                   value == '%' || value == '=' || value == '*');
+        if (compound_connector && end < points.size() &&
+            text::is_horizontal_space(points[end].value)) {
+            auto spaced_numeric = end;
+            while (spaced_numeric < points.size() &&
+                   text::is_horizontal_space(points[spaced_numeric].value))
+                ++spaced_numeric;
+            if (spaced_numeric < points.size() && text::is_digit(points[spaced_numeric].value)) {
+                const auto tail = scan_numeric_surface(document, spaced_numeric);
+                if (tail.valid())
+                    end = tail.continuation_end;
+            }
+        }
         if (end == continuation_begin && kind == CandidateSurfaceKind::Technical &&
             has_lexical_stem) {
             // Technical tails may use a connector followed by horizontal

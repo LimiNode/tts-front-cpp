@@ -1225,7 +1225,21 @@ int main() {
         }
     }
     {
-        const std::vector<std::string> unsupported_currency_tails = {"$1 #2", "$1 /2", "$1 %2"};
+        const std::vector<std::string> unsupported_currency_tails = {
+            "$1 #2",
+            "$1 /2",
+            "$1 %2",
+            "$1,234 #2",
+            "$1,234 /2",
+            "$1,234 %2",
+            "-$1 #2",
+            "-$1 /2",
+            "-$1 %2",
+            "+$1 #2",
+            "+$1 /2",
+            "+$1 %2",
+            std::string("\xE2\x88\x92") + "$1 #2",
+            std::string("\xE2\x88\x92") + "$1,234 /2"};
         for (const auto& input : unsupported_currency_tails) {
             const auto result = frontend.process(input, en);
             CHECK(result.normalized_text == input);

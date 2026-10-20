@@ -73,6 +73,14 @@ void protect_typed_continuations(MappedText& text,
             const auto core_end = core_end_group >= 0
                                       ? static_cast<std::size_t>(it->position(core_end_group))
                                       : match_begin + static_cast<std::size_t>(it->length());
+            const auto match_begin_point = codepoint_index_at_or_after(document, match_begin);
+            auto admission_begin = match_begin;
+            if (kind == CandidateSurfaceKind::Currency && match_begin_point > 0) {
+                const auto previous = document.points[match_begin_point - 1].value;
+                if (previous == '+' || previous == '-' || text::is_range_connector(previous))
+                    admission_begin =
+                        document.span_from_codepoints(0, match_begin_point - 1).byte_end;
+            }
             const auto continuation_begin = codepoint_index_at_or_after(document, core_end);
             if (kind == CandidateSurfaceKind::Currency &&
                 continuation_begin < document.points.size() && text.text[match_begin] == '$' &&
@@ -101,10 +109,10 @@ void protect_typed_continuations(MappedText& text,
             if (continuation_end <= continuation_begin)
                 continue;
             const auto finish = document.span_from_codepoints(0, continuation_end).byte_end;
-            if (overlaps_preserved_range(text, match_begin, finish))
+            if (overlaps_preserved_range(text, admission_begin, finish))
                 continue;
             add_protected_candidate(text,
-                                    NumericCandidate{SourceSpan{match_begin, finish},
+                                    NumericCandidate{SourceSpan{admission_begin, finish},
                                                      NumericCandidateKind::Numeric,
                                                      true},
                                     warnings,
@@ -119,6 +127,7 @@ void protect_typed_continuations(MappedText& text,
     protect_matches(patterns().measurement, CandidateSurfaceKind::Unit, 4);
     protect_matches(patterns().currency_decimal, CandidateSurfaceKind::Currency, -1);
     protect_matches(patterns().currency_integer, CandidateSurfaceKind::Currency, -1);
+    protect_matches(patterns().currency_grouped, CandidateSurfaceKind::Currency, -1);
 }
 
 } // namespace
