@@ -1,6 +1,7 @@
 #include "tts_front/language/english/normalizer.hpp"
 
 #include "tts_front/core/numeric_scanner.hpp"
+#include "tts_front/core/text/codepoint_classification.hpp"
 #include "tts_front/core/utf8_document.hpp"
 #include "tts_front/language/english/admission.hpp"
 #include "tts_front/language/english/grouped_numbers.hpp"
@@ -73,6 +74,11 @@ void protect_typed_continuations(MappedText& text,
                                       ? static_cast<std::size_t>(it->position(core_end_group))
                                       : match_begin + static_cast<std::size_t>(it->length());
             const auto continuation_begin = codepoint_index_at_or_after(document, core_end);
+            if (kind == CandidateSurfaceKind::Currency &&
+                continuation_begin < document.points.size() && text.text[match_begin] == '$' &&
+                tts_front::detail::text::is_horizontal_space(
+                    document.points[continuation_begin].value))
+                continue;
             if (kind == CandidateSurfaceKind::Currency &&
                 continuation_begin < document.points.size() &&
                 (document.points[continuation_begin].value == ',' ||

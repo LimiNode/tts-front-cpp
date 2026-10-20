@@ -324,8 +324,22 @@ std::size_t scan_typed_admission_end(const Utf8Document& document,
     auto end = begin;
     for (;;) {
         if (kind != CandidateSurfaceKind::Date && end < document.points.size() &&
-            text::is_horizontal_space(document.points[end].value))
-            break;
+            text::is_horizontal_space(document.points[end].value)) {
+            auto connector = end;
+            while (connector < document.points.size() &&
+                   text::is_horizontal_space(document.points[connector].value))
+                ++connector;
+            if (connector >= document.points.size() ||
+                !is_spaced_connector(document.points[connector].value, kind))
+                break;
+            // A spaced sign/range connector introduces a new signed token
+            // (`1 kg -2 kg`), unlike a compound postfix such as `kg #3`.
+            // Keep the two supported measurements independent.
+            if (document.points[connector].value == '+' ||
+                document.points[connector].value == '-' ||
+                text::is_range_connector(document.points[connector].value))
+                break;
+        }
         const auto attached = scan_candidate_continuation(document, end, kind);
         const auto spaced = scan_spaced_numeric_continuation(document, end, kind);
         const auto next = std::max(attached, spaced);

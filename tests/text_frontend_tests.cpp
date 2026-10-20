@@ -1192,13 +1192,36 @@ int main() {
         // unsupported connector tail follows it.
         for (const auto& [input, options] : {std::pair{std::string("2 kg#3"), en},
                                              std::pair{std::string("2 руб.$3"), ru},
-                                             std::pair{std::string("2 кг#3"), ru}}) {
+                                             std::pair{std::string("2 кг#3"), ru},
+                                             std::pair{std::string("2 kg $3"), en},
+                                             std::pair{std::string("2 GB #3"), en},
+                                             std::pair{std::string("2 кг #3"), ru},
+                                             std::pair{std::string("2 руб. $3"), ru},
+                                             std::pair{std::string("2 кг % 3"), ru},
+                                             std::pair{std::string("2 kg /3"), en},
+                                             std::pair{std::string("2 kg+3"), en},
+                                             std::pair{std::string("2 kg−3"), en}}) {
             const auto result = frontend.process(input, options);
             CHECK(result.normalized_text == input);
             CHECK(result.warnings.size() == 1);
             CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
             CHECK(result.warnings.front().offset == 0);
             CHECK(result.warnings.front().length == input.size());
+        }
+        TextFrontendOptions segmented = auto_options;
+        segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        for (const auto& input : {std::string("2 kg $3"), std::string("Привет 2 kg #3")}) {
+            const auto result =
+                frontend.process(input, input.rfind("Привет", 0) == 0 ? segmented : auto_options);
+            const auto begin = input.find("2");
+            CHECK(result.normalized_text == input);
+            const auto unresolved = std::find_if(
+                result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
+                    return warning.code == WarningCode::UnresolvedNumber;
+                });
+            CHECK(unresolved != result.warnings.end());
+            CHECK(unresolved->offset == begin);
+            CHECK(unresolved->length == input.size() - begin);
         }
     }
     {
