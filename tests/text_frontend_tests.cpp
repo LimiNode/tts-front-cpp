@@ -1225,6 +1225,19 @@ int main() {
         }
     }
     {
+        const std::vector<std::string> unsupported_currency_tails = {"$1 #2", "$1 /2", "$1 %2"};
+        for (const auto& input : unsupported_currency_tails) {
+            const auto result = frontend.process(input, en);
+            CHECK(result.normalized_text == input);
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(result.warnings.front().offset == 0);
+            CHECK(result.warnings.front().length == input.size());
+        }
+        CHECK(frontend.process("$1 2", en).normalized_text == "one dollar two");
+        CHECK(frontend.process("$1 $2", en).normalized_text == "one dollar two dollars");
+    }
+    {
         const auto genitive_21 = frontend.process("после 21 попыток.", ru);
         CHECK(genitive_21.normalized_text == "после 21 попыток.");
         CHECK(genitive_21.warnings.size() == 1);
