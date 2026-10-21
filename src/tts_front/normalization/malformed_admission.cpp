@@ -79,22 +79,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             ++index;
             continue;
         }
-        auto currency_context_probe = index;
-        while (currency_context_probe > 0 && (points[currency_context_probe - 1].value == ' ' ||
-                                              points[currency_context_probe - 1].value == '\t'))
-            --currency_context_probe;
-        if (currency_context_probe > 0 && (points[currency_context_probe - 1].value == '+' ||
-                                           points[currency_context_probe - 1].value == '-')) {
-            --currency_context_probe;
-            while (currency_context_probe > 0 && (points[currency_context_probe - 1].value == ' ' ||
-                                                  points[currency_context_probe - 1].value == '\t'))
-                --currency_context_probe;
-        }
-        const bool currency_context =
-            currency_context_probe > 0 && (points[currency_context_probe - 1].value == '$' ||
-                                           points[currency_context_probe - 1].value == 0x20ac ||
-                                           points[currency_context_probe - 1].value == 0xa3 ||
-                                           points[currency_context_probe - 1].value == 0xa5);
+        const auto currency_context_begin = scan_currency_prefix_begin(document, index);
+        const bool currency_context = currency_context_begin != index;
         const auto candidate_surface = scan_candidate_surface(document, index);
         const auto& surface = candidate_surface.numeric;
         const auto spaced_continuation =
@@ -322,6 +308,18 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                     continue;
                 }
                 break;
+            }
+        }
+        // Currency-prefixed malformed forms (`$ 1`, `$-1`, `$−1`) enter this
+        // pass at their numeric component.  Once that context is known, use
+        // the same typed endpoint as supported currency cores so an attached
+        // or spaced connector tail cannot be rewritten independently.
+        if (currency_context) {
+            const auto currency_end =
+                scan_typed_admission_end(document, end_index, CandidateSurfaceKind::Currency);
+            if (currency_end > end_index) {
+                malformed_compound = true;
+                end_index = currency_end;
             }
         }
         // Use the shared contextual scanner to catch a combining-mark tail
@@ -680,37 +678,16 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         const auto end =
             end_index == 0 ? begin : points[end_index - 1].offset + points[end_index - 1].length;
         const auto candidate = text.text.substr(begin, end - begin);
-        std::size_t currency_prefix_begin = index;
-        auto currency_probe = index;
-        while (currency_probe > 0 && (points[currency_probe - 1].value == ' ' ||
-                                      points[currency_probe - 1].value == '\t'))
-            --currency_probe;
-        if (currency_probe > 0 &&
-            (points[currency_probe - 1].value == '+' || points[currency_probe - 1].value == '-'))
-            --currency_probe;
-        while (currency_probe > 0 && (points[currency_probe - 1].value == ' ' ||
-                                      points[currency_probe - 1].value == '\t'))
-            --currency_probe;
-        const bool currency_prefix =
-            currency_probe > 0 &&
-            (points[currency_probe - 1].value == '$' ||
-             points[currency_probe - 1].value == 0x20ac ||
-             points[currency_probe - 1].value == 0xa3 || points[currency_probe - 1].value == 0xa5);
-        bool signed_currency_prefix = false;
-        if (currency_prefix)
-            currency_prefix_begin = currency_probe - 1;
-        if (currency_prefix) {
-            auto sign_probe = currency_prefix_begin;
-            while (sign_probe > 0 &&
-                   (points[sign_probe - 1].value == ' ' || points[sign_probe - 1].value == '\t'))
-                --sign_probe;
-            if (sign_probe > 0 &&
-                (points[sign_probe - 1].value == '+' || points[sign_probe - 1].value == '-' ||
-                 points[sign_probe - 1].value == 0x2212)) {
-                signed_currency_prefix = true;
-                currency_prefix_begin = sign_probe - 1;
-            }
-        }
+        const auto currency_prefix_begin = scan_currency_prefix_begin(document, index);
+        const bool currency_prefix = currency_prefix_begin != index;
+        const bool signed_currency_prefix =
+            currency_prefix && (points[currency_prefix_begin].value == '+' ||
+                                points[currency_prefix_begin].value == '-' ||
+                                points[currency_prefix_begin].value == 0x2212);
+        auto currency_symbol = currency_prefix_begin + (signed_currency_prefix ? 1 : 0);
+        while (currency_symbol < index && text::is_horizontal_space(points[currency_symbol].value))
+            ++currency_symbol;
+        const auto currency_probe = currency_prefix ? currency_symbol + 1 : index;
         const bool attached_lexical_suffix =
             separators != 0 && end_index < points.size() &&
             text::is_lexical_numeric_boundary(points[end_index].value);
@@ -721,8 +698,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
              std::regex_match(candidate, *rules.comma_grouped_percent));
         const bool valid_currency_group_surface =
             !currency_prefix ||
-            (!signed_currency_prefix && points[index].value != '+' && points[index].value != '-' &&
-             points[currency_probe - 1].value == '$');
+            (!signed_currency_prefix && currency_probe == index && points[index].value != '+' &&
+             points[index].value != '-' && points[currency_symbol].value == '$');
         const bool malformed_english_comma_group =
             rules.comma_grouping && candidate.find(',') != std::string::npos;
         const auto digit_count = static_cast<std::size_t>(std::count_if(
@@ -799,7 +776,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
              malformed_grouped || malformed_compound ||
              (currency_prefix &&
               (has_percent || currency_probe < index || points[index].value == '+' ||
-               points[index].value == '-' || points[currency_probe - 1].value != '$' ||
+               points[index].value == '-' || points[currency_symbol].value != '$' ||
                signed_currency_prefix))) &&
             !(valid_russian_date && !embedded) &&
             !(valid_english_comma_group && !embedded && !attached_lexical_suffix &&

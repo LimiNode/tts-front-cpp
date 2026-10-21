@@ -39,6 +39,10 @@ bool is_range_connector(std::uint32_t cp) {
     return (cp >= 0x2010 && cp <= 0x2015) || cp == 0x2212;
 }
 
+bool is_currency_symbol(std::uint32_t cp) {
+    return cp == '$' || cp == 0x20ac || cp == 0xa3 || cp == 0xa5;
+}
+
 bool is_numeric_connector(std::uint32_t cp) {
     return is_numeric_separator(cp) ||
            (cp < 0x80 && std::ispunct(static_cast<unsigned char>(cp)) != 0);

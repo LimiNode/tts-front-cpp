@@ -8,6 +8,7 @@
 #include <chrono>
 #include <iostream>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -51,6 +52,32 @@ void benchmark_technical_contiguous_numeric_scaling() {
                   << (elapsed / static_cast<double>(count) * 1e6) << " us/digit\n";
         if (mapped.text != text)
             std::cerr << "unexpected technical admission edit\n";
+    }
+}
+
+void benchmark_currency_prefix_scaling() {
+    for (const unsigned int count : {1000u, 5000u, 10000u, 20000u}) {
+        std::string text;
+        text.reserve(static_cast<std::size_t>(count) * 10);
+        for (unsigned int index = 0; index < count; ++index) {
+            if (index != 0)
+                text.push_back(' ');
+            text += "$-1 /2";
+        }
+        std::vector<tts_front::TextWarning> warnings;
+        tts_front::detail::WarningSink warning_sink{warnings, {}};
+        auto mapped =
+            tts_front::detail::MappedText::from_original(text, &warning_sink.preserved_ranges);
+        std::vector<tts_front::detail::ProtectedSpan> protected_spans;
+        const auto begin = std::chrono::steady_clock::now();
+        mapped = tts_front::detail::technical::protect_numeric_candidates(
+            std::move(mapped), warning_sink, protected_spans);
+        const auto elapsed =
+            std::chrono::duration<double>(std::chrono::steady_clock::now() - begin).count();
+        std::cout << count << " prefixed currency candidates, " << elapsed << " s, "
+                  << (elapsed / static_cast<double>(count) * 1e6) << " us/candidate\n";
+        if (warnings.size() != count)
+            std::cerr << "unexpected currency-prefix warning count: " << warnings.size() << "\n";
     }
 }
 
@@ -146,7 +173,11 @@ void benchmark_technical_heavy_scaling() {
     }
 }
 
-int main() {
+int main(int argc, char** argv) {
+    if (argc == 2 && std::string_view(argv[1]) == "--currency-prefix-scaling") {
+        benchmark_currency_prefix_scaling();
+        return 0;
+    }
     const std::string text = "В 2026 году GPU RTX 4090 обработал 12500 запросов.";
     tts_front::TextFrontend frontend;
     tts_front::TextFrontendOptions options;
@@ -161,6 +192,7 @@ int main() {
               << " us/request\n";
     benchmark_numeric_scaling();
     benchmark_technical_contiguous_numeric_scaling();
+    benchmark_currency_prefix_scaling();
     benchmark_russian_genitive_scaling();
     benchmark_candidate_surface_scaling();
     benchmark_mixed_candidate_scaling();

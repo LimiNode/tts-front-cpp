@@ -1252,6 +1252,61 @@ int main() {
         CHECK(frontend.process("$1 $2", en).normalized_text == "one dollar two dollars");
     }
     {
+        const std::vector<std::string> currency_prefixes = {
+            "$ 1",
+            "$+1",
+            "$-1",
+            std::string("$") + "\xE2\x88\x92" + "1",
+            "+$1",
+            "-$1",
+            std::string("\xE2\x88\x92") + "$1",
+            "$ 1,234",
+            "$+1,234",
+            "$-1,234",
+            std::string("$") + "\xE2\x88\x92" + "1,234",
+            "$ 1.25",
+            "$+1.25",
+            "$-1.25",
+            std::string("$") + "\xE2\x88\x92" + "1.25"};
+        const std::vector<std::string> connector_tails = {"#2", " #2", "/2", " /2", "%2", " %2"};
+        auto currency_segmented = auto_options;
+        currency_segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        const auto check_atomic_currency = [&](const std::string& input,
+                                               const TextFrontendOptions& options) {
+            const auto result = frontend.process(input, options);
+            const auto unresolved = std::find_if(
+                result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
+                    return warning.code == WarningCode::UnresolvedNumber;
+                });
+            return result.normalized_text == input && unresolved != result.warnings.end() &&
+                   std::count_if(result.warnings.begin(),
+                                 result.warnings.end(),
+                                 [](const TextWarning& warning) {
+                                     return warning.code == WarningCode::UnresolvedNumber;
+                                 }) == 1 &&
+                   unresolved->offset == 0 && unresolved->length == input.size();
+        };
+        for (const auto& prefix : currency_prefixes) {
+            for (const auto& options : {en, ru, auto_options, currency_segmented})
+                CHECK(check_atomic_currency(prefix, options));
+            for (const auto& tail : connector_tails) {
+                const auto input = prefix + tail;
+                for (const auto& options : {en, ru, auto_options, currency_segmented})
+                    CHECK(check_atomic_currency(input, options));
+            }
+        }
+        const std::string adjacent = "$-1 /2 $-1 #2";
+        const auto adjacent_result = frontend.process(adjacent, en);
+        CHECK(adjacent_result.normalized_text == adjacent);
+        CHECK(adjacent_result.warnings.size() == 2);
+        CHECK(adjacent_result.warnings[0].code == WarningCode::UnresolvedNumber);
+        CHECK(adjacent_result.warnings[0].offset == 0);
+        CHECK(adjacent_result.warnings[0].length == std::string("$-1 /2").size());
+        CHECK(adjacent_result.warnings[1].code == WarningCode::UnresolvedNumber);
+        CHECK(adjacent_result.warnings[1].offset == std::string("$-1 /2 ").size());
+        CHECK(adjacent_result.warnings[1].length == std::string("$-1 #2").size());
+    }
+    {
         const auto genitive_21 = frontend.process("после 21 попыток.", ru);
         CHECK(genitive_21.normalized_text == "после 21 попыток.");
         CHECK(genitive_21.warnings.size() == 1);

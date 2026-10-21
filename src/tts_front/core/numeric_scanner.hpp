@@ -17,6 +17,19 @@ std::size_t scan_candidate_continuation(const Utf8Document& document,
 
 NumericSurfaceRange scan_lexical_suffix(const Utf8Document& document, std::size_t begin);
 
+// Returns the codepoint at the beginning of a currency prefix associated with
+// the numeric surface at `numeric_begin`, or `numeric_begin` when none exists.
+// Both sign placements (`-$1`, `$-1`) and intervening horizontal space are
+// admitted. The backward scan is bounded by the immediately preceding prefix,
+// so disjoint candidates remain linear over a document.
+std::size_t scan_currency_prefix_begin(const Utf8Document& document, std::size_t numeric_begin);
+
+// Scans the numeric component of a currency surface, including an optional
+// leading sign and repeated comma/dot digit groups. Validation of grouping and
+// decimal precision remains language-owned; this function supplies only the
+// complete neutral boundary used before typed continuation admission.
+std::size_t scan_currency_numeric_end(const Utf8Document& document, std::size_t numeric_begin);
+
 // Extends a numeric candidate across a connector separated from the next
 // numeric token by horizontal whitespace.  This is deliberately limited to
 // compound connectors; comma, dot and colon remain list/terminal boundaries.

@@ -411,6 +411,22 @@ MappedText protect_numeric_candidates(MappedText text,
                 ++end_index;
         }
 
+        const auto currency_begin = scan_currency_prefix_begin(document, index);
+        if (currency_begin != index) {
+            end_index = scan_currency_numeric_end(document, index);
+            const auto currency_end =
+                scan_typed_admission_end(document, end_index, CandidateSurfaceKind::Currency);
+            if (currency_end > end_index) {
+                NumericCandidate candidate{
+                    document.span_from_codepoints(currency_begin, currency_end),
+                    NumericCandidateKind::Currency,
+                    true};
+                add_protected_candidate(text, candidate, warnings, protected_spans, edits);
+                index = currency_end;
+                continue;
+            }
+        }
+
         std::size_t suffix_end = end_index;
         bool encoded_suffix = false;
         if (end_index < points.size() &&

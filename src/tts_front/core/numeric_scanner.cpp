@@ -28,6 +28,12 @@ bool has_dollar_prefix(const Utf8Document& document, std::size_t begin) {
     while (begin > 0 && (text::is_digit(points[begin - 1].value) ||
                          points[begin - 1].value == '.' || points[begin - 1].value == ','))
         --begin;
+    if (begin > 0 && (points[begin - 1].value == '+' || points[begin - 1].value == '-' ||
+                      points[begin - 1].value == 0x2212)) {
+        --begin;
+        while (begin > 0 && text::is_horizontal_space(points[begin - 1].value))
+            --begin;
+    }
     return begin > 0 && points[begin - 1].value == '$';
 }
 
@@ -301,6 +307,55 @@ NumericSurfaceRange scan_lexical_suffix(const Utf8Document& document, const std:
     return result;
 }
 
+std::size_t scan_currency_prefix_begin(const Utf8Document& document,
+                                       const std::size_t numeric_begin) {
+    const auto& points = document.points;
+    if (numeric_begin > points.size())
+        return numeric_begin;
+
+    auto probe = numeric_begin;
+    while (probe > 0 && text::is_horizontal_space(points[probe - 1].value))
+        --probe;
+    if (probe > 0 && (points[probe - 1].value == '+' || points[probe - 1].value == '-' ||
+                      points[probe - 1].value == 0x2212)) {
+        --probe;
+        while (probe > 0 && text::is_horizontal_space(points[probe - 1].value))
+            --probe;
+    }
+    if (probe == 0 || !text::is_currency_symbol(points[probe - 1].value))
+        return numeric_begin;
+
+    auto prefix = probe - 1;
+    auto sign = prefix;
+    while (sign > 0 && text::is_horizontal_space(points[sign - 1].value))
+        --sign;
+    if (sign > 0 && (points[sign - 1].value == '+' || points[sign - 1].value == '-' ||
+                     points[sign - 1].value == 0x2212))
+        prefix = sign - 1;
+    return prefix;
+}
+
+std::size_t scan_currency_numeric_end(const Utf8Document& document, std::size_t numeric_begin) {
+    const auto& points = document.points;
+    if (numeric_begin < points.size() &&
+        (points[numeric_begin].value == '+' || points[numeric_begin].value == '-' ||
+         points[numeric_begin].value == 0x2212))
+        ++numeric_begin;
+    const auto digits_begin = numeric_begin;
+    while (numeric_begin < points.size() && text::is_digit(points[numeric_begin].value))
+        ++numeric_begin;
+    if (numeric_begin == digits_begin)
+        return digits_begin;
+    while (numeric_begin + 1 < points.size() &&
+           (points[numeric_begin].value == ',' || points[numeric_begin].value == '.') &&
+           text::is_digit(points[numeric_begin + 1].value)) {
+        ++numeric_begin;
+        while (numeric_begin < points.size() && text::is_digit(points[numeric_begin].value))
+            ++numeric_begin;
+    }
+    return numeric_begin;
+}
+
 std::size_t scan_spaced_numeric_continuation(const Utf8Document& document,
                                              std::size_t begin,
                                              CandidateSurfaceKind kind) {
@@ -357,6 +412,8 @@ std::size_t scan_typed_admission_end(const Utf8Document& document,
                                      const std::size_t begin,
                                      const CandidateSurfaceKind kind) {
     auto end = begin;
+    const bool dollar_prefixed_currency =
+        kind == CandidateSurfaceKind::Currency && has_dollar_prefix(document, begin);
     for (;;) {
         if (kind != CandidateSurfaceKind::Date && end < document.points.size() &&
             text::is_horizontal_space(document.points[end].value)) {
@@ -366,6 +423,8 @@ std::size_t scan_typed_admission_end(const Utf8Document& document,
                 ++connector;
             if (connector >= document.points.size() ||
                 !is_spaced_connector(document.points[connector].value, kind))
+                break;
+            if (dollar_prefixed_currency && document.points[connector].value == '$')
                 break;
             // A spaced sign/range connector introduces a new signed token
             // (`1 kg -2 kg`), unlike a compound postfix such as `kg #3`.

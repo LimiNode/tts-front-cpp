@@ -14,6 +14,7 @@ bool is_combining_mark(std::uint32_t cp);
 bool is_word_codepoint(std::uint32_t cp);
 bool is_numeric_separator(std::uint32_t cp);
 bool is_range_connector(std::uint32_t cp);
+bool is_currency_symbol(std::uint32_t cp);
 bool is_numeric_connector(std::uint32_t cp);
 bool is_supported_numeric_separator(std::uint32_t cp);
 bool is_lexical_numeric_boundary(std::uint32_t cp);
