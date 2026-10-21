@@ -49,6 +49,15 @@ MappedText protect(MappedText text, std::vector<ProtectedSpan>& protected_spans)
             const auto match_end_point = codepoint_index_at_or_after(document, finish);
             const auto& value = it->str();
             const bool generic_identifier = pattern == &patterns.technical_identifier;
+            if (generic_identifier) {
+                auto predecessor = match_point;
+                while (predecessor > 0 &&
+                       text::is_horizontal_space(document.points[predecessor - 1].value))
+                    --predecessor;
+                if (predecessor > 0 &&
+                    text::is_combining_mark(document.points[predecessor - 1].value))
+                    continue;
+            }
             // A hash suffix immediately following an unsupported dot-decimal
             // percentage belongs to that numeric candidate, not to a
             // standalone C#-style technical token.  Leave it visible for the
@@ -400,6 +409,22 @@ MappedText protect_numeric_candidates(MappedText text,
             ++end_index;
             while (end_index < points.size() && text::is_digit(points[end_index].value))
                 ++end_index;
+        }
+
+        const auto currency_begin = scan_currency_prefix_begin(document, index);
+        if (currency_begin != index) {
+            end_index = scan_currency_numeric_end(document, index);
+            const auto currency_end =
+                scan_typed_admission_end(document, end_index, CandidateSurfaceKind::Currency);
+            if (currency_end > end_index) {
+                NumericCandidate candidate{
+                    document.span_from_codepoints(currency_begin, currency_end),
+                    NumericCandidateKind::Currency,
+                    true};
+                add_protected_candidate(text, candidate, warnings, protected_spans, edits);
+                index = currency_end;
+                continue;
+            }
         }
 
         std::size_t suffix_end = end_index;

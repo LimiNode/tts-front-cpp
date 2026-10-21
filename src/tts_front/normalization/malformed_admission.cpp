@@ -79,22 +79,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             ++index;
             continue;
         }
-        auto currency_context_probe = index;
-        while (currency_context_probe > 0 && (points[currency_context_probe - 1].value == ' ' ||
-                                              points[currency_context_probe - 1].value == '\t'))
-            --currency_context_probe;
-        if (currency_context_probe > 0 && (points[currency_context_probe - 1].value == '+' ||
-                                           points[currency_context_probe - 1].value == '-')) {
-            --currency_context_probe;
-            while (currency_context_probe > 0 && (points[currency_context_probe - 1].value == ' ' ||
-                                                  points[currency_context_probe - 1].value == '\t'))
-                --currency_context_probe;
-        }
-        const bool currency_context =
-            currency_context_probe > 0 && (points[currency_context_probe - 1].value == '$' ||
-                                           points[currency_context_probe - 1].value == 0x20ac ||
-                                           points[currency_context_probe - 1].value == 0xa3 ||
-                                           points[currency_context_probe - 1].value == 0xa5);
+        const auto currency_context_begin = scan_currency_prefix_begin(document, index);
+        const bool currency_context = currency_context_begin != index;
         const auto candidate_surface = scan_candidate_surface(document, index);
         const auto& surface = candidate_surface.numeric;
         const auto spaced_continuation =
@@ -324,6 +310,127 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 break;
             }
         }
+        // Currency-prefixed malformed forms (`$ 1`, `$-1`, `$−1`) enter this
+        // pass at their numeric component.  Once that context is known, use
+        // the same typed endpoint as supported currency cores so an attached
+        // or spaced connector tail cannot be rewritten independently.
+        if (currency_context) {
+            const auto currency_end =
+                scan_typed_admission_end(document, end_index, CandidateSurfaceKind::Currency);
+            if (currency_end > end_index) {
+                malformed_compound = true;
+                end_index = currency_end;
+            }
+        }
+        // Use the shared contextual scanner to catch a combining-mark tail
+        // after a connector or lexical short-unit surface. This keeps
+        // `2 м́1`, `2 м́/1`, and `2 /́3` atomic without affecting ordinary
+        // decomposed words such as `2 café`.
+        const auto contextual_end = scan_candidate_admission_end(
+            document, candidate_surface, CandidateSurfaceKind::Contextual);
+        const auto combining_connector_surface = [&] {
+            const auto first =
+                points.begin() + static_cast<std::ptrdiff_t>(candidate_surface.numeric.end);
+            const auto last = points.begin() + static_cast<std::ptrdiff_t>(candidate_surface.end);
+            const auto has_combining = std::any_of(first, last, [](const auto& point) {
+                return text::is_combining_mark(point.value);
+            });
+            const auto has_connector = std::any_of(first, last, [](const auto& point) {
+                return point.value == '/' || point.value == '#' || point.value == '$' ||
+                       point.value == '%' || point.value == '=' || point.value == '*' ||
+                       text::is_range_connector(point.value);
+            });
+            return has_combining && has_connector;
+        }();
+        if (combining_connector_surface && candidate_surface.end > end_index) {
+            malformed_compound = true;
+            end_index = candidate_surface.end;
+        }
+        if (contextual_end > candidate_surface.end) {
+            const auto has_combining = std::any_of(
+                points.begin() + static_cast<std::ptrdiff_t>(candidate_surface.numeric.end),
+                points.begin() + static_cast<std::ptrdiff_t>(contextual_end),
+                [](const auto& point) { return text::is_combining_mark(point.value); });
+            if (has_combining) {
+                malformed_compound = true;
+                end_index = contextual_end;
+            }
+        }
+        // Signed numeric candidates are already fail-closed when their
+        // lexical continuation contains a combining mark. Extend the same
+        // atomic span across a spaced suffix so a mixed path cannot leave
+        // the mark outside the diagnostic (for example `+2.5 м́`).
+        if ((positive_numeric || signed_number) && end_index < points.size()) {
+            const auto suffix = scan_lexical_suffix(document, end_index);
+            const auto has_combining =
+                std::any_of(points.begin() + static_cast<std::ptrdiff_t>(suffix.continuation_begin),
+                            points.begin() + static_cast<std::ptrdiff_t>(suffix.end),
+                            [](const auto& point) { return text::is_combining_mark(point.value); });
+            if (has_combining) {
+                malformed_compound = true;
+                end_index = suffix.end;
+                const auto continuation = scan_candidate_continuation(
+                    document, end_index, CandidateSurfaceKind::Contextual);
+                end_index = std::max(end_index, continuation);
+            }
+        }
+        const auto numeric_continuation = scan_candidate_continuation(
+            document, candidate_surface.numeric.end, CandidateSurfaceKind::Numeric);
+        const auto numeric_has_combining =
+            std::any_of(points.begin() + static_cast<std::ptrdiff_t>(candidate_surface.numeric.end),
+                        points.begin() + static_cast<std::ptrdiff_t>(numeric_continuation),
+                        [](const auto& point) { return text::is_combining_mark(point.value); });
+        if (numeric_has_combining) {
+            malformed_compound = true;
+            end_index = std::max(end_index, numeric_continuation);
+            const auto suffix = scan_lexical_suffix(document, end_index);
+            if (suffix.end > suffix.continuation_begin)
+                end_index = suffix.end;
+            for (;;) {
+                const auto attached = scan_candidate_continuation(
+                    document, end_index, CandidateSurfaceKind::Contextual);
+                const auto spaced = scan_spaced_numeric_continuation(
+                    document, end_index, CandidateSurfaceKind::Contextual);
+                const auto next = std::max(attached, spaced);
+                if (next <= end_index)
+                    break;
+                end_index = next;
+            }
+        }
+        if (surface.malformed_combining ||
+            (candidate_surface.has_combining && end_index < points.size() &&
+             text::is_combining_mark(points[end_index].value))) {
+            malformed_compound = true;
+            auto combining_end = end_index;
+            while (combining_end < points.size() &&
+                   text::is_combining_mark(points[combining_end].value))
+                ++combining_end;
+            auto suffix_begin = combining_end;
+            while (suffix_begin < points.size() &&
+                   text::is_horizontal_space(points[suffix_begin].value))
+                ++suffix_begin;
+            auto suffix_end = suffix_begin;
+            while (suffix_end < points.size() &&
+                   (text::is_letter(points[suffix_end].value) ||
+                    text::is_combining_mark(points[suffix_end].value)))
+                ++suffix_end;
+            end_index = std::max(end_index, suffix_end);
+        }
+        if (numeric_has_combining || surface.malformed_combining ||
+            candidate_surface.has_combining) {
+            while (end_index < points.size() && text::is_combining_mark(points[end_index].value))
+                ++end_index;
+            for (;;) {
+                const auto attached = scan_candidate_continuation(
+                    document, end_index, CandidateSurfaceKind::Contextual);
+                const auto spaced = scan_spaced_numeric_continuation(
+                    document, end_index, CandidateSurfaceKind::Contextual);
+                const auto next = std::max(attached, spaced);
+                if (next <= end_index)
+                    break;
+                end_index = next;
+            }
+        }
         if ((positive_numeric || points[index].value == 0x2212) && end_index < points.size()) {
             if (surface.exponent != ExponentState::None) {
                 malformed_compound = true;
@@ -477,47 +584,49 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         // suffix is one malformed candidate.  Letting the generic number
         // pass see only the leading digits would otherwise produce partial
         // rewrites such as `one kgfoo` or `один руб.foo`.
-        if (end_index < points.size()) {
-            auto suffix_begin = end_index;
-            while (suffix_begin < points.size() &&
-                   (points[suffix_begin].value == ' ' || points[suffix_begin].value == '\t'))
-                ++suffix_begin;
-            auto word_end = suffix_begin;
-            while (word_end < points.size() && text::is_letter(points[word_end].value))
-                ++word_end;
-            if (word_end != suffix_begin) {
-                auto suffix_end = word_end;
-                // Include a dotted continuation such as `руб.foo`; a final
-                // period by itself remains a valid Russian abbreviation.
-                if (suffix_end < points.size() && points[suffix_end].value == '.' &&
-                    suffix_end + 1 < points.size() &&
-                    text::is_letter(points[suffix_end + 1].value)) {
+        const auto lexical_suffix = scan_lexical_suffix(document, end_index);
+        if (lexical_suffix.end > lexical_suffix.continuation_begin) {
+            const auto suffix_begin = lexical_suffix.continuation_begin;
+            const auto word_end = lexical_suffix.end;
+            auto suffix_end = word_end;
+            // Include a dotted continuation such as `руб.foo`; a final
+            // period by itself remains a valid Russian abbreviation.
+            if (suffix_end < points.size() && points[suffix_end].value == '.' &&
+                suffix_end + 1 < points.size() && text::is_letter(points[suffix_end + 1].value)) {
+                ++suffix_end;
+                while (suffix_end < points.size() && text::is_letter(points[suffix_end].value))
                     ++suffix_end;
-                    while (suffix_end < points.size() && text::is_letter(points[suffix_end].value))
-                        ++suffix_end;
-                }
-                const auto unit =
-                    text.text.substr(points[suffix_begin].offset,
-                                     points[suffix_end - 1].offset + points[suffix_end - 1].length -
-                                         points[suffix_begin].offset);
-                bool known_stem = false;
-                bool valid_surface = false;
-                if (rules.classify_surface != nullptr)
-                    rules.classify_surface(unit, known_stem, valid_surface);
-                if (known_stem && (!valid_surface || suffix_end != word_end)) {
+            }
+            const auto unit =
+                text.text.substr(points[suffix_begin].offset,
+                                 points[suffix_end - 1].offset + points[suffix_end - 1].length -
+                                     points[suffix_begin].offset);
+            bool known_stem = false;
+            bool valid_surface = false;
+            if (rules.classify_surface != nullptr)
+                rules.classify_surface(unit, document, suffix_begin, known_stem, valid_surface);
+            if (known_stem && (!valid_surface || suffix_end != word_end)) {
+                malformed_compound = true;
+                end_index = suffix_end;
+                // Once a language-owned suffix is rejected, consume any
+                // attached or spaced continuation through the shared scanner
+                // before the next normalizer can see a trailing number.
+                end_index = std::max(end_index,
+                                     scan_candidate_continuation(
+                                         document, end_index, CandidateSurfaceKind::Contextual));
+                end_index = std::max(end_index,
+                                     scan_spaced_numeric_continuation(
+                                         document, end_index, CandidateSurfaceKind::Contextual));
+            }
+            // An abbreviation ellipsis is terminal only when it is
+            // followed by ordinary punctuation or the end of input.
+            // `руб...foo` and `руб.../2` are unsupported continuations
+            // and must remain one atomic candidate.
+            if (known_stem && suffix_end == word_end) {
+                const auto continuation = scan_nonterminal_ellipsis(points, suffix_end);
+                if (continuation != suffix_end) {
                     malformed_compound = true;
-                    end_index = suffix_end;
-                }
-                // An abbreviation ellipsis is terminal only when it is
-                // followed by ordinary punctuation or the end of input.
-                // `руб...foo` and `руб.../2` are unsupported continuations
-                // and must remain one atomic candidate.
-                if (known_stem && suffix_end == word_end) {
-                    const auto continuation = scan_nonterminal_ellipsis(points, suffix_end);
-                    if (continuation != suffix_end) {
-                        malformed_compound = true;
-                        end_index = continuation;
-                    }
+                    end_index = continuation;
                 }
             }
         }
@@ -569,37 +678,16 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         const auto end =
             end_index == 0 ? begin : points[end_index - 1].offset + points[end_index - 1].length;
         const auto candidate = text.text.substr(begin, end - begin);
-        std::size_t currency_prefix_begin = index;
-        auto currency_probe = index;
-        while (currency_probe > 0 && (points[currency_probe - 1].value == ' ' ||
-                                      points[currency_probe - 1].value == '\t'))
-            --currency_probe;
-        if (currency_probe > 0 &&
-            (points[currency_probe - 1].value == '+' || points[currency_probe - 1].value == '-'))
-            --currency_probe;
-        while (currency_probe > 0 && (points[currency_probe - 1].value == ' ' ||
-                                      points[currency_probe - 1].value == '\t'))
-            --currency_probe;
-        const bool currency_prefix =
-            currency_probe > 0 &&
-            (points[currency_probe - 1].value == '$' ||
-             points[currency_probe - 1].value == 0x20ac ||
-             points[currency_probe - 1].value == 0xa3 || points[currency_probe - 1].value == 0xa5);
-        bool signed_currency_prefix = false;
-        if (currency_prefix)
-            currency_prefix_begin = currency_probe - 1;
-        if (currency_prefix) {
-            auto sign_probe = currency_prefix_begin;
-            while (sign_probe > 0 &&
-                   (points[sign_probe - 1].value == ' ' || points[sign_probe - 1].value == '\t'))
-                --sign_probe;
-            if (sign_probe > 0 &&
-                (points[sign_probe - 1].value == '+' || points[sign_probe - 1].value == '-' ||
-                 points[sign_probe - 1].value == 0x2212)) {
-                signed_currency_prefix = true;
-                currency_prefix_begin = sign_probe - 1;
-            }
-        }
+        const auto currency_prefix_begin = scan_currency_prefix_begin(document, index);
+        const bool currency_prefix = currency_prefix_begin != index;
+        const bool signed_currency_prefix =
+            currency_prefix && (points[currency_prefix_begin].value == '+' ||
+                                points[currency_prefix_begin].value == '-' ||
+                                points[currency_prefix_begin].value == 0x2212);
+        auto currency_symbol = currency_prefix_begin + (signed_currency_prefix ? 1 : 0);
+        while (currency_symbol < index && text::is_horizontal_space(points[currency_symbol].value))
+            ++currency_symbol;
+        const auto currency_probe = currency_prefix ? currency_symbol + 1 : index;
         const bool attached_lexical_suffix =
             separators != 0 && end_index < points.size() &&
             text::is_lexical_numeric_boundary(points[end_index].value);
@@ -610,8 +698,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
              std::regex_match(candidate, *rules.comma_grouped_percent));
         const bool valid_currency_group_surface =
             !currency_prefix ||
-            (!signed_currency_prefix && points[index].value != '+' && points[index].value != '-' &&
-             points[currency_probe - 1].value == '$');
+            (!signed_currency_prefix && currency_probe == index && points[index].value != '+' &&
+             points[index].value != '-' && points[currency_symbol].value == '$');
         const bool malformed_english_comma_group =
             rules.comma_grouping && candidate.find(',') != std::string::npos;
         const auto digit_count = static_cast<std::size_t>(std::count_if(
@@ -688,7 +776,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
              malformed_grouped || malformed_compound ||
              (currency_prefix &&
               (has_percent || currency_probe < index || points[index].value == '+' ||
-               points[index].value == '-' || points[currency_probe - 1].value != '$' ||
+               points[index].value == '-' || points[currency_symbol].value != '$' ||
                signed_currency_prefix))) &&
             !(valid_russian_date && !embedded) &&
             !(valid_english_comma_group && !embedded && !attached_lexical_suffix &&

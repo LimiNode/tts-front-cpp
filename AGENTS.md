@@ -39,11 +39,33 @@ describes the non-negotiable project contract and the development workflow.
   changes, architecture refactors, formatting-only changes, and release work.
 - Every new behavior needs a focused regression test and an adversarial neighbor
   test. A green corpus snapshot alone is not evidence of correctness.
+- Admission changes are scanner-first: do not bypass a shared candidate scanner
+  from a language wrapper with a prefix- or suffix-specific `continue`, guard,
+  or regex exception. If the scanner cannot distinguish an independent token
+  from a connector continuation, fix that distinction at the scanner boundary
+  and reuse its result in every language path.
+- For every candidate-boundary rule, test the Cartesian neighbors before
+  merging: unsigned, `+`, ASCII `-`, and Unicode minus; plain and grouped or
+  currency forms; attached and spaced continuations; connector and ordinary
+  next-token cases. The contract must state exact source preservation,
+  diagnostic count, and byte span for each row.
+- Any admission or candidate-boundary change must include a boundary matrix for
+  each affected mode: a known suffix followed by a combining mark, a combining
+  mark followed by an ordinary lexical word, an ASCII continuation, a Cyrillic
+  continuation, punctuation, and end-of-string. Compare every matrix row with
+  the base commit and record exact text, diagnostics, and byte spans for both
+  the changed case and its unchanged neighbors; cover RU, Auto, and
+  SegmentCandidates, plus EN whenever the shared scanner or admission path is
+  affected.
 - Do not change an expected output merely to make an audit pass. Any oracle
   change must show the old result, the new contract, the reason, and a regression
   test; release archives are immutable after publication.
 - After three to five corrective commits in one area, stop patching and perform
   a simplification and dependency review before adding another special case.
+- A corrective commit must not change an oracle and its implementation merely
+  to make the same audit pass. Keep the behavioral fix, scanner/model change,
+  and oracle decision separate so a green snapshot cannot hide a partial
+  rewrite or a newly suppressed diagnostic.
 
 ## Architecture rules
 

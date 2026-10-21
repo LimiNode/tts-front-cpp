@@ -8,7 +8,11 @@
 namespace tts_front::detail::english {
 namespace {
 
-void classify_surface(std::string_view unit, bool& known_stem, bool& valid_surface) {
+void classify_surface(std::string_view unit,
+                      const Utf8Document&,
+                      std::size_t,
+                      bool& known_stem,
+                      bool& valid_surface) {
     const auto starts_with = [unit](std::string_view prefix) {
         return unit.size() >= prefix.size() && unit.compare(0, prefix.size(), prefix) == 0;
     };

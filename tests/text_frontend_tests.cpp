@@ -62,6 +62,8 @@ int main() {
     en.language = Language::English;
     TextFrontendOptions auto_options = en;
     auto_options.language = Language::Auto;
+    TextFrontendOptions segmented = en;
+    segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
     CHECK(frontend.process("7.5%", en).normalized_text == "seven point five percent");
     CHECK(frontend.process("-0 -0.0 -0%", en).normalized_text ==
           "minus zero minus zero point zero minus zero percent");
@@ -1170,6 +1172,141 @@ int main() {
               std::string("February 31, 2026").size());
     }
     {
+        // Date cores are admitted atomically before formatting.  Every
+        // unsupported continuation must preserve the complete UTF-8 source
+        // span, including a spaced percent continuation.
+        for (const auto& input : {std::string("February 29, 2024%foo"),
+                                  std::string("February 29, 2024+4"),
+                                  std::string("February 29, 2024% 4"),
+                                  std::string("February 29, 2024 %foo")}) {
+            const auto result = frontend.process(input, en);
+            CHECK(result.normalized_text == input);
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(result.warnings.front().offset == 0);
+            CHECK(result.warnings.front().length == input.size());
+        }
+    }
+    {
+        // Unit/currency formatters must not rewrite a supported core when an
+        // unsupported connector tail follows it.
+        for (const auto& [input, options] : {std::pair{std::string("2 kg#3"), en},
+                                             std::pair{std::string("2 руб.$3"), ru},
+                                             std::pair{std::string("2 кг#3"), ru},
+                                             std::pair{std::string("2 kg $3"), en},
+                                             std::pair{std::string("2 GB #3"), en},
+                                             std::pair{std::string("2 кг #3"), ru},
+                                             std::pair{std::string("2 руб. $3"), ru},
+                                             std::pair{std::string("2 кг % 3"), ru},
+                                             std::pair{std::string("2 kg /3"), en},
+                                             std::pair{std::string("2 kg+3"), en},
+                                             std::pair{std::string("2 kg−3"), en}}) {
+            const auto result = frontend.process(input, options);
+            CHECK(result.normalized_text == input);
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(result.warnings.front().offset == 0);
+            CHECK(result.warnings.front().length == input.size());
+        }
+        TextFrontendOptions segmented = auto_options;
+        segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        for (const auto& input : {std::string("2 kg $3"), std::string("Привет 2 kg #3")}) {
+            const auto result =
+                frontend.process(input, input.rfind("Привет", 0) == 0 ? segmented : auto_options);
+            const auto begin = input.find("2");
+            CHECK(result.normalized_text == input);
+            const auto unresolved = std::find_if(
+                result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
+                    return warning.code == WarningCode::UnresolvedNumber;
+                });
+            CHECK(unresolved != result.warnings.end());
+            CHECK(unresolved->offset == begin);
+            CHECK(unresolved->length == input.size() - begin);
+        }
+    }
+    {
+        const std::vector<std::string> unsupported_currency_tails = {
+            "$1 #2",
+            "$1 /2",
+            "$1 %2",
+            "$1,234 #2",
+            "$1,234 /2",
+            "$1,234 %2",
+            "-$1 #2",
+            "-$1 /2",
+            "-$1 %2",
+            "+$1 #2",
+            "+$1 /2",
+            "+$1 %2",
+            std::string("\xE2\x88\x92") + "$1 #2",
+            std::string("\xE2\x88\x92") + "$1,234 /2"};
+        for (const auto& input : unsupported_currency_tails) {
+            const auto result = frontend.process(input, en);
+            CHECK(result.normalized_text == input);
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(result.warnings.front().offset == 0);
+            CHECK(result.warnings.front().length == input.size());
+        }
+        CHECK(frontend.process("$1 2", en).normalized_text == "one dollar two");
+        CHECK(frontend.process("$1 $2", en).normalized_text == "one dollar two dollars");
+    }
+    {
+        const std::vector<std::string> currency_prefixes = {
+            "$ 1",
+            "$+1",
+            "$-1",
+            std::string("$") + "\xE2\x88\x92" + "1",
+            "+$1",
+            "-$1",
+            std::string("\xE2\x88\x92") + "$1",
+            "$ 1,234",
+            "$+1,234",
+            "$-1,234",
+            std::string("$") + "\xE2\x88\x92" + "1,234",
+            "$ 1.25",
+            "$+1.25",
+            "$-1.25",
+            std::string("$") + "\xE2\x88\x92" + "1.25"};
+        const std::vector<std::string> connector_tails = {"#2", " #2", "/2", " /2", "%2", " %2"};
+        auto currency_segmented = auto_options;
+        currency_segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        const auto check_atomic_currency = [&](const std::string& input,
+                                               const TextFrontendOptions& options) {
+            const auto result = frontend.process(input, options);
+            const auto unresolved = std::find_if(
+                result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
+                    return warning.code == WarningCode::UnresolvedNumber;
+                });
+            return result.normalized_text == input && unresolved != result.warnings.end() &&
+                   std::count_if(result.warnings.begin(),
+                                 result.warnings.end(),
+                                 [](const TextWarning& warning) {
+                                     return warning.code == WarningCode::UnresolvedNumber;
+                                 }) == 1 &&
+                   unresolved->offset == 0 && unresolved->length == input.size();
+        };
+        for (const auto& prefix : currency_prefixes) {
+            for (const auto& options : {en, ru, auto_options, currency_segmented})
+                CHECK(check_atomic_currency(prefix, options));
+            for (const auto& tail : connector_tails) {
+                const auto input = prefix + tail;
+                for (const auto& options : {en, ru, auto_options, currency_segmented})
+                    CHECK(check_atomic_currency(input, options));
+            }
+        }
+        const std::string adjacent = "$-1 /2 $-1 #2";
+        const auto adjacent_result = frontend.process(adjacent, en);
+        CHECK(adjacent_result.normalized_text == adjacent);
+        CHECK(adjacent_result.warnings.size() == 2);
+        CHECK(adjacent_result.warnings[0].code == WarningCode::UnresolvedNumber);
+        CHECK(adjacent_result.warnings[0].offset == 0);
+        CHECK(adjacent_result.warnings[0].length == std::string("$-1 /2").size());
+        CHECK(adjacent_result.warnings[1].code == WarningCode::UnresolvedNumber);
+        CHECK(adjacent_result.warnings[1].offset == std::string("$-1 /2 ").size());
+        CHECK(adjacent_result.warnings[1].length == std::string("$-1 #2").size());
+    }
+    {
         const auto genitive_21 = frontend.process("после 21 попыток.", ru);
         CHECK(genitive_21.normalized_text == "после 21 попыток.");
         CHECK(genitive_21.warnings.size() == 1);
@@ -1461,6 +1598,176 @@ int main() {
             CHECK(result.pronunciation_text == result.normalized_text);
             CHECK(result.warnings.empty());
         }
+        const std::vector<std::pair<std::string, std::string>> decomposed_lexical_controls = {
+            {"после 2 руб\xCC\x81ежей", "после двух руб\xCC\x81ежей"},
+            {"после 2 руб\xCC\x81инов", "после двух руб\xCC\x81инов"},
+            {"после 2 метр\xCC\x81ов", "после двух метр\xCC\x81ов"},
+            {"после 2 метр\xCC\x81ополитенов", "после двух метр\xCC\x81ополитенов"}};
+        for (const auto* options : {&ru, &auto_options, &segmented}) {
+            for (const auto& [input, expected] : decomposed_lexical_controls) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text == expected);
+                CHECK(result.pronunciation_text == expected);
+                CHECK(result.warnings.empty());
+            }
+        }
+        const std::vector<std::pair<std::string, std::size_t>> short_unit_combining = {
+            {"2 м\xCC\x81", std::string("2 м\xCC\x81").size()},
+            {"2 м\xCC\x81"
+             "foo",
+             (std::string("2 м\xCC\x81") + "foo").size()},
+            {"2 м\xCC\x81.", std::string("2 м\xCC\x81").size()}};
+        for (const auto* options : {&ru, &auto_options, &segmented}) {
+            for (const auto& [input, warning_length] : short_unit_combining) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text == input);
+                CHECK(result.pronunciation_text == input);
+                if (input.find("foo") == std::string::npos)
+                    CHECK(result.warnings.size() == 1);
+                CHECK(std::count_if(
+                          result.warnings.begin(), result.warnings.end(), [](const auto& warning) {
+                              return warning.code == WarningCode::UnresolvedNumber;
+                          }) == 1);
+                const auto unresolved = std::find_if(
+                    result.warnings.begin(), result.warnings.end(), [](const auto& warning) {
+                        return warning.code == WarningCode::UnresolvedNumber;
+                    });
+                CHECK(unresolved != result.warnings.end());
+                CHECK(unresolved->offset == 0);
+                CHECK(unresolved->length == warning_length);
+            }
+        }
+        for (const auto* options : {&ru, &auto_options, &segmented}) {
+            for (const auto& [input, expected] : std::vector<std::pair<std::string, std::string>>{
+                     {"2 месяцев", "два месяцев"}, {"2 м\xCC\x81ежей", "два м\xCC\x81ежей"}}) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text == expected);
+                CHECK(result.pronunciation_text == expected);
+                CHECK(result.warnings.empty());
+            }
+        }
+        const std::vector<std::string> decimal_separators = {".", ","};
+        const std::vector<std::string> numeric_signs = {"", "+", "-", "\xE2\x88\x92"};
+        for (const auto* options : {&ru, &auto_options, &segmented}) {
+            for (const auto& sign : numeric_signs) {
+                for (const auto& separator : decimal_separators) {
+                    const auto input = sign + "2" + separator + "5 м\xCC\x81";
+                    const auto result = frontend.process(input, *options);
+                    CHECK(result.original_text == input);
+                    CHECK(result.normalized_text == input);
+                    CHECK(result.pronunciation_text == input);
+                    CHECK(result.warnings.size() == 1);
+                    CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+                    CHECK(result.warnings.front().offset == 0);
+                    CHECK(result.warnings.front().length == input.size());
+                }
+            }
+        }
+        std::vector<std::string> combining_short_unit_tails = {"2 м\xCC\x81%1",
+                                                               "2 м\xCC\x81"
+                                                               "1",
+                                                               "2 м\xCC\x81/1",
+                                                               "+2.5 м\xCC\x81%1"};
+        const std::vector<std::string> combining_short_unit_continuations = {
+            "%1", "/1", "#1", "$1", "foo"};
+        for (const auto& sign : numeric_signs) {
+            for (const auto& separator : decimal_separators) {
+                for (const auto& continuation : combining_short_unit_continuations) {
+                    combining_short_unit_tails.push_back(sign + "2" + separator + "5 м\xCC\x81" +
+                                                         continuation);
+                }
+            }
+        }
+        const std::vector<std::string> combining_connector_tails = {"+2 %\xCC\x81",
+                                                                    "2 /\xCC\x81"
+                                                                    "3",
+                                                                    "2 #\xCC\x81"
+                                                                    "3",
+                                                                    "2 $\xCC\x81"
+                                                                    "3"};
+        for (const auto* options : {&ru, &auto_options, &segmented}) {
+            for (const auto& input : combining_short_unit_tails) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text == input);
+                CHECK(result.pronunciation_text == input);
+                CHECK(std::count_if(
+                          result.warnings.begin(), result.warnings.end(), [](const auto& warning) {
+                              return warning.code == WarningCode::UnresolvedNumber;
+                          }) == 1);
+                const auto unresolved = std::find_if(
+                    result.warnings.begin(), result.warnings.end(), [](const auto& warning) {
+                        return warning.code == WarningCode::UnresolvedNumber;
+                    });
+                CHECK(unresolved != result.warnings.end());
+                CHECK(unresolved->offset == 0);
+                CHECK(unresolved->length == input.size());
+            }
+            for (const auto& input : combining_connector_tails) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text == input);
+                CHECK(result.pronunciation_text == input);
+                CHECK(result.warnings.size() == 1);
+                CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+                CHECK(result.warnings.front().offset == 0);
+                CHECK(result.warnings.front().length == input.size());
+            }
+        }
+        const std::vector<std::string> combining_chain_cases = {"2 м\xCC\x81.%1",
+                                                                "2 кг\xCC\x81.%1",
+                                                                "2 руб\xCC\x81.%1",
+                                                                "2,5\xCC\x81 кг%1",
+                                                                "2,5\xCC\x81 #1",
+                                                                "2 м\xCC\x81.+1",
+                                                                "после 2,5 руб\xCC\x81.%1"};
+        for (const auto* options : {&ru, &auto_options, &segmented}) {
+            for (const auto& input : combining_chain_cases) {
+                const auto result = frontend.process(input, *options);
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text == input);
+                CHECK(result.pronunciation_text == input);
+                CHECK(std::count_if(
+                          result.warnings.begin(), result.warnings.end(), [](const auto& warning) {
+                              return warning.code == WarningCode::UnresolvedNumber;
+                          }) == 1);
+                const auto unresolved = std::find_if(
+                    result.warnings.begin(), result.warnings.end(), [](const auto& warning) {
+                        return warning.code == WarningCode::UnresolvedNumber;
+                    });
+                CHECK(unresolved != result.warnings.end());
+                const auto begin = input.find("2");
+                CHECK(unresolved->offset == begin);
+                CHECK(unresolved->length == input.size() - begin);
+            }
+        }
+        const std::vector<std::pair<std::string, std::string>> english_combining_controls = {
+            {"2 с\xCC\x81", "two с\xCC\x81"}, {"2 а\xCC\x81.", "two а\xCC\x81."}};
+        for (const auto& [input, expected] : english_combining_controls) {
+            const auto result = frontend.process(input, en);
+            CHECK(result.original_text == input);
+            CHECK(result.normalized_text == expected);
+            CHECK(result.pronunciation_text == expected);
+            CHECK(result.warnings.empty());
+        }
+        const auto english_combining_chain = frontend.process("2,5\xCC\x81 #1", en);
+        CHECK(english_combining_chain.normalized_text == english_combining_chain.original_text);
+        CHECK(english_combining_chain.pronunciation_text == english_combining_chain.original_text);
+        CHECK(std::count_if(english_combining_chain.warnings.begin(),
+                            english_combining_chain.warnings.end(),
+                            [](const auto& warning) {
+                                return warning.code == WarningCode::UnresolvedNumber;
+                            }) == 1);
+        const auto english_unresolved = std::find_if(
+            english_combining_chain.warnings.begin(),
+            english_combining_chain.warnings.end(),
+            [](const auto& warning) { return warning.code == WarningCode::UnresolvedNumber; });
+        CHECK(english_unresolved != english_combining_chain.warnings.end());
+        CHECK(english_unresolved->offset == 0);
+        CHECK(english_unresolved->length == english_combining_chain.original_text.size());
         const std::vector<std::pair<std::string, std::string>> unit_punctuation = {
             {"после 2 кг!", "после 2 кг!"},
             {"после 2,5 кг, 3", "после 2,5 кг, три"},
@@ -1843,6 +2150,22 @@ int main() {
                 return warning.code == WarningCode::AmbiguousNormalization;
             }));
     }
+    {
+        // The document-level mixed-language diagnostic is independent from
+        // a candidate-specific unresolved warning in another span.
+        TextFrontendOptions segmented;
+        segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        const auto result = frontend.process("Используем 2 GB и 3 kgfoo", segmented);
+        CHECK(result.normalized_text == "Используем two gigabytes и 3 kgfoo");
+        CHECK(std::count_if(
+                  result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
+                      return warning.code == WarningCode::AmbiguousNormalization;
+                  }) == 1);
+        CHECK(std::count_if(
+                  result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
+                      return warning.code == WarningCode::UnresolvedNumber;
+                  }) == 1);
+    }
     std::string many_protected;
     for (int i = 0; i < 35; ++i) {
         if (!many_protected.empty())
@@ -1943,6 +2266,31 @@ int main() {
         CHECK(arithmetic_matches(en, english_cases));
         CHECK(arithmetic_matches(ru, russian_expected));
         CHECK(arithmetic_matches(auto_options, english_cases));
+    }
+    for (const auto* options : {&ru, &auto_options, &segmented}) {
+        for (const auto& input : {std::string("2,5\xCC\x81 кг"), std::string("2 kg\xCC\x81")}) {
+            const auto result = frontend.process(input, *options);
+            CHECK(result.original_text == input);
+            CHECK(result.normalized_text == input);
+            CHECK(result.pronunciation_text == input);
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(result.warnings.front().offset == 0);
+            CHECK(result.warnings.front().length == input.size());
+        }
+    }
+    const std::vector<std::pair<const TextFrontendOptions*, std::pair<std::string, std::string>>>
+        decomposed_word_controls = {{&en, {"2 cafe\xCC\x81", "two cafe\xCC\x81"}},
+                                    {&en, {"2 foo\xCC\x81", "two foo\xCC\x81"}},
+                                    {&ru, {"2 месяца\xCC\x81", "два месяца\xCC\x81"}},
+                                    {&auto_options, {"2 cafe\xCC\x81", "two cafe\xCC\x81"}},
+                                    {&segmented, {"2 cafe\xCC\x81", "two cafe\xCC\x81"}}};
+    for (const auto& [options, test] : decomposed_word_controls) {
+        const auto result = frontend.process(test.first, *options);
+        CHECK(result.original_text == test.first);
+        CHECK(result.normalized_text == test.second);
+        CHECK(result.pronunciation_text == test.second);
+        CHECK(result.warnings.empty());
     }
     std::cout << "tts_front tests passed\n";
     return EXIT_SUCCESS;

@@ -1,6 +1,7 @@
 #include "tts_front/language/russian/mixed_candidates.hpp"
 
 #include "tts_front/core/numeric_scanner.hpp"
+#include "tts_front/core/text/codepoint_classification.hpp"
 #include "tts_front/core/utf8_document.hpp"
 #include "tts_front/language/russian/admission.hpp"
 #include "tts_front/language/russian/formatters.hpp"
@@ -119,13 +120,66 @@ std::vector<MixedCandidateMatch> scan_malformed_matches(std::string_view text) {
             const auto point = codepoint_index_at_or_after(document, begin);
             const auto surface =
                 scan_candidate_surface(document, point, CandidateSurfaceKind::Contextual);
-            if (surface.valid())
+            if (surface.valid()) {
                 match_end = std::max(
                     match_end, classify_genitive_surface(text, begin, surface.has_combining).end);
+            }
         }
         matches.push_back({begin, match_end, text.substr(begin, match_end - begin)});
     }
-    return matches;
+    // The regex admission above cannot see combining marks. Scan every full
+    // numeric start once so signs and dot/comma decimals receive the same
+    // short-unit boundary as integer candidates.
+    if (document.valid) {
+        for (std::size_t point = 0; point < document.points.size(); ++point) {
+            const auto value = document.points[point].value;
+            const auto signed_start = (value == '+' || value == '-' || value == 0x2212) &&
+                                      point + 1 < document.points.size() &&
+                                      text::is_digit(document.points[point + 1].value);
+            const auto unsigned_start =
+                text::is_digit(value) &&
+                (point == 0 || !text::is_digit(document.points[point - 1].value));
+            if (!signed_start && !unsigned_start)
+                continue;
+            const auto range = scan_combining_suffix(document, point);
+            if (!range)
+                continue;
+            const auto range_end = range->offset + range->length;
+            const auto present = std::any_of(matches.begin(), matches.end(), [&](auto& match) {
+                const auto overlaps = match.begin < range_end && range->offset < match.end;
+                if (overlaps) {
+                    match.begin = std::min(match.begin, range->offset);
+                    match.end = std::max(match.end, range_end);
+                    match.value = text.substr(match.begin, match.end - match.begin);
+                    return true;
+                }
+                return false;
+            });
+            if (!present)
+                matches.push_back(
+                    {range->offset, range_end, text.substr(range->offset, range->length)});
+        }
+    }
+    // Regex and typed scans may discover the same malformed surface from
+    // different anchors (for example the currency tail and the full
+    // combining-unit candidate).  Canonicalize overlaps before admission so
+    // only the widest atomic span reaches the mixed pipeline.
+    std::sort(matches.begin(), matches.end(), [](const auto& left, const auto& right) {
+        if (left.begin != right.begin)
+            return left.begin < right.begin;
+        return left.end > right.end;
+    });
+    std::vector<MixedCandidateMatch> merged;
+    for (const auto& match : matches) {
+        if (!merged.empty() && match.begin < merged.back().end) {
+            merged.back().end = std::max(merged.back().end, match.end);
+            merged.back().value =
+                text.substr(merged.back().begin, merged.back().end - merged.back().begin);
+        } else {
+            merged.push_back(match);
+        }
+    }
+    return merged;
 }
 
 } // namespace
