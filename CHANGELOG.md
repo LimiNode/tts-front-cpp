@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.3
+
+- Исправлена атомарная обработка currency-prefix форм для `$`, `€`, `£` и `¥`, включая знаки, пробелы, grouped и decimal values.
+- Устранены partial rewrites после currency и unit candidates для connectors `#`, `/` и `%`; неподдержанные поверхности сохраняются целиком с одним `UnresolvedNumber`.
+- Продолжены fail-closed combining-suffix и scanner-first boundary policy в EN/RU/Auto/SegmentCandidates.
+- Добавлены regression tests для currency-prefix и continuation matrix. Подтверждены Debug/Release, GCC/Clang/MSVC, ONNX и install-consumer CI.
+- Quality oracle и опубликованные архивы `v0.2.0`–`v0.2.2` не изменялись; baseline продолжает наследоваться от `v0.2.2`.
+
 ## 0.2.2
 
 - Improved English spoken dates and year rendering (`January second`, ordinal days,

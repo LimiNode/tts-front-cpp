@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(tts-front-cpp VERSION 0.2.2 LANGUAGES CXX)
+project(tts-front-cpp VERSION 0.2.3 LANGUAGES CXX)
 
 option(TTS_FRONT_BUILD_TESTS "Build tests" ON)
 option(TTS_FRONT_BUILD_EXAMPLES "Build examples" ON)
