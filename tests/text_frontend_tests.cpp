@@ -9,6 +9,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <tuple>
 #include <vector>
 
 using namespace tts_front;
@@ -60,6 +61,52 @@ int main() {
           "одна целая одна десятая две целых две десятых пять целых одна десятая");
     TextFrontendOptions en;
     en.language = Language::English;
+    {
+        const std::array<std::tuple<std::string, std::string, std::string>, 5> years = {{
+            {"1900", "one thousand nine hundred", "nineteen hundred"},
+            {"1999", "one thousand nine hundred ninety nine", "nineteen ninety nine"},
+            {"2000", "two thousand", "two thousand"},
+            {"2001", "two thousand one", "two thousand one"},
+            {"2024", "two thousand twenty four", "two thousand twenty four"},
+        }};
+        for (const auto& [surface, cardinal, spoken] : years) {
+            CHECK(frontend.process("in " + surface, en).normalized_text == "in " + spoken);
+            CHECK(frontend.process("from " + surface, en).normalized_text == "from " + spoken);
+            CHECK(frontend.process(surface, en).normalized_text == cardinal);
+        }
+        const std::array<std::pair<std::string, std::string>, 5> dates = {{
+            {"January 1, 1900", "January first, nineteen hundred"},
+            {"January 1, 1999", "January first, nineteen ninety nine"},
+            {"January 1, 2000", "January first, two thousand"},
+            {"January 1, 2001", "January first, two thousand one"},
+            {"January 1, 2024", "January first, two thousand twenty four"},
+        }};
+        for (const auto& [surface, spoken] : dates) {
+            const auto result = frontend.process(surface, en);
+            CHECK(result.normalized_text == spoken);
+            CHECK(result.pronunciation_text == spoken);
+            CHECK(result.warnings.empty());
+        }
+        CHECK(frontend.process("between 1999 and 2001", en).normalized_text ==
+              "between one thousand nine hundred ninety nine and two thousand one");
+        CHECK(frontend.process("in 2100", en).normalized_text == "in two thousand one hundred");
+        CHECK(frontend.process("in 999", en).normalized_text == "in nine hundred ninety nine");
+    }
+    for (const auto& input : {std::string("in 1999#4"),
+                              std::string("from 2024/4"),
+                              std::string("in 1999%foo"),
+                              std::string("in 1999foo"),
+                              std::string("in 1999+4")}) {
+        const auto result = frontend.process(input, en);
+        const auto number_offset = input.find("1999") != std::string::npos
+                                       ? input.find("1999")
+                                       : input.find("2024");
+        CHECK(result.normalized_text == input);
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(result.warnings.front().offset == number_offset);
+        CHECK(result.warnings.front().length == input.size() - number_offset);
+    }
     TextFrontendOptions auto_options = en;
     auto_options.language = Language::Auto;
     TextFrontendOptions segmented = en;
