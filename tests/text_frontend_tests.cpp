@@ -98,9 +98,8 @@ int main() {
                               std::string("in 1999foo"),
                               std::string("in 1999+4")}) {
         const auto result = frontend.process(input, en);
-        const auto number_offset = input.find("1999") != std::string::npos
-                                       ? input.find("1999")
-                                       : input.find("2024");
+        const auto number_offset =
+            input.find("1999") != std::string::npos ? input.find("1999") : input.find("2024");
         CHECK(result.normalized_text == input);
         CHECK(result.warnings.size() == 1);
         CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);

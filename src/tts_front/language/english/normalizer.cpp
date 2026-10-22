@@ -184,8 +184,8 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
     if (std::regex_search(text.text, english::patterns().year_context)) {
         const Utf8Document document(text.text);
         std::vector<SourceEdit> year_edits;
-        for (std::sregex_iterator it(text.text.begin(), text.text.end(),
-                                     english::patterns().year_context),
+        for (std::sregex_iterator
+                 it(text.text.begin(), text.text.end(), english::patterns().year_context),
              end;
              it != end;
              ++it) {
@@ -209,15 +209,15 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                                     year_edits);
         }
         text = apply_source_edits(text, std::move(year_edits));
-        text = replace_matches(
-            text,
-            english::patterns().year_context,
-            [&](const std::smatch& match, const MappedText&) {
-                long long year_value = 0;
-                if (!try_parse_long(match[2].str(), year_value) || !supported_year(year_value))
-                    return match.str();
-                return match[1].str() + " " + year(year_value);
-            });
+        text = replace_matches(text,
+                               english::patterns().year_context,
+                               [&](const std::smatch& match, const MappedText&) {
+                                   long long year_value = 0;
+                                   if (!try_parse_long(match[2].str(), year_value) ||
+                                       !supported_year(year_value))
+                                       return match.str();
+                                   return match[1].str() + " " + year(year_value);
+                               });
     }
     std::vector<SourceEdit> typed_edits;
     protect_typed_continuations(text, warnings, protected_spans, typed_edits);
