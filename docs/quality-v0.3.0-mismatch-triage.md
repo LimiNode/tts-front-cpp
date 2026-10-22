@@ -1,193 +1,138 @@
-# v0.3.0 natural-sentence mismatch triage
+# v0.3.0 quality-cycle triage
 
-Review-only analysis for the 36 `incorrect_or_partial` cases in the
-v0.3.0 EN/RU natural-sentence baseline. This document is based on
-`fd70deda52329f8bfad161761bb21bef1c28cb1c` and intentionally changes no
-production code, public API, CMake/version metadata, TSV gold, snapshots, or
-release archives.
+Review-only triage of the working quality corpus after merge commit
+`a3c321a92ebb5cd4fa49d291d04888cfa55947b7` (the merge of PR #22).
+This document intentionally changes no production code, public API, CMake
+metadata, TSV gold, snapshots, or release archives.
 
-The baseline has 655 cases (`531 / 88 / 0 / 36`). The table below records the
-current implementation output versus a proposed semantic contract. `N/P`
-means the proposed `normalized_text` and `pronunciation_text`; they are equal
-for every case in this report. The ten mixed-language rows currently carry an
-`ambiguous_normalization` diagnostic in the snapshot; the other 26 rows have
-`diagnostics=none`. A future policy PR must decide whether that ambiguity
-diagnostic remains after local-head ownership is made explicit. No mismatch in
-this set is diagnostic-only.
+## Baseline and scope
 
-## Classification key
+The current corpus contains 655 cases with the following audit result:
 
-- **Implementation bug** — the language policy is sufficiently determined, but
-  the implementation does not produce it.
-- **Erroneous gold** — the current expected output is not a defensible
-  sentence-level contract (for example, wrong case or wrong currency scale).
-- **Ambiguous language policy** — a product decision is needed before calling
-  either output a defect; the proposed output below is the recommended policy
-  for a future behavior PR.
-- **Diagnostic-only** — output is acceptable and only diagnostics differ. None
-  of the 36 IDs has this classification; all have `diagnostics=none` in the
-  snapshot and an output mismatch.
+```text
+correct_transformation 535
+justified_preservation   88
+unnecessary_refusal       0
+incorrect_or_partial     32
+```
 
-## Per-ID triage
+The 32 mismatches are exactly:
 
-### Mixed-language policy
+- 10 mixed-language cases;
+- 16 Russian year cases;
+- 4 Russian date cases;
+- 2 Russian currency cases.
 
-The recommended rule is local lexical ownership: a number follows the
-language of its nearby lexical head/segment, not the dominant language of the
-whole sentence. Technical identifiers, URLs and email addresses remain
-protected. This makes the English/Russian pairs below deterministic without
-switching the language of an entire sentence.
+There are no remaining English year mismatches. The English spoken-year
+policy from PR #22 resolved the two earlier `en-v030-year-*` rows. The
+published `v0.2.0`, `v0.2.1`, and `v0.2.2` archives remain immutable.
 
-| ID | Classification | Current implementation | Proposed N/P | Assessment |
-|---|---|---|---|---|
-| `en-v030-mixed-0-0` | Ambiguous language policy | `OpenAI API processed two запроса.` | `OpenAI API processed два запроса.` | Russian noun `запроса` owns the number; the current segment choice is inconsistent with local agreement. |
-| `en-v030-mixed-2-0` | Ambiguous language policy | `RTX-4090 completed four задачи.` | `RTX-4090 completed четыре задачи.` | The Russian head `задачи` requires a Russian numeral; `RTX-4090` remains technical text. |
-| `en-v030-mixed-3-0` | Ambiguous language policy | `HTTP/2 returned five ошибок.` | `HTTP/2 returned пять ошибок.` | The Russian head `ошибок` controls the number; `HTTP/2` is a protected identifier. |
-| `en-v030-mixed-6-1` | Ambiguous language policy | `Build семь passed в CI. Проверка завершена.` | `Build seven passed в CI. Проверка завершена.` | The number belongs to the English clause; the following Russian fragment must not retroactively change its language. |
-| `en-v030-mixed-7-0` | Ambiguous language policy | `Version V2.1.0 includes three исправления.` | `Version V2.1.0 includes три исправления.` | Russian noun `исправления` owns the numeral; the version token is technical and untouched. |
-| `ru-v030-mixed-2-0` | Ambiguous language policy | `RTX-4090 завершил четыре tasks.` | `RTX-4090 завершил four tasks.` | English head `tasks` owns the number. |
-| `ru-v030-mixed-3-0` | Ambiguous language policy | `HTTP/2 вернул пять errors.` | `HTTP/2 вернул five errors.` | English head `errors` owns the number. |
-| `ru-v030-mixed-4-0` | Ambiguous language policy | `Отправьте два reports на dev@example.com.` | `Отправьте two reports на dev@example.com.` | English head `reports` owns the number; `dev@example.com` is protected. |
-| `ru-v030-mixed-6-1` | Ambiguous language policy | `Сборка seven прошла в CI. Validation complete.` | `Сборка семь прошла в CI. Validation complete.` | The Russian subject `Сборка` owns the bare numeral; the later English sentence is a separate segment. |
-| `ru-v030-mixed-7-0` | Ambiguous language policy | `Версия V2.1.0 содержит три fixes.` | `Версия V2.1.0 содержит three fixes.` | English head `fixes` owns the number; the version remains protected. |
+The proposed outputs below are review targets, not new oracle values. A future
+behavior PR must first approve the relevant product policy, add positive and
+negative neighbors, and only then update the working snapshot.
 
-These ten cases are not suitable for silently changing gold until the local
-head/segment rule is accepted as the mixed-language contract. The proposed
-outputs are the recommended oracle for the subsequent behavior PR.
+## Priority 1: mixed-language ownership (10 cases)
 
-### English year policy
+The current implementation follows the dominant or surrounding segment in
+some rows, while the snapshot expects the language of the local lexical head.
+The recommended policy is local ownership: a number is formatted in the
+language of the noun or clause it belongs to; a technical identifier, URL, or
+email never changes that decision.
 
-The proposed English policy reads a four-digit year in a date-like context as
-two pairs when that is the established spoken-year form. Thus 1999 is
-`nineteen ninety nine`, rather than the cardinal `one thousand nine hundred
-ninety nine`. If a product decision instead selects cardinal years, both gold
-rows would be policy changes rather than implementation defects.
+| ID | Current output | Proposed policy output |
+|---|---|---|
+| `en-v030-mixed-0-0` | `OpenAI API processed two запроса.` | `OpenAI API processed два запроса.` |
+| `en-v030-mixed-2-0` | `RTX-4090 completed four задачи.` | `RTX-4090 completed четыре задачи.` |
+| `en-v030-mixed-3-0` | `HTTP/2 returned five ошибок.` | `HTTP/2 returned пять ошибок.` |
+| `en-v030-mixed-6-1` | `Build семь passed в CI. Проверка завершена.` | `Build seven passed в CI. Проверка завершена.` |
+| `en-v030-mixed-7-0` | `Version V2.1.0 includes three исправления.` | `Version V2.1.0 includes три исправления.` |
+| `ru-v030-mixed-2-0` | `RTX-4090 завершил четыре tasks.` | `RTX-4090 завершил four tasks.` |
+| `ru-v030-mixed-3-0` | `HTTP/2 вернул пять errors.` | `HTTP/2 вернул five errors.` |
+| `ru-v030-mixed-4-0` | `Отправьте два reports на dev@example.com.` | `Отправьте two reports на dev@example.com.` |
+| `ru-v030-mixed-6-1` | `Сборка seven прошла в CI. Validation complete.` | `Сборка семь прошла в CI. Validation complete.` |
+| `ru-v030-mixed-7-0` | `Версия V2.1.0 содержит три fixes.` | `Версия V2.1.0 содержит three fixes.` |
 
-| ID | Classification | Current implementation | Proposed N/P | Assessment |
-|---|---|---|---|---|
-| `en-v030-year-0-a` | Ambiguous language policy (implementation gap) | `The archive was created in one thousand nine hundred ninety nine.` | `The archive was created in nineteen ninety nine.` | The formatter applies a cardinal-number path to a year surface. Adopt the spoken-year rule before changing code. |
-| `en-v030-year-0-b` | Ambiguous language policy (implementation gap) | `Records from one thousand nine hundred ninety nine remain available.` | `Records from nineteen ninety nine remain available.` | Same year policy in a prepositional context; no diagnostic is needed once the policy is explicit. |
+The behavior PR must also define the fallback when no local head exists. The
+safe fallback is unchanged source text plus the existing
+`AmbiguousNormalization` diagnostic, rather than guessing from one foreign
+word. Coverage should include EN, RU, Auto, and `SegmentCandidates`, with
+technical identifiers and protected URL/email neighbors.
 
-### Russian case, dates and orthography
+## Priority 2: English years and dates
 
-The case policy used below is explicit:
+No English year mismatch remains in the post-merge baseline. The next English
+quality pass should therefore be regression-only around the accepted policy:
 
-- `после` and `из` govern genitive (`после двух попыток`, `из пяти узлов`);
-- temporal `за` governs accusative (`за две тысячи первый год`), while a
-  different construction such as `из-за` would have its own syntax;
-- `на` in `встреча назначена на ...` is accusative;
-- `дату ...` names the date in genitive (`дату первого января`);
-- generated Russian uses canonical `ё` in these stressed ordinal forms.
+- bare years remain cardinal;
+- `in`/`from` and month-name dates use the approved spoken-year policy;
+- `from ... to ...` remains fail-closed until a range policy is approved;
+- attached continuations remain atomic and preserve source bytes.
 
-| ID | Classification | Current implementation | Proposed N/P | Assessment |
-|---|---|---|---|---|
-| `ru-v030-control-4` | Implementation bug | `После два попыток система ответила.` | `После двух попыток система ответила.` | `после` requires genitive; the implementation emits a cardinal form. |
-| `ru-v030-control-5` | Implementation bug | `После двадцать два попыток система ответила.` | `После двадцати двух попыток система ответила.` | The same genitive rule applies to a compound number; this is not limited to values below 10. |
-| `ru-v030-date-0-0` | Implementation bug (orthography) | `Встреча назначена на первое января две тысячи двадцать четвертого года.` | `Встреча назначена на первое января две тысячи двадцать четвёртого года.` | Accusative after `на` is correct; only the canonical `ё` spelling is lost. |
-| `ru-v030-date-0-1` | Erroneous gold + implementation gap | `Подтвердите дату первое января две тысячи двадцать четвертого года.` | `Подтвердите дату первого января две тысячи двадцать четвёртого года.` | The gold uses nominative-like `первое` after `дату`; genitive `первого` is required, in addition to the `ё` decision. |
-| `ru-v030-date-1-0` | Implementation bug (orthography) | `Встреча назначена на двадцать девятое февраля две тысячи двадцать четвертого года.` | `Встреча назначена на двадцать девятое февраля две тысячи двадцать четвёртого года.` | Accusative date after `на` is correct; canonical `ё` is missing. |
-| `ru-v030-date-1-1` | Erroneous gold + implementation gap | `Подтвердите дату двадцать девятое февраля две тысячи двадцать четвертого года.` | `Подтвердите дату двадцать девятого февраля две тысячи двадцать четвёртого года.` | `дату` requires genitive `двадцать девятого`; the current gold is not a valid target sentence. |
+New English date behavior should not be mixed into the Russian date or mixed
+language oracle change. It needs its own review and neighbor matrix.
 
-The `ё/е` choice must be made once for generated Russian text. This report
-recommends `ё` in normalized and pronunciation text; an ASCII-compatible
-`е` policy would instead require an explicit oracle decision and a separate
-gold review.
+## Priority 3: Russian years and grammatical agreement (16 cases)
 
-### Decimal currency scale
+The eight year pairs (`-a` and `-b`) expose two independent decisions:
 
-| ID | Classification | Current implementation | Proposed N/P | Assessment |
-|---|---|---|---|---|
-| `ru-v030-money-7-a` | Ambiguous language policy (gold is inadequate) | `Итоговая цена — две целых пятьдесят сотых рубля.` | `Итоговая цена — два рубля пятьдесят копеек.` | Money should be rendered in major/minor units. `пять десятых` is not an acceptable representation of the currency scale, while `пятьдесят сотых` is mathematically exact but unnatural. |
-| `ru-v030-money-7-b` | Ambiguous language policy (gold is inadequate) | `Бухгалтерия учла две целых пятьдесят сотых рубля сегодня.` | `Бухгалтерия учла два рубля пятьдесят копеек сегодня.` | Same minor-unit policy in a verbal context; the surrounding syntax does not change the currency scale. |
+1. `в ... году` is a prepositional year context and needs an ordinal ending;
+2. temporal `за ... год` is an accusative context and needs a different
+   ordinal ending, with the noun agreeing with it.
 
-The behavior PR should define rounding, trailing zeros, and the boundary
-between decimal-number wording and currency-specific minor units before
-updating either implementation or gold.
+The current outputs and policy targets are:
 
-### Russian year inflection
+| IDs | Current output (year fragment) | Proposed policy fragment |
+|---|---|---|
+| `ru-v030-year-0-a/b` | `одна тысяча девятьсот девяносто девять году/год` | `тысяча девятьсот девяносто девятом году` / `тысяча девятьсот девяносто девятый год` |
+| `ru-v030-year-1-a/b` | `две тысячи году/год` | `двухтысячном году` / `двухтысячный год` |
+| `ru-v030-year-2-a/b` | `две тысячи один году/год` | `две тысячи первом году` / `две тысячи первый год` |
+| `ru-v030-year-3-a/b` | `две тысячи двенадцать году/год` | `две тысячи двенадцатом году` / `две тысячи двенадцатый год` |
+| `ru-v030-year-4-a/b` | `две тысячи двадцать году/год` | `две тысячи двадцатом году` / `две тысячи двадцатый год` |
+| `ru-v030-year-5-a/b` | `две тысячи двадцать четыре году/год` | `две тысячи двадцать четвёртом году` / `две тысячи двадцать четвёртый год` |
+| `ru-v030-year-6-a/b` | `две тысячи двадцать шесть году/год` | `две тысячи двадцать шестом году` / `две тысячи двадцать шестой год` |
+| `ru-v030-year-7-a/b` | `две тысячи сорок два году/год` | `две тысячи сорок втором году` / `две тысячи сорок второй год` |
 
-For `в ... году`, the year is an ordinal in the prepositional phrase. For
-`за ... год`, it is an ordinal in the accusative phrase. The current gold for
-all `-b` rows uses prepositional endings (`-ом`) while leaving `год` in a
-non-agreeing form, so those gold entries must not be copied into a behavior
-PR without correction.
+These targets require an explicit product decision about year-style Russian
+numerals, ordinal inflection, and the canonical `ё` policy. The `-b` gold
+rows currently contain prepositional-like endings after `за`; they must be
+reviewed rather than copied mechanically into a behavior PR.
 
-| ID | Classification | Current implementation | Proposed N/P | Assessment |
-|---|---|---|---|---|
-| `ru-v030-year-0-a` | Implementation bug | `Архив создан в одна тысяча девятьсот девяносто девять году.` | `Архив создан в тысяча девятьсот девяносто девятом году.` | Year-style reading omits cardinal `одна`; the final component is ordinal/prepositional. |
-| `ru-v030-year-0-b` | Erroneous gold + implementation bug | `Отчёт за одна тысяча девятьсот девяносто девять год доступен.` | `Отчёт за тысяча девятьсот девяносто девятый год доступен.` | `за` is accusative here, so gold `девятом год` is wrong; implementation also fails to inflect the year. |
-| `ru-v030-year-1-a` | Implementation bug | `Архив создан в две тысячи году.` | `Архив создан в двухтысячном году.` | The conventional round-year form is the fused ordinal `двухтысячном`. |
-| `ru-v030-year-1-b` | Erroneous gold + implementation bug | `Отчёт за две тысячи год доступен.` | `Отчёт за двухтысячный год доступен.` | Accusative requires `двухтысячный`, not `двухтысячном год`. |
-| `ru-v030-year-2-a` | Implementation bug | `Архив создан в две тысячи один году.` | `Архив создан в две тысячи первом году.` | The final year component is ordinal and agrees with `году`. |
-| `ru-v030-year-2-b` | Erroneous gold + implementation bug | `Отчёт за две тысячи один год доступен.` | `Отчёт за две тысячи первый год доступен.` | Accusative ordinal is `первый`; current gold incorrectly uses the prepositional form. |
-| `ru-v030-year-3-a` | Implementation bug | `Архив создан в две тысячи двенадцать году.` | `Архив создан в две тысячи двенадцатом году.` | Prepositional ordinal ending is required. |
-| `ru-v030-year-3-b` | Erroneous gold + implementation bug | `Отчёт за две тысячи двенадцать год доступен.` | `Отчёт за две тысячи двенадцатый год доступен.` | Accusative ordinal ending is required. |
-| `ru-v030-year-4-a` | Implementation bug | `Архив создан в две тысячи двадцать году.` | `Архив создан в две тысячи двадцатом году.` | Prepositional ordinal ending is required. |
-| `ru-v030-year-4-b` | Erroneous gold + implementation bug | `Отчёт за две тысячи двадцать год доступен.` | `Отчёт за две тысячи двадцатый год доступен.` | Accusative ordinal ending is required. |
-| `ru-v030-year-5-a` | Implementation bug | `Архив создан в две тысячи двадцать четыре году.` | `Архив создан в две тысячи двадцать четвёртом году.` | Prepositional ordinal plus the recommended `ё` spelling. |
-| `ru-v030-year-5-b` | Erroneous gold + implementation bug | `Отчёт за две тысячи двадцать четыре год доступен.` | `Отчёт за две тысячи двадцать четвёртый год доступен.` | Accusative ordinal plus `ё`; current gold uses neither. |
-| `ru-v030-year-6-a` | Implementation bug | `Архив создан в две тысячи двадцать шесть году.` | `Архив создан в две тысячи двадцать шестом году.` | Prepositional ordinal ending is required. |
-| `ru-v030-year-6-b` | Erroneous gold + implementation bug | `Отчёт за две тысячи двадцать шесть год доступен.` | `Отчёт за две тысячи двадцать шестой год доступен.` | Accusative ordinal ending is required. |
-| `ru-v030-year-7-a` | Implementation bug | `Архив создан в две тысячи сорок два году.` | `Архив создан в две тысячи сорок втором году.` | Prepositional ordinal ending is required. |
-| `ru-v030-year-7-b` | Erroneous gold + implementation bug | `Отчёт за две тысячи сорок два год доступен.` | `Отчёт за две тысячи сорок второй год доступен.` | Accusative ordinal ending is required. |
+The regression matrix should include `в`, `за`, `после`, `из`, values 1, 2, 5,
+21, 22, 42, 100, masculine/feminine/neuter heads, and unsupported contexts
+that must be preserved with a diagnostic.
 
-## Responsibility boundary for mixed language
+## Priority 4: Russian dates (4 cases)
 
-The mixed-language layer should select the language of a number from a local
-lexical head or an unambiguous segment boundary. It should not:
+| ID | Current output | Proposed policy target |
+|---|---|---|
+| `ru-v030-date-0-0` | `... на первое января две тысячи двадцать четвертого года.` | `... на первое января две тысячи двадцать четвёртого года.` |
+| `ru-v030-date-0-1` | `... дату первое января две тысячи двадцать четвертого года.` | `... дату первого января две тысячи двадцать четвёртого года.` |
+| `ru-v030-date-1-0` | `... на двадцать девятое февраля две тысячи двадцать четвертого года.` | `... на двадцать девятое февраля две тысячи двадцать четвёртого года.` |
+| `ru-v030-date-1-1` | `... дату двадцать девятое февраля две тысячи двадцать четвертого года.` | `... дату двадцать девятого февраля две тысячи двадцать четвёртого года.` |
 
-- infer the language from a technical identifier (`RTX-4090`, `HTTP/2`,
-  `V2.1.0`);
-- switch the entire sentence because of one foreign word;
-- translate protected URL/email/technical surfaces;
-- perform Russian case agreement for an English head, or English number
-  formatting for a Russian head, without an explicit segment decision.
+This group combines orthography (`ё` versus `е`) with case agreement after
+`на` and `дату`. The behavior PR must separate those decisions, validate real
+calendar dates, and add invalid-date and attached-continuation neighbors.
 
-When no local head exists (for example, a bare number between two language
-segments), the fail-closed choice is to preserve the candidate and emit the
-existing ambiguity diagnostic rather than guess. This boundary should be
-tested independently from language-specific grammar.
+## Priority 5: Russian currency (2 cases)
 
-## Proposed behavior PRs (maximum three)
+| ID | Current output | Proposed policy target |
+|---|---|---|
+| `ru-v030-money-7-a` | `Итоговая цена — две целых пятьдесят сотых рубля.` | `Итоговая цена — два рубля пятьдесят копеек.` |
+| `ru-v030-money-7-b` | `Бухгалтерия учла две целых пятьдесят сотых рубля сегодня.` | `Бухгалтерия учла два рубля пятьдесят копеек сегодня.` |
 
-### 1. English year/date and Russian year/date policy
+Currency wording needs a dedicated policy for major/minor units, rounding,
+trailing zeros, `руб.`, `₽`, full currency names, and mixed-language units.
+The proposed wording is a review target, not an oracle change.
 
-Define and implement the year grammar and case-aware date formatter, including
-the `ё/е` policy. Regression matrix:
+## Proposed behavior-PR sequence
 
-- English years: 1900, 1999, 2000, 2001, 2024 in sentence-initial, `in`, and
-  `from` contexts;
-- Russian years 1999/2000/2001/2012/2020/2024/2026/2042 after `в` and `за`;
-- numeric dates 01.01.2024 and 29.02.2024 after `на` and after `дату`;
-- invalid dates and attached continuations (`2024#4`, `2024/4`) must remain
-  atomic with one full diagnostic;
-- both `ё` and `е` inputs, with one documented output policy.
+1. Mixed-language local-head ownership and ambiguity fallback.
+2. Russian year/date inflection, after deciding `ё`/`е` and case contracts.
+3. Russian genitive agreement and decimal currency, with shared unit policy.
+4. English date/year neighbor audit only if new corpus evidence requires it.
 
-### 2. Russian genitive agreement and decimal currency
-
-Implement case/number agreement only where the grammar is explicit and use
-fail-closed preservation for unsupported contexts. Regression matrix:
-
-- `после`, `из`, temporal `за`, and `из-за` with 1, 2, 5, 21, 22, 42, 100;
-- masculine/feminine/neuter heads and plural genitive nouns;
-- `1,50`, `2,50`, `2,05`, `100,00` rubles with explicit minor-unit wording;
-- rounding and trailing-zero policy, including `руб.`, `₽`, and full currency
-  names;
-- negative and mixed-language neighbors that must not be partially rewritten.
-
-### 3. Mixed-language segment ownership
-
-Make local-head ownership explicit and keep technical/URL/email protection
-outside the language decision. Regression matrix:
-
-- EN and RU hosts with foreign noun heads (`2 запроса`, `2 reports`);
-- bare numbers next to a language boundary, with expected ambiguity
-  diagnostics;
-- technical identifiers, URLs and email addresses containing digits;
-- units/currency whose symbol and noun belong to different segments;
-- EN/RU/Auto plus `SegmentCandidates`, checking unchanged source bytes,
-  complete warning spans, no marker leakage and no overlapping
-  `UnresolvedNumber` diagnostics.
-
-No snapshot, gold, archive, or implementation change is part of this
-review-only PR.
+Each PR should contain one behavioral hypothesis, direct regressions, adversarial
+neighbors, and a before/after quality report. Release archives must not change.
+The `v0.3.0` working snapshot may change only after the corresponding oracle
+decision is documented separately from the implementation.
