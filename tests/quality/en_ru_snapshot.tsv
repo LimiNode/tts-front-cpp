@@ -1,23 +1,13 @@
 version	1
 cases	655
-outcome	correct_transformation	535
+outcome	correct_transformation	545
 outcome	justified_preservation	88
 outcome	unnecessary_refusal	0
-outcome	incorrect_or_partial	32
-mismatch	en-v030-mixed-0-0
-mismatch	en-v030-mixed-2-0
-mismatch	en-v030-mixed-3-0
-mismatch	en-v030-mixed-6-1
-mismatch	en-v030-mixed-7-0
+outcome	incorrect_or_partial	22
 mismatch	ru-v030-date-0-0
 mismatch	ru-v030-date-0-1
 mismatch	ru-v030-date-1-0
 mismatch	ru-v030-date-1-1
-mismatch	ru-v030-mixed-2-0
-mismatch	ru-v030-mixed-3-0
-mismatch	ru-v030-mixed-4-0
-mismatch	ru-v030-mixed-6-1
-mismatch	ru-v030-mixed-7-0
 mismatch	ru-v030-money-7-a
 mismatch	ru-v030-money-7-b
 mismatch	ru-v030-year-0-a
@@ -36,20 +26,10 @@ mismatch	ru-v030-year-6-a
 mismatch	ru-v030-year-6-b
 mismatch	ru-v030-year-7-a
 mismatch	ru-v030-year-7-b
-mismatch_class	en-v030-mixed-0-0	mixed_language:incorrect_or_partial
-mismatch_class	en-v030-mixed-2-0	mixed_language:incorrect_or_partial
-mismatch_class	en-v030-mixed-3-0	mixed_language:incorrect_or_partial
-mismatch_class	en-v030-mixed-6-1	mixed_language:incorrect_or_partial
-mismatch_class	en-v030-mixed-7-0	mixed_language:incorrect_or_partial
 mismatch_class	ru-v030-date-0-0	date:incorrect_or_partial
 mismatch_class	ru-v030-date-0-1	date:incorrect_or_partial
 mismatch_class	ru-v030-date-1-0	date:incorrect_or_partial
 mismatch_class	ru-v030-date-1-1	date:incorrect_or_partial
-mismatch_class	ru-v030-mixed-2-0	mixed_language:incorrect_or_partial
-mismatch_class	ru-v030-mixed-3-0	mixed_language:incorrect_or_partial
-mismatch_class	ru-v030-mixed-4-0	mixed_language:incorrect_or_partial
-mismatch_class	ru-v030-mixed-6-1	mixed_language:incorrect_or_partial
-mismatch_class	ru-v030-mixed-7-0	mixed_language:incorrect_or_partial
 mismatch_class	ru-v030-money-7-a	currency:incorrect_or_partial
 mismatch_class	ru-v030-money-7-b	currency:incorrect_or_partial
 mismatch_class	ru-v030-year-0-a	year:incorrect_or_partial
@@ -76,20 +56,10 @@ diagnostic_exception	en-v030-control-8	unresolved_number@10:11
 diagnostic_exception	en-v030-control-9	unresolved_number@10:12
 diagnostic_exception	ru-mixed-14	unresolved_number@19:6
 diagnostic_exception	ru-preserve-12	unresolved_number@33:6
-mismatch_output	en-v030-mixed-0-0	OpenAI API processed two запроса.	OpenAI API processed two запроса.
-mismatch_output	en-v030-mixed-2-0	RTX-4090 completed four задачи.	RTX-4090 completed four задачи.
-mismatch_output	en-v030-mixed-3-0	HTTP/2 returned five ошибок.	HTTP/2 returned five ошибок.
-mismatch_output	en-v030-mixed-6-1	Build семь passed в CI. Проверка завершена.	Build семь passed в CI. Проверка завершена.
-mismatch_output	en-v030-mixed-7-0	Version V2.1.0 includes three исправления.	Version V2.1.0 includes three исправления.
 mismatch_output	ru-v030-date-0-0	Встреча назначена на первое января две тысячи двадцать четвертого года.	Встреча назначена на первое января две тысячи двадцать четвертого года.
 mismatch_output	ru-v030-date-0-1	Подтвердите дату первое января две тысячи двадцать четвертого года.	Подтвердите дату первое января две тысячи двадцать четвертого года.
 mismatch_output	ru-v030-date-1-0	Встреча назначена на двадцать девятое февраля две тысячи двадцать четвертого года.	Встреча назначена на двадцать девятое февраля две тысячи двадцать четвертого года.
 mismatch_output	ru-v030-date-1-1	Подтвердите дату двадцать девятое февраля две тысячи двадцать четвертого года.	Подтвердите дату двадцать девятое февраля две тысячи двадцать четвертого года.
-mismatch_output	ru-v030-mixed-2-0	RTX-4090 завершил четыре tasks.	RTX-4090 завершил четыре tasks.
-mismatch_output	ru-v030-mixed-3-0	HTTP/2 вернул пять errors.	HTTP/2 вернул пять errors.
-mismatch_output	ru-v030-mixed-4-0	Отправьте два reports на dev@example.com.	Отправьте два reports на dev@example.com.
-mismatch_output	ru-v030-mixed-6-1	Сборка seven прошла в CI. Validation complete.	Сборка seven прошла в CI. Validation complete.
-mismatch_output	ru-v030-mixed-7-0	Версия V2.1.0 содержит три fixes.	Версия V2.1.0 содержит три fixes.
 mismatch_output	ru-v030-money-7-a	Итоговая цена — две целых пятьдесят сотых рубля.	Итоговая цена — две целых пятьдесят сотых рубля.
 mismatch_output	ru-v030-money-7-b	Бухгалтерия учла две целых пятьдесят сотых рубля сегодня.	Бухгалтерия учла две целых пятьдесят сотых рубля сегодня.
 mismatch_output	ru-v030-year-0-a	Архив создан в одна тысяча девятьсот девяносто девять году.	Архив создан в одна тысяча девятьсот девяносто девять году.
