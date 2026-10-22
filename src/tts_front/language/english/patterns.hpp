@@ -7,7 +7,10 @@ namespace tts_front::detail::english {
 struct Patterns {
     const std::regex date{
         R"(\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+([0-9]{1,2}),\s+([0-9]{4})(?![0-9]))"};
-    const std::regex year_context{R"(\b(in|from)\s+([0-9]{4})(?![0-9]))"};
+    const std::regex year_range_context{R"(\bfrom\s+([0-9]{4})\s+to\s+([0-9]{4})(?![0-9]))",
+                                        std::regex_constants::icase};
+    const std::regex year_context{R"(\b(in|from)\s+([0-9]{4})(?![0-9]))",
+                                  std::regex_constants::icase};
     const std::regex comma_grouped_number{R"((^|[^0-9])(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?))"};
     const std::regex comma_grouped_value{R"(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?)"};
     const std::regex comma_grouped_percent{R"(-?\d{1,3}(?:,\d{3})+(?:\.\d+)?%)"};

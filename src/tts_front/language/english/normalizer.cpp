@@ -177,6 +177,35 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                 return match[1].str() + " " + ordinal(day) + ", " + year(year_value);
             });
     }
+    // Ranges have no approved spoken-year policy yet.  Admit the complete
+    // range before the ordinary year-context pass so it remains unchanged
+    // with one diagnostic instead of mixing spoken and cardinal forms.
+    if (std::regex_search(text.text, english::patterns().year_range_context)) {
+        const Utf8Document document(text.text);
+        std::vector<SourceEdit> range_edits;
+        for (std::sregex_iterator
+                 it(text.text.begin(), text.text.end(), english::patterns().year_range_context),
+             end;
+             it != end;
+             ++it) {
+            const auto first_begin = static_cast<std::size_t>(it->position(1));
+            const auto second_end = static_cast<std::size_t>(it->position(2) + it->length(2));
+            const auto continuation_begin = codepoint_index_at_or_after(document, second_end);
+            const auto continuation_end =
+                scan_typed_admission_end(document, continuation_begin, CandidateSurfaceKind::Date);
+            const auto finish = continuation_end == continuation_begin
+                                    ? second_end
+                                    : document.span_from_codepoints(0, continuation_end).byte_end;
+            add_protected_candidate(text,
+                                    NumericCandidate{SourceSpan{first_begin, finish},
+                                                     NumericCandidateKind::Numeric,
+                                                     true},
+                                    warnings,
+                                    protected_spans,
+                                    range_edits);
+        }
+        text = apply_source_edits(text, std::move(range_edits));
+    }
     // In explicit year contexts, use the spoken-year formatter while keeping
     // bare four-digit numbers on the ordinary cardinal path.  Admission runs
     // before formatting so attached continuations remain one fail-closed

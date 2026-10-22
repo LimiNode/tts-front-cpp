@@ -74,6 +74,15 @@ int main() {
             CHECK(frontend.process("from " + surface, en).normalized_text == "from " + spoken);
             CHECK(frontend.process(surface, en).normalized_text == cardinal);
         }
+        for (const auto& [context, surface, spoken] :
+             {std::tuple<std::string, std::string, std::string>{"In", "1900", "nineteen hundred"},
+              {"From", "1999", "nineteen ninety nine"},
+              {"In", "2024", "two thousand twenty four"}}) {
+            const auto result = frontend.process(context + " " + surface, en);
+            CHECK(result.normalized_text == context + " " + spoken);
+            CHECK(result.pronunciation_text == context + " " + spoken);
+            CHECK(result.warnings.empty());
+        }
         const std::array<std::pair<std::string, std::string>, 5> dates = {{
             {"January 1, 1900", "January first, nineteen hundred"},
             {"January 1, 1999", "January first, nineteen ninety nine"},
@@ -89,6 +98,13 @@ int main() {
         }
         CHECK(frontend.process("between 1999 and 2001", en).normalized_text ==
               "between one thousand nine hundred ninety nine and two thousand one");
+        const auto range = frontend.process("from 1999 to 2001", en);
+        CHECK(range.normalized_text == "from 1999 to 2001");
+        CHECK(range.pronunciation_text == "from 1999 to 2001");
+        CHECK(range.warnings.size() == 1);
+        CHECK(range.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(range.warnings.front().offset == 5);
+        CHECK(range.warnings.front().length == 12);
         CHECK(frontend.process("in 2100", en).normalized_text == "in two thousand one hundred");
         CHECK(frontend.process("in 999", en).normalized_text == "in nine hundred ninety nine");
     }

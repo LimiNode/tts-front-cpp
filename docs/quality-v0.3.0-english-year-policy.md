@@ -14,7 +14,7 @@ Policy B from `docs/english-year-policy-review.md` is implemented:
 - `1000–1999` use paired-century forms (`nineteen ninety nine`);
 - `2000–2099` use `two thousand ...` forms;
 - bare numbers remain on the cardinal path;
-- `between ... and ...`, values below `1000` or above `2099`, and ordinary
+- `between ... and ...` and `from ... to ...` ranges, values below `1000` or above `2099`, and ordinary
   non-year numeric contexts remain cardinal until a later policy decision;
 - attached continuations (`#`, `/`, `%`, signs, lexical tails) are admitted
   before formatting and remain one fail-closed candidate with one warning.
@@ -40,4 +40,7 @@ contents are changed by this policy PR.
 
 The direct regression matrix covers `1900`, `1999`, `2000`, `2001`, and `2024`
 as bare numbers, `in`/`from` contexts, month-name dates, and unsupported
-attached continuations.
+attached continuations.  `In`/`From` are matched case-insensitively while
+preserving their source casing.  `from ... to ...` is currently fail-closed:
+the complete range is preserved with one `UnresolvedNumber` until a range
+spoken-year policy is approved.
