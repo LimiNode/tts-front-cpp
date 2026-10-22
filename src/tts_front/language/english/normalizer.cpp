@@ -56,6 +56,10 @@ bool valid_calendar_date(int month, int day, int year) {
     return day <= limit;
 }
 
+bool supported_year(long long value) {
+    return value >= 1000 && value <= 2099;
+}
+
 void protect_typed_continuations(MappedText& text,
                                  WarningSink& warnings,
                                  std::vector<ProtectedSpan>& protected_spans,
@@ -172,6 +176,77 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                 }
                 return match[1].str() + " " + ordinal(day) + ", " + year(year_value);
             });
+    }
+    // Ranges have no approved spoken-year policy yet.  Admit the complete
+    // range before the ordinary year-context pass so it remains unchanged
+    // with one diagnostic instead of mixing spoken and cardinal forms.
+    if (std::regex_search(text.text, english::patterns().year_range_context)) {
+        const Utf8Document document(text.text);
+        std::vector<SourceEdit> range_edits;
+        for (std::sregex_iterator
+                 it(text.text.begin(), text.text.end(), english::patterns().year_range_context),
+             end;
+             it != end;
+             ++it) {
+            const auto first_begin = static_cast<std::size_t>(it->position(1));
+            const auto second_end = static_cast<std::size_t>(it->position(2) + it->length(2));
+            const auto continuation_begin = codepoint_index_at_or_after(document, second_end);
+            const auto continuation_end =
+                scan_typed_admission_end(document, continuation_begin, CandidateSurfaceKind::Date);
+            const auto finish = continuation_end == continuation_begin
+                                    ? second_end
+                                    : document.span_from_codepoints(0, continuation_end).byte_end;
+            add_protected_candidate(text,
+                                    NumericCandidate{SourceSpan{first_begin, finish},
+                                                     NumericCandidateKind::Numeric,
+                                                     true},
+                                    warnings,
+                                    protected_spans,
+                                    range_edits);
+        }
+        text = apply_source_edits(text, std::move(range_edits));
+    }
+    // In explicit year contexts, use the spoken-year formatter while keeping
+    // bare four-digit numbers on the ordinary cardinal path.  Admission runs
+    // before formatting so attached continuations remain one fail-closed
+    // candidate rather than allowing a partial rewrite of the year head.
+    if (std::regex_search(text.text, english::patterns().year_context)) {
+        const Utf8Document document(text.text);
+        std::vector<SourceEdit> year_edits;
+        for (std::sregex_iterator
+                 it(text.text.begin(), text.text.end(), english::patterns().year_context),
+             end;
+             it != end;
+             ++it) {
+            long long year_value = 0;
+            if (!try_parse_long((*it)[2].str(), year_value) || !supported_year(year_value))
+                continue;
+            const auto number_begin = static_cast<std::size_t>(it->position(2));
+            const auto number_end = number_begin + static_cast<std::size_t>(it->length(2));
+            const auto continuation_begin = codepoint_index_at_or_after(document, number_end);
+            const auto continuation_end =
+                scan_typed_admission_end(document, continuation_begin, CandidateSurfaceKind::Date);
+            if (continuation_end == continuation_begin)
+                continue;
+            const auto finish = document.span_from_codepoints(0, continuation_end).byte_end;
+            add_protected_candidate(text,
+                                    NumericCandidate{SourceSpan{number_begin, finish},
+                                                     NumericCandidateKind::Numeric,
+                                                     true},
+                                    warnings,
+                                    protected_spans,
+                                    year_edits);
+        }
+        text = apply_source_edits(text, std::move(year_edits));
+        text = replace_matches(text,
+                               english::patterns().year_context,
+                               [&](const std::smatch& match, const MappedText&) {
+                                   long long year_value = 0;
+                                   if (!try_parse_long(match[2].str(), year_value) ||
+                                       !supported_year(year_value))
+                                       return match.str();
+                                   return match[1].str() + " " + year(year_value);
+                               });
     }
     std::vector<SourceEdit> typed_edits;
     protect_typed_continuations(text, warnings, protected_spans, typed_edits);
