@@ -937,6 +937,47 @@ int main() {
         CHECK(result.warnings.front().code == WarningCode::AmbiguousNormalization);
     }
     {
+        TextFrontendOptions segmented;
+        segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        const std::array<std::pair<std::string, std::string>, 10> local_heads = {{
+            {"OpenAI API processed 2 запроса.", "OpenAI API processed два запроса."},
+            {"RTX-4090 completed 4 задачи.", "RTX-4090 completed четыре задачи."},
+            {"HTTP/2 returned 5 ошибок.", "HTTP/2 returned пять ошибок."},
+            {"Build 7 passed в CI. Проверка завершена.",
+             "Build seven passed в CI. Проверка завершена."},
+            {"Version V2.1.0 includes 3 исправления.", "Version V2.1.0 includes три исправления."},
+            {"RTX-4090 завершил 4 tasks.", "RTX-4090 завершил four tasks."},
+            {"HTTP/2 вернул 5 errors.", "HTTP/2 вернул five errors."},
+            {"Отправьте 2 reports на dev@example.com.",
+             "Отправьте two reports на dev@example.com."},
+            {"Сборка 7 прошла в CI. Validation complete.",
+             "Сборка семь прошла в CI. Validation complete."},
+            {"Версия V2.1.0 содержит 3 fixes.", "Версия V2.1.0 содержит three fixes."},
+        }};
+        for (const auto& [input, expected] : local_heads) {
+            const auto result = frontend.process(input, segmented);
+            CHECK(result.normalized_text == expected);
+            CHECK(result.pronunciation_text == expected);
+            CHECK(std::any_of(
+                result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
+                    return warning.code == WarningCode::AmbiguousNormalization;
+                }));
+        }
+        for (const auto& input : {std::string("Привет hello 2 запроса#4"),
+                                  std::string("Привет hello 2 запроса /4"),
+                                  std::string("Привет hello 2 kgfoo")}) {
+            const auto result = frontend.process(input, segmented);
+            CHECK(result.normalized_text == input);
+            const auto unresolved = std::find_if(
+                result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
+                    return warning.code == WarningCode::UnresolvedNumber;
+                });
+            CHECK(unresolved != result.warnings.end());
+            CHECK(unresolved->offset == input.find("2"));
+            CHECK(unresolved->length == input.size() - input.find("2"));
+        }
+    }
+    {
         const std::string mixed_invalid_input = "Привет hello 99:99";
         const auto mixed_invalid = frontend.process(mixed_invalid_input, TextFrontendOptions{});
         CHECK(mixed_invalid.warnings.size() == 2);

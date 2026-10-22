@@ -133,12 +133,16 @@ TextFrontendResult TextFrontend::process(std::string_view input,
                                                           warning_sink,
                                                           detail::russian::mixed_language_rules(),
                                                           detail::english::mixed_language_rules(),
+                                                          language,
+                                                          has_cyrillic && has_latin,
                                                           *technical_index);
             else
                 text = detail::normalize_mixed_candidates(std::move(text),
                                                           warning_sink,
                                                           detail::english::mixed_language_rules(),
                                                           detail::russian::mixed_language_rules(),
+                                                          language,
+                                                          has_cyrillic && has_latin,
                                                           *technical_index);
         }
         switch (language) {

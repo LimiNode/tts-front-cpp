@@ -82,6 +82,13 @@ std::optional<std::string> format(std::string_view candidate) {
     return spoken;
 }
 
+std::optional<std::string> format_number(std::string_view candidate) {
+    long long value = 0;
+    if (!try_parse_long(candidate, value))
+        return std::nullopt;
+    return number_for_token(candidate, value);
+}
+
 std::vector<MixedCandidateMatch> scan_candidate_matches(std::string_view text) {
     std::vector<MixedCandidateMatch> matches;
     using Iterator = std::regex_iterator<std::string_view::const_iterator>;
@@ -110,7 +117,7 @@ std::vector<MixedCandidateMatch> scan_malformed_matches(std::string_view text) {
 
 const MixedLanguageRules& mixed_language_rules() {
     static const MixedLanguageRules rules{
-        &scan_candidate_matches, &scan_malformed_matches, &format};
+        &scan_candidate_matches, &scan_malformed_matches, &format, &format_number};
     return rules;
 }
 

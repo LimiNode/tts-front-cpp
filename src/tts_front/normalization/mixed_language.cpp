@@ -88,6 +88,112 @@ bool preserved(const MappedText& input, std::size_t begin, std::size_t end) {
            (next != ranges.begin() && intersects(*std::prev(next)));
 }
 
+bool overlaps_any(const std::vector<SourceRange>& ranges, std::size_t begin, std::size_t end) {
+    return std::any_of(ranges.begin(), ranges.end(), [begin, end](const SourceRange& range) {
+        return begin < range.offset + range.length && range.offset < end;
+    });
+}
+
+std::vector<SourceRange> typed_candidate_ranges(const MixedLanguageRules& dominant,
+                                                const MixedLanguageRules& foreign,
+                                                std::string_view text) {
+    std::vector<SourceRange> ranges;
+    const std::array<MixedCandidateScanner, 2> scanners = {dominant.scan_candidates,
+                                                           foreign.scan_candidates};
+    for (const auto scanner : scanners) {
+        for (const auto& match : scanner(text))
+            ranges.push_back(SourceRange{match.begin, match.end - match.begin});
+    }
+    return ranges;
+}
+
+void collect_local_number_candidates(const MappedText& input,
+                                     const MixedLanguageRules& dominant,
+                                     const MixedLanguageRules& foreign,
+                                     Language dominant_language,
+                                     const TechnicalRangeIndex& technical_index,
+                                     WarningSink& warnings,
+                                     std::vector<SourceEdit>& edits) {
+    const Utf8Document document(input.text);
+    if (!document.valid)
+        return;
+    const auto typed_ranges = typed_candidate_ranges(dominant, foreign, input.text);
+    const auto formatter_for = [&](bool cyrillic) {
+        if (dominant_language == Language::Russian)
+            return cyrillic ? dominant.number_formatter : foreign.number_formatter;
+        return cyrillic ? foreign.number_formatter : dominant.number_formatter;
+    };
+    std::size_t technical_cursor = 0;
+    for (std::size_t point = 0; point < document.points.size(); ++point) {
+        const auto value = document.points[point].value;
+        const bool signed_start = (value == '+' || value == '-' || value == 0x2212) &&
+                                  point + 1 < document.points.size() &&
+                                  text::is_digit(document.points[point + 1].value);
+        const bool unsigned_start =
+            text::is_digit(value) &&
+            (point == 0 || !text::is_digit(document.points[point - 1].value));
+        if (!signed_start && !unsigned_start)
+            continue;
+        if (point > 0 &&
+            (text::is_letter(document.points[point - 1].value) ||
+             document.points[point - 1].value == '_' || document.points[point - 1].value == '.' ||
+             document.points[point - 1].value == ',' || document.points[point - 1].value == ':'))
+            continue;
+        const auto candidate =
+            scan_candidate_surface(document, point, CandidateSurfaceKind::Contextual);
+        if (!candidate.valid() || candidate.numeric.exponent != ExponentState::None ||
+            candidate.numeric.end != candidate.numeric.digits_end)
+            continue;
+        const auto begin = document.points[point].offset;
+        const auto core_end = document.span_from_codepoints(0, candidate.numeric.end).byte_end;
+        if (overlaps(technical_index.ranges, begin, core_end, technical_cursor) ||
+            overlaps_any(typed_ranges, begin, core_end) || preserved(input, begin, core_end))
+            continue;
+        auto word_begin = candidate.numeric.end;
+        while (word_begin < document.points.size() &&
+               text::is_horizontal_space(document.points[word_begin].value))
+            ++word_begin;
+        if (word_begin >= document.points.size() ||
+            !text::is_letter(document.points[word_begin].value))
+            continue;
+        bool has_cyrillic = false;
+        bool has_latin = false;
+        auto word_end = word_begin;
+        while (word_end < document.points.size() &&
+               (text::is_letter(document.points[word_end].value) ||
+                text::is_combining_mark(document.points[word_end].value))) {
+            has_cyrillic = has_cyrillic || text::is_cyrillic(document.points[word_end].value);
+            has_latin = has_latin || text::is_latin(document.points[word_end].value);
+            ++word_end;
+        }
+        if (has_cyrillic == has_latin)
+            continue;
+        const auto word_begin_byte = document.points[word_begin].offset;
+        const auto word_end_byte = document.span_from_codepoints(0, word_end).byte_end;
+        if (overlaps(technical_index.ranges, word_begin_byte, word_end_byte, technical_cursor))
+            continue;
+        const auto word = input.text.substr(word_begin_byte, word_end_byte - word_begin_byte);
+        if (technical::has_known_identifier_prefix(word))
+            continue;
+        const auto formatter = formatter_for(has_cyrillic);
+        if (formatter == nullptr)
+            continue;
+        const auto continuation =
+            scan_typed_admission_end(document, word_end, CandidateSurfaceKind::Contextual);
+        if (continuation > word_end) {
+            const auto finish = document.span_from_codepoints(0, continuation).byte_end;
+            warnings.add(WarningCode::UnresolvedNumber,
+                         "Unsupported mixed-language numeric candidate",
+                         input.source_range(begin, finish));
+            continue;
+        }
+        const auto token = input.text.substr(begin, core_end - begin);
+        const auto replacement = formatter(token);
+        if (replacement && *replacement != input.text.substr(begin, core_end - begin))
+            edits.push_back({begin, core_end, *replacement});
+    }
+}
+
 void collect_candidates(const MappedText& input,
                         const MixedLanguageRules& rules,
                         const TechnicalRangeIndex& technical_index,
@@ -220,10 +326,15 @@ MappedText normalize_mixed_candidates(MappedText text,
                                       WarningSink& warnings,
                                       const MixedLanguageRules& dominant,
                                       const MixedLanguageRules& foreign,
+                                      Language dominant_language,
+                                      bool enable_local_ownership,
                                       const TechnicalRangeIndex& technical_index) {
     std::vector<SourceEdit> edits;
     protect_malformed_candidates(text, dominant, technical_index, warnings);
     protect_malformed_candidates(text, foreign, technical_index, warnings);
+    if (enable_local_ownership)
+        collect_local_number_candidates(
+            text, dominant, foreign, dominant_language, technical_index, warnings, edits);
     collect_candidates(text, foreign, technical_index, warnings, edits);
     return apply_source_edits(text, std::move(edits));
 }
