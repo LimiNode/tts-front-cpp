@@ -7,6 +7,12 @@ namespace tts_front::detail::russian {
 struct Patterns {
     const std::regex date{R"(\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b)"};
     const std::regex year{R"(\b(\d{4})\s*г\.)"};
+    const std::regex year_locative_context{R"((В|в)(\s+)((?:\+|-|−)?\d{4})(\s+году))"};
+    const std::regex year_accusative_context{R"((За|за)(\s+)((?:\+|-|−)?\d{4})(\s+год))"};
+    const std::regex year_locative_attached{R"((В|в)(\s+)((?:\+|-|−)?\d{4})(год(?:у|а)?))"};
+    const std::regex year_accusative_attached{R"((За|за)(\s+)((?:\+|-|−)?\d{4})(год))"};
+    const std::regex year_range_context{
+        R"((С|с)(\s+)((?:\+|-|−)?\d{4})(\s+по\s+)((?:\+|-|−)?\d{4})(\s+год))"};
     const std::regex decimal_percent{R"((-?\d+),([0-9]+)\s*%([^0-9]|$))"};
     const std::regex foreign_decimal_percent{R"(-?\d+\.\d+\s*%)"};
     const std::regex admission_percent{R"(-?\d+(?:[.,][0-9]+)?\s*%)"};

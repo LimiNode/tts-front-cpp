@@ -55,6 +55,119 @@ int main() {
     CHECK(frontend.process("В 1999 г. В 2000 г. В 2012 г. В 2037 г.", ru).normalized_text ==
           "В тысяча девятьсот девяносто девятом году В двухтысячном году В две тысячи двенадцатом "
           "году В две тысячи тридцать седьмом году");
+    const std::array<std::pair<std::string, std::string>, 12> RussianLocativeYears = {{
+        {"в 1000 году", "в тысячном году"},
+        {"в 1899 году", "в тысяча восемьсот девяносто девятом году"},
+        {"в 1900 году", "в тысяча девятисотом году"},
+        {"в 1999 году", "в тысяча девятьсот девяносто девятом году"},
+        {"в 2000 году", "в двухтысячном году"},
+        {"в 2001 году", "в две тысячи первом году"},
+        {"в 2012 году", "в две тысячи двенадцатом году"},
+        {"в 2020 году", "в две тысячи двадцатом году"},
+        {"в 2024 году", "в две тысячи двадцать четвёртом году"},
+        {"в 2026 году", "в две тысячи двадцать шестом году"},
+        {"в 2042 году", "в две тысячи сорок втором году"},
+        {"в 9999 году", "в девять тысяч девятьсот девяносто девятом году"},
+    }};
+    for (const auto& [input, expected] : RussianLocativeYears) {
+        const auto result = frontend.process(input, ru);
+        CHECK(result.normalized_text == expected);
+        CHECK(result.pronunciation_text == expected);
+        CHECK(result.warnings.empty());
+    }
+    const std::array<std::pair<std::string, std::string>, 12> RussianAccusativeYears = {{
+        {"за 1000 год", "за тысячный год"},
+        {"за 1899 год", "за тысяча восемьсот девяносто девятый год"},
+        {"За 1900 год", "За тысяча девятисотый год"},
+        {"за 1999 год", "за тысяча девятьсот девяносто девятый год"},
+        {"за 2000 год", "за двухтысячный год"},
+        {"за 2001 год", "за две тысячи первый год"},
+        {"за 2012 год", "за две тысячи двенадцатый год"},
+        {"за 2020 год", "за две тысячи двадцатый год"},
+        {"за 2024 год", "за две тысячи двадцать четвёртый год"},
+        {"за 2026 год", "за две тысячи двадцать шестой год"},
+        {"за 2042 год", "за две тысячи сорок второй год"},
+        {"за 9999 год", "за девять тысяч девятьсот девяносто девятый год"},
+    }};
+    for (const auto& [input, expected] : RussianAccusativeYears) {
+        const auto result = frontend.process(input, ru);
+        CHECK(result.normalized_text == expected);
+        CHECK(result.pronunciation_text == expected);
+        CHECK(result.warnings.empty());
+    }
+    CHECK(frontend.process("1999", ru).normalized_text == "одна тысяча девятьсот девяносто девять");
+    CHECK(frontend.process("В 1900 году", ru).normalized_text == "В тысяча девятисотом году");
+    CHECK(frontend.process("архив 2024 года", ru).normalized_text ==
+          "архив две тысячи двадцать четыре года");
+    const auto lexical_year_neighbor = frontend.process("архив 1999 году", ru);
+    CHECK(lexical_year_neighbor.normalized_text ==
+          "архив одна тысяча девятьсот девяносто девять году");
+    CHECK(lexical_year_neighbor.warnings.empty());
+    TextFrontendOptions russian_year_auto = ru;
+    russian_year_auto.language = Language::Auto;
+    TextFrontendOptions russian_year_segmented = russian_year_auto;
+    russian_year_segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+    const std::array<TextFrontendOptions, 3> RussianYearModes = {
+        ru, russian_year_auto, russian_year_segmented};
+    for (const auto& options : RussianYearModes) {
+        const auto positive = frontend.process("в 2024 году.", options);
+        CHECK(positive.normalized_text == "в две тысячи двадцать четвёртом году.");
+        CHECK(positive.pronunciation_text == positive.normalized_text);
+        CHECK(positive.warnings.empty());
+
+        const auto independent = frontend.process("в 1999 году 2000", options);
+        CHECK(independent.normalized_text ==
+              "в тысяча девятьсот девяносто девятом году две тысячи");
+        CHECK(independent.warnings.empty());
+
+        const auto grouped = frontend.process("в 1 999 году", options);
+        CHECK(grouped.normalized_text == "в тысяча девятьсот девяносто девятом году");
+        CHECK(grouped.pronunciation_text == grouped.normalized_text);
+        CHECK(grouped.warnings.empty());
+
+        for (const auto& input : {std::string("в 1999 году#4"),
+                                  std::string("за 2001 год/4"),
+                                  std::string("с 1999 по 2001 год"),
+                                  std::string("с 1999 по 2001 год#4"),
+                                  std::string("в 0999 году"),
+                                  std::string("за 0999 год"),
+                                  std::string("в +1999 году"),
+                                  std::string("в -1999 году"),
+                                  std::string("в −1999 году"),
+                                  std::string("в 1999год"),
+                                  std::string("в 1999 годуfoo"),
+                                  std::string("в 1999 годуархив"),
+                                  std::string("в 1999 году") + "\xCC\x81",
+                                  std::string("в 1999 году") + "\xCC\x81" + "foo"}) {
+            const auto result = frontend.process(input, options);
+            CHECK(result.normalized_text == input);
+            CHECK(result.pronunciation_text == input);
+            const auto unresolved = std::find_if(
+                result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
+                    return warning.code == WarningCode::UnresolvedNumber;
+                });
+            CHECK(unresolved != result.warnings.end());
+            CHECK(std::count_if(result.warnings.begin(),
+                                result.warnings.end(),
+                                [](const TextWarning& warning) {
+                                    return warning.code == WarningCode::UnresolvedNumber;
+                                }) == 1);
+            CHECK(std::all_of(
+                result.warnings.begin(), result.warnings.end(), [&](const TextWarning& warning) {
+                    return warning.code == WarningCode::UnresolvedNumber ||
+                           (warning.code == WarningCode::AmbiguousNormalization &&
+                            warning.offset == 0 && warning.length == input.size());
+                }));
+            auto candidate_begin = input.find_first_of("0123456789");
+            for (const auto& sign : {std::string("+"), std::string("-"), std::string("−")}) {
+                const auto sign_begin = input.find(sign);
+                if (sign_begin != std::string::npos)
+                    candidate_begin = std::min(candidate_begin, sign_begin);
+            }
+            CHECK(unresolved->offset == candidate_begin);
+            CHECK(unresolved->length == input.size() - candidate_begin);
+        }
+    }
     CHECK(frontend.process("01.02.2026", ru).normalized_text ==
           "первое февраля две тысячи двадцать шестого года");
     CHECK(frontend.process("1,1 2,2 5,1", ru).normalized_text ==

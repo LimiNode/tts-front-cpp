@@ -21,30 +21,36 @@
 namespace tts_front::detail::russian {
 namespace {
 
+std::uint32_t previous_codepoint(const std::string_view value, const std::size_t boundary) {
+    if (boundary == 0)
+        return 0;
+    auto begin = boundary - 1;
+    while (begin > 0 && (static_cast<unsigned char>(value[begin]) & 0xc0) == 0x80)
+        --begin;
+    const auto length = utf8_sequence_length(static_cast<unsigned char>(value[begin]));
+    if (length == 0 || begin + length > boundary)
+        return 0;
+    auto codepoint = static_cast<std::uint32_t>(static_cast<unsigned char>(value[begin]) &
+                                                (length == 2   ? 0x1f
+                                                 : length == 3 ? 0x0f
+                                                 : length == 4 ? 0x07
+                                                               : 0x7f));
+    for (std::size_t offset = 1; offset < length; ++offset)
+        codepoint = (codepoint << 6) | (static_cast<unsigned char>(value[begin + offset]) & 0x3f);
+    return codepoint;
+}
+
+bool has_context_boundary(const std::string_view value, const std::size_t begin) {
+    const auto previous = previous_codepoint(value, begin);
+    return !text::is_letter(previous) && !text::is_digit(previous) && previous != '_' &&
+           !text::is_combining_mark(previous);
+}
+
 bool has_genitive_prefix(const MappedText& source, const std::size_t position) {
     const auto& text = source.text;
     auto end = position;
     while (end > 0 && std::isspace(static_cast<unsigned char>(text[end - 1])))
         --end;
-    const auto previous_codepoint = [](const std::string_view value, std::size_t boundary) {
-        if (boundary == 0)
-            return std::uint32_t{0};
-        auto begin = boundary - 1;
-        while (begin > 0 && (static_cast<unsigned char>(value[begin]) & 0xc0) == 0x80)
-            --begin;
-        const auto length = utf8_sequence_length(static_cast<unsigned char>(value[begin]));
-        if (length == 0 || begin + length > boundary)
-            return std::uint32_t{0};
-        auto codepoint = static_cast<std::uint32_t>(static_cast<unsigned char>(value[begin]) &
-                                                    (length == 2   ? 0x1f
-                                                     : length == 3 ? 0x0f
-                                                     : length == 4 ? 0x07
-                                                                   : 0x7f));
-        for (std::size_t offset = 1; offset < length; ++offset)
-            codepoint =
-                (codepoint << 6) | (static_cast<unsigned char>(value[begin + offset]) & 0x3f);
-        return codepoint;
-    };
     const auto has_suffix = [&](const std::string_view suffix) {
         if (end < suffix.size() || text.compare(end - suffix.size(), suffix.size(), suffix) != 0)
             return false;
@@ -152,6 +158,14 @@ number_or_original(const std::string& token, WarningSink& warnings, SourceRange 
     return number_for_token(token, value);
 }
 
+bool try_parse_context_year(const std::string& token, long long& year) {
+    return token.size() == 4 &&
+           std::all_of(token.begin(),
+                       token.end(),
+                       [](const unsigned char byte) { return byte >= '0' && byte <= '9'; }) &&
+           try_parse_long(token, year) && year >= 1000 && year <= 9999;
+}
+
 void protect_typed_continuations(MappedText& text,
                                  WarningSink& warnings,
                                  std::vector<ProtectedSpan>& protected_spans,
@@ -160,21 +174,32 @@ void protect_typed_continuations(MappedText& text,
     if (!document.valid)
         return;
 
-    const auto protect_matches = [&](const std::regex& pattern, const CandidateSurfaceKind kind) {
+    const auto protect_matches = [&](const std::regex& pattern,
+                                     const CandidateSurfaceKind kind,
+                                     const int admission_begin_group = 0,
+                                     const bool require_context_boundary = false,
+                                     const bool preserve_core = false) {
         for (std::sregex_iterator it(text.text.begin(), text.text.end(), pattern), end; it != end;
              ++it) {
             const auto match_begin = static_cast<std::size_t>(it->position());
+            if (require_context_boundary && !has_context_boundary(text.text, match_begin))
+                continue;
+            const auto admission_begin = admission_begin_group > 0
+                                             ? static_cast<std::size_t>(it->position(
+                                                   static_cast<std::size_t>(admission_begin_group)))
+                                             : match_begin;
             const auto core_end = match_begin + static_cast<std::size_t>(it->length());
             const auto continuation_begin = codepoint_index_at_or_after(document, core_end);
             const auto continuation_end =
                 scan_typed_admission_end(document, continuation_begin, kind);
-            if (continuation_end <= continuation_begin)
+            if (!preserve_core && continuation_end <= continuation_begin)
                 continue;
-            const auto finish = document.span_from_codepoints(0, continuation_end).byte_end;
-            if (overlaps_preserved_range(text, match_begin, finish))
+            const auto finish_point = std::max(continuation_begin, continuation_end);
+            const auto finish = document.span_from_codepoints(0, finish_point).byte_end;
+            if (overlaps_preserved_range(text, admission_begin, finish))
                 continue;
             add_protected_candidate(text,
-                                    NumericCandidate{SourceSpan{match_begin, finish},
+                                    NumericCandidate{SourceSpan{admission_begin, finish},
                                                      NumericCandidateKind::Numeric,
                                                      true},
                                     warnings,
@@ -185,6 +210,17 @@ void protect_typed_continuations(MappedText& text,
 
     protect_matches(patterns().admission_measurement, CandidateSurfaceKind::Unit);
     protect_matches(patterns().admission_currency, CandidateSurfaceKind::Currency);
+    protect_matches(patterns().year_locative_context, CandidateSurfaceKind::Contextual, 3, true);
+    protect_matches(patterns().year_accusative_context, CandidateSurfaceKind::Contextual, 3, true);
+
+    // Attached nouns and year ranges are intentionally unsupported. Preserve
+    // each complete candidate before the ordinary number pass can rewrite a
+    // fragment; the shared scanner still owns any continuation after the core.
+    protect_matches(
+        patterns().year_locative_attached, CandidateSurfaceKind::Contextual, 3, true, true);
+    protect_matches(
+        patterns().year_accusative_attached, CandidateSurfaceKind::Contextual, 3, true, true);
+    protect_matches(patterns().year_range_context, CandidateSurfaceKind::Contextual, 3, true, true);
 }
 
 } // namespace
@@ -243,6 +279,42 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                 return match.str();
             }
             return year_locative(static_cast<int>(year)) + " году";
+        });
+    text = replace_matches(
+        text,
+        russian::patterns().year_locative_context,
+        [&](const std::smatch& match, const MappedText& source) {
+            if (!has_context_boundary(source.text, static_cast<std::size_t>(match.position())))
+                return match.str();
+            long long year = 0;
+            if (!try_parse_context_year(match[3].str(), year)) {
+                const auto begin = static_cast<std::size_t>(match.position(3));
+                const auto end = static_cast<std::size_t>(match.position() + match.length());
+                warnings.add(WarningCode::UnresolvedNumber,
+                             "Unable to parse Russian locative year",
+                             source.source_range(begin, end));
+                return match.str();
+            }
+            return match[1].str() + match[2].str() + year_locative(static_cast<int>(year)) +
+                   match[4].str();
+        });
+    text = replace_matches(
+        text,
+        russian::patterns().year_accusative_context,
+        [&](const std::smatch& match, const MappedText& source) {
+            if (!has_context_boundary(source.text, static_cast<std::size_t>(match.position())))
+                return match.str();
+            long long year = 0;
+            if (!try_parse_context_year(match[3].str(), year)) {
+                const auto begin = static_cast<std::size_t>(match.position(3));
+                const auto end = static_cast<std::size_t>(match.position() + match.length());
+                warnings.add(WarningCode::UnresolvedNumber,
+                             "Unable to parse Russian accusative year",
+                             source.source_range(begin, end));
+                return match.str();
+            }
+            return match[1].str() + match[2].str() + year_accusative(static_cast<int>(year)) +
+                   match[4].str();
         });
     const Utf8Document genitive_document(text.text);
     text = replace_matches(
