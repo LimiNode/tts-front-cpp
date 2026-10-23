@@ -9,6 +9,12 @@ void WarningSink::add_range(WarningCode code,
                             std::string message,
                             std::size_t offset,
                             std::size_t length) {
+    const auto duplicate =
+        std::find_if(warnings.begin(), warnings.end(), [&](const TextWarning& warning) {
+            return warning.code == code && warning.offset == offset && warning.length == length;
+        });
+    if (duplicate != warnings.end())
+        return;
     warnings.push_back({code, std::move(message), offset, length});
 }
 

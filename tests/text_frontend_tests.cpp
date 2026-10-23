@@ -168,6 +168,86 @@ int main() {
             CHECK(unresolved->length == input.size() - candidate_begin);
         }
     }
+    for (const auto& options : RussianYearModes) {
+        const auto valid = frontend.process("Дата 01.01.2024.", options);
+        CHECK(valid.normalized_text == "Дата первое января две тысячи двадцать четвертого года.");
+        CHECK(valid.pronunciation_text == valid.normalized_text);
+        CHECK(valid.warnings.empty());
+
+        for (const auto& surface :
+             {std::string("29.02.2025"), std::string("31.04.2024"), std::string("32.01.2024")}) {
+            const auto input = "Дата " + surface + ".";
+            const auto result = frontend.process(input, options);
+            CHECK(result.original_text == input);
+            CHECK(result.normalized_text == input);
+            CHECK(result.pronunciation_text == input);
+            const auto unresolved = std::find_if(
+                result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
+                    return warning.code == WarningCode::UnresolvedNumber;
+                });
+            CHECK(unresolved != result.warnings.end());
+            CHECK(std::count_if(result.warnings.begin(),
+                                result.warnings.end(),
+                                [](const TextWarning& warning) {
+                                    return warning.code == WarningCode::UnresolvedNumber;
+                                }) == 1);
+            CHECK(std::all_of(
+                result.warnings.begin(), result.warnings.end(), [&](const TextWarning& warning) {
+                    return warning.code == WarningCode::UnresolvedNumber ||
+                           (warning.code == WarningCode::AmbiguousNormalization &&
+                            warning.offset == 0 && warning.length == input.size());
+                }));
+            CHECK(unresolved->offset == input.find(surface));
+            CHECK(unresolved->length == surface.size());
+        }
+
+        const std::array<std::string, 13> unsupported_date_surfaces = {
+            "01.01.2024foo",
+            "01.01.2024слово",
+            "01.01.2024#4",
+            "01.01.2024/4",
+            "01.01.2024%4",
+            "01.01.2024+4",
+            "01.01.2024−4",
+            std::string("01.01.2024") + "\xCC\x81",
+            std::string("01.01.2024") + "\xCC\x81" + "foo",
+            "+01.01.2024#4",
+            "-01.01.2024/4",
+            "−01.01.2024%4",
+            "01.01.2024% 4",
+        };
+        for (const auto& surface : unsupported_date_surfaces) {
+            const auto input = "Дата " + surface;
+            const auto result = frontend.process(input, options);
+            CHECK(result.original_text == input);
+            CHECK(result.normalized_text == input);
+            CHECK(result.pronunciation_text == input);
+            const auto unresolved = std::find_if(
+                result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
+                    return warning.code == WarningCode::UnresolvedNumber;
+                });
+            CHECK(unresolved != result.warnings.end());
+            CHECK(std::count_if(result.warnings.begin(),
+                                result.warnings.end(),
+                                [](const TextWarning& warning) {
+                                    return warning.code == WarningCode::UnresolvedNumber;
+                                }) == 1);
+            CHECK(std::all_of(
+                result.warnings.begin(), result.warnings.end(), [&](const TextWarning& warning) {
+                    return warning.code == WarningCode::UnresolvedNumber ||
+                           (warning.code == WarningCode::AmbiguousNormalization &&
+                            warning.offset == 0 && warning.length == input.size());
+                }));
+            CHECK(unresolved->offset == input.find(surface));
+            CHECK(unresolved->length == surface.size());
+        }
+
+        const auto independent = frontend.process("Дата 01.01.2024 7", options);
+        CHECK(independent.normalized_text ==
+              "Дата первое января две тысячи двадцать четвертого года семь");
+        CHECK(independent.pronunciation_text == independent.normalized_text);
+        CHECK(independent.warnings.empty());
+    }
     CHECK(frontend.process("01.02.2026", ru).normalized_text ==
           "первое февраля две тысячи двадцать шестого года");
     CHECK(frontend.process("1,1 2,2 5,1", ru).normalized_text ==

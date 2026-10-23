@@ -227,6 +227,50 @@ void protect_typed_continuations(MappedText& text,
 
 MappedText normalize(MappedText text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
+    // Admit dotted dates before the generic numeric and technical passes.  A
+    // supported date core followed by a connector or lexical tail is one
+    // unsupported candidate and must not be split before date formatting.
+    if (std::regex_search(text.text, russian::patterns().date)) {
+        const Utf8Document document(text.text);
+        std::vector<SourceEdit> date_edits;
+        for (std::sregex_iterator it(text.text.begin(), text.text.end(), russian::patterns().date),
+             end;
+             it != end;
+             ++it) {
+            long long day = 0, month = 0, year = 0;
+            const bool valid =
+                try_parse_long((*it)[1].str(), day) && try_parse_long((*it)[2].str(), month) &&
+                try_parse_long((*it)[3].str(), year) &&
+                valid_date(static_cast<int>(day), static_cast<int>(month), static_cast<int>(year));
+            const auto match_begin = static_cast<std::size_t>(it->position());
+            const auto match_end = match_begin + static_cast<std::size_t>(it->length());
+            const auto match_begin_point = codepoint_index_at_or_after(document, match_begin);
+            auto admission_begin = match_begin;
+            if (match_begin_point > 0) {
+                const auto previous = document.points[match_begin_point - 1].value;
+                if (previous == '+' || previous == '-' || previous == 0x2212)
+                    admission_begin = document.points[match_begin_point - 1].offset;
+            }
+            const auto continuation_begin = codepoint_index_at_or_after(document, match_end);
+            const auto continuation_end =
+                scan_typed_admission_end(document, continuation_begin, CandidateSurfaceKind::Date);
+            const bool unsupported_prefix = admission_begin != match_begin;
+            const bool has_continuation = continuation_end != continuation_begin;
+            if (valid && !unsupported_prefix && !has_continuation)
+                continue;
+            const auto finish = has_continuation
+                                    ? document.span_from_codepoints(0, continuation_end).byte_end
+                                    : match_end;
+            add_protected_candidate(text,
+                                    NumericCandidate{SourceSpan{admission_begin, finish},
+                                                     NumericCandidateKind::Numeric,
+                                                     true},
+                                    warnings,
+                                    protected_spans,
+                                    date_edits);
+        }
+        text = apply_source_edits(text, std::move(date_edits));
+    }
     std::vector<SourceEdit> typed_edits;
     protect_typed_continuations(text, warnings, protected_spans, typed_edits);
     text = apply_source_edits(text, std::move(typed_edits));
