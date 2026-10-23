@@ -169,10 +169,38 @@ int main() {
         }
     }
     for (const auto& options : RussianYearModes) {
-        const auto valid = frontend.process("Дата 01.01.2024.", options);
-        CHECK(valid.normalized_text == "Дата первое января две тысячи двадцать четвертого года.");
-        CHECK(valid.pronunciation_text == valid.normalized_text);
-        CHECK(valid.warnings.empty());
+        const std::array<std::pair<std::string, std::string>, 3> canonical_date_years = {{
+            {"Дата 01.01.2004.", "Дата первое января две тысячи четвёртого года."},
+            {"Дата 01.01.2024.", "Дата первое января две тысячи двадцать четвёртого года."},
+            {"Дата 01.01.2044.", "Дата первое января две тысячи сорок четвёртого года."},
+        }};
+        for (const auto& [input, expected] : canonical_date_years) {
+            const auto result = frontend.process(input, options);
+            CHECK(result.original_text == input);
+            CHECK(result.normalized_text == expected);
+            CHECK(result.pronunciation_text == expected);
+            CHECK(result.warnings.empty());
+        }
+
+        const std::array<std::pair<std::string, std::string>, 3> unchanged_date_years = {{
+            {"Дата 31.12.1999.",
+             "Дата тридцать первое декабря тысяча девятьсот девяносто девятого года."},
+            {"Дата 01.01.2000.", "Дата первое января двухтысячного года."},
+            {"Дата 01.01.2025.", "Дата первое января две тысячи двадцать пятого года."},
+        }};
+        for (const auto& [input, expected] : unchanged_date_years) {
+            const auto result = frontend.process(input, options);
+            CHECK(result.original_text == input);
+            CHECK(result.normalized_text == expected);
+            CHECK(result.pronunciation_text == expected);
+            CHECK(result.warnings.empty());
+        }
+
+        const auto surface_local = frontend.process("Подтвердите дату 01.01.2024.", options);
+        CHECK(surface_local.normalized_text ==
+              "Подтвердите дату первое января две тысячи двадцать четвёртого года.");
+        CHECK(surface_local.pronunciation_text == surface_local.normalized_text);
+        CHECK(surface_local.warnings.empty());
 
         for (const auto& surface :
              {std::string("29.02.2025"), std::string("31.04.2024"), std::string("32.01.2024")}) {
@@ -244,7 +272,7 @@ int main() {
 
         const auto independent = frontend.process("Дата 01.01.2024 7", options);
         CHECK(independent.normalized_text ==
-              "Дата первое января две тысячи двадцать четвертого года семь");
+              "Дата первое января две тысячи двадцать четвёртого года семь");
         CHECK(independent.pronunciation_text == independent.normalized_text);
         CHECK(independent.warnings.empty());
     }
