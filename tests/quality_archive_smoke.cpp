@@ -29,6 +29,38 @@ struct Snapshot {
     std::map<std::string, std::pair<std::string, std::string>> mismatch_outputs;
 };
 
+struct CurrentCase {
+    std::string language;
+    std::string mode;
+    std::string input;
+    std::string expected_normalized;
+    std::string expected_pronunciation;
+    std::string diagnostics;
+};
+
+const std::set<std::string>& approved_supersession_ids() {
+    static const std::set<std::string> ids = {
+        "ru-natural-10",
+        "ru-v030-year-0-a",
+        "ru-v030-year-0-b",
+        "ru-v030-year-1-a",
+        "ru-v030-year-1-b",
+        "ru-v030-year-2-a",
+        "ru-v030-year-2-b",
+        "ru-v030-year-3-a",
+        "ru-v030-year-3-b",
+        "ru-v030-year-4-a",
+        "ru-v030-year-4-b",
+        "ru-v030-year-5-a",
+        "ru-v030-year-5-b",
+        "ru-v030-year-6-a",
+        "ru-v030-year-6-b",
+        "ru-v030-year-7-a",
+        "ru-v030-year-7-b",
+    };
+    return ids;
+}
+
 enum class Outcome { Correct, Preserved, Unnecessary, Incorrect };
 
 std::vector<std::string> split_tabs(const std::string& line) {
@@ -115,6 +147,28 @@ bool load_snapshot(const std::string& path, Snapshot& snapshot) {
     return snapshot.cases != 0 && snapshot.outcomes.size() == 4;
 }
 
+bool load_current_cases(const std::string& path, std::map<std::string, CurrentCase>& cases) {
+    std::ifstream file(path, std::ios::binary);
+    if (!file)
+        return false;
+    std::string line;
+    if (!std::getline(file, line))
+        return false;
+    while (std::getline(file, line)) {
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+        const auto fields = split_tabs(line);
+        if (fields.size() != 9 ||
+            !cases
+                 .emplace(
+                     fields[0],
+                     CurrentCase{fields[1], fields[2], fields[5], fields[6], fields[7], fields[8]})
+                 .second)
+            return false;
+    }
+    return !cases.empty();
+}
+
 Outcome classify(const Case& item, const std::string& actual) {
     if (item.expected == item.input)
         return actual == item.input ? Outcome::Preserved : Outcome::Incorrect;
@@ -167,6 +221,22 @@ int main(int argc, char** argv) {
         std::cerr << "cannot load snapshot\n";
         return EXIT_FAILURE;
     }
+    std::map<std::string, CurrentCase> current_cases;
+    if (strict && !load_current_cases(std::string(TTS_FRONT_SOURCE_DIR) +
+                                          "/tests/quality/en_ru_sentences.tsv",
+                                      current_cases)) {
+        std::cerr << "cannot load current corpus\n";
+        return EXIT_FAILURE;
+    }
+    if (strict) {
+        for (const auto& id : approved_supersession_ids()) {
+            if (current_cases.find(id) == current_cases.end()) {
+                std::cerr << "approved supersession is stale or missing from current corpus " << id
+                          << "\n";
+                return EXIT_FAILURE;
+            }
+        }
+    }
 
     std::string line;
     if (!std::getline(corpus, line)) {
@@ -180,6 +250,7 @@ int main(int argc, char** argv) {
     actual_outcomes["unnecessary_refusal"] = 0;
     actual_outcomes["incorrect_or_partial"] = 0;
     std::set<std::string> actual_mismatches;
+    std::set<std::string> actual_supersessions;
     std::map<std::string, std::pair<std::string, std::string>> actual_mismatch_outputs;
     std::set<std::string> actual_diagnostic_exceptions;
     tts_front::TextFrontend frontend;
@@ -214,8 +285,6 @@ int main(int argc, char** argv) {
                 return EXIT_FAILURE;
             }
         }
-        const auto outcome = classify(item, result.normalized_text);
-        ++actual_outcomes[outcome_name(outcome)];
         const auto actual_diagnostics = [&] {
             if (result.warnings.empty())
                 return std::string("none");
@@ -228,21 +297,55 @@ int main(int argc, char** argv) {
             }
             return output.str();
         }();
+        const auto current = current_cases.find(item.id);
+        const bool supersession_candidate =
+            strict && current != current_cases.end() && current->second.language == item.language &&
+            current->second.mode == item.mode && current->second.input == item.input &&
+            (current->second.expected_normalized != item.expected ||
+             current->second.expected_pronunciation != item.expected ||
+             current->second.diagnostics != item.diagnostics) &&
+            result.normalized_text == current->second.expected_normalized &&
+            result.pronunciation_text == current->second.expected_pronunciation &&
+            actual_diagnostics == current->second.diagnostics;
+        if (supersession_candidate &&
+            approved_supersession_ids().find(item.id) == approved_supersession_ids().end()) {
+            std::cerr << "unapproved archive supersession " << item.id << "\n";
+            return EXIT_FAILURE;
+        }
+        const bool superseded = supersession_candidate;
+        if (superseded)
+            actual_supersessions.insert(item.id);
+        const auto historical_output = snapshot.mismatch_outputs.find(item.id);
+        const auto outcome =
+            superseded && historical_output != snapshot.mismatch_outputs.end()
+                ? classify(item, historical_output->second.first)
+                : classify(item, superseded ? item.expected : result.normalized_text);
+        ++actual_outcomes[outcome_name(outcome)];
         if (actual_diagnostics != item.diagnostics) {
             const auto exception = snapshot.diagnostic_exceptions.find(item.id);
-            if (strict && (exception == snapshot.diagnostic_exceptions.end() ||
-                           exception->second != actual_diagnostics)) {
+            if (!superseded && strict &&
+                (exception == snapshot.diagnostic_exceptions.end() ||
+                 exception->second != actual_diagnostics)) {
                 std::cerr << "strict diagnostic mismatch " << item.id << "\n";
                 return EXIT_FAILURE;
             }
-            actual_diagnostic_exceptions.insert(item.id);
+            if (!superseded)
+                actual_diagnostic_exceptions.insert(item.id);
         }
-        if (outcome == Outcome::Unnecessary || outcome == Outcome::Incorrect) {
+        if (superseded) {
+            if (snapshot.diagnostic_exceptions.find(item.id) !=
+                snapshot.diagnostic_exceptions.end())
+                actual_diagnostic_exceptions.insert(item.id);
+            if (historical_output != snapshot.mismatch_outputs.end()) {
+                actual_mismatches.insert(item.id);
+                actual_mismatch_outputs.emplace(item.id, historical_output->second);
+            }
+        } else if (outcome == Outcome::Unnecessary || outcome == Outcome::Incorrect) {
             actual_mismatches.insert(item.id);
             actual_mismatch_outputs.emplace(
                 item.id, std::make_pair(result.normalized_text, result.pronunciation_text));
         }
-        if (outcome != Outcome::Unnecessary && outcome != Outcome::Incorrect &&
+        if (!superseded && outcome != Outcome::Unnecessary && outcome != Outcome::Incorrect &&
             (result.normalized_text != item.expected ||
              result.pronunciation_text != item.expected)) {
             std::cerr << "expected output mismatch " << item.id << "\n";
@@ -251,6 +354,14 @@ int main(int argc, char** argv) {
         ++cases;
     }
     if (strict) {
+        std::set<std::string> expected_supersessions;
+        for (const auto& id : approved_supersession_ids())
+            if (corpus_ids.find(id) != corpus_ids.end())
+                expected_supersessions.insert(id);
+        if (actual_supersessions != expected_supersessions) {
+            std::cerr << "archive supersession set mismatch\n";
+            return EXIT_FAILURE;
+        }
         std::set<std::string> expected_diagnostic_exceptions;
         for (const auto& entry : snapshot.diagnostic_exceptions)
             expected_diagnostic_exceptions.insert(entry.first);

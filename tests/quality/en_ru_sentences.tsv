@@ -359,7 +359,7 @@ ru-natural-06	ru	explicit	percent	normalize	Доля ошибок — 0,5%.	До
 ru-natural-07	ru	explicit	date	normalize	Срок — 31.12.2025.	Срок — тридцать первое декабря две тысячи двадцать пятого года.	Срок — тридцать первое декабря две тысячи двадцать пятого года.	none
 ru-natural-08	ru	explicit	currency	preserve	Оплата в евро: €7.	Оплата в евро: €7.	Оплата в евро: €7.	unresolved_number@26:4
 ru-natural-09	ru	explicit	integer	normalize	Проверено 3 из 5 узлов.	Проверено три из пяти узлов.	Проверено три из пяти узлов.	none
-ru-natural-10	ru	explicit	integer	normalize	В 2026 году запланировано 12 релизов.	В две тысячи двадцать шесть году запланировано двенадцать релизов.	В две тысячи двадцать шесть году запланировано двенадцать релизов.	none
+ru-natural-10	ru	explicit	integer	normalize	В 2026 году запланировано 12 релизов.	В две тысячи двадцать шестом году запланировано двенадцать релизов.	В две тысячи двадцать шестом году запланировано двенадцать релизов.	none
 ru-natural-11	ru	explicit	integer	normalize	Значение равно [42].	Значение равно [сорок два].	Значение равно [сорок два].	none
 en-negative-time-00	en	explicit	time	preserve	-0:00	-0:00	-0:00	unresolved_number@0:5
 en-negative-time-01	en	explicit	time	preserve	-1:02	-1:02	-1:02	unresolved_number@0:5
@@ -415,21 +415,21 @@ en-v030-year-6-b	en	explicit	year	normalize	Records from 2026 remain available.	
 en-v030-year-7-a	en	explicit	year	normalize	The archive was created in 2042.	The archive was created in two thousand forty two.	The archive was created in two thousand forty two.	none
 en-v030-year-7-b	en	explicit	year	normalize	Records from 2042 remain available.	Records from two thousand forty two remain available.	Records from two thousand forty two remain available.	none
 ru-v030-year-0-a	ru	explicit	year	normalize	Архив создан в 1999 году.	Архив создан в тысяча девятьсот девяносто девятом году.	Архив создан в тысяча девятьсот девяносто девятом году.	none
-ru-v030-year-0-b	ru	explicit	year	normalize	Отчёт за 1999 год доступен.	Отчёт за тысяча девятьсот девяносто девятом год доступен.	Отчёт за тысяча девятьсот девяносто девятом год доступен.	none
+ru-v030-year-0-b	ru	explicit	year	normalize	Отчёт за 1999 год доступен.	Отчёт за тысяча девятьсот девяносто девятый год доступен.	Отчёт за тысяча девятьсот девяносто девятый год доступен.	none
 ru-v030-year-1-a	ru	explicit	year	normalize	Архив создан в 2000 году.	Архив создан в двухтысячном году.	Архив создан в двухтысячном году.	none
-ru-v030-year-1-b	ru	explicit	year	normalize	Отчёт за 2000 год доступен.	Отчёт за двухтысячном год доступен.	Отчёт за двухтысячном год доступен.	none
+ru-v030-year-1-b	ru	explicit	year	normalize	Отчёт за 2000 год доступен.	Отчёт за двухтысячный год доступен.	Отчёт за двухтысячный год доступен.	none
 ru-v030-year-2-a	ru	explicit	year	normalize	Архив создан в 2001 году.	Архив создан в две тысячи первом году.	Архив создан в две тысячи первом году.	none
-ru-v030-year-2-b	ru	explicit	year	normalize	Отчёт за 2001 год доступен.	Отчёт за две тысячи первом год доступен.	Отчёт за две тысячи первом год доступен.	none
+ru-v030-year-2-b	ru	explicit	year	normalize	Отчёт за 2001 год доступен.	Отчёт за две тысячи первый год доступен.	Отчёт за две тысячи первый год доступен.	none
 ru-v030-year-3-a	ru	explicit	year	normalize	Архив создан в 2012 году.	Архив создан в две тысячи двенадцатом году.	Архив создан в две тысячи двенадцатом году.	none
-ru-v030-year-3-b	ru	explicit	year	normalize	Отчёт за 2012 год доступен.	Отчёт за две тысячи двенадцатом год доступен.	Отчёт за две тысячи двенадцатом год доступен.	none
+ru-v030-year-3-b	ru	explicit	year	normalize	Отчёт за 2012 год доступен.	Отчёт за две тысячи двенадцатый год доступен.	Отчёт за две тысячи двенадцатый год доступен.	none
 ru-v030-year-4-a	ru	explicit	year	normalize	Архив создан в 2020 году.	Архив создан в две тысячи двадцатом году.	Архив создан в две тысячи двадцатом году.	none
-ru-v030-year-4-b	ru	explicit	year	normalize	Отчёт за 2020 год доступен.	Отчёт за две тысячи двадцатом год доступен.	Отчёт за две тысячи двадцатом год доступен.	none
+ru-v030-year-4-b	ru	explicit	year	normalize	Отчёт за 2020 год доступен.	Отчёт за две тысячи двадцатый год доступен.	Отчёт за две тысячи двадцатый год доступен.	none
 ru-v030-year-5-a	ru	explicit	year	normalize	Архив создан в 2024 году.	Архив создан в две тысячи двадцать четвёртом году.	Архив создан в две тысячи двадцать четвёртом году.	none
-ru-v030-year-5-b	ru	explicit	year	normalize	Отчёт за 2024 год доступен.	Отчёт за две тысячи двадцать четвёртом год доступен.	Отчёт за две тысячи двадцать четвёртом год доступен.	none
+ru-v030-year-5-b	ru	explicit	year	normalize	Отчёт за 2024 год доступен.	Отчёт за две тысячи двадцать четвёртый год доступен.	Отчёт за две тысячи двадцать четвёртый год доступен.	none
 ru-v030-year-6-a	ru	explicit	year	normalize	Архив создан в 2026 году.	Архив создан в две тысячи двадцать шестом году.	Архив создан в две тысячи двадцать шестом году.	none
-ru-v030-year-6-b	ru	explicit	year	normalize	Отчёт за 2026 год доступен.	Отчёт за две тысячи двадцать шестом год доступен.	Отчёт за две тысячи двадцать шестом год доступен.	none
+ru-v030-year-6-b	ru	explicit	year	normalize	Отчёт за 2026 год доступен.	Отчёт за две тысячи двадцать шестой год доступен.	Отчёт за две тысячи двадцать шестой год доступен.	none
 ru-v030-year-7-a	ru	explicit	year	normalize	Архив создан в 2042 году.	Архив создан в две тысячи сорок втором году.	Архив создан в две тысячи сорок втором году.	none
-ru-v030-year-7-b	ru	explicit	year	normalize	Отчёт за 2042 год доступен.	Отчёт за две тысячи сорок втором год доступен.	Отчёт за две тысячи сорок втором год доступен.	none
+ru-v030-year-7-b	ru	explicit	year	normalize	Отчёт за 2042 год доступен.	Отчёт за две тысячи сорок второй год доступен.	Отчёт за две тысячи сорок второй год доступен.	none
 en-v030-date-0-0	en	explicit	date	normalize	The appointment is on January 1, 2024.	The appointment is on January first, two thousand twenty four.	The appointment is on January first, two thousand twenty four.	none
 en-v030-date-0-1	en	explicit	date	normalize	Please confirm January 1, 2024.	Please confirm January first, two thousand twenty four.	Please confirm January first, two thousand twenty four.	none
 en-v030-date-1-0	en	explicit	date	normalize	The appointment is on February 29, 2024.	The appointment is on February twenty ninth, two thousand twenty four.	The appointment is on February twenty ninth, two thousand twenty four.	none

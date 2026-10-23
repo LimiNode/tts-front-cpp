@@ -122,11 +122,12 @@ std::string ordinal_day(int day) {
 }
 std::string year_ordinal(int n, YearCase grammatical_case) {
     const bool genitive = grammatical_case == YearCase::Genitive;
+    const bool accusative = grammatical_case == YearCase::Accusative;
     static const char* const loc[] = {"",
                                       "первом",
                                       "втором",
                                       "третьем",
-                                      "четвертом",
+                                      "четвёртом",
                                       "пятом",
                                       "шестом",
                                       "седьмом",
@@ -164,8 +165,29 @@ std::string year_ordinal(int n, YearCase grammatical_case) {
                                       "восемнадцатого",
                                       "девятнадцатого",
                                       "двадцатого"};
+    static const char* const acc[] = {"",
+                                      "первый",
+                                      "второй",
+                                      "третий",
+                                      "четвёртый",
+                                      "пятый",
+                                      "шестой",
+                                      "седьмой",
+                                      "восьмой",
+                                      "девятый",
+                                      "десятый",
+                                      "одиннадцатый",
+                                      "двенадцатый",
+                                      "тринадцатый",
+                                      "четырнадцатый",
+                                      "пятнадцатый",
+                                      "шестнадцатый",
+                                      "семнадцатый",
+                                      "восемнадцатый",
+                                      "девятнадцатый",
+                                      "двадцатый"};
     if (n <= 20)
-        return std::string((genitive ? gen : loc)[n]);
+        return std::string((genitive ? gen : accusative ? acc : loc)[n]);
     static const char* const tens_loc[] = {"",
                                            "",
                                            "двадцатом",
@@ -186,9 +208,24 @@ std::string year_ordinal(int n, YearCase grammatical_case) {
                                            "семидесятого",
                                            "восьмидесятого",
                                            "девяностого"};
+    static const char* const tens_acc[] = {"",
+                                           "",
+                                           "двадцатый",
+                                           "тридцатый",
+                                           "сороковой",
+                                           "пятидесятый",
+                                           "шестидесятый",
+                                           "семидесятый",
+                                           "восьмидесятый",
+                                           "девяностый"};
     if (n < 100)
-        return n % 10 == 0 ? std::string((genitive ? tens_gen : tens_loc)[n / 10])
-                           : number(n / 10 * 10) + " " + ((genitive ? gen : loc)[n % 10]);
+        return n % 10 == 0 ? std::string((genitive     ? tens_gen
+                                          : accusative ? tens_acc
+                                                       : tens_loc)[n / 10])
+                           : number(n / 10 * 10) + " " +
+                                 ((genitive     ? gen
+                                   : accusative ? acc
+                                                : loc)[n % 10]);
     if (n % 100 == 0) {
         static const char* const hundreds_loc[] = {"",
                                                    "сотом",
@@ -210,7 +247,19 @@ std::string year_ordinal(int n, YearCase grammatical_case) {
                                                    "семисотого",
                                                    "восьмисотого",
                                                    "девятисотого"};
-        return std::string((genitive ? hundreds_gen : hundreds_loc)[n / 100]);
+        static const char* const hundreds_acc[] = {"",
+                                                   "сотый",
+                                                   "двухсотый",
+                                                   "трехсотый",
+                                                   "четырехсотый",
+                                                   "пятисотый",
+                                                   "шестисотый",
+                                                   "семисотый",
+                                                   "восьмисотый",
+                                                   "девятисотый"};
+        return std::string((genitive     ? hundreds_gen
+                            : accusative ? hundreds_acc
+                                         : hundreds_loc)[n / 100]);
     }
     return number(n / 100 * 100) + " " + year_ordinal(n % 100, grammatical_case);
 }
@@ -260,6 +309,26 @@ std::string year_genitive(int year) {
         return exact[thousands];
     }
     return year_prefix(thousands) + " " + year_ordinal(rest, YearCase::Genitive);
+}
+std::string year_accusative(int year) {
+    if (year < 1000 || year > 9999)
+        return number(year);
+    const int thousands = year / 1000;
+    const int rest = year % 1000;
+    if (rest == 0) {
+        static const char* const exact[] = {"",
+                                            "тысячный",
+                                            "двухтысячный",
+                                            "трехтысячный",
+                                            "четырехтысячный",
+                                            "пятитысячный",
+                                            "шеститысячный",
+                                            "семитысячный",
+                                            "восьмитысячный",
+                                            "девятитысячный"};
+        return exact[thousands];
+    }
+    return year_prefix(thousands) + " " + year_ordinal(rest, YearCase::Accusative);
 }
 std::string decimal(long long integer, const std::string& fraction) {
     const auto denominator = fraction.size() == 1   ? "десятая"
