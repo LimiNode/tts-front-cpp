@@ -124,14 +124,16 @@ void benchmark_mixed_candidate_scaling() {
     tts_front::TextFrontend frontend;
     tts_front::TextFrontendOptions options;
     options.mixed_language_policy = tts_front::MixedLanguagePolicy::SegmentCandidates;
-    for (const unsigned int count : {100u, 500u, 1000u, 2000u, 20000u}) {
+    for (const unsigned int count : {1000u, 5000u, 10000u, 20000u}) {
         std::string text;
-        text.reserve(static_cast<std::size_t>(count) * 8);
+        text.reserve(static_cast<std::size_t>(count) * 40);
         for (unsigned int index = 0; index < count; ++index) {
             if (index != 0)
                 text.push_back(' ');
-            text += "тест ";
+            text += "сборка ";
             text += std::to_string(index % 10 + 1);
+            text += " kg Build ";
+            text += std::to_string((index + 1) % 10 + 1);
             text += " kg";
         }
         const auto begin = std::chrono::steady_clock::now();
@@ -142,8 +144,9 @@ void benchmark_mixed_candidate_scaling() {
                   << (elapsed / static_cast<double>(count) * 1e6) << " us/candidate\n";
         if (count == 20000)
             std::cout << "mixed warnings: " << result.warnings.size() << "\n";
-        if (result.normalized_text.empty())
-            std::cerr << "unexpected empty mixed normalization result\n";
+        if (result.normalized_text.empty() ||
+            result.normalized_text.find("kilogram") == std::string::npos)
+            std::cerr << "unexpected mixed typed-candidate normalization result\n";
     }
 }
 

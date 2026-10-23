@@ -23,11 +23,13 @@ struct MixedCandidateMatch {
 
 using MixedCandidateScanner = std::vector<MixedCandidateMatch> (*)(std::string_view);
 using MixedCandidateFormatter = std::optional<std::string> (*)(std::string_view);
+using MixedNumberFormatter = std::optional<std::string> (*)(std::string_view);
 
 struct MixedLanguageRules {
     MixedCandidateScanner scan_candidates;
     MixedCandidateScanner scan_malformed;
     MixedCandidateFormatter formatter;
+    MixedNumberFormatter number_formatter;
 };
 
 TechnicalRangeIndex build_technical_range_index(std::string_view text);
@@ -44,6 +46,8 @@ MappedText normalize_mixed_candidates(MappedText text,
                                       WarningSink& warnings,
                                       const MixedLanguageRules& dominant,
                                       const MixedLanguageRules& foreign,
+                                      Language dominant_language,
+                                      bool enable_local_ownership,
                                       const TechnicalRangeIndex& technical_index);
 
 } // namespace tts_front::detail
