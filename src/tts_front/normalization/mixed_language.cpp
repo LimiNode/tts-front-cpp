@@ -88,23 +88,50 @@ bool preserved(const MappedText& input, std::size_t begin, std::size_t end) {
            (next != ranges.begin() && intersects(*std::prev(next)));
 }
 
-bool overlaps_any(const std::vector<SourceRange>& ranges, std::size_t begin, std::size_t end) {
-    return std::any_of(ranges.begin(), ranges.end(), [begin, end](const SourceRange& range) {
-        return begin < range.offset + range.length && range.offset < end;
-    });
-}
-
-std::vector<SourceRange> typed_candidate_ranges(const MixedLanguageRules& dominant,
-                                                const MixedLanguageRules& foreign,
-                                                std::string_view text) {
+struct SourceRangeIndex {
     std::vector<SourceRange> ranges;
-    const std::array<MixedCandidateScanner, 2> scanners = {dominant.scan_candidates,
-                                                           foreign.scan_candidates};
-    for (const auto scanner : scanners) {
-        for (const auto& match : scanner(text))
-            ranges.push_back(SourceRange{match.begin, match.end - match.begin});
+
+    bool overlaps(std::size_t begin, std::size_t end, std::size_t& cursor) const {
+        while (cursor < ranges.size() && ranges[cursor].offset + ranges[cursor].length <= begin)
+            ++cursor;
+        return cursor < ranges.size() && ranges[cursor].offset < end;
     }
-    return ranges;
+};
+
+SourceRangeIndex typed_candidate_ranges(const MixedLanguageRules& dominant,
+                                        const MixedLanguageRules& foreign,
+                                        std::string_view text) {
+    SourceRangeIndex index;
+    const std::array<std::vector<MixedCandidateMatch>, 2> matches = {dominant.scan_candidates(text),
+                                                                     foreign.scan_candidates(text)};
+    std::array<std::size_t, 2> cursors{};
+    const auto append = [&](SourceRange range) {
+        if (range.length == 0)
+            return;
+        if (!index.ranges.empty() &&
+            range.offset <= index.ranges.back().offset + index.ranges.back().length) {
+            const auto end = std::max(index.ranges.back().offset + index.ranges.back().length,
+                                      range.offset + range.length);
+            index.ranges.back().length = end - index.ranges.back().offset;
+        } else {
+            index.ranges.push_back(range);
+        }
+    };
+    for (;;) {
+        std::size_t selected = matches.size();
+        for (std::size_t stream = 0; stream < matches.size(); ++stream) {
+            if (cursors[stream] == matches[stream].size())
+                continue;
+            if (selected == matches.size() ||
+                matches[stream][cursors[stream]].begin < matches[selected][cursors[selected]].begin)
+                selected = stream;
+        }
+        if (selected == matches.size())
+            break;
+        const auto& match = matches[selected][cursors[selected]++];
+        append(SourceRange{match.begin, match.end - match.begin});
+    }
+    return index;
 }
 
 void collect_local_number_candidates(const MappedText& input,
@@ -124,6 +151,7 @@ void collect_local_number_candidates(const MappedText& input,
         return cyrillic ? foreign.number_formatter : dominant.number_formatter;
     };
     std::size_t technical_cursor = 0;
+    std::size_t typed_cursor = 0;
     for (std::size_t point = 0; point < document.points.size(); ++point) {
         const auto value = document.points[point].value;
         const bool signed_start = (value == '+' || value == '-' || value == 0x2212) &&
@@ -147,7 +175,8 @@ void collect_local_number_candidates(const MappedText& input,
         const auto begin = document.points[point].offset;
         const auto core_end = document.span_from_codepoints(0, candidate.numeric.end).byte_end;
         if (overlaps(technical_index.ranges, begin, core_end, technical_cursor) ||
-            overlaps_any(typed_ranges, begin, core_end) || preserved(input, begin, core_end))
+            typed_ranges.overlaps(begin, core_end, typed_cursor) ||
+            preserved(input, begin, core_end))
             continue;
         auto word_begin = candidate.numeric.end;
         while (word_begin < document.points.size() &&

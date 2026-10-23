@@ -124,13 +124,13 @@ void benchmark_mixed_candidate_scaling() {
     tts_front::TextFrontend frontend;
     tts_front::TextFrontendOptions options;
     options.mixed_language_policy = tts_front::MixedLanguagePolicy::SegmentCandidates;
-    for (const unsigned int count : {100u, 500u, 1000u, 2000u, 20000u}) {
+    for (const unsigned int count : {1000u, 5000u, 10000u, 20000u}) {
         std::string text;
-        text.reserve(static_cast<std::size_t>(count) * 8);
+        text.reserve(static_cast<std::size_t>(count) * 24);
         for (unsigned int index = 0; index < count; ++index) {
             if (index != 0)
                 text.push_back(' ');
-            text += "тест ";
+            text += "сборка ";
             text += std::to_string(index % 10 + 1);
             text += " kg";
         }
