@@ -1,53 +1,21 @@
 version	1
 cases	655
-outcome	correct_transformation	545
+outcome	correct_transformation	561
 outcome	justified_preservation	88
 outcome	unnecessary_refusal	0
-outcome	incorrect_or_partial	22
+outcome	incorrect_or_partial	6
 mismatch	ru-v030-date-0-0
 mismatch	ru-v030-date-0-1
 mismatch	ru-v030-date-1-0
 mismatch	ru-v030-date-1-1
 mismatch	ru-v030-money-7-a
 mismatch	ru-v030-money-7-b
-mismatch	ru-v030-year-0-a
-mismatch	ru-v030-year-0-b
-mismatch	ru-v030-year-1-a
-mismatch	ru-v030-year-1-b
-mismatch	ru-v030-year-2-a
-mismatch	ru-v030-year-2-b
-mismatch	ru-v030-year-3-a
-mismatch	ru-v030-year-3-b
-mismatch	ru-v030-year-4-a
-mismatch	ru-v030-year-4-b
-mismatch	ru-v030-year-5-a
-mismatch	ru-v030-year-5-b
-mismatch	ru-v030-year-6-a
-mismatch	ru-v030-year-6-b
-mismatch	ru-v030-year-7-a
-mismatch	ru-v030-year-7-b
 mismatch_class	ru-v030-date-0-0	date:incorrect_or_partial
 mismatch_class	ru-v030-date-0-1	date:incorrect_or_partial
 mismatch_class	ru-v030-date-1-0	date:incorrect_or_partial
 mismatch_class	ru-v030-date-1-1	date:incorrect_or_partial
 mismatch_class	ru-v030-money-7-a	currency:incorrect_or_partial
 mismatch_class	ru-v030-money-7-b	currency:incorrect_or_partial
-mismatch_class	ru-v030-year-0-a	year:incorrect_or_partial
-mismatch_class	ru-v030-year-0-b	year:incorrect_or_partial
-mismatch_class	ru-v030-year-1-a	year:incorrect_or_partial
-mismatch_class	ru-v030-year-1-b	year:incorrect_or_partial
-mismatch_class	ru-v030-year-2-a	year:incorrect_or_partial
-mismatch_class	ru-v030-year-2-b	year:incorrect_or_partial
-mismatch_class	ru-v030-year-3-a	year:incorrect_or_partial
-mismatch_class	ru-v030-year-3-b	year:incorrect_or_partial
-mismatch_class	ru-v030-year-4-a	year:incorrect_or_partial
-mismatch_class	ru-v030-year-4-b	year:incorrect_or_partial
-mismatch_class	ru-v030-year-5-a	year:incorrect_or_partial
-mismatch_class	ru-v030-year-5-b	year:incorrect_or_partial
-mismatch_class	ru-v030-year-6-a	year:incorrect_or_partial
-mismatch_class	ru-v030-year-6-b	year:incorrect_or_partial
-mismatch_class	ru-v030-year-7-a	year:incorrect_or_partial
-mismatch_class	ru-v030-year-7-b	year:incorrect_or_partial
 diagnostic_exception	en-mixed-19	unresolved_number@14:6
 diagnostic_exception	en-preserve-4	unresolved_number@17:6
 diagnostic_exception	en-v030-control-10	unresolved_number@5:18
@@ -62,19 +30,3 @@ mismatch_output	ru-v030-date-1-0	Встреча назначена на двад
 mismatch_output	ru-v030-date-1-1	Подтвердите дату двадцать девятое февраля две тысячи двадцать четвертого года.	Подтвердите дату двадцать девятое февраля две тысячи двадцать четвертого года.
 mismatch_output	ru-v030-money-7-a	Итоговая цена — две целых пятьдесят сотых рубля.	Итоговая цена — две целых пятьдесят сотых рубля.
 mismatch_output	ru-v030-money-7-b	Бухгалтерия учла две целых пятьдесят сотых рубля сегодня.	Бухгалтерия учла две целых пятьдесят сотых рубля сегодня.
-mismatch_output	ru-v030-year-0-a	Архив создан в одна тысяча девятьсот девяносто девять году.	Архив создан в одна тысяча девятьсот девяносто девять году.
-mismatch_output	ru-v030-year-0-b	Отчёт за одна тысяча девятьсот девяносто девять год доступен.	Отчёт за одна тысяча девятьсот девяносто девять год доступен.
-mismatch_output	ru-v030-year-1-a	Архив создан в две тысячи году.	Архив создан в две тысячи году.
-mismatch_output	ru-v030-year-1-b	Отчёт за две тысячи год доступен.	Отчёт за две тысячи год доступен.
-mismatch_output	ru-v030-year-2-a	Архив создан в две тысячи один году.	Архив создан в две тысячи один году.
-mismatch_output	ru-v030-year-2-b	Отчёт за две тысячи один год доступен.	Отчёт за две тысячи один год доступен.
-mismatch_output	ru-v030-year-3-a	Архив создан в две тысячи двенадцать году.	Архив создан в две тысячи двенадцать году.
-mismatch_output	ru-v030-year-3-b	Отчёт за две тысячи двенадцать год доступен.	Отчёт за две тысячи двенадцать год доступен.
-mismatch_output	ru-v030-year-4-a	Архив создан в две тысячи двадцать году.	Архив создан в две тысячи двадцать году.
-mismatch_output	ru-v030-year-4-b	Отчёт за две тысячи двадцать год доступен.	Отчёт за две тысячи двадцать год доступен.
-mismatch_output	ru-v030-year-5-a	Архив создан в две тысячи двадцать четыре году.	Архив создан в две тысячи двадцать четыре году.
-mismatch_output	ru-v030-year-5-b	Отчёт за две тысячи двадцать четыре год доступен.	Отчёт за две тысячи двадцать четыре год доступен.
-mismatch_output	ru-v030-year-6-a	Архив создан в две тысячи двадцать шесть году.	Архив создан в две тысячи двадцать шесть году.
-mismatch_output	ru-v030-year-6-b	Отчёт за две тысячи двадцать шесть год доступен.	Отчёт за две тысячи двадцать шесть год доступен.
-mismatch_output	ru-v030-year-7-a	Архив создан в две тысячи сорок два году.	Архив создан в две тысячи сорок два году.
-mismatch_output	ru-v030-year-7-b	Отчёт за две тысячи сорок два год доступен.	Отчёт за две тысячи сорок два год доступен.
