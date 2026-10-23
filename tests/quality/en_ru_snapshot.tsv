@@ -1,19 +1,11 @@
 version	1
 cases	655
-outcome	correct_transformation	561
+outcome	correct_transformation	565
 outcome	justified_preservation	88
 outcome	unnecessary_refusal	0
-outcome	incorrect_or_partial	6
-mismatch	ru-v030-date-0-0
-mismatch	ru-v030-date-0-1
-mismatch	ru-v030-date-1-0
-mismatch	ru-v030-date-1-1
+outcome	incorrect_or_partial	2
 mismatch	ru-v030-money-7-a
 mismatch	ru-v030-money-7-b
-mismatch_class	ru-v030-date-0-0	date:incorrect_or_partial
-mismatch_class	ru-v030-date-0-1	date:incorrect_or_partial
-mismatch_class	ru-v030-date-1-0	date:incorrect_or_partial
-mismatch_class	ru-v030-date-1-1	date:incorrect_or_partial
 mismatch_class	ru-v030-money-7-a	currency:incorrect_or_partial
 mismatch_class	ru-v030-money-7-b	currency:incorrect_or_partial
 diagnostic_exception	en-mixed-19	unresolved_number@14:6
@@ -24,9 +16,5 @@ diagnostic_exception	en-v030-control-8	unresolved_number@10:11
 diagnostic_exception	en-v030-control-9	unresolved_number@10:12
 diagnostic_exception	ru-mixed-14	unresolved_number@19:6
 diagnostic_exception	ru-preserve-12	unresolved_number@33:6
-mismatch_output	ru-v030-date-0-0	Встреча назначена на первое января две тысячи двадцать четвертого года.	Встреча назначена на первое января две тысячи двадцать четвертого года.
-mismatch_output	ru-v030-date-0-1	Подтвердите дату первое января две тысячи двадцать четвертого года.	Подтвердите дату первое января две тысячи двадцать четвертого года.
-mismatch_output	ru-v030-date-1-0	Встреча назначена на двадцать девятое февраля две тысячи двадцать четвертого года.	Встреча назначена на двадцать девятое февраля две тысячи двадцать четвертого года.
-mismatch_output	ru-v030-date-1-1	Подтвердите дату двадцать девятое февраля две тысячи двадцать четвертого года.	Подтвердите дату двадцать девятое февраля две тысячи двадцать четвертого года.
 mismatch_output	ru-v030-money-7-a	Итоговая цена — две целых пятьдесят сотых рубля.	Итоговая цена — две целых пятьдесят сотых рубля.
 mismatch_output	ru-v030-money-7-b	Бухгалтерия учла две целых пятьдесят сотых рубля сегодня.	Бухгалтерия учла две целых пятьдесят сотых рубля сегодня.
