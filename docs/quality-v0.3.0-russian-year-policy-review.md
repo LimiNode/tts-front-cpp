@@ -94,8 +94,8 @@ The behavior PR should define and test at least:
 
 | Range | Examples | Decision needed |
 |---|---|---|
-| 1000–1899 | `в 1900 году`, `за 1899 год` | ordinal decomposition and spelling |
-| 1900–1999 | `в 1999 году` | `тысяча ... девятом` form |
+| 1000–1899 | `в 1899 году`, `за 1899 год` | ordinal decomposition and spelling |
+| 1900–1999 | `в 1900/1999 году` | `тысяча ... девятом` form |
 | 2000–2099 | `в 2000/2001/2024 году` | compound ordinal agreement |
 | 2100+ | `в 2100 году`, `за 2101 год` | supported or fail closed |
 | bare number | `1999` | remain cardinal without year context |
