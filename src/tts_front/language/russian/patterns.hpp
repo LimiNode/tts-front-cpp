@@ -29,6 +29,11 @@ struct Patterns {
         R"((-?\d+(?:[.,][0-9]+)?)\s*(километров|километра|километр|км|килограммов|килограмма|килограмм|кг|kg|сантиметров|сантиметра|сантиметр|см|миллиметров|миллиметра|миллиметр|мм|ГБ|МБ|GB|MB|м(?![А-Яа-яЁёA-Za-z0-9_])))"};
     const std::regex admission_currency{
         R"((-?\d+(?:[.,][0-9]+)?)\s*(рублей|рубля|рубль|руб)(?:\.{1,3})?(?![А-Яа-яЁёA-Za-z0-9_]))"};
+    // Plus/Unicode-minus signs, precision beyond kopecks, grouped decimals,
+    // and the ruble symbol have no approved formatter contract. Admit each as
+    // one complete candidate so generic numeric passes cannot rewrite a head.
+    const std::regex admission_unsupported_currency{
+        R"((?:(?:(?:\+|−)\d+(?:[.,][0-9]+)?|-?\d+,[0-9]{3,}|-?\d{1,3}(?:[ \t]\d{3})+,[0-9]+)\s*(?:рублей|рубля|рубль|руб)(?:\.{1,3})?|-?[0-9]+(?:[.,][0-9]+)?\s*₽)(?![А-Яа-яЁёA-Za-z0-9_]))"};
     const std::regex feminine_count{
         R"((^|[^A-Za-zА-Яа-яЁё0-9])(-?\d+)\s+(ошибка|ошибки|ошибок)([^A-Za-zА-Яа-яЁё0-9]|$))"};
     // Capture the numeric head even when a compound suffix follows it.  The

@@ -51,21 +51,26 @@ Fractions with more than two digits require an explicit rounding policy; until
 that policy is approved, preserve the original candidate with one
 `UnresolvedNumber` rather than silently truncating or rounding.
 
-## Policy decisions still required
+## Behavior decisions
 
 ### Zero and sign
 
-Define exact wording for `0`, negative values, and negative zero:
+The behavior PR adopts the conservative sign contract below. Unsigned and
+ASCII-minus forms are supported; plus and Unicode-minus forms remain
+fail-closed until a spoken-sign policy is approved:
 
 ```text
 0 руб.       → ноль рублей
 -2,50 руб.   → минус два рубля пятьдесят копеек
 -0,50 руб.   → минус ноль рублей пятьдесят копеек
--0,00 руб.   → минус ноль рублей   (or an explicitly approved zero policy)
+-0,00 руб.   → минус ноль рублей
++2,50 руб.   → preserved with one full `UnresolvedNumber`
+−2,50 руб.   → preserved with one full `UnresolvedNumber`
 ```
 
-The behavior PR must not infer whether `-0,00` loses its sign. It should adopt
-one documented choice and test it.
+`-0,00` preserves the minus sign and is pronounced as `минус ноль рублей`.
+The unsupported signed forms preserve their complete currency surface, including
+connectors and attached tails, without partial numeric rewriting.
 
 ### Major-unit agreement
 
@@ -85,13 +90,17 @@ preserve and diagnose rather than emit a guessed inflection.
 
 ### Currency surfaces and punctuation
 
-The policy must state whether the same monetary expansion applies to:
+The behavior PR applies the monetary expansion to:
 
 - `руб.`, `рубль`, `рубля`, and `рублей`;
-- `₽` and a currency name supplied in surrounding text;
-- terminal `.`, `!`, `?`, `)`, `,`, `;`, and `...`;
-- attached lexical continuations (`2,50 руб.foo`) and connectors (`#`, `/`, `%`);
-- grouped values (`1 250,50 руб.`) and signed/grouped forms.
+- terminal `.`, `!`, `?`, `)`, `,`, `;`, and `...` when they are genuine
+  sentence punctuation;
+- ordinary two-digit monetary values with ASCII-minus signs.
+
+The following forms are intentionally deferred and fail closed with one full
+candidate warning: `₽`, grouped decimal values such as `1 250,50 руб.`, plus or
+Unicode-minus signs, attached lexical continuations (`2,50 руб.foo`), and
+connectors (`#`, `/`, `%`).
 
 Known unsupported or ambiguous forms must remain byte-identical with one full
 candidate warning. Currency punctuation must not be duplicated or swallowed.
@@ -120,7 +129,8 @@ neighbors for:
 Every accepted monetary form needs an adversarial neighbor: invalid lexical
 tail, technical identifier, URL/email, independent following number, combining
 mark, and end-of-string. A form with unsupported precision must be preserved
-atomically rather than partially normalized.
+atomically rather than partially normalized; its warning span includes the
+numeric core and currency suffix (`2,500 руб.` is one 13-byte candidate).
 
 ## Oracle and release boundary
 

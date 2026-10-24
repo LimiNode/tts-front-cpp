@@ -10,6 +10,7 @@
 #include "tts_front/normalization/admission.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <optional>
 #include <regex>
 #include <string>
@@ -28,6 +29,12 @@ const std::regex& candidate_pattern() {
 const std::regex& malformed_pattern() {
     static const std::regex pattern{
         R"((?:^|[^0-9.,])(-?[0-9]+(?:,[0-9]+)?[ \t]*(?:рублей|рубля|рубль|руб\.?(?![А-Яа-яЁё])|километров|километра|километр|км|килограммов|килограмма|килограмм|кг|сантиметров|сантиметра|сантиметр|см|миллиметров|миллиметра|миллиметр|мм|ГБ|МБ|GB|MB|м(?![А-Яа-яЁёA-Za-z]))[A-Za-zА-Яа-яЁё]*))"};
+    return pattern;
+}
+
+const std::regex& unsupported_currency_pattern() {
+    static const std::regex pattern{
+        R"((?:^|[^0-9.,])((?:(?:(?:\+|−)[0-9]+(?:,[0-9]+)?|-?\d{1,3}(?:[ \t]\d{3})+,[0-9]+)[ \t]*(?:рублей|рубля|рубль|руб\.?)|-?[0-9]+(?:,[0-9]+)?[ \t]*₽)(?:[A-Za-zА-Яа-яЁё]*)))"};
     return pattern;
 }
 
@@ -128,11 +135,23 @@ std::vector<MixedCandidateMatch> scan_malformed_matches(std::string_view text) {
             const auto surface =
                 scan_candidate_surface(document, point, CandidateSurfaceKind::Contextual);
             if (surface.valid()) {
-                match_end = std::max(
-                    match_end, classify_genitive_surface(text, begin, surface.has_combining).end);
+                const auto classified_end =
+                    classify_genitive_surface(text, begin, surface.has_combining).end;
+                const auto continuation_begin = codepoint_index_at_or_after(document, match_end);
+                const auto continuation_end = scan_typed_admission_end(
+                    document, continuation_begin, CandidateSurfaceKind::Contextual);
+                if (continuation_end > continuation_begin)
+                    match_end = std::max(match_end, classified_end);
             }
         }
         matches.push_back({begin, match_end, text.substr(begin, match_end - begin)});
+    }
+    for (Iterator it(text.begin(), text.end(), unsupported_currency_pattern()), end; it != end;
+         ++it) {
+        const auto begin = static_cast<std::size_t>(it->position(1));
+        matches.push_back({begin,
+                           begin + static_cast<std::size_t>(it->length(1)),
+                           text.substr(begin, static_cast<std::size_t>(it->length(1)))});
     }
     // The regex admission above cannot see combining marks. Scan every full
     // numeric start once so signs and dot/comma decimals receive the same
@@ -167,6 +186,29 @@ std::vector<MixedCandidateMatch> scan_malformed_matches(std::string_view text) {
                     {range->offset, range_end, text.substr(range->offset, range->length)});
         }
     }
+    const auto supported = scan_candidate_matches(text);
+    matches.erase(
+        std::remove_if(
+            matches.begin(),
+            matches.end(),
+            [&](const MixedCandidateMatch& malformed) {
+                return std::any_of(
+                    supported.begin(), supported.end(), [&](const MixedCandidateMatch& candidate) {
+                        if (candidate.begin != malformed.begin || candidate.end >= malformed.end)
+                            return false;
+                        const auto extra =
+                            text.substr(candidate.end, malformed.end - candidate.end);
+                        if (extra.empty() || !std::all_of(extra.begin(), extra.end(), [](char c) {
+                                return c == '.';
+                            }))
+                            return false;
+                        if (malformed.end == text.size())
+                            return true;
+                        const auto next = static_cast<unsigned char>(text[malformed.end]);
+                        return std::isspace(next) != 0 || std::ispunct(next) != 0;
+                    });
+            }),
+        matches.end());
     // Regex and typed scans may discover the same malformed surface from
     // different anchors (for example the currency tail and the full
     // combining-unit candidate).  Canonicalize overlaps before admission so

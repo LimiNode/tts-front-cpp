@@ -10,13 +10,42 @@ int main() {
     using namespace tts_front;
     using namespace tts_front::detail;
 
-    const std::string input = "C++17,23% 456";
-    std::vector<TextWarning> warnings;
-    WarningSink warning_sink{warnings, {}};
-    auto text = MappedText::from_original(input, &warning_sink.preserved_ranges);
-    std::vector<ProtectedSpan> protected_spans;
-    text = technical::protect_numeric_candidates(std::move(text), warning_sink, protected_spans);
-    text = technical::protect(std::move(text), protected_spans);
-    text = technical::restore(std::move(text), protected_spans);
-    return text.text == input && !warnings.empty() ? 0 : 1;
+    const auto check = [](const std::string& input,
+                          const std::size_t expected_offset,
+                          const std::size_t expected_length) {
+        std::vector<TextWarning> warnings;
+        WarningSink warning_sink{warnings, {}};
+        auto text = MappedText::from_original(input, &warning_sink.preserved_ranges);
+        std::vector<ProtectedSpan> protected_spans;
+        text =
+            technical::protect_numeric_candidates(std::move(text), warning_sink, protected_spans);
+        text = technical::protect(std::move(text), protected_spans);
+        text = technical::restore(std::move(text), protected_spans);
+        return text.text == input && warnings.size() == 1 &&
+               warnings.front().code == WarningCode::UnresolvedNumber &&
+               warnings.front().offset == expected_offset &&
+               warnings.front().length == expected_length;
+    };
+    const auto check_protected = [](const std::string& input) {
+        std::vector<TextWarning> warnings;
+        WarningSink warning_sink{warnings, {}};
+        auto text = MappedText::from_original(input, &warning_sink.preserved_ranges);
+        std::vector<ProtectedSpan> protected_spans;
+        text =
+            technical::protect_numeric_candidates(std::move(text), warning_sink, protected_spans);
+        text = technical::protect(std::move(text), protected_spans);
+        text = technical::restore(std::move(text), protected_spans);
+        return text.text == input && warnings.empty();
+    };
+
+    const std::string technical = "C++17,23% 456";
+    const std::string ruble_suffix = "2.50 ₽";
+    const std::string ruble_prefix = "₽2.50";
+    return check(technical, 5, technical.size() - 5) &&
+                   check(ruble_suffix, 0, ruble_suffix.size()) &&
+                   check(ruble_prefix, 0, ruble_prefix.size()) &&
+                   check_protected("https://example.com/2.50") &&
+                   check_protected("user2.50@example.com")
+               ? 0
+               : 1;
 }

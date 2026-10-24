@@ -209,6 +209,8 @@ void protect_typed_continuations(MappedText& text,
     };
 
     protect_matches(patterns().admission_measurement, CandidateSurfaceKind::Unit);
+    protect_matches(
+        patterns().admission_unsupported_currency, CandidateSurfaceKind::Currency, 0, false, true);
     protect_matches(patterns().admission_currency, CandidateSurfaceKind::Currency);
     protect_matches(patterns().year_locative_context, CandidateSurfaceKind::Contextual, 3, true);
     protect_matches(patterns().year_accusative_context, CandidateSurfaceKind::Contextual, 3, true);
@@ -433,12 +435,11 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
             long long integer = 0, fraction = 0;
             if (!try_parse_long(match[1].str(), integer) ||
                 !try_parse_long(match[2].str(), fraction) || match[2].str().size() > 2) {
-                add_warning_without_suffix(warnings,
-                                           WarningCode::UnresolvedNumber,
-                                           "Unable to parse Russian decimal currency",
-                                           source,
-                                           match,
-                                           4);
+                add_warning(warnings,
+                            WarningCode::UnresolvedNumber,
+                            "Unable to parse Russian decimal currency",
+                            source,
+                            match);
                 return match.str();
             }
             const auto suffix = match[4].str();
@@ -452,12 +453,11 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                     : suffix;
             const auto formatted = monetary_decimal(match[1].str(), integer, match[2].str());
             if (!formatted) {
-                add_warning_without_suffix(warnings,
-                                           WarningCode::UnresolvedNumber,
-                                           "Unable to format Russian decimal currency",
-                                           source,
-                                           match,
-                                           4);
+                add_warning(warnings,
+                            WarningCode::UnresolvedNumber,
+                            "Unable to format Russian decimal currency",
+                            source,
+                            match);
                 return match.str();
             }
             return *formatted + punctuation;
