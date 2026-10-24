@@ -364,4 +364,22 @@ std::string decimal_genitive(long long integer, const std::string& fraction) {
            denominator_word;
 }
 
+std::optional<std::string> monetary_decimal(const std::string_view integer_token,
+                                            const long long integer,
+                                            const std::string_view fraction) {
+    if (fraction.empty() || fraction.size() > 2)
+        return std::nullopt;
+
+    auto minor = std::stoll(std::string(fraction));
+    if (fraction.size() == 1)
+        minor *= 10;
+
+    std::string result = number_for_token(integer_token, integer) + " " +
+                         plural_form(integer, "рубль", "рубля", "рублей");
+    if (minor != 0)
+        result += " " + number(minor) + " " +
+                  plural_form(minor, "копейка", "копейки", "копеек");
+    return result;
+}
+
 } // namespace tts_front::detail::russian

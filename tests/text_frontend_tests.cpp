@@ -1231,7 +1231,48 @@ int main() {
           "тысячных");
     CHECK(frontend.process("1,1234", ru).normalized_text == "1,1234");
     CHECK(frontend.process("7,5%", ru).normalized_text == "семь целых пять десятых процента");
-    CHECK(frontend.process("1,2 руб.", ru).normalized_text == "одна целая две десятых рубля.");
+    CHECK(frontend.process("1,2 руб.", ru).normalized_text ==
+          "один рубль двадцать копеек.");
+    {
+        TextFrontendOptions auto_ru = ru;
+        auto_ru.language = Language::Auto;
+        TextFrontendOptions segmented_ru = auto_ru;
+        segmented_ru.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        const std::array<TextFrontendOptions, 3> currency_modes = {
+            ru, auto_ru, segmented_ru};
+        for (const auto& options : currency_modes) {
+            const auto result = frontend.process("Итоговая цена — 2,50 руб.", options);
+            CHECK(result.normalized_text == "Итоговая цена — два рубля пятьдесят копеек.");
+            CHECK(result.pronunciation_text == result.normalized_text);
+            CHECK(result.warnings.empty());
+
+            const auto sentence =
+                frontend.process("Бухгалтерия учла 2,50 руб. сегодня.", options);
+            CHECK(sentence.normalized_text ==
+                  "Бухгалтерия учла два рубля пятьдесят копеек сегодня.");
+            CHECK(sentence.pronunciation_text == sentence.normalized_text);
+            CHECK(sentence.warnings.empty());
+        }
+        const std::array<std::pair<std::string, std::string>, 5> monetary_values = {{
+            {"2,05 руб.", "два рубля пять копеек."},
+            {"2,5 руб.", "два рубля пятьдесят копеек."},
+            {"2,00 руб.", "два рубля."},
+            {"0,50 руб.", "ноль рублей пятьдесят копеек."},
+            {"-0,50 руб.", "минус ноль рублей пятьдесят копеек."},
+        }};
+        for (const auto& [input, expected] : monetary_values) {
+            const auto result = frontend.process(input, ru);
+            CHECK(result.normalized_text == expected);
+            CHECK(result.pronunciation_text == expected);
+            CHECK(result.warnings.empty());
+        }
+        const auto unsupported = frontend.process("2,500 руб.", ru);
+        CHECK(unsupported.normalized_text == "2,500 руб.");
+        CHECK(unsupported.warnings.size() == 1);
+        CHECK(unsupported.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(unsupported.warnings.front().offset == 0);
+        CHECK(unsupported.warnings.front().length == std::string("2,500").size());
+    }
     CHECK(frontend.process("1,2% -3,4%", ru).normalized_text ==
           "одна целая две десятых процента минус три целых четыре десятых процента");
     {

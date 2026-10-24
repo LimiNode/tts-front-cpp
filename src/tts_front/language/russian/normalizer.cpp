@@ -432,7 +432,7 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                 return match.str();
             long long integer = 0, fraction = 0;
             if (!try_parse_long(match[1].str(), integer) ||
-                !try_parse_long(match[2].str(), fraction) || match[2].str().size() > 3) {
+                !try_parse_long(match[2].str(), fraction) || match[2].str().size() > 2) {
                 add_warning_without_suffix(warnings,
                                            WarningCode::UnresolvedNumber,
                                            "Unable to parse Russian decimal currency",
@@ -441,7 +441,6 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                                            4);
                 return match.str();
             }
-            const auto prefix = integer == 0 && match[1].str().front() == '-' ? "минус " : "";
             const auto suffix = match[4].str();
             const auto after = static_cast<std::size_t>(match.position()) +
                                static_cast<std::size_t>(match.length());
@@ -451,7 +450,17 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                          std::ispunct(static_cast<unsigned char>(source.text[after])))
                     ? std::string()
                     : suffix;
-            return std::string(prefix) + decimal(integer, match[2].str()) + " рубля" + punctuation;
+            const auto formatted = monetary_decimal(match[1].str(), integer, match[2].str());
+            if (!formatted) {
+                add_warning_without_suffix(warnings,
+                                           WarningCode::UnresolvedNumber,
+                                           "Unable to format Russian decimal currency",
+                                           source,
+                                           match,
+                                           4);
+                return match.str();
+            }
+            return *formatted + punctuation;
         });
     text = replace_numeric_matches(
         text, russian::patterns().percent, [&](const std::smatch& match, const MappedText& source) {
