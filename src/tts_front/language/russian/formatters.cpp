@@ -377,8 +377,7 @@ std::optional<std::string> monetary_decimal(const std::string_view integer_token
     std::string result = number_for_token(integer_token, integer) + " " +
                          plural_form(integer, "рубль", "рубля", "рублей");
     if (minor != 0)
-        result += " " + number(minor) + " " +
-                  plural_form(minor, "копейка", "копейки", "копеек");
+        result += " " + number(minor) + " " + plural_form(minor, "копейка", "копейки", "копеек");
     return result;
 }
 

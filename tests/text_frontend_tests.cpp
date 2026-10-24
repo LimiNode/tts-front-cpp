@@ -1231,23 +1231,20 @@ int main() {
           "тысячных");
     CHECK(frontend.process("1,1234", ru).normalized_text == "1,1234");
     CHECK(frontend.process("7,5%", ru).normalized_text == "семь целых пять десятых процента");
-    CHECK(frontend.process("1,2 руб.", ru).normalized_text ==
-          "один рубль двадцать копеек.");
+    CHECK(frontend.process("1,2 руб.", ru).normalized_text == "один рубль двадцать копеек.");
     {
         TextFrontendOptions auto_ru = ru;
         auto_ru.language = Language::Auto;
         TextFrontendOptions segmented_ru = auto_ru;
         segmented_ru.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
-        const std::array<TextFrontendOptions, 3> currency_modes = {
-            ru, auto_ru, segmented_ru};
+        const std::array<TextFrontendOptions, 3> currency_modes = {ru, auto_ru, segmented_ru};
         for (const auto& options : currency_modes) {
             const auto result = frontend.process("Итоговая цена — 2,50 руб.", options);
             CHECK(result.normalized_text == "Итоговая цена — два рубля пятьдесят копеек.");
             CHECK(result.pronunciation_text == result.normalized_text);
             CHECK(result.warnings.empty());
 
-            const auto sentence =
-                frontend.process("Бухгалтерия учла 2,50 руб. сегодня.", options);
+            const auto sentence = frontend.process("Бухгалтерия учла 2,50 руб. сегодня.", options);
             CHECK(sentence.normalized_text ==
                   "Бухгалтерия учла два рубля пятьдесят копеек сегодня.");
             CHECK(sentence.pronunciation_text == sentence.normalized_text);
