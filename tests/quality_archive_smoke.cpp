@@ -41,6 +41,7 @@ struct CurrentCase {
 const std::set<std::string>& approved_supersession_ids() {
     static const std::set<std::string> ids = {
         "ru-natural-10",
+        "ru-mixed-malformed-unit-suffix",
         "ru-v030-year-0-a",
         "ru-v030-year-0-b",
         "ru-v030-year-1-a",

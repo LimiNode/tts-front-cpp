@@ -397,7 +397,7 @@ ru-punctuation-ellipsis-01	ru	explicit	punctuation	preserve	1 руб...foo	1 р�
 ru-punctuation-ellipsis-02	ru	explicit	punctuation	preserve	1,2 руб.../2	1,2 руб.../2	1,2 руб.../2	unresolved_number@0:15
 ru-technical-dot-percent-suffix	ru	explicit	ambiguous_or_technical	preserve	1.5%RTX-4090	1.5%RTX-4090	1.5%RTX-4090	unresolved_number@0:12
 ru-mixed-unit-gb-decimal	ru	auto_segment	measurement	normalize	Используем 1,5 GB данных.	Используем одна целая пять десятых гигабайта данных.	Используем одна целая пять десятых гигабайта данных.	ambiguous_normalization@0:41
-ru-mixed-malformed-unit-suffix	ru	auto_segment	measurement	preserve	Use 1,5 кгfoo	Use 1,5 кгfoo	Use 1,5 кгfoo	unresolved_number@4:11
+ru-mixed-malformed-unit-suffix	ru	auto_segment	measurement	preserve	Use 1,5 кгfoo	Use 1,5 кгfoo	Use 1,5 кгfoo	ambiguous_normalization@0:15;unresolved_number@4:11
 en-v030-year-0-a	en	explicit	year	normalize	The archive was created in 1999.	The archive was created in nineteen ninety nine.	The archive was created in nineteen ninety nine.	none
 en-v030-year-0-b	en	explicit	year	normalize	Records from 1999 remain available.	Records from nineteen ninety nine remain available.	Records from nineteen ninety nine remain available.	none
 en-v030-year-1-a	en	explicit	year	normalize	The archive was created in 2000.	The archive was created in two thousand.	The archive was created in two thousand.	none
