@@ -25,15 +25,16 @@ using CodePoint = Utf8CodePoint;
 
 MappedText protect(MappedText text, std::vector<ProtectedSpan>& protected_spans) {
     const auto& patterns = technical::patterns();
-    const std::array<const std::regex*, 9> technical_patterns = {&patterns.technical_url,
-                                                                 &patterns.technical_email,
-                                                                 &patterns.technical_ipv4,
-                                                                 &patterns.technical_version,
-                                                                 &patterns.technical_http,
-                                                                 &patterns.technical_gpu,
-                                                                 &patterns.technical_identifier,
-                                                                 &patterns.technical_cpp,
-                                                                 &patterns.technical_csharp};
+    const std::array<const std::regex*, 10> technical_patterns = {&patterns.technical_url,
+                                                                  &patterns.technical_utf8_email,
+                                                                  &patterns.technical_email,
+                                                                  &patterns.technical_ipv4,
+                                                                  &patterns.technical_version,
+                                                                  &patterns.technical_http,
+                                                                  &patterns.technical_gpu,
+                                                                  &patterns.technical_identifier,
+                                                                  &patterns.technical_cpp,
+                                                                  &patterns.technical_csharp};
     for (const auto* pattern : technical_patterns) {
         const Utf8Document document(text.text);
         const auto scientific_index = build_numeric_surface_index(document);
@@ -494,6 +495,42 @@ MappedText protect_numeric_candidates(MappedText text,
         index = suffix_end;
     }
     return apply_source_edits(text, std::move(edits));
+}
+
+std::vector<SourceRange> scan_protected_ranges(const std::string_view text) {
+    const auto& technical_patterns = technical::patterns();
+    const std::array<const std::regex*, 10> patterns = {&technical_patterns.technical_url,
+                                                        &technical_patterns.technical_utf8_email,
+                                                        &technical_patterns.technical_email,
+                                                        &technical_patterns.technical_ipv4,
+                                                        &technical_patterns.technical_version,
+                                                        &technical_patterns.technical_http,
+                                                        &technical_patterns.technical_gpu,
+                                                        &technical_patterns.technical_identifier,
+                                                        &technical_patterns.technical_cpp,
+                                                        &technical_patterns.technical_csharp};
+    std::vector<SourceRange> ranges;
+    using Iterator = std::regex_iterator<std::string_view::const_iterator>;
+    for (const auto* pattern : patterns) {
+        for (Iterator it(text.begin(), text.end(), *pattern), end; it != end; ++it)
+            ranges.push_back(
+                {static_cast<std::size_t>(it->position()), static_cast<std::size_t>(it->length())});
+    }
+    std::sort(ranges.begin(), ranges.end(), [](const SourceRange& left, const SourceRange& right) {
+        return left.offset < right.offset ||
+               (left.offset == right.offset && left.length > right.length);
+    });
+    std::vector<SourceRange> merged;
+    for (const auto& range : ranges) {
+        if (!merged.empty() && range.offset <= merged.back().offset + merged.back().length) {
+            const auto end =
+                std::max(merged.back().offset + merged.back().length, range.offset + range.length);
+            merged.back().length = end - merged.back().offset;
+        } else {
+            merged.push_back(range);
+        }
+    }
+    return merged;
 }
 
 } // namespace tts_front::detail::technical

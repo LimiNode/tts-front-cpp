@@ -8,6 +8,8 @@ namespace tts_front::detail::technical {
 struct Patterns {
     const std::regex technical_url{R"(https?://[^\s]+)"};
     const std::regex technical_email{R"([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})"};
+    const std::regex technical_utf8_email{
+        R"(\b[A-Za-z][A-Za-z0-9.,_%+\-\x80-\xFF]*@[A-Za-z0-9.-]+\.[A-Za-z]{2,})"};
     const std::regex technical_ipv4{R"(\b\d{1,3}(?:\.\d{1,3}){3}\b)"};
     const std::regex technical_version{R"(\b[vV]\d+(?:\.\d+)+\b)"};
     const std::regex technical_http{R"(\bHTTP/\d+(?:\.\d+)?\b)"};

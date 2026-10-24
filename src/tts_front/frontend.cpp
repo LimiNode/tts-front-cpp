@@ -156,29 +156,6 @@ TextFrontendResult TextFrontend::process(std::string_view input,
             break;
         }
     }
-    // Keep the document-level ambiguity diagnostic whenever normalization
-    // produced an independent candidate result.  If the entire mixed tail is
-    // one unresolved candidate and the source is otherwise byte-identical,
-    // the candidate warning is the sole actionable diagnostic; this narrow
-    // case preserves the historical fail-closed contract without using a
-    // generic span-overlap suppression rule.
-    if (options.language == Language::Auto &&
-        options.mixed_language_policy == MixedLanguagePolicy::SegmentCandidates &&
-        text.text == result.original_text) {
-        const auto unresolved_tail = std::find_if(
-            result.warnings.begin(), result.warnings.end(), [&](const TextWarning& warning) {
-                return warning.code == WarningCode::UnresolvedNumber && warning.length != 0 &&
-                       warning.offset != 0 && warning.offset + warning.length == input.size();
-            });
-        if (unresolved_tail != result.warnings.end())
-            result.warnings.erase(std::remove_if(result.warnings.begin(),
-                                                 result.warnings.end(),
-                                                 [](const TextWarning& warning) {
-                                                     return warning.code ==
-                                                            WarningCode::AmbiguousNormalization;
-                                                 }),
-                                  result.warnings.end());
-    }
     if (options.cleanup_spacing)
         text = detail::cleanup_spacing(text);
     result.normalized_text = text.text;

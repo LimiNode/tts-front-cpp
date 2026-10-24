@@ -209,8 +209,20 @@ void protect_typed_continuations(MappedText& text,
     };
 
     protect_matches(patterns().admission_measurement, CandidateSurfaceKind::Unit);
+    const auto technical_ranges = technical::scan_protected_ranges(text.text);
     for (const auto& range : scan_unsupported_currency(document)) {
         const auto end = range.offset + range.length;
+        const auto technical_overlap =
+            std::any_of(technical_ranges.begin(),
+                        technical_ranges.end(),
+                        [&](const SourceRange& technical_range) {
+                            return range.offset < technical_range.offset + technical_range.length &&
+                                   technical_range.offset < end;
+                        });
+        if (technical_overlap) {
+            warnings.preserve(text.source_range(range.offset, end));
+            continue;
+        }
         if (overlaps_preserved_range(text, range.offset, end))
             continue;
         const auto span = document.span_from_bytes(range.offset, end);

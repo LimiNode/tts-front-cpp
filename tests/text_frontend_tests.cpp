@@ -1399,6 +1399,19 @@ int main() {
         CHECK(technical_currency.normalized_text == technical_currency.original_text);
         CHECK(technical_currency.pronunciation_text == technical_currency.original_text);
         CHECK(technical_currency.warnings.empty());
+        for (const auto& input : {std::string("https://example.com/2,500руб."),
+                                  std::string("user2,500руб@example.com"),
+                                  std::string("RTX-2,500руб.")}) {
+            for (const auto& options : currency_modes) {
+                const auto technical_neighbor = frontend.process(input, options);
+                CHECK(technical_neighbor.normalized_text == input);
+                CHECK(std::none_of(technical_neighbor.warnings.begin(),
+                                   technical_neighbor.warnings.end(),
+                                   [](const TextWarning& warning) {
+                                       return warning.code == WarningCode::UnresolvedNumber;
+                                   }));
+            }
+        }
         for (const auto& options : {auto_options, segmented_ru}) {
             const auto mixed = frontend.process("Используем 2,50 руб. today", options);
             CHECK(mixed.normalized_text == "Используем два рубля пятьдесят копеек today");
@@ -1418,6 +1431,16 @@ int main() {
             CHECK(unresolved->offset == mixed_unsupported.original_text.find("2"));
             CHECK(unresolved->length == std::string("2,500 руб.").size());
         }
+        const auto mixed_end = frontend.process("Use 2,500 руб.", segmented_ru);
+        CHECK(mixed_end.normalized_text == mixed_end.original_text);
+        CHECK(std::any_of(
+            mixed_end.warnings.begin(), mixed_end.warnings.end(), [](const TextWarning& warning) {
+                return warning.code == WarningCode::AmbiguousNormalization;
+            }));
+        CHECK(std::any_of(
+            mixed_end.warnings.begin(), mixed_end.warnings.end(), [](const TextWarning& warning) {
+                return warning.code == WarningCode::UnresolvedNumber;
+            }));
     }
     CHECK(frontend.process("1,2% -3,4%", ru).normalized_text ==
           "одна целая две десятых процента минус три целых четыре десятых процента");
@@ -2656,7 +2679,7 @@ int main() {
                   result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
                       return warning.code == WarningCode::UnresolvedNumber;
                   }) == 1);
-        CHECK(std::none_of(
+        CHECK(std::any_of(
             result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
                 return warning.code == WarningCode::AmbiguousNormalization;
             }));

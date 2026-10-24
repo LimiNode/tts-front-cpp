@@ -16,6 +16,7 @@ struct WarningSink {
     std::vector<TextWarning>& warnings;
     std::vector<SourceRange> preserved_ranges;
 
+    void preserve(SourceRange source);
     void add_range(WarningCode code, std::string message, std::size_t offset, std::size_t length);
     void add(WarningCode code, std::string message, SourceRange source);
 };
