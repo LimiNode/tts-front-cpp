@@ -281,4 +281,39 @@ const AdmissionRules& admission_rules() {
     return rules;
 }
 
+std::vector<SourceRange> scan_unsupported_currency(const Utf8Document& document) {
+    std::vector<SourceRange> ranges;
+    if (!document.valid)
+        return ranges;
+
+    using Iterator = std::regex_iterator<std::string_view::const_iterator>;
+    const auto& pattern = patterns().admission_unsupported_currency;
+    for (Iterator it(document.bytes.begin(), document.bytes.end(), pattern), end; it != end; ++it) {
+        const auto begin = static_cast<std::size_t>(it->position());
+        const auto core_end = begin + static_cast<std::size_t>(it->length());
+        const auto continuation_begin = codepoint_index_at_or_after(document, core_end);
+        const auto continuation_end =
+            scan_typed_admission_end(document, continuation_begin, CandidateSurfaceKind::Currency);
+        const auto finish_point = std::max(continuation_begin, continuation_end);
+        const auto finish = document.span_from_codepoints(0, finish_point).byte_end;
+        ranges.push_back({begin, finish - begin});
+    }
+
+    std::sort(ranges.begin(), ranges.end(), [](const SourceRange& left, const SourceRange& right) {
+        return left.offset < right.offset ||
+               (left.offset == right.offset && left.length > right.length);
+    });
+    std::vector<SourceRange> merged;
+    for (const auto& range : ranges) {
+        if (!merged.empty() && range.offset < merged.back().offset + merged.back().length) {
+            const auto end =
+                std::max(merged.back().offset + merged.back().length, range.offset + range.length);
+            merged.back().length = end - merged.back().offset;
+        } else {
+            merged.push_back(range);
+        }
+    }
+    return merged;
+}
+
 } // namespace tts_front::detail::russian

@@ -401,6 +401,21 @@ MappedText protect_numeric_candidates(MappedText text,
                          : 0);
         while (end_index < points.size() && text::is_digit(points[end_index].value))
             ++end_index;
+        // Keep grouped numeric cores together before looking for a currency
+        // suffix (`+1 250,500 ₽`).  Otherwise the first group is admitted as
+        // an independent signed number and the suffix scanner starts at the
+        // second group, producing two partial diagnostics.
+        for (;;) {
+            auto grouped = end_index;
+            while (grouped < points.size() && text::is_horizontal_space(points[grouped].value))
+                ++grouped;
+            const auto digits_begin = grouped;
+            while (grouped < points.size() && text::is_digit(points[grouped].value))
+                ++grouped;
+            if (grouped - digits_begin != 3)
+                break;
+            end_index = grouped;
+        }
         if (end_index < points.size() &&
             (points[end_index].value == '.' || points[end_index].value == ',' ||
              points[end_index].value == ':') &&

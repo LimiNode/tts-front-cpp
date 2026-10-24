@@ -209,8 +209,17 @@ void protect_typed_continuations(MappedText& text,
     };
 
     protect_matches(patterns().admission_measurement, CandidateSurfaceKind::Unit);
-    protect_matches(
-        patterns().admission_unsupported_currency, CandidateSurfaceKind::Currency, 0, false, true);
+    for (const auto& range : scan_unsupported_currency(document)) {
+        const auto end = range.offset + range.length;
+        if (overlaps_preserved_range(text, range.offset, end))
+            continue;
+        const auto span = document.span_from_bytes(range.offset, end);
+        add_protected_candidate(text,
+                                NumericCandidate{span, NumericCandidateKind::Currency, true},
+                                warnings,
+                                protected_spans,
+                                edits);
+    }
     protect_matches(patterns().admission_currency, CandidateSurfaceKind::Currency);
     protect_matches(patterns().year_locative_context, CandidateSurfaceKind::Contextual, 3, true);
     protect_matches(patterns().year_accusative_context, CandidateSurfaceKind::Contextual, 3, true);

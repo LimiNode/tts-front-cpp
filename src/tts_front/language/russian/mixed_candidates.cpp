@@ -32,12 +32,6 @@ const std::regex& malformed_pattern() {
     return pattern;
 }
 
-const std::regex& unsupported_currency_pattern() {
-    static const std::regex pattern{
-        R"((?:^|[^0-9.,])((?:(?:(?:\+|−)[0-9]+(?:,[0-9]+)?|-?\d{1,3}(?:[ \t]\d{3})+,[0-9]+)[ \t]*(?:рублей|рубля|рубль|руб\.?)|-?[0-9]+(?:,[0-9]+)?[ \t]*₽)(?:[A-Za-zА-Яа-яЁё]*)))"};
-    return pattern;
-}
-
 const std::regex& measurement_pattern() {
     static const std::regex pattern{
         R"((-?[0-9]+)(?:,([0-9]+))?[ \t]*(рублей|рубля|рубль|руб\.?|километров|километра|километр|км|килограммов|килограмма|килограмм|кг|сантиметров|сантиметра|сантиметр|см|миллиметров|миллиметра|миллиметр|мм|ГБ|МБ|GB|MB|м))"};
@@ -146,12 +140,9 @@ std::vector<MixedCandidateMatch> scan_malformed_matches(std::string_view text) {
         }
         matches.push_back({begin, match_end, text.substr(begin, match_end - begin)});
     }
-    for (Iterator it(text.begin(), text.end(), unsupported_currency_pattern()), end; it != end;
-         ++it) {
-        const auto begin = static_cast<std::size_t>(it->position(1));
-        matches.push_back({begin,
-                           begin + static_cast<std::size_t>(it->length(1)),
-                           text.substr(begin, static_cast<std::size_t>(it->length(1)))});
+    for (const auto& range : scan_unsupported_currency(document)) {
+        matches.push_back(
+            {range.offset, range.offset + range.length, text.substr(range.offset, range.length)});
     }
     // The regex admission above cannot see combining marks. Scan every full
     // numeric start once so signs and dot/comma decimals receive the same

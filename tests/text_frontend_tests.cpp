@@ -1276,8 +1276,12 @@ int main() {
                 CHECK(result.warnings.empty());
             }
         }
-        const std::array<std::string, 4> unsupported_currency_forms = {
-            "+2,50 руб.", std::string("−2,50 руб."), "+0,50 руб.", "1 250,50 руб."};
+        const std::array<std::string, 6> unsupported_currency_forms = {"+2,50 руб.",
+                                                                       std::string("−2,50 руб."),
+                                                                       "+0,50 руб.",
+                                                                       "1 250,50 руб.",
+                                                                       "+2,50 ₽",
+                                                                       std::string("−2,50 ₽")};
         for (const auto& input : unsupported_currency_forms) {
             for (const auto& options : currency_modes) {
                 const auto result = frontend.process(input, options);
@@ -1289,8 +1293,8 @@ int main() {
                 CHECK(result.warnings.front().length == input.size());
             }
         }
-        const std::array<std::pair<std::string, std::size_t>, 8> unsupported_currency_boundaries = {
-            {
+        const std::array<std::pair<std::string, std::size_t>, 13> unsupported_currency_boundaries =
+            {{
                 {"+2,50 руб", std::string("+2,50 руб").size()},
                 {"+2,50 руб.!", std::string("+2,50 руб.").size()},
                 {"+2,50 руб./2", std::string("+2,50 руб./2").size()},
@@ -1299,6 +1303,11 @@ int main() {
                 {"+2,50 рубежей", std::string("+2,50 рубежей").size()},
                 {"+2,50 руб́", std::string("+2,50 руб́").size()},
                 {"+2,50 руб́ежей", std::string("+2,50 руб́ежей").size()},
+                {"2,500 руб...", std::string("2,500 руб...").size()},
+                {"2,500 руб.!", std::string("2,500 руб.").size()},
+                {"2,500 руб./2", std::string("2,500 руб./2").size()},
+                {"−1 250,500 руб́", std::string("−1 250,500 руб́").size()},
+                {"+1 250,500 ₽", std::string("+1 250,500 ₽").size()},
             }};
         for (const auto& [input, expected_span] : unsupported_currency_boundaries) {
             for (const auto& options : currency_modes) {
