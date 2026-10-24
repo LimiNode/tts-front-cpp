@@ -524,8 +524,8 @@ ru-v030-money-5-a	ru	explicit	currency	normalize	Итоговая цена — 1
 ru-v030-money-5-b	ru	explicit	currency	normalize	Бухгалтерия учла 100 руб. сегодня.	Бухгалтерия учла сто рублей сегодня.	Бухгалтерия учла сто рублей сегодня.	none
 ru-v030-money-6-a	ru	explicit	currency	normalize	Итоговая цена — 1 250 руб.	Итоговая цена — одна тысяча двести пятьдесят рублей.	Итоговая цена — одна тысяча двести пятьдесят рублей.	none
 ru-v030-money-6-b	ru	explicit	currency	normalize	Бухгалтерия учла 1 250 руб. сегодня.	Бухгалтерия учла одна тысяча двести пятьдесят рублей сегодня.	Бухгалтерия учла одна тысяча двести пятьдесят рублей сегодня.	none
-ru-v030-money-7-a	ru	explicit	currency	normalize	Итоговая цена — 2,50 руб.	Итоговая цена — две целых пять десятых рубля.	Итоговая цена — две целых пять десятых рубля.	none
-ru-v030-money-7-b	ru	explicit	currency	normalize	Бухгалтерия учла 2,50 руб. сегодня.	Бухгалтерия учла две целых пять десятых рубля сегодня.	Бухгалтерия учла две целых пять десятых рубля сегодня.	none
+ru-v030-money-7-a	ru	explicit	currency	normalize	Итоговая цена — 2,50 руб.	Итоговая цена — два рубля пятьдесят копеек.	Итоговая цена — два рубля пятьдесят копеек.	none
+ru-v030-money-7-b	ru	explicit	currency	normalize	Бухгалтерия учла 2,50 руб. сегодня.	Бухгалтерия учла два рубля пятьдесят копеек сегодня.	Бухгалтерия учла два рубля пятьдесят копеек сегодня.	none
 en-v030-percent-0-a	en	explicit	percent	normalize	Progress reached 0%.	Progress reached zero percent.	Progress reached zero percent.	none
 en-v030-percent-0-b	en	explicit	percent	normalize	A 0% change was reported.	A zero percent change was reported.	A zero percent change was reported.	none
 en-v030-percent-1-a	en	explicit	percent	normalize	Progress reached 1%.	Progress reached one percent.	Progress reached one percent.	none
