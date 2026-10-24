@@ -5,7 +5,7 @@
 namespace tts_front::detail::russian {
 
 struct Patterns {
-    const std::regex date{R"(\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b)"};
+    const std::regex date{R"(\b(\d{1,2})\.(\d{1,2})\.(\d{4})(?![0-9]))"};
     const std::regex year{R"(\b(\d{4})\s*г\.)"};
     const std::regex year_locative_context{R"((В|в)(\s+)((?:\+|-|−)?\d{4})(\s+году))"};
     const std::regex year_accusative_context{R"((За|за)(\s+)((?:\+|-|−)?\d{4})(\s+год))"};
