@@ -40,7 +40,7 @@ bool is_range_connector(std::uint32_t cp) {
 }
 
 bool is_currency_symbol(std::uint32_t cp) {
-    return cp == '$' || cp == 0x20ac || cp == 0xa3 || cp == 0xa5;
+    return cp == '$' || cp == 0x20ac || cp == 0xa3 || cp == 0xa5 || cp == 0x20bd;
 }
 
 bool is_numeric_connector(std::uint32_t cp) {

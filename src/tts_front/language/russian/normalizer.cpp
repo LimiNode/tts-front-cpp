@@ -209,6 +209,17 @@ void protect_typed_continuations(MappedText& text,
     };
 
     protect_matches(patterns().admission_measurement, CandidateSurfaceKind::Unit);
+    for (const auto& range : scan_unsupported_currency(document)) {
+        const auto end = range.offset + range.length;
+        if (overlaps_preserved_range(text, range.offset, end))
+            continue;
+        const auto span = document.span_from_bytes(range.offset, end);
+        add_protected_candidate(text,
+                                NumericCandidate{span, NumericCandidateKind::Currency, true},
+                                warnings,
+                                protected_spans,
+                                edits);
+    }
     protect_matches(patterns().admission_currency, CandidateSurfaceKind::Currency);
     protect_matches(patterns().year_locative_context, CandidateSurfaceKind::Contextual, 3, true);
     protect_matches(patterns().year_accusative_context, CandidateSurfaceKind::Contextual, 3, true);
@@ -432,16 +443,14 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                 return match.str();
             long long integer = 0, fraction = 0;
             if (!try_parse_long(match[1].str(), integer) ||
-                !try_parse_long(match[2].str(), fraction) || match[2].str().size() > 3) {
-                add_warning_without_suffix(warnings,
-                                           WarningCode::UnresolvedNumber,
-                                           "Unable to parse Russian decimal currency",
-                                           source,
-                                           match,
-                                           4);
+                !try_parse_long(match[2].str(), fraction) || match[2].str().size() > 2) {
+                add_warning(warnings,
+                            WarningCode::UnresolvedNumber,
+                            "Unable to parse Russian decimal currency",
+                            source,
+                            match);
                 return match.str();
             }
-            const auto prefix = integer == 0 && match[1].str().front() == '-' ? "минус " : "";
             const auto suffix = match[4].str();
             const auto after = static_cast<std::size_t>(match.position()) +
                                static_cast<std::size_t>(match.length());
@@ -451,7 +460,16 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                          std::ispunct(static_cast<unsigned char>(source.text[after])))
                     ? std::string()
                     : suffix;
-            return std::string(prefix) + decimal(integer, match[2].str()) + " рубля" + punctuation;
+            const auto formatted = monetary_decimal(match[1].str(), integer, match[2].str());
+            if (!formatted) {
+                add_warning(warnings,
+                            WarningCode::UnresolvedNumber,
+                            "Unable to format Russian decimal currency",
+                            source,
+                            match);
+                return match.str();
+            }
+            return *formatted + punctuation;
         });
     text = replace_numeric_matches(
         text, russian::patterns().percent, [&](const std::smatch& match, const MappedText& source) {

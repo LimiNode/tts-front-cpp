@@ -1231,7 +1231,194 @@ int main() {
           "тысячных");
     CHECK(frontend.process("1,1234", ru).normalized_text == "1,1234");
     CHECK(frontend.process("7,5%", ru).normalized_text == "семь целых пять десятых процента");
-    CHECK(frontend.process("1,2 руб.", ru).normalized_text == "одна целая две десятых рубля.");
+    CHECK(frontend.process("1,2 руб.", ru).normalized_text == "один рубль двадцать копеек.");
+    {
+        TextFrontendOptions auto_ru = ru;
+        auto_ru.language = Language::Auto;
+        TextFrontendOptions segmented_ru = auto_ru;
+        segmented_ru.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        const std::array<TextFrontendOptions, 3> currency_modes = {ru, auto_ru, segmented_ru};
+        for (const auto& options : currency_modes) {
+            const auto result = frontend.process("Итоговая цена — 2,50 руб.", options);
+            CHECK(result.normalized_text == "Итоговая цена — два рубля пятьдесят копеек.");
+            CHECK(result.pronunciation_text == result.normalized_text);
+            CHECK(result.warnings.empty());
+
+            const auto sentence = frontend.process("Бухгалтерия учла 2,50 руб. сегодня.", options);
+            CHECK(sentence.normalized_text ==
+                  "Бухгалтерия учла два рубля пятьдесят копеек сегодня.");
+            CHECK(sentence.pronunciation_text == sentence.normalized_text);
+            CHECK(sentence.warnings.empty());
+        }
+        const std::array<std::pair<std::string, std::string>, 7> monetary_values = {{
+            {"2,05 руб.", "два рубля пять копеек."},
+            {"2,5 руб.", "два рубля пятьдесят копеек."},
+            {"2,00 руб.", "два рубля."},
+            {"0,50 руб.", "ноль рублей пятьдесят копеек."},
+            {"-0,50 руб.", "минус ноль рублей пятьдесят копеек."},
+            {"-2,50 руб.", "минус два рубля пятьдесят копеек."},
+            {"-0,00 руб.", "минус ноль рублей."},
+        }};
+        for (const auto& [input, expected] : monetary_values) {
+            for (const auto& options : currency_modes) {
+                const auto result = frontend.process(input, options);
+                CHECK(result.normalized_text == expected);
+                CHECK(result.pronunciation_text == expected);
+                CHECK(result.warnings.empty());
+            }
+        }
+        for (const auto& form :
+             {std::string("рубль"), std::string("рубля"), std::string("рублей")}) {
+            for (const auto& options : currency_modes) {
+                const auto result = frontend.process("2,50 " + form, options);
+                CHECK(result.normalized_text == "два рубля пятьдесят копеек");
+                CHECK(result.pronunciation_text == result.normalized_text);
+                CHECK(result.warnings.empty());
+            }
+        }
+        const std::array<std::string, 6> unsupported_currency_forms = {"+2,50 руб.",
+                                                                       std::string("−2,50 руб."),
+                                                                       "+0,50 руб.",
+                                                                       "1 250,50 руб.",
+                                                                       "+2,50 ₽",
+                                                                       std::string("−2,50 ₽")};
+        for (const auto& input : unsupported_currency_forms) {
+            for (const auto& options : currency_modes) {
+                const auto result = frontend.process(input, options);
+                CHECK(result.normalized_text == input);
+                CHECK(result.pronunciation_text == input);
+                CHECK(result.warnings.size() == 1);
+                CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+                CHECK(result.warnings.front().offset == 0);
+                CHECK(result.warnings.front().length == input.size());
+            }
+        }
+        const std::array<std::pair<std::string, std::size_t>, 13> unsupported_currency_boundaries =
+            {{
+                {"+2,50 руб", std::string("+2,50 руб").size()},
+                {"+2,50 руб.!", std::string("+2,50 руб.").size()},
+                {"+2,50 руб./2", std::string("+2,50 руб./2").size()},
+                {"−2,50 руб./2", std::string("−2,50 руб./2").size()},
+                {"+2,50 рубfoo", std::string("+2,50 рубfoo").size()},
+                {"+2,50 рубежей", std::string("+2,50 рубежей").size()},
+                {"+2,50 руб́", std::string("+2,50 руб́").size()},
+                {"+2,50 руб́ежей", std::string("+2,50 руб́ежей").size()},
+                {"2,500 руб...", std::string("2,500 руб...").size()},
+                {"2,500 руб.!", std::string("2,500 руб.").size()},
+                {"2,500 руб./2", std::string("2,500 руб./2").size()},
+                {"−1 250,500 руб́", std::string("−1 250,500 руб́").size()},
+                {"+1 250,500 ₽", std::string("+1 250,500 ₽").size()},
+            }};
+        for (const auto& [input, expected_span] : unsupported_currency_boundaries) {
+            for (const auto& options : currency_modes) {
+                const auto result = frontend.process(input, options);
+                CHECK(result.normalized_text == input);
+                CHECK(result.pronunciation_text == input);
+                const auto unresolved = std::find_if(
+                    result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
+                        return warning.code == WarningCode::UnresolvedNumber;
+                    });
+                CHECK(unresolved != result.warnings.end());
+                CHECK(std::count_if(result.warnings.begin(),
+                                    result.warnings.end(),
+                                    [](const TextWarning& warning) {
+                                        return warning.code == WarningCode::UnresolvedNumber;
+                                    }) == 1);
+                CHECK(unresolved->offset == 0);
+                CHECK(unresolved->length == expected_span);
+            }
+        }
+        for (const auto& options : currency_modes) {
+            const auto independent = frontend.process("+2,50 руб. 3", options);
+            CHECK(independent.normalized_text == "+2,50 руб. три");
+            CHECK(independent.warnings.size() == 1);
+            CHECK(independent.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(independent.warnings.front().offset == 0);
+            CHECK(independent.warnings.front().length == std::string("+2,50 руб.").size());
+        }
+        for (const auto& options : currency_modes) {
+            for (const auto& input : {std::string("2,50 ₽"), std::string("₽2,50")}) {
+                const auto unsupported_symbol = frontend.process(input, options);
+                CHECK(unsupported_symbol.normalized_text == input);
+                CHECK(unsupported_symbol.pronunciation_text == unsupported_symbol.normalized_text);
+                CHECK(unsupported_symbol.warnings.size() == 1);
+                CHECK(unsupported_symbol.warnings.front().code == WarningCode::UnresolvedNumber);
+                CHECK(unsupported_symbol.warnings.front().offset == 0);
+                CHECK(unsupported_symbol.warnings.front().length ==
+                      unsupported_symbol.original_text.size());
+            }
+        }
+        for (const auto& input : {std::string("2.50 ₽"), std::string("₽2.50")}) {
+            const auto unsupported_symbol = frontend.process(input, en);
+            CHECK(unsupported_symbol.normalized_text == input);
+            CHECK(unsupported_symbol.pronunciation_text == input);
+            CHECK(unsupported_symbol.warnings.size() == 1);
+            CHECK(unsupported_symbol.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(unsupported_symbol.warnings.front().offset == 0);
+            CHECK(unsupported_symbol.warnings.front().length == input.size());
+        }
+        for (const auto& options : currency_modes) {
+            const auto unsupported = frontend.process("2,500 руб.", options);
+            CHECK(unsupported.normalized_text == "2,500 руб.");
+            CHECK(unsupported.warnings.size() == 1);
+            CHECK(unsupported.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(unsupported.warnings.front().offset == 0);
+            CHECK(unsupported.warnings.front().length == unsupported.original_text.size());
+            const auto grouped = frontend.process("1 250,50 руб.", options);
+            CHECK(grouped.normalized_text == grouped.original_text);
+            CHECK(grouped.warnings.size() == 1);
+            CHECK(grouped.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(grouped.warnings.front().offset == 0);
+            CHECK(grouped.warnings.front().length == grouped.original_text.size());
+        }
+        const std::array<std::pair<std::string, std::string>, 6> monetary_punctuation = {{
+            {"2,50 руб.!", "два рубля пятьдесят копеек!"},
+            {"2,50 руб.?", "два рубля пятьдесят копеек?"},
+            {"2,50 руб.)", "два рубля пятьдесят копеек)"},
+            {"2,50 руб.,", "два рубля пятьдесят копеек,"},
+            {"2,50 руб.;", "два рубля пятьдесят копеек;"},
+            {"2,50 руб...", "два рубля пятьдесят копеек..."},
+        }};
+        for (const auto& [input, expected] : monetary_punctuation) {
+            for (const auto& options : currency_modes) {
+                const auto result = frontend.process(input, options);
+                CHECK(result.normalized_text == expected);
+                CHECK(result.pronunciation_text == expected);
+                CHECK(result.warnings.empty());
+            }
+        }
+        for (const auto& options : currency_modes) {
+            const auto connector = frontend.process("2,50 руб./2", options);
+            CHECK(connector.normalized_text == connector.original_text);
+            CHECK(connector.warnings.size() == 1);
+            CHECK(connector.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(connector.warnings.front().offset == 0);
+            CHECK(connector.warnings.front().length == connector.original_text.size());
+        }
+        const auto technical_currency = frontend.process("https://example.com/2,50руб.", ru);
+        CHECK(technical_currency.normalized_text == technical_currency.original_text);
+        CHECK(technical_currency.pronunciation_text == technical_currency.original_text);
+        CHECK(technical_currency.warnings.empty());
+        for (const auto& options : {auto_options, segmented_ru}) {
+            const auto mixed = frontend.process("Используем 2,50 руб. today", options);
+            CHECK(mixed.normalized_text == "Используем два рубля пятьдесят копеек today");
+            CHECK(std::any_of(
+                mixed.warnings.begin(), mixed.warnings.end(), [](const TextWarning& warning) {
+                    return warning.code == WarningCode::AmbiguousNormalization;
+                }));
+            const auto mixed_unsupported = frontend.process("Используем 2,500 руб. today", options);
+            CHECK(mixed_unsupported.normalized_text == mixed_unsupported.original_text);
+            const auto unresolved =
+                std::find_if(mixed_unsupported.warnings.begin(),
+                             mixed_unsupported.warnings.end(),
+                             [](const TextWarning& warning) {
+                                 return warning.code == WarningCode::UnresolvedNumber;
+                             });
+            CHECK(unresolved != mixed_unsupported.warnings.end());
+            CHECK(unresolved->offset == mixed_unsupported.original_text.find("2"));
+            CHECK(unresolved->length == std::string("2,500 руб.").size());
+        }
+    }
     CHECK(frontend.process("1,2% -3,4%", ru).normalized_text ==
           "одна целая две десятых процента минус три целых четыре десятых процента");
     {

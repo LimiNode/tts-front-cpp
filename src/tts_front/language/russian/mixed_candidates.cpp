@@ -10,6 +10,7 @@
 #include "tts_front/normalization/admission.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <optional>
 #include <regex>
 #include <string>
@@ -52,10 +53,10 @@ std::optional<std::string> format(std::string_view candidate) {
         integer == 0 && !number_text.empty() && number_text.front() == '-' ? std::string("минус ")
                                                                            : std::string();
     if (!fraction.empty()) {
-        if (fraction.size() > 3)
+        if (fraction.size() > 2)
             return std::nullopt;
         if (unit.find("руб") == 0 || unit == "руб.")
-            return signed_zero_prefix + decimal(integer, fraction) + " рубля";
+            return monetary_decimal(number_text, integer, fraction);
         const auto spoken_unit =
             unit.find("кг") == 0 || unit.find("килограмм") == 0   ? "килограмма"
             : unit.find("км") == 0 || unit.find("километр") == 0  ? "километра"
@@ -128,11 +129,20 @@ std::vector<MixedCandidateMatch> scan_malformed_matches(std::string_view text) {
             const auto surface =
                 scan_candidate_surface(document, point, CandidateSurfaceKind::Contextual);
             if (surface.valid()) {
-                match_end = std::max(
-                    match_end, classify_genitive_surface(text, begin, surface.has_combining).end);
+                const auto classified_end =
+                    classify_genitive_surface(text, begin, surface.has_combining).end;
+                const auto continuation_begin = codepoint_index_at_or_after(document, match_end);
+                const auto continuation_end = scan_typed_admission_end(
+                    document, continuation_begin, CandidateSurfaceKind::Contextual);
+                if (continuation_end > continuation_begin)
+                    match_end = std::max(match_end, classified_end);
             }
         }
         matches.push_back({begin, match_end, text.substr(begin, match_end - begin)});
+    }
+    for (const auto& range : scan_unsupported_currency(document)) {
+        matches.push_back(
+            {range.offset, range.offset + range.length, text.substr(range.offset, range.length)});
     }
     // The regex admission above cannot see combining marks. Scan every full
     // numeric start once so signs and dot/comma decimals receive the same
@@ -167,6 +177,29 @@ std::vector<MixedCandidateMatch> scan_malformed_matches(std::string_view text) {
                     {range->offset, range_end, text.substr(range->offset, range->length)});
         }
     }
+    const auto supported = scan_candidate_matches(text);
+    matches.erase(
+        std::remove_if(
+            matches.begin(),
+            matches.end(),
+            [&](const MixedCandidateMatch& malformed) {
+                return std::any_of(
+                    supported.begin(), supported.end(), [&](const MixedCandidateMatch& candidate) {
+                        if (candidate.begin != malformed.begin || candidate.end >= malformed.end)
+                            return false;
+                        const auto extra =
+                            text.substr(candidate.end, malformed.end - candidate.end);
+                        if (extra.empty() || !std::all_of(extra.begin(), extra.end(), [](char c) {
+                                return c == '.';
+                            }))
+                            return false;
+                        if (malformed.end == text.size())
+                            return true;
+                        const auto next = static_cast<unsigned char>(text[malformed.end]);
+                        return std::isspace(next) != 0 || std::ispunct(next) != 0;
+                    });
+            }),
+        matches.end());
     // Regex and typed scans may discover the same malformed surface from
     // different anchors (for example the currency tail and the full
     // combining-unit candidate).  Canonicalize overlaps before admission so

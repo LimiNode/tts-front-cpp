@@ -327,8 +327,7 @@ MappedText protect_numeric_candidates(MappedText text,
             continue;
         }
         if (index > 0 && text::is_digit(points[index].value) &&
-            (points[index - 1].value == 0x20ac || points[index - 1].value == 0xa3 ||
-             points[index - 1].value == 0xa5)) {
+            text::is_currency_symbol(points[index - 1].value) && points[index - 1].value != '$') {
             auto currency_begin = index - 1;
             if (currency_begin > 0 && (points[currency_begin - 1].value == '+' ||
                                        points[currency_begin - 1].value == '-' ||
@@ -402,6 +401,21 @@ MappedText protect_numeric_candidates(MappedText text,
                          : 0);
         while (end_index < points.size() && text::is_digit(points[end_index].value))
             ++end_index;
+        // Keep grouped numeric cores together before looking for a currency
+        // suffix (`+1 250,500 ₽`).  Otherwise the first group is admitted as
+        // an independent signed number and the suffix scanner starts at the
+        // second group, producing two partial diagnostics.
+        for (;;) {
+            auto grouped = end_index;
+            while (grouped < points.size() && text::is_horizontal_space(points[grouped].value))
+                ++grouped;
+            const auto digits_begin = grouped;
+            while (grouped < points.size() && text::is_digit(points[grouped].value))
+                ++grouped;
+            if (grouped - digits_begin != 3)
+                break;
+            end_index = grouped;
+        }
         if (end_index < points.size() &&
             (points[end_index].value == '.' || points[end_index].value == ',' ||
              points[end_index].value == ':') &&
@@ -409,6 +423,26 @@ MappedText protect_numeric_candidates(MappedText text,
             ++end_index;
             while (end_index < points.size() && text::is_digit(points[end_index].value))
                 ++end_index;
+        }
+
+        auto currency_suffix = end_index;
+        while (currency_suffix < points.size() &&
+               text::is_horizontal_space(points[currency_suffix].value))
+            ++currency_suffix;
+        if (currency_suffix < points.size() &&
+            text::is_currency_symbol(points[currency_suffix].value) &&
+            (currency_suffix + 1 >= points.size() ||
+             !text::is_digit(points[currency_suffix + 1].value))) {
+            const auto suffix_end = currency_suffix + 1;
+            const auto currency_end = std::max(
+                suffix_end,
+                scan_typed_admission_end(document, suffix_end, CandidateSurfaceKind::Currency));
+            NumericCandidate candidate{document.span_from_codepoints(index, currency_end),
+                                       NumericCandidateKind::Currency,
+                                       true};
+            add_protected_candidate(text, candidate, warnings, protected_spans, edits);
+            index = currency_end;
+            continue;
         }
 
         const auto currency_begin = scan_currency_prefix_begin(document, index);

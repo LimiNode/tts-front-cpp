@@ -1,6 +1,8 @@
 #pragma once
 
+#include <optional>
 #include <string>
+#include <string_view>
 
 namespace tts_front::detail::russian {
 
@@ -18,5 +20,10 @@ std::string year_genitive(int year);
 std::string year_accusative(int year);
 std::string decimal(long long integer, const std::string& fraction);
 std::string decimal_genitive(long long integer, const std::string& fraction);
+// Formats a supported Russian monetary decimal as major/minor units. The
+// fraction must contain one or two decimal digits; unsupported precision is
+// reported by returning nullopt so callers can preserve the source surface.
+std::optional<std::string>
+monetary_decimal(std::string_view integer_token, long long integer, std::string_view fraction);
 
 } // namespace tts_front::detail::russian

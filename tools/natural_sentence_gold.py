@@ -173,7 +173,7 @@ def natural_sentence_cases():
         ("42 руб.", "сорок два рубля"),
         ("100 руб.", "сто рублей"),
         ("1 250 руб.", "одна тысяча двести пятьдесят рублей"),
-        ("2,50 руб.", "две целых пять десятых рубля"),
+        ("2,50 руб.", "два рубля пятьдесят копеек"),
     ]
     for index, (surface, spoken) in enumerate(ru_money):
         cases.append(_case(f"ru-v030-money-{index}-a", "ru", "explicit", "currency",
