@@ -5,6 +5,7 @@
 #include "tts_front/core/text/codepoint_classification.hpp"
 #include "tts_front/core/utf8.hpp"
 #include "tts_front/core/utf8_document.hpp"
+#include "tts_front/technical/admission.hpp"
 #include "tts_front/technical/patterns.hpp"
 
 #include <algorithm>
@@ -18,48 +19,7 @@ namespace tts_front::detail {
 namespace {
 
 std::vector<SourceRange> scan_technical_ranges(const std::string& text) {
-    const auto& patterns = technical::patterns();
-    const std::array<const std::regex*, 9> technical = {&patterns.technical_url,
-                                                        &patterns.technical_email,
-                                                        &patterns.technical_ipv4,
-                                                        &patterns.technical_version,
-                                                        &patterns.technical_http,
-                                                        &patterns.technical_gpu,
-                                                        &patterns.technical_identifier,
-                                                        &patterns.technical_cpp,
-                                                        &patterns.technical_csharp};
-    std::array<std::vector<SourceRange>, 9> streams;
-    for (std::size_t stream = 0; stream < technical.size(); ++stream) {
-        for (std::sregex_iterator it(text.begin(), text.end(), *technical[stream]), end; it != end;
-             ++it)
-            streams[stream].push_back(
-                {static_cast<std::size_t>(it->position()), static_cast<std::size_t>(it->length())});
-    }
-    std::vector<SourceRange> merged;
-    std::array<std::size_t, 9> cursors{};
-    while (true) {
-        std::size_t selected = streams.size();
-        for (std::size_t stream = 0; stream < streams.size(); ++stream) {
-            if (cursors[stream] == streams[stream].size())
-                continue;
-            if (selected == streams.size() || streams[stream][cursors[stream]].offset <
-                                                  streams[selected][cursors[selected]].offset)
-                selected = stream;
-        }
-        if (selected == streams.size())
-            break;
-        const auto range = streams[selected][cursors[selected]++];
-        if (range.length == 0)
-            continue;
-        if (!merged.empty() && range.offset <= merged.back().offset + merged.back().length) {
-            const auto end =
-                std::max(merged.back().offset + merged.back().length, range.offset + range.length);
-            merged.back().length = end - merged.back().offset;
-        } else {
-            merged.push_back(range);
-        }
-    }
-    return merged;
+    return technical::scan_protected_ranges(text);
 }
 
 bool overlaps(const std::vector<SourceRange>& ranges,

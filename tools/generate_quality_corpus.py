@@ -519,7 +519,8 @@ rows.append(row("ru-mixed-unit-gb-decimal", "ru", "auto_segment", "measurement",
                 "Используем одна целая пять десятых гигабайта данных.",
                 "ambiguous_normalization@0:41"))
 rows.append(row("ru-mixed-malformed-unit-suffix", "ru", "auto_segment", "measurement", "preserve",
-                "Use 1,5 кгfoo", "Use 1,5 кгfoo", warning("Use 1,5 кгfoo", "1,5 кгfoo")))
+                "Use 1,5 кгfoo", "Use 1,5 кгfoo",
+                "ambiguous_normalization@0:15;" + warning("Use 1,5 кгfoo", "1,5 кгfoo")))
 
 
 def gold_diagnostics(source, specification):

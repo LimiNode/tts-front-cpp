@@ -1,3 +1,4 @@
+#include "tts_front/core/normalization_support.hpp"
 #include "tts_front/core/text/codepoint_classification.hpp"
 #include "tts_front/core/utf8.hpp"
 #include "tts_front/normalization/admission.hpp"
@@ -32,6 +33,11 @@ MappedText collapse_grouped_numbers(const MappedText& input) {
         const auto begin = static_cast<std::size_t>(it->position());
         const auto finish = begin + static_cast<std::size_t>(it->length());
         const auto number_begin = begin + it->length(1);
+        if (overlaps_preserved_range(input, begin, finish)) {
+            output.append_copy(input, cursor, finish);
+            cursor = finish;
+            continue;
+        }
         output.append_copy(input, cursor, number_begin);
         std::string number = it->str().substr(it->length(1));
         number.erase(std::remove_if(number.begin(),

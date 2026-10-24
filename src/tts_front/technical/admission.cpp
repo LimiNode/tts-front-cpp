@@ -25,15 +25,16 @@ using CodePoint = Utf8CodePoint;
 
 MappedText protect(MappedText text, std::vector<ProtectedSpan>& protected_spans) {
     const auto& patterns = technical::patterns();
-    const std::array<const std::regex*, 9> technical_patterns = {&patterns.technical_url,
-                                                                 &patterns.technical_email,
-                                                                 &patterns.technical_ipv4,
-                                                                 &patterns.technical_version,
-                                                                 &patterns.technical_http,
-                                                                 &patterns.technical_gpu,
-                                                                 &patterns.technical_identifier,
-                                                                 &patterns.technical_cpp,
-                                                                 &patterns.technical_csharp};
+    const std::array<const std::regex*, 10> technical_patterns = {&patterns.technical_url,
+                                                                  &patterns.technical_utf8_email,
+                                                                  &patterns.technical_email,
+                                                                  &patterns.technical_ipv4,
+                                                                  &patterns.technical_version,
+                                                                  &patterns.technical_http,
+                                                                  &patterns.technical_gpu,
+                                                                  &patterns.technical_identifier,
+                                                                  &patterns.technical_cpp,
+                                                                  &patterns.technical_csharp};
     for (const auto* pattern : technical_patterns) {
         const Utf8Document document(text.text);
         const auto scientific_index = build_numeric_surface_index(document);
@@ -327,8 +328,7 @@ MappedText protect_numeric_candidates(MappedText text,
             continue;
         }
         if (index > 0 && text::is_digit(points[index].value) &&
-            (points[index - 1].value == 0x20ac || points[index - 1].value == 0xa3 ||
-             points[index - 1].value == 0xa5)) {
+            text::is_currency_symbol(points[index - 1].value) && points[index - 1].value != '$') {
             auto currency_begin = index - 1;
             if (currency_begin > 0 && (points[currency_begin - 1].value == '+' ||
                                        points[currency_begin - 1].value == '-' ||
@@ -402,6 +402,21 @@ MappedText protect_numeric_candidates(MappedText text,
                          : 0);
         while (end_index < points.size() && text::is_digit(points[end_index].value))
             ++end_index;
+        // Keep grouped numeric cores together before looking for a currency
+        // suffix (`+1 250,500 ₽`).  Otherwise the first group is admitted as
+        // an independent signed number and the suffix scanner starts at the
+        // second group, producing two partial diagnostics.
+        for (;;) {
+            auto grouped = end_index;
+            while (grouped < points.size() && text::is_horizontal_space(points[grouped].value))
+                ++grouped;
+            const auto digits_begin = grouped;
+            while (grouped < points.size() && text::is_digit(points[grouped].value))
+                ++grouped;
+            if (grouped - digits_begin != 3)
+                break;
+            end_index = grouped;
+        }
         if (end_index < points.size() &&
             (points[end_index].value == '.' || points[end_index].value == ',' ||
              points[end_index].value == ':') &&
@@ -409,6 +424,26 @@ MappedText protect_numeric_candidates(MappedText text,
             ++end_index;
             while (end_index < points.size() && text::is_digit(points[end_index].value))
                 ++end_index;
+        }
+
+        auto currency_suffix = end_index;
+        while (currency_suffix < points.size() &&
+               text::is_horizontal_space(points[currency_suffix].value))
+            ++currency_suffix;
+        if (currency_suffix < points.size() &&
+            text::is_currency_symbol(points[currency_suffix].value) &&
+            (currency_suffix + 1 >= points.size() ||
+             !text::is_digit(points[currency_suffix + 1].value))) {
+            const auto suffix_end = currency_suffix + 1;
+            const auto currency_end = std::max(
+                suffix_end,
+                scan_typed_admission_end(document, suffix_end, CandidateSurfaceKind::Currency));
+            NumericCandidate candidate{document.span_from_codepoints(index, currency_end),
+                                       NumericCandidateKind::Currency,
+                                       true};
+            add_protected_candidate(text, candidate, warnings, protected_spans, edits);
+            index = currency_end;
+            continue;
         }
 
         const auto currency_begin = scan_currency_prefix_begin(document, index);
@@ -460,6 +495,42 @@ MappedText protect_numeric_candidates(MappedText text,
         index = suffix_end;
     }
     return apply_source_edits(text, std::move(edits));
+}
+
+std::vector<SourceRange> scan_protected_ranges(const std::string_view text) {
+    const auto& technical_patterns = technical::patterns();
+    const std::array<const std::regex*, 10> patterns = {&technical_patterns.technical_url,
+                                                        &technical_patterns.technical_utf8_email,
+                                                        &technical_patterns.technical_email,
+                                                        &technical_patterns.technical_ipv4,
+                                                        &technical_patterns.technical_version,
+                                                        &technical_patterns.technical_http,
+                                                        &technical_patterns.technical_gpu,
+                                                        &technical_patterns.technical_identifier,
+                                                        &technical_patterns.technical_cpp,
+                                                        &technical_patterns.technical_csharp};
+    std::vector<SourceRange> ranges;
+    using Iterator = std::regex_iterator<std::string_view::const_iterator>;
+    for (const auto* pattern : patterns) {
+        for (Iterator it(text.begin(), text.end(), *pattern), end; it != end; ++it)
+            ranges.push_back(
+                {static_cast<std::size_t>(it->position()), static_cast<std::size_t>(it->length())});
+    }
+    std::sort(ranges.begin(), ranges.end(), [](const SourceRange& left, const SourceRange& right) {
+        return left.offset < right.offset ||
+               (left.offset == right.offset && left.length > right.length);
+    });
+    std::vector<SourceRange> merged;
+    for (const auto& range : ranges) {
+        if (!merged.empty() && range.offset <= merged.back().offset + merged.back().length) {
+            const auto end =
+                std::max(merged.back().offset + merged.back().length, range.offset + range.length);
+            merged.back().length = end - merged.back().offset;
+        } else {
+            merged.push_back(range);
+        }
+    }
+    return merged;
 }
 
 } // namespace tts_front::detail::technical
