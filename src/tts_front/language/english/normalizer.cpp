@@ -92,8 +92,7 @@ void protect_typed_continuations(MappedText& text,
                  document.points[continuation_begin].value == '.' ||
                  document.points[continuation_begin].value == ':'))
                 continue;
-            const auto continuation_end =
-                scan_typed_admission_end(document, continuation_begin, kind);
+            const auto continuation_end = scan_admission(document, continuation_begin, kind).end;
             if (continuation_end <= continuation_begin)
                 continue;
             const auto finish = document.span_from_codepoints(0, continuation_end).byte_end;
@@ -141,7 +140,7 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
             const auto match_end = match_begin + static_cast<std::size_t>(it->length());
             const auto continuation_begin = codepoint_index_at_or_after(document, match_end);
             const auto continuation_end =
-                scan_typed_admission_end(document, continuation_begin, CandidateSurfaceKind::Date);
+                scan_admission(document, continuation_begin, CandidateSurfaceKind::Date).end;
             const bool has_continuation = continuation_end != continuation_begin;
             if (valid && !has_continuation)
                 continue;
@@ -192,7 +191,7 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
             const auto second_end = static_cast<std::size_t>(it->position(2) + it->length(2));
             const auto continuation_begin = codepoint_index_at_or_after(document, second_end);
             const auto continuation_end =
-                scan_typed_admission_end(document, continuation_begin, CandidateSurfaceKind::Date);
+                scan_admission(document, continuation_begin, CandidateSurfaceKind::Date).end;
             const auto finish = continuation_end == continuation_begin
                                     ? second_end
                                     : document.span_from_codepoints(0, continuation_end).byte_end;
@@ -225,7 +224,7 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
             const auto number_end = number_begin + static_cast<std::size_t>(it->length(2));
             const auto continuation_begin = codepoint_index_at_or_after(document, number_end);
             const auto continuation_end =
-                scan_typed_admission_end(document, continuation_begin, CandidateSurfaceKind::Date);
+                scan_admission(document, continuation_begin, CandidateSurfaceKind::Date).end;
             if (continuation_end == continuation_begin)
                 continue;
             const auto finish = document.span_from_codepoints(0, continuation_end).byte_end;

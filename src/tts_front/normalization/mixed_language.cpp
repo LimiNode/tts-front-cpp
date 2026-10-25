@@ -157,7 +157,7 @@ void collect_local_number_candidates(const MappedText& input,
         if (formatter == nullptr)
             continue;
         const auto continuation =
-            scan_typed_admission_end(document, word_end, CandidateSurfaceKind::Contextual);
+            scan_admission(document, word_end, CandidateSurfaceKind::Contextual).end;
         if (continuation > word_end) {
             const auto finish = document.span_from_codepoints(0, continuation).byte_end;
             warnings.add(WarningCode::UnresolvedNumber,
@@ -193,9 +193,8 @@ void collect_candidates(const MappedText& input,
         // The malformed pass has already emitted the single atomic warning;
         // leave this core byte-identical instead of rewriting its head.
         const auto continuation_begin = codepoint_index_at_or_after(document, finish);
-        if (scan_typed_admission_end(document,
-                                     continuation_begin,
-                                     CandidateSurfaceKind::Contextual) > continuation_begin)
+        if (scan_admission(document, continuation_begin, CandidateSurfaceKind::Contextual).end >
+            continuation_begin)
             continue;
         const auto replacement = rules.formatter(match.value);
         if (!replacement) {
@@ -224,18 +223,9 @@ void protect_malformed_candidates(const MappedText& input,
             technical_overlap && technical_index.ranges[technical_cursor].offset <= begin;
         if (candidate_inside_technical || preserved(input, begin, finish))
             continue;
-        auto continuation = codepoint_index_at_or_after(document, finish);
-        for (;;) {
-            const auto attached = scan_candidate_continuation(
-                document, continuation, CandidateSurfaceKind::Contextual);
-            const auto spaced = scan_spaced_numeric_continuation(
-                document, continuation, CandidateSurfaceKind::Contextual);
-            const auto next = std::max(attached, spaced);
-            if (next <= continuation)
-                break;
-            continuation = next;
-        }
         const auto continuation_begin = codepoint_index_at_or_after(document, finish);
+        const auto continuation =
+            scan_admission(document, continuation_begin, CandidateSurfaceKind::Contextual).end;
         const auto continued_end =
             document.span_from_codepoints(continuation_begin, continuation).byte_end;
         const auto candidate_end = continued_end > finish ? continued_end : finish;

@@ -52,6 +52,18 @@ struct CandidateSurface {
     }
 };
 
+// The shared admission endpoint returns a complete source boundary. Callers
+// must decide whether to format or preserve the whole [begin, end) surface;
+// they must not reconstruct continuation tails independently.
+struct AdmissionResult {
+    std::size_t begin = 0;
+    std::size_t end = 0;
+
+    bool extended() const {
+        return end > begin;
+    }
+};
+
 struct NumericSurfaceRange {
     std::size_t surface_begin = 0;
     std::size_t continuation_begin = 0;
