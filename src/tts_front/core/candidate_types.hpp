@@ -61,6 +61,9 @@ enum class AdmissionOutcome { None, Attached, Spaced, Punctuated, Compound };
 struct AdmissionResult {
     CandidateSurfaceKind kind = CandidateSurfaceKind::Numeric;
     std::size_t begin = 0;
+    // Boundary of the surface supplied to scan_admission. For a
+    // CandidateSurface this is candidate.end; for a language-owned typed core
+    // it is the caller-provided continuation begin.
     std::size_t base_end = 0;
     std::size_t end = 0;
     AdmissionOutcome outcome = AdmissionOutcome::None;
