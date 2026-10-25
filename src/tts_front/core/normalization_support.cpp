@@ -1,37 +1,36 @@
 #include "tts_front/core/normalization_support.hpp"
 
-#include <algorithm>
 #include <utility>
 
 namespace tts_front::detail {
+
+WarningSink::WarningSink(std::vector<TextWarning>& warning_output, SourceRangeIndex ranges)
+    : warnings(warning_output), preserved_ranges(std::move(ranges)) {
+    diagnostic_keys.reserve(warnings.size());
+    for (const auto& warning : warnings)
+        diagnostic_keys.insert({warning.code, warning.offset, warning.length});
+}
+
+std::size_t WarningSink::DiagnosticKeyHash::operator()(const DiagnosticKey& key) const {
+    const auto code = static_cast<std::size_t>(key.code);
+    std::size_t hash = code + static_cast<std::size_t>(0x9e3779b9U);
+    hash ^= key.offset + (hash << 6U) + (hash >> 2U);
+    hash ^= key.length + (hash << 6U) + (hash >> 2U);
+    return hash;
+}
 
 void WarningSink::add_range(WarningCode code,
                             std::string message,
                             std::size_t offset,
                             std::size_t length) {
-    const auto duplicate =
-        std::find_if(warnings.begin(), warnings.end(), [&](const TextWarning& warning) {
-            return warning.code == code && warning.offset == offset && warning.length == length;
-        });
-    if (duplicate != warnings.end())
+    if (!diagnostic_keys.insert({code, offset, length}).second)
         return;
     warnings.push_back({code, std::move(message), offset, length});
 }
 
 void WarningSink::preserve(const SourceRange source) {
     if (source.length != 0) {
-        const auto insertion =
-            std::lower_bound(preserved_ranges.begin(),
-                             preserved_ranges.end(),
-                             source,
-                             [](const SourceRange& left, const SourceRange& right) {
-                                 if (left.offset != right.offset)
-                                     return left.offset < right.offset;
-                                 return left.length < right.length;
-                             });
-        if (insertion == preserved_ranges.end() || insertion->offset != source.offset ||
-            insertion->length != source.length)
-            preserved_ranges.insert(insertion, source);
+        preserved_ranges.insert(source);
     }
 }
 
@@ -74,18 +73,7 @@ std::string marker_for(std::string_view text, std::size_t index) {
 bool overlaps_preserved_range(const MappedText& text, std::size_t begin, std::size_t end) {
     if (!text.preserved_ranges || begin >= end)
         return false;
-    const auto source = text.source_range(begin, end);
-    const auto& ranges = *text.preserved_ranges;
-    const auto overlaps = [source](const SourceRange& range) {
-        return source.offset < range.offset + range.length &&
-               range.offset < source.offset + source.length;
-    };
-    const auto next = std::lower_bound(
-        ranges.begin(), ranges.end(), source.offset, [](const SourceRange& range, std::size_t at) {
-            return range.offset < at;
-        });
-    return (next != ranges.end() && overlaps(*next)) ||
-           (next != ranges.begin() && overlaps(*std::prev(next)));
+    return text.preserved_ranges->overlaps(text.source_range(begin, end));
 }
 
 } // namespace tts_front::detail

@@ -34,21 +34,10 @@ bool overlaps(const std::vector<SourceRange>& ranges,
 bool preserved(const MappedText& input, std::size_t begin, std::size_t end) {
     if (input.preserved_ranges == nullptr)
         return false;
-    const auto source = input.source_range(begin, end);
-    const auto& ranges = *input.preserved_ranges;
-    const auto intersects = [source](const SourceRange& range) {
-        return source.offset < range.offset + range.length &&
-               range.offset < source.offset + source.length;
-    };
-    auto next = std::lower_bound(
-        ranges.begin(), ranges.end(), source.offset, [](const SourceRange& range, std::size_t at) {
-            return range.offset < at;
-        });
-    return (next != ranges.end() && intersects(*next)) ||
-           (next != ranges.begin() && intersects(*std::prev(next)));
+    return input.preserved_ranges->overlaps(input.source_range(begin, end));
 }
 
-struct SourceRangeIndex {
+struct CandidateRangeIndex {
     std::vector<SourceRange> ranges;
 
     bool overlaps(std::size_t begin, std::size_t end, std::size_t& cursor) const {
@@ -58,10 +47,10 @@ struct SourceRangeIndex {
     }
 };
 
-SourceRangeIndex typed_candidate_ranges(const MixedLanguageRules& dominant,
-                                        const MixedLanguageRules& foreign,
-                                        std::string_view text) {
-    SourceRangeIndex index;
+CandidateRangeIndex typed_candidate_ranges(const MixedLanguageRules& dominant,
+                                           const MixedLanguageRules& foreign,
+                                           std::string_view text) {
+    CandidateRangeIndex index;
     const std::array<std::vector<MixedCandidateMatch>, 2> matches = {dominant.scan_candidates(text),
                                                                      foreign.scan_candidates(text)};
     std::array<std::size_t, 2> cursors{};

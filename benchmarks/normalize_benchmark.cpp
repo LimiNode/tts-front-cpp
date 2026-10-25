@@ -5,7 +5,9 @@
 #include "tts_front/core/utf8_document.hpp"
 #include "tts_front/technical/admission.hpp"
 
+#include <array>
 #include <chrono>
+#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <string_view>
@@ -79,6 +81,47 @@ void benchmark_currency_prefix_scaling() {
         if (warnings.size() != count)
             std::cerr << "unexpected currency-prefix warning count: " << warnings.size() << "\n";
     }
+}
+
+bool benchmark_warning_sink_scaling() {
+    constexpr std::array<unsigned int, 3> counts = {20000u, 100000u, 200000u};
+    std::array<double, counts.size()> elapsed_seconds{};
+    for (std::size_t sample = 0; sample < counts.size(); ++sample) {
+        const auto count = counts[sample];
+        std::vector<tts_front::TextWarning> warnings;
+        warnings.reserve(count);
+        tts_front::detail::WarningSink warning_sink{warnings, {}};
+        const auto begin = std::chrono::steady_clock::now();
+        for (unsigned int index = 0; index < count; ++index) {
+            const tts_front::detail::SourceRange source{static_cast<std::size_t>(index) * 4, 3};
+            warning_sink.add(
+                tts_front::WarningCode::UnresolvedNumber, "Malformed numeric candidate", source);
+            warning_sink.add(tts_front::WarningCode::UnresolvedNumber,
+                             "Duplicate malformed numeric candidate",
+                             source);
+        }
+        elapsed_seconds[sample] =
+            std::chrono::duration<double>(std::chrono::steady_clock::now() - begin).count();
+        std::cout << count << " malformed candidate warnings, " << elapsed_seconds[sample] << " s, "
+                  << (elapsed_seconds[sample] / static_cast<double>(count) * 1e6)
+                  << " us/candidate\n";
+        if (warnings.size() != count) {
+            std::cerr << "unexpected deduplicated warning count: " << warnings.size() << "\n";
+            return false;
+        }
+    }
+    for (std::size_t sample = 1; sample < counts.size(); ++sample) {
+        const auto input_ratio =
+            static_cast<double>(counts[sample]) / static_cast<double>(counts[sample - 1]);
+        const auto time_ratio = elapsed_seconds[sample] / elapsed_seconds[sample - 1];
+        std::cout << "warning scaling slope " << counts[sample - 1] << "->" << counts[sample]
+                  << ": " << time_ratio << "x time for " << input_ratio << "x candidates\n";
+        if (time_ratio > input_ratio * 3.0) {
+            std::cerr << "warning scaling exceeded the allowed slope\n";
+            return false;
+        }
+    }
+    return true;
 }
 
 void benchmark_russian_genitive_scaling() {
@@ -181,6 +224,8 @@ int main(int argc, char** argv) {
         benchmark_currency_prefix_scaling();
         return 0;
     }
+    if (argc == 2 && std::string_view(argv[1]) == "--warning-scaling")
+        return benchmark_warning_sink_scaling() ? EXIT_SUCCESS : EXIT_FAILURE;
     const std::string text = "В 2026 году GPU RTX 4090 обработал 12500 запросов.";
     tts_front::TextFrontend frontend;
     tts_front::TextFrontendOptions options;
