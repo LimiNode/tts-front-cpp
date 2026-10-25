@@ -49,20 +49,33 @@ Use 2 kg.       # one English candidate
 Use 2 kg 3.     # two independent English candidates
 ```
 
-The policy must define how far the scanner may look for that head and what
-happens when both sides contain plausible heads. It must not infer ownership
-from one unrelated foreign word elsewhere in the document.
-
-### No-head and conflicting-head fallback
-
-These genuinely mixed or conflicting surfaces need an explicit fail-closed
-result rather than a guessed formatter:
+Independent candidates in a genuinely mixed sentence remain independent as
+well; each one keeps its own lexical owner:
 
 ```text
 2 reports на 3 сервера.
 OpenAI обработал 2 requests и 3 задачи.
 Deploy 5 replicas в the cluster.
 ```
+
+The policy must define how far the scanner may look for that head and what
+happens when both sides contain plausible heads. It must not infer ownership
+from one unrelated foreign word elsewhere in the document.
+
+### No-head and conflicting-head fallback
+
+These genuinely headless or conflicting surfaces need an explicit fail-closed
+result rather than a guessed formatter:
+
+```text
+hello привет 2.
+2 kg серверов.
+2 reports задачи.
+```
+
+The first example has no lexical head for the number. The latter two contain
+competing unit/noun languages inside one candidate, so the policy must not
+silently choose the unit or the surrounding noun as owner.
 
 For a candidate with no safe local owner, the proposed result is unchanged
 source text plus one `AmbiguousNormalization` (or a candidate-specific
