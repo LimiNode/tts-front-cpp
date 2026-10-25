@@ -5,6 +5,7 @@
 #include "tts_front/core/utf8_document.hpp"
 #include "tts_front/technical/admission.hpp"
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstdlib>
@@ -124,6 +125,78 @@ bool benchmark_warning_sink_scaling() {
     return true;
 }
 
+std::size_t count_occurrences(const std::string_view text, const std::string_view needle) {
+    std::size_t count = 0;
+    std::size_t offset = 0;
+    while ((offset = text.find(needle, offset)) != std::string_view::npos) {
+        ++count;
+        offset += needle.size();
+    }
+    return count;
+}
+
+bool benchmark_document_pipeline_scaling() {
+    constexpr std::array<unsigned int, 3> counts = {250u, 1000u, 2000u};
+    std::array<double, counts.size()> elapsed_seconds{};
+    tts_front::TextFrontend frontend;
+    tts_front::TextFrontendOptions options;
+    options.mixed_language_policy = tts_front::MixedLanguagePolicy::SegmentCandidates;
+    options.cleanup_spacing = false;
+    constexpr std::string_view segment = "Сборка 2 kg RTX-4090 цена 2,500 руб. Use $1 #2.";
+    for (std::size_t sample = 0; sample < counts.size(); ++sample) {
+        const auto count = counts[sample];
+        std::string text;
+        text.reserve((segment.size() + 1) * count);
+        for (unsigned int index = 0; index < count; ++index) {
+            if (index != 0)
+                text.push_back('\n');
+            text += segment;
+        }
+        const auto begin = std::chrono::steady_clock::now();
+        const auto result = frontend.process(text, options);
+        elapsed_seconds[sample] =
+            std::chrono::duration<double>(std::chrono::steady_clock::now() - begin).count();
+        std::cout << count << " mixed/malformed document segments, " << elapsed_seconds[sample]
+                  << " s, " << (elapsed_seconds[sample] / static_cast<double>(count) * 1e6)
+                  << " us/segment\n";
+        if (result.original_text != text || result.normalized_text.empty() ||
+            count_occurrences(result.normalized_text, "kilogram") != count ||
+            count_occurrences(result.normalized_text, "RTX-4090") != count) {
+            std::cerr << "unexpected document-pipeline normalization result\n";
+            return false;
+        }
+        const auto unresolved = static_cast<std::size_t>(
+            std::count_if(result.warnings.begin(),
+                          result.warnings.end(),
+                          [](const tts_front::TextWarning& warning) {
+                              return warning.code == tts_front::WarningCode::UnresolvedNumber;
+                          }));
+        const auto ambiguous = static_cast<std::size_t>(
+            std::count_if(result.warnings.begin(),
+                          result.warnings.end(),
+                          [](const tts_front::TextWarning& warning) {
+                              return warning.code == tts_front::WarningCode::AmbiguousNormalization;
+                          }));
+        if (unresolved != static_cast<std::size_t>(count) * 2 || ambiguous != 1) {
+            std::cerr << "unexpected document-pipeline warning counts: " << unresolved
+                      << " unresolved, " << ambiguous << " ambiguous\n";
+            return false;
+        }
+    }
+    for (std::size_t sample = 1; sample < counts.size(); ++sample) {
+        const auto input_ratio =
+            static_cast<double>(counts[sample]) / static_cast<double>(counts[sample - 1]);
+        const auto time_ratio = elapsed_seconds[sample] / elapsed_seconds[sample - 1];
+        std::cout << "document scaling slope " << counts[sample - 1] << "->" << counts[sample]
+                  << ": " << time_ratio << "x time for " << input_ratio << "x segments\n";
+        if (time_ratio > input_ratio * 3.0) {
+            std::cerr << "document pipeline scaling exceeded the allowed slope\n";
+            return false;
+        }
+    }
+    return true;
+}
+
 void benchmark_russian_genitive_scaling() {
     tts_front::TextFrontend frontend;
     tts_front::TextFrontendOptions options;
@@ -226,6 +299,8 @@ int main(int argc, char** argv) {
     }
     if (argc == 2 && std::string_view(argv[1]) == "--warning-scaling")
         return benchmark_warning_sink_scaling() ? EXIT_SUCCESS : EXIT_FAILURE;
+    if (argc == 2 && std::string_view(argv[1]) == "--document-scaling")
+        return benchmark_document_pipeline_scaling() ? EXIT_SUCCESS : EXIT_FAILURE;
     const std::string text = "В 2026 году GPU RTX 4090 обработал 12500 запросов.";
     tts_front::TextFrontend frontend;
     tts_front::TextFrontendOptions options;
