@@ -435,9 +435,9 @@ MappedText protect_numeric_candidates(MappedText text,
             (currency_suffix + 1 >= points.size() ||
              !text::is_digit(points[currency_suffix + 1].value))) {
             const auto suffix_end = currency_suffix + 1;
-            const auto currency_end = std::max(
-                suffix_end,
-                scan_typed_admission_end(document, suffix_end, CandidateSurfaceKind::Currency));
+            const auto currency_end =
+                std::max(suffix_end,
+                         scan_admission(document, suffix_end, CandidateSurfaceKind::Currency).end);
             NumericCandidate candidate{document.span_from_codepoints(index, currency_end),
                                        NumericCandidateKind::Currency,
                                        true};
@@ -450,7 +450,7 @@ MappedText protect_numeric_candidates(MappedText text,
         if (currency_begin != index) {
             end_index = scan_currency_numeric_end(document, index);
             const auto currency_end =
-                scan_typed_admission_end(document, end_index, CandidateSurfaceKind::Currency);
+                scan_admission(document, end_index, CandidateSurfaceKind::Currency).end;
             if (currency_end > end_index) {
                 NumericCandidate candidate{
                     document.span_from_codepoints(currency_begin, currency_end),

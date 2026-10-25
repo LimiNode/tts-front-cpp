@@ -132,8 +132,9 @@ std::vector<MixedCandidateMatch> scan_malformed_matches(std::string_view text) {
                 const auto classified_end =
                     classify_genitive_surface(text, begin, surface.has_combining).end;
                 const auto continuation_begin = codepoint_index_at_or_after(document, match_end);
-                const auto continuation_end = scan_typed_admission_end(
-                    document, continuation_begin, CandidateSurfaceKind::Contextual);
+                const auto continuation_end =
+                    scan_admission(document, continuation_begin, CandidateSurfaceKind::Contextual)
+                        .end;
                 if (continuation_end > continuation_begin)
                     match_end = std::max(match_end, classified_end);
             }

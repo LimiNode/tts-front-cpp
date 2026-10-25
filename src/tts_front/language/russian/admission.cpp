@@ -122,18 +122,7 @@ std::optional<SourceRange> scan_combining_suffix(const Utf8Document& document,
 
     auto admitted = surface;
     admitted.end = suffix_end;
-    auto full_end =
-        scan_candidate_admission_end(document, admitted, CandidateSurfaceKind::Contextual);
-    for (;;) {
-        const auto attached =
-            scan_candidate_continuation(document, full_end, CandidateSurfaceKind::Contextual);
-        const auto spaced =
-            scan_spaced_numeric_continuation(document, full_end, CandidateSurfaceKind::Contextual);
-        const auto next = std::max(attached, spaced);
-        if (next <= full_end)
-            break;
-        full_end = next;
-    }
+    const auto full_end = scan_admission(document, admitted, CandidateSurfaceKind::Contextual).end;
     const auto range_begin = document.points[begin].offset;
     const auto range_end =
         document.points[full_end - 1].offset + document.points[full_end - 1].length;
@@ -171,8 +160,8 @@ MappedText protect_combining_suffix_candidates(MappedText text,
         admission_candidate.end = std::max(admission_candidate.end, numeric_end);
         const auto admission_end =
             admission_candidate.valid()
-                ? scan_candidate_admission_end(
-                      document, admission_candidate, CandidateSurfaceKind::Contextual)
+                ? scan_admission(document, admission_candidate, CandidateSurfaceKind::Contextual)
+                      .end
                 : point;
         const auto numeric_combining =
             candidate.valid() &&
@@ -293,7 +282,7 @@ std::vector<SourceRange> scan_unsupported_currency(const Utf8Document& document)
         const auto core_end = begin + static_cast<std::size_t>(it->length());
         const auto continuation_begin = codepoint_index_at_or_after(document, core_end);
         const auto continuation_end =
-            scan_typed_admission_end(document, continuation_begin, CandidateSurfaceKind::Currency);
+            scan_admission(document, continuation_begin, CandidateSurfaceKind::Currency).end;
         const auto finish_point = std::max(continuation_begin, continuation_end);
         const auto finish = document.span_from_codepoints(0, finish_point).byte_end;
         ranges.push_back({begin, finish - begin});

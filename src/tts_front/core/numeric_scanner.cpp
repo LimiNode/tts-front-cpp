@@ -408,9 +408,9 @@ std::size_t scan_spaced_numeric_continuation(const Utf8Document& document,
     return begin;
 }
 
-std::size_t scan_typed_admission_end(const Utf8Document& document,
-                                     const std::size_t begin,
-                                     const CandidateSurfaceKind kind) {
+AdmissionResult scan_admission(const Utf8Document& document,
+                               const std::size_t begin,
+                               const CandidateSurfaceKind kind) {
     auto end = begin;
     const bool dollar_prefixed_currency =
         kind == CandidateSurfaceKind::Currency && has_dollar_prefix(document, begin);
@@ -441,14 +441,14 @@ std::size_t scan_typed_admission_end(const Utf8Document& document,
             break;
         end = next;
     }
-    return end;
+    return {begin, end};
 }
 
-std::size_t scan_candidate_admission_end(const Utf8Document& document,
-                                         const CandidateSurface& candidate,
-                                         CandidateSurfaceKind kind) {
+AdmissionResult scan_admission(const Utf8Document& document,
+                               const CandidateSurface& candidate,
+                               CandidateSurfaceKind kind) {
     if (!candidate.valid())
-        return candidate.begin;
+        return {candidate.begin, candidate.begin};
 
     auto end = candidate.end;
     if (candidate.numeric.malformed_combining) {
@@ -488,7 +488,7 @@ std::size_t scan_candidate_admission_end(const Utf8Document& document,
             break;
         end = next;
     }
-    return end;
+    return {candidate.begin, end};
 }
 
 bool NumericSurfaceIndex::contains(std::size_t point) const {

@@ -34,6 +34,30 @@ int main() {
         CHECK(surface.numeric.exponent == tts_front::detail::ExponentState::Complete);
         CHECK(surface.end == document.points.size());
     }
+    {
+        const tts_front::detail::Utf8Document document("2 kg#3");
+        const auto candidate = tts_front::detail::scan_candidate_surface(
+            document, 0, tts_front::detail::CandidateSurfaceKind::Contextual);
+        const auto admission = tts_front::detail::scan_admission(
+            document, candidate, tts_front::detail::CandidateSurfaceKind::Contextual);
+        CHECK(admission.begin == 0);
+        CHECK(admission.end == document.points.size());
+
+        const auto typed = tts_front::detail::scan_admission(
+            document, 4, tts_front::detail::CandidateSurfaceKind::Contextual);
+        CHECK(typed.begin == 4);
+        CHECK(typed.end == document.points.size());
+    }
+    {
+        const tts_front::detail::Utf8Document document("2 kg 3");
+        const auto candidate = tts_front::detail::scan_candidate_surface(
+            document, 0, tts_front::detail::CandidateSurfaceKind::Contextual);
+        const auto admission = tts_front::detail::scan_admission(
+            document, candidate, tts_front::detail::CandidateSurfaceKind::Contextual);
+        CHECK(admission.begin == 0);
+        CHECK(admission.end == candidate.end);
+        CHECK(admission.end < document.points.size());
+    }
     CHECK(frontend.process("У меня 42 яблока.", ru).normalized_text == "У меня сорок два яблока.");
     CHECK(frontend.process("1% 2% 5% 11% 21%", ru).normalized_text ==
           "один процент два процента пять процентов одиннадцать процентов двадцать один процент");

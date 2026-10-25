@@ -98,7 +98,7 @@ std::size_t unsupported_genitive_end(const MappedText& source,
         end = std::max(end, codepoint_index_at_or_after(document, special_end));
     auto admission = candidate;
     admission.end = end;
-    const auto full_end = scan_candidate_admission_end(document, admission, special.kind);
+    const auto full_end = scan_admission(document, admission, special.kind).end;
 
     bool has_cyrillic_suffix = false;
     bool has_foreign_suffix = false;
@@ -190,8 +190,7 @@ void protect_typed_continuations(MappedText& text,
                                              : match_begin;
             const auto core_end = match_begin + static_cast<std::size_t>(it->length());
             const auto continuation_begin = codepoint_index_at_or_after(document, core_end);
-            const auto continuation_end =
-                scan_typed_admission_end(document, continuation_begin, kind);
+            const auto continuation_end = scan_admission(document, continuation_begin, kind).end;
             if (!preserve_core && continuation_end <= continuation_begin)
                 continue;
             const auto finish_point = std::max(continuation_begin, continuation_end);
@@ -276,7 +275,7 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
             }
             const auto continuation_begin = codepoint_index_at_or_after(document, match_end);
             const auto continuation_end =
-                scan_typed_admission_end(document, continuation_begin, CandidateSurfaceKind::Date);
+                scan_admission(document, continuation_begin, CandidateSurfaceKind::Date).end;
             const bool unsupported_prefix = admission_begin != match_begin;
             const bool has_continuation = continuation_end != continuation_begin;
             if (valid && !unsupported_prefix && !has_continuation)

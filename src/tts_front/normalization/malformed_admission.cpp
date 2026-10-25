@@ -316,7 +316,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         // or spaced connector tail cannot be rewritten independently.
         if (currency_context) {
             const auto currency_end =
-                scan_typed_admission_end(document, end_index, CandidateSurfaceKind::Currency);
+                scan_admission(document, end_index, CandidateSurfaceKind::Currency).end;
             if (currency_end > end_index) {
                 malformed_compound = true;
                 end_index = currency_end;
@@ -326,8 +326,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         // after a connector or lexical short-unit surface. This keeps
         // `2 м́1`, `2 м́/1`, and `2 /́3` atomic without affecting ordinary
         // decomposed words such as `2 café`.
-        const auto contextual_end = scan_candidate_admission_end(
-            document, candidate_surface, CandidateSurfaceKind::Contextual);
+        const auto contextual_end =
+            scan_admission(document, candidate_surface, CandidateSurfaceKind::Contextual).end;
         const auto combining_connector_surface = [&] {
             const auto first =
                 points.begin() + static_cast<std::ptrdiff_t>(candidate_surface.numeric.end);
@@ -386,16 +386,9 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             const auto suffix = scan_lexical_suffix(document, end_index);
             if (suffix.end > suffix.continuation_begin)
                 end_index = suffix.end;
-            for (;;) {
-                const auto attached = scan_candidate_continuation(
-                    document, end_index, CandidateSurfaceKind::Contextual);
-                const auto spaced = scan_spaced_numeric_continuation(
-                    document, end_index, CandidateSurfaceKind::Contextual);
-                const auto next = std::max(attached, spaced);
-                if (next <= end_index)
-                    break;
-                end_index = next;
-            }
+            end_index =
+                std::max(end_index,
+                         scan_admission(document, end_index, CandidateSurfaceKind::Contextual).end);
         }
         if (surface.malformed_combining ||
             (candidate_surface.has_combining && end_index < points.size() &&
@@ -420,16 +413,9 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             candidate_surface.has_combining) {
             while (end_index < points.size() && text::is_combining_mark(points[end_index].value))
                 ++end_index;
-            for (;;) {
-                const auto attached = scan_candidate_continuation(
-                    document, end_index, CandidateSurfaceKind::Contextual);
-                const auto spaced = scan_spaced_numeric_continuation(
-                    document, end_index, CandidateSurfaceKind::Contextual);
-                const auto next = std::max(attached, spaced);
-                if (next <= end_index)
-                    break;
-                end_index = next;
-            }
+            end_index =
+                std::max(end_index,
+                         scan_admission(document, end_index, CandidateSurfaceKind::Contextual).end);
         }
         if ((positive_numeric || points[index].value == 0x2212) && end_index < points.size()) {
             if (surface.exponent != ExponentState::None) {
