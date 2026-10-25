@@ -39,6 +39,37 @@ struct CandidateAnalysis {
     bool grouped_seen = false;
 };
 
+struct PreservationFacts {
+    bool embedded = false;
+    bool attached_lexical_suffix = false;
+    bool comma_group_followed_by_word = false;
+    bool valid_english_comma_group = false;
+    bool unsupported_numeric_connector = false;
+    bool invalid_percent = false;
+    bool malformed_english_comma_group = false;
+    bool currency_prefix = false;
+    bool invalid_currency_prefix = false;
+    bool valid_russian_date = false;
+    bool valid_currency_group_surface = false;
+    bool already_preserved = false;
+};
+
+bool requires_preservation(const CandidateAnalysis& analysis, const PreservationFacts& facts) {
+    const bool malformed_surface =
+        analysis.separators >= 2 || facts.embedded || facts.attached_lexical_suffix ||
+        (facts.comma_group_followed_by_word && !facts.valid_english_comma_group) ||
+        facts.unsupported_numeric_connector || facts.invalid_percent ||
+        facts.malformed_english_comma_group || analysis.malformed_grouped ||
+        analysis.malformed_compound || (facts.currency_prefix && facts.invalid_currency_prefix);
+    const bool supported_russian_date = facts.valid_russian_date && !facts.embedded;
+    const bool supported_english_group =
+        facts.valid_english_comma_group && !facts.embedded && !facts.attached_lexical_suffix &&
+        !(facts.currency_prefix && analysis.has_percent) && !analysis.malformed_compound &&
+        facts.valid_currency_group_surface;
+    return malformed_surface && !supported_russian_date && !supported_english_group &&
+           !facts.already_preserved;
+}
+
 bool valid_date(int day, int month, int year) {
     if (month < 1 || month > 12 || day < 1)
         return false;
@@ -155,24 +186,14 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
               points[index - 1].value == 0xa3 || points[index - 1].value == 0xa5));
         CandidateAnalysis analysis;
         analysis.end_index = index + 1;
-        auto& end_index = analysis.end_index;
-        auto& separators = analysis.separators;
-        auto& has_percent = analysis.has_percent;
-        auto& has_dot_decimal = analysis.has_dot_decimal;
-        auto& percent_attached_to_numeric = analysis.percent_attached_to_numeric;
-        auto& has_range_connector = analysis.has_range_connector;
-        auto& has_unsupported_numeric_connector = analysis.has_unsupported_numeric_connector;
-        auto& malformed_grouped = analysis.malformed_grouped;
-        auto& malformed_compound = analysis.malformed_compound;
-        auto& grouped_seen = analysis.grouped_seen;
-        if (surface.exponent != ExponentState::None && candidate_surface.end > end_index)
-            end_index = candidate_surface.end;
+        if (surface.exponent != ExponentState::None && candidate_surface.end > analysis.end_index)
+            analysis.end_index = candidate_surface.end;
         if (!currency_context && spaced_continuation > surface.end) {
-            malformed_compound = true;
-            end_index = spaced_continuation;
+            analysis.malformed_compound = true;
+            analysis.end_index = spaced_continuation;
         }
         if (surface.exponent != ExponentState::None)
-            malformed_compound = true;
+            analysis.malformed_compound = true;
         auto initial_digit_index = index + (signed_number || positive_numeric ? 1 : 0);
         const auto initial_digit_begin = initial_digit_index;
         while (initial_digit_index < points.size() &&
@@ -187,24 +208,27 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                                  points[initial_digit_index].value == ':' &&
                                  text::is_digit(points[initial_digit_index + 1].value);
         if (points[index].value == 0x2212)
-            malformed_compound = true;
+            analysis.malformed_compound = true;
         if (starts_phone) {
-            while (end_index < points.size()) {
-                if (text::is_digit(points[end_index].value)) {
-                    ++end_index;
+            while (analysis.end_index < points.size()) {
+                if (text::is_digit(points[analysis.end_index].value)) {
+                    ++analysis.end_index;
                     continue;
                 }
-                if (points[end_index].value == '-' || points[end_index].value == '/') {
-                    ++separators;
-                    ++end_index;
+                if (points[analysis.end_index].value == '-' ||
+                    points[analysis.end_index].value == '/') {
+                    ++analysis.separators;
+                    ++analysis.end_index;
                     continue;
                 }
-                if (points[end_index].value == '(' || points[end_index].value == ')') {
-                    ++end_index;
+                if (points[analysis.end_index].value == '(' ||
+                    points[analysis.end_index].value == ')') {
+                    ++analysis.end_index;
                     continue;
                 }
-                if (points[end_index].value == ' ' || points[end_index].value == '\t') {
-                    auto probe = end_index + 1;
+                if (points[analysis.end_index].value == ' ' ||
+                    points[analysis.end_index].value == '\t') {
+                    auto probe = analysis.end_index + 1;
                     while (probe < points.size() &&
                            (points[probe].value == ' ' || points[probe].value == '\t'))
                         ++probe;
@@ -215,34 +239,34 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                             ++digit_probe;
                         if (digit_probe < points.size() &&
                             text::is_digit(points[digit_probe].value)) {
-                            end_index = probe;
+                            analysis.end_index = probe;
                             continue;
                         }
                     }
                     if (probe < points.size() && text::is_digit(points[probe].value)) {
-                        end_index = probe;
+                        analysis.end_index = probe;
                         continue;
                     }
                 }
                 break;
             }
         } else {
-            while (end_index < points.size()) {
-                const auto value = points[end_index].value;
+            while (analysis.end_index < points.size()) {
+                const auto value = points[analysis.end_index].value;
                 if (value == ' ' || value == '\t' || value == '\n' || value == '\r') {
-                    auto probe = end_index + 1;
+                    auto probe = analysis.end_index + 1;
                     while (probe < points.size() &&
                            (points[probe].value == ' ' || points[probe].value == '\t' ||
                             points[probe].value == '\n' || points[probe].value == '\r'))
                         ++probe;
                     if (probe < points.size() && (points[probe].value == '%' ||
                                                   text::is_range_connector(points[probe].value))) {
-                        end_index = probe;
+                        analysis.end_index = probe;
                         continue;
                     }
-                    if (has_range_connector && probe < points.size() &&
+                    if (analysis.has_range_connector && probe < points.size() &&
                         text::is_digit(points[probe].value)) {
-                        end_index = probe;
+                        analysis.end_index = probe;
                         continue;
                     }
                     if (probe < points.size() && text::is_digit(points[probe].value)) {
@@ -251,45 +275,46 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                             ++group_end;
                         const auto group_size = group_end - probe;
                         const bool short_following_group =
-                            grouped_seen && group_size < 3 &&
+                            analysis.grouped_seen && group_size < 3 &&
                             (group_end == points.size() ||
                              text::is_lexical_numeric_boundary(points[group_end].value));
-                        if (separators == 0 && initial_digit_count <= 3 &&
+                        if (analysis.separators == 0 && initial_digit_count <= 3 &&
                             (group_size >= 3 || short_following_group)) {
-                            grouped_seen = true;
-                            malformed_grouped = malformed_grouped || group_size != 3;
+                            analysis.grouped_seen = true;
+                            analysis.malformed_grouped =
+                                analysis.malformed_grouped || group_size != 3;
                             if (group_end < points.size() &&
                                 text::is_lexical_numeric_boundary(points[group_end].value))
-                                malformed_grouped = true;
-                            end_index = group_end;
+                                analysis.malformed_grouped = true;
+                            analysis.end_index = group_end;
                             continue;
                         }
                     }
                     break;
                 }
                 if ((value == '.' || value == ',' || value == ':') &&
-                    (end_index + 1 >= points.size() ||
-                     !text::is_digit(points[end_index + 1].value))) {
-                    if (value == '.' && end_index + 1 < points.size() &&
-                        points[end_index + 1].value == '.') {
-                        auto probe = end_index;
+                    (analysis.end_index + 1 >= points.size() ||
+                     !text::is_digit(points[analysis.end_index + 1].value))) {
+                    if (value == '.' && analysis.end_index + 1 < points.size() &&
+                        points[analysis.end_index + 1].value == '.') {
+                        auto probe = analysis.end_index;
                         while (probe < points.size() && points[probe].value == '.')
                             ++probe;
                         if (probe < points.size() && text::is_digit(points[probe].value)) {
-                            malformed_compound = true;
-                            end_index = probe;
+                            analysis.malformed_compound = true;
+                            analysis.end_index = probe;
                             continue;
                         }
                     }
-                    if (separators != 0 && end_index + 1 < points.size() &&
-                        (text::is_numeric_connector(points[end_index + 1].value) ||
-                         text::is_digit(points[end_index + 1].value))) {
-                        malformed_compound = true;
-                        ++end_index;
-                        while (end_index < points.size() &&
-                               (text::is_numeric_connector(points[end_index].value) ||
-                                text::is_digit(points[end_index].value)))
-                            ++end_index;
+                    if (analysis.separators != 0 && analysis.end_index + 1 < points.size() &&
+                        (text::is_numeric_connector(points[analysis.end_index + 1].value) ||
+                         text::is_digit(points[analysis.end_index + 1].value))) {
+                        analysis.malformed_compound = true;
+                        ++analysis.end_index;
+                        while (analysis.end_index < points.size() &&
+                               (text::is_numeric_connector(points[analysis.end_index].value) ||
+                                text::is_digit(points[analysis.end_index].value)))
+                            ++analysis.end_index;
                         continue;
                     }
                     break;
@@ -299,32 +324,35 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 if (value == '[' || value == ']')
                     break;
                 if (text::is_numeric_connector(value)) {
-                    if (rules.dotted_dates && value == '.' && end_index + 1 < points.size() &&
-                        text::is_digit(points[end_index + 1].value))
-                        has_dot_decimal = true;
-                    if (grouped_seen && (value == '.' || value == ',' || value == ':'))
-                        malformed_compound = true;
+                    if (rules.dotted_dates && value == '.' &&
+                        analysis.end_index + 1 < points.size() &&
+                        text::is_digit(points[analysis.end_index + 1].value))
+                        analysis.has_dot_decimal = true;
+                    if (analysis.grouped_seen && (value == '.' || value == ',' || value == ':'))
+                        analysis.malformed_compound = true;
                     if (value == '%') {
-                        has_percent = true;
-                        const auto probe = end_index + 1;
+                        analysis.has_percent = true;
+                        const auto probe = analysis.end_index + 1;
                         if (probe < points.size() &&
                             (text::is_lexical_numeric_boundary(points[probe].value) ||
                              points[probe].value == '%'))
-                            percent_attached_to_numeric = true;
+                            analysis.percent_attached_to_numeric = true;
                     } else
-                        ++separators;
+                        ++analysis.separators;
                     if (text::is_range_connector(value))
-                        has_range_connector = true;
+                        analysis.has_range_connector = true;
                     if (!text::is_supported_numeric_separator(value) &&
-                        end_index + 1 < points.size() && points[end_index + 1].value != ' ' &&
-                        points[end_index + 1].value != '\t' &&
-                        points[end_index + 1].value != '\n' && points[end_index + 1].value != '\r')
-                        has_unsupported_numeric_connector = true;
-                    ++end_index;
+                        analysis.end_index + 1 < points.size() &&
+                        points[analysis.end_index + 1].value != ' ' &&
+                        points[analysis.end_index + 1].value != '\t' &&
+                        points[analysis.end_index + 1].value != '\n' &&
+                        points[analysis.end_index + 1].value != '\r')
+                        analysis.has_unsupported_numeric_connector = true;
+                    ++analysis.end_index;
                     continue;
                 }
                 if (text::is_digit(value)) {
-                    ++end_index;
+                    ++analysis.end_index;
                     continue;
                 }
                 break;
@@ -336,10 +364,10 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         // or spaced connector tail cannot be rewritten independently.
         if (currency_context) {
             const auto currency_end =
-                scan_admission(document, end_index, CandidateSurfaceKind::Currency).end;
-            if (currency_end > end_index) {
-                malformed_compound = true;
-                end_index = currency_end;
+                scan_admission(document, analysis.end_index, CandidateSurfaceKind::Currency).end;
+            if (currency_end > analysis.end_index) {
+                analysis.malformed_compound = true;
+                analysis.end_index = currency_end;
             }
         }
         // Use the shared contextual scanner to catch a combining-mark tail
@@ -362,9 +390,9 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             });
             return has_combining && has_connector;
         }();
-        if (combining_connector_surface && candidate_surface.end > end_index) {
-            malformed_compound = true;
-            end_index = candidate_surface.end;
+        if (combining_connector_surface && candidate_surface.end > analysis.end_index) {
+            analysis.malformed_compound = true;
+            analysis.end_index = candidate_surface.end;
         }
         if (contextual_end > candidate_surface.end) {
             const auto has_combining = std::any_of(
@@ -372,26 +400,26 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 points.begin() + static_cast<std::ptrdiff_t>(contextual_end),
                 [](const auto& point) { return text::is_combining_mark(point.value); });
             if (has_combining) {
-                malformed_compound = true;
-                end_index = contextual_end;
+                analysis.malformed_compound = true;
+                analysis.end_index = contextual_end;
             }
         }
         // Signed numeric candidates are already fail-closed when their
         // lexical continuation contains a combining mark. Extend the same
         // atomic span across a spaced suffix so a mixed path cannot leave
         // the mark outside the diagnostic (for example `+2.5 м́`).
-        if ((positive_numeric || signed_number) && end_index < points.size()) {
-            const auto suffix = scan_lexical_suffix(document, end_index);
+        if ((positive_numeric || signed_number) && analysis.end_index < points.size()) {
+            const auto suffix = scan_lexical_suffix(document, analysis.end_index);
             const auto has_combining =
                 std::any_of(points.begin() + static_cast<std::ptrdiff_t>(suffix.continuation_begin),
                             points.begin() + static_cast<std::ptrdiff_t>(suffix.end),
                             [](const auto& point) { return text::is_combining_mark(point.value); });
             if (has_combining) {
-                malformed_compound = true;
-                end_index = suffix.end;
+                analysis.malformed_compound = true;
+                analysis.end_index = suffix.end;
                 const auto continuation = scan_candidate_continuation(
-                    document, end_index, CandidateSurfaceKind::Contextual);
-                end_index = std::max(end_index, continuation);
+                    document, analysis.end_index, CandidateSurfaceKind::Contextual);
+                analysis.end_index = std::max(analysis.end_index, continuation);
             }
         }
         const auto numeric_continuation = scan_candidate_continuation(
@@ -401,20 +429,20 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                         points.begin() + static_cast<std::ptrdiff_t>(numeric_continuation),
                         [](const auto& point) { return text::is_combining_mark(point.value); });
         if (numeric_has_combining) {
-            malformed_compound = true;
-            end_index = std::max(end_index, numeric_continuation);
-            const auto suffix = scan_lexical_suffix(document, end_index);
+            analysis.malformed_compound = true;
+            analysis.end_index = std::max(analysis.end_index, numeric_continuation);
+            const auto suffix = scan_lexical_suffix(document, analysis.end_index);
             if (suffix.end > suffix.continuation_begin)
-                end_index = suffix.end;
-            end_index =
-                std::max(end_index,
-                         scan_admission(document, end_index, CandidateSurfaceKind::Contextual).end);
+                analysis.end_index = suffix.end;
+            analysis.end_index = std::max(
+                analysis.end_index,
+                scan_admission(document, analysis.end_index, CandidateSurfaceKind::Contextual).end);
         }
         if (surface.malformed_combining ||
-            (candidate_surface.has_combining && end_index < points.size() &&
-             text::is_combining_mark(points[end_index].value))) {
-            malformed_compound = true;
-            auto combining_end = end_index;
+            (candidate_surface.has_combining && analysis.end_index < points.size() &&
+             text::is_combining_mark(points[analysis.end_index].value))) {
+            analysis.malformed_compound = true;
+            auto combining_end = analysis.end_index;
             while (combining_end < points.size() &&
                    text::is_combining_mark(points[combining_end].value))
                 ++combining_end;
@@ -427,26 +455,29 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                    (text::is_letter(points[suffix_end].value) ||
                     text::is_combining_mark(points[suffix_end].value)))
                 ++suffix_end;
-            end_index = std::max(end_index, suffix_end);
+            analysis.end_index = std::max(analysis.end_index, suffix_end);
         }
         if (numeric_has_combining || surface.malformed_combining ||
             candidate_surface.has_combining) {
-            while (end_index < points.size() && text::is_combining_mark(points[end_index].value))
-                ++end_index;
-            end_index =
-                std::max(end_index,
-                         scan_admission(document, end_index, CandidateSurfaceKind::Contextual).end);
+            while (analysis.end_index < points.size() &&
+                   text::is_combining_mark(points[analysis.end_index].value))
+                ++analysis.end_index;
+            analysis.end_index = std::max(
+                analysis.end_index,
+                scan_admission(document, analysis.end_index, CandidateSurfaceKind::Contextual).end);
         }
-        if ((positive_numeric || points[index].value == 0x2212) && end_index < points.size()) {
+        if ((positive_numeric || points[index].value == 0x2212) &&
+            analysis.end_index < points.size()) {
             if (surface.exponent != ExponentState::None) {
-                malformed_compound = true;
-                end_index = std::max(end_index, surface.end);
+                analysis.malformed_compound = true;
+                analysis.end_index = std::max(analysis.end_index, surface.end);
                 if (surface.exponent == ExponentState::Complete) {
-                    end_index = scan_numeric_continuation_points(document, end_index, false);
-                    while (end_index < points.size()) {
-                        const auto value = points[end_index].value;
+                    analysis.end_index =
+                        scan_numeric_continuation_points(document, analysis.end_index, false);
+                    while (analysis.end_index < points.size()) {
+                        const auto value = points[analysis.end_index].value;
                         if (text::is_horizontal_space(value)) {
-                            auto probe = end_index;
+                            auto probe = analysis.end_index;
                             while (probe < points.size() &&
                                    text::is_horizontal_space(points[probe].value))
                                 ++probe;
@@ -456,21 +487,21 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                                 ++word_end;
                             if (word_end == probe)
                                 break;
-                            end_index = word_end;
+                            analysis.end_index = word_end;
                             continue;
                         }
                         if (text::is_digit(value) || text::is_letter(value) ||
                             text::is_combining_mark(value) || value == '%' || value == '#' ||
                             value == '$' || value == '/' || value == '+' || value == '-' ||
                             text::is_range_connector(value)) {
-                            ++end_index;
+                            ++analysis.end_index;
                             continue;
                         }
                         break;
                     }
                 }
             }
-            auto suffix_begin = end_index;
+            auto suffix_begin = analysis.end_index;
             while (suffix_begin < points.size() &&
                    text::is_horizontal_space(points[suffix_begin].value))
                 ++suffix_begin;
@@ -478,12 +509,12 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             while (suffix_end < points.size() && text::is_letter(points[suffix_end].value))
                 ++suffix_end;
             if (suffix_end > suffix_begin) {
-                malformed_compound = true;
-                end_index = suffix_end;
+                analysis.malformed_compound = true;
+                analysis.end_index = suffix_end;
             }
         }
-        if (points[index].value == 0x2212 && end_index < points.size()) {
-            auto suffix_begin = end_index;
+        if (points[index].value == 0x2212 && analysis.end_index < points.size()) {
+            auto suffix_begin = analysis.end_index;
             while (suffix_begin < points.size() &&
                    text::is_horizontal_space(points[suffix_begin].value))
                 ++suffix_begin;
@@ -491,66 +522,68 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             while (suffix_end < points.size() && text::is_letter(points[suffix_end].value))
                 ++suffix_end;
             if (suffix_end > suffix_begin) {
-                malformed_compound = true;
-                end_index = suffix_end;
-            } else if (suffix_begin == end_index && suffix_begin < points.size() &&
+                analysis.malformed_compound = true;
+                analysis.end_index = suffix_end;
+            } else if (suffix_begin == analysis.end_index && suffix_begin < points.size() &&
                        text::is_letter(points[suffix_begin].value)) {
                 while (suffix_end < points.size() && text::is_letter(points[suffix_end].value))
                     ++suffix_end;
-                malformed_compound = true;
-                end_index = suffix_end;
+                analysis.malformed_compound = true;
+                analysis.end_index = suffix_end;
             }
         }
-        if (initial_digit_count > 9 && end_index < points.size() &&
-            text::is_lexical_numeric_boundary(points[end_index].value)) {
-            while (end_index < points.size() &&
-                   (text::is_lexical_numeric_boundary(points[end_index].value) ||
-                    text::is_combining_mark(points[end_index].value)))
-                ++end_index;
+        if (initial_digit_count > 9 && analysis.end_index < points.size() &&
+            text::is_lexical_numeric_boundary(points[analysis.end_index].value)) {
+            while (analysis.end_index < points.size() &&
+                   (text::is_lexical_numeric_boundary(points[analysis.end_index].value) ||
+                    text::is_combining_mark(points[analysis.end_index].value)))
+                ++analysis.end_index;
         }
-        if (initial_digit_count > 9 && end_index < points.size() &&
-            (points[end_index].value == ' ' || points[end_index].value == '\t')) {
-            auto probe = end_index;
+        if (initial_digit_count > 9 && analysis.end_index < points.size() &&
+            (points[analysis.end_index].value == ' ' || points[analysis.end_index].value == '\t')) {
+            auto probe = analysis.end_index;
             while (probe < points.size() &&
                    (points[probe].value == ' ' || points[probe].value == '\t'))
                 ++probe;
             while (probe < points.size() && text::is_letter(points[probe].value))
                 ++probe;
-            if (probe > end_index)
-                end_index = probe;
+            if (probe > analysis.end_index)
+                analysis.end_index = probe;
         }
-        if (currency_context && has_percent)
-            end_index = scan_numeric_continuation_points(document, end_index, false);
-        if (rules.dotted_dates && has_dot_decimal && has_percent) {
-            malformed_compound = true;
-            const auto continuation = scan_numeric_continuation_points(document, end_index, false);
-            if (continuation != end_index)
-                end_index = continuation;
-            auto suffix_end = end_index;
+        if (currency_context && analysis.has_percent)
+            analysis.end_index =
+                scan_numeric_continuation_points(document, analysis.end_index, false);
+        if (rules.dotted_dates && analysis.has_dot_decimal && analysis.has_percent) {
+            analysis.malformed_compound = true;
+            const auto continuation =
+                scan_numeric_continuation_points(document, analysis.end_index, false);
+            if (continuation != analysis.end_index)
+                analysis.end_index = continuation;
+            auto suffix_end = analysis.end_index;
             while (suffix_end < points.size() && text::is_letter(points[suffix_end].value))
                 ++suffix_end;
-            if (suffix_end > end_index) {
-                malformed_compound = true;
-                end_index = suffix_end;
+            if (suffix_end > analysis.end_index) {
+                analysis.malformed_compound = true;
+                analysis.end_index = suffix_end;
             }
-            if (end_index < points.size() &&
-                (points[end_index].value == '/' || points[end_index].value == '#' ||
-                 points[end_index].value == '$')) {
-                ++end_index;
-                while (end_index < points.size() &&
-                       (text::is_digit(points[end_index].value) ||
-                        text::is_letter(points[end_index].value) ||
-                        text::is_combining_mark(points[end_index].value)))
-                    ++end_index;
+            if (analysis.end_index < points.size() && (points[analysis.end_index].value == '/' ||
+                                                       points[analysis.end_index].value == '#' ||
+                                                       points[analysis.end_index].value == '$')) {
+                ++analysis.end_index;
+                while (analysis.end_index < points.size() &&
+                       (text::is_digit(points[analysis.end_index].value) ||
+                        text::is_letter(points[analysis.end_index].value) ||
+                        text::is_combining_mark(points[analysis.end_index].value)))
+                    ++analysis.end_index;
             }
         }
-        if (has_percent && end_index < points.size() &&
-            text::is_lexical_numeric_boundary(points[end_index].value)) {
-            while (end_index < points.size() &&
-                   (text::is_lexical_numeric_boundary(points[end_index].value) ||
-                    text::is_combining_mark(points[end_index].value)))
-                ++end_index;
-            percent_attached_to_numeric = true;
+        if (analysis.has_percent && analysis.end_index < points.size() &&
+            text::is_lexical_numeric_boundary(points[analysis.end_index].value)) {
+            while (analysis.end_index < points.size() &&
+                   (text::is_lexical_numeric_boundary(points[analysis.end_index].value) ||
+                    text::is_combining_mark(points[analysis.end_index].value)))
+                ++analysis.end_index;
+            analysis.percent_attached_to_numeric = true;
         }
         // A dotted foreign percentage immediately followed by a technical
         // identifier is one unsupported candidate (for example
@@ -558,39 +591,41 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         // identifier visible so the warning can cover the complete source
         // span; consume its lexical tail here instead of emitting two
         // diagnostics.
-        if (has_percent && end_index < points.size()) {
-            const auto continuation =
-                scan_candidate_continuation(document, end_index, CandidateSurfaceKind::Technical);
-            if (continuation != end_index) {
-                malformed_compound = true;
-                end_index = continuation;
+        if (analysis.has_percent && analysis.end_index < points.size()) {
+            const auto continuation = scan_candidate_continuation(
+                document, analysis.end_index, CandidateSurfaceKind::Technical);
+            if (continuation != analysis.end_index) {
+                analysis.malformed_compound = true;
+                analysis.end_index = continuation;
             }
         }
         // A terminal currency/hash connector is not a supported postfix
         // notation. Preserve it atomically instead of letting the generic
         // number pass rewrite only the leading digits (`1$` -> `one$`).
-        if (end_index < points.size() &&
-            (points[end_index].value == '$' || points[end_index].value == '#')) {
-            malformed_compound = true;
-            ++end_index;
-            while (end_index < points.size() && (text::is_digit(points[end_index].value) ||
-                                                 text::is_letter(points[end_index].value) ||
-                                                 text::is_combining_mark(points[end_index].value)))
-                ++end_index;
+        if (analysis.end_index < points.size() &&
+            (points[analysis.end_index].value == '$' || points[analysis.end_index].value == '#')) {
+            analysis.malformed_compound = true;
+            ++analysis.end_index;
+            while (analysis.end_index < points.size() &&
+                   (text::is_digit(points[analysis.end_index].value) ||
+                    text::is_letter(points[analysis.end_index].value) ||
+                    text::is_combining_mark(points[analysis.end_index].value)))
+                ++analysis.end_index;
         }
         // A clock-like expression followed by percent is not an English or
         // Russian percent candidate (`1:02%`). Keep the whole expression.
-        if (has_percent && std::any_of(points.begin() + static_cast<std::ptrdiff_t>(index),
-                                       points.begin() + static_cast<std::ptrdiff_t>(end_index),
-                                       [](const CodePoint& point) { return point.value == ':'; }))
-            malformed_compound = true;
+        if (analysis.has_percent &&
+            std::any_of(points.begin() + static_cast<std::ptrdiff_t>(index),
+                        points.begin() + static_cast<std::ptrdiff_t>(analysis.end_index),
+                        [](const CodePoint& point) { return point.value == ':'; }))
+            analysis.malformed_compound = true;
         if (signed_time)
-            malformed_compound = true;
+            analysis.malformed_compound = true;
         // A recognized unit/currency stem followed by an attached lexical
         // suffix is one malformed candidate.  Letting the generic number
         // pass see only the leading digits would otherwise produce partial
         // rewrites such as `one kgfoo` or `один руб.foo`.
-        const auto lexical_suffix = scan_lexical_suffix(document, end_index);
+        const auto lexical_suffix = scan_lexical_suffix(document, analysis.end_index);
         if (lexical_suffix.end > lexical_suffix.continuation_begin) {
             const auto suffix_begin = lexical_suffix.continuation_begin;
             const auto word_end = lexical_suffix.end;
@@ -612,17 +647,19 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             if (rules.classify_surface != nullptr)
                 rules.classify_surface(unit, document, suffix_begin, known_stem, valid_surface);
             if (known_stem && (!valid_surface || suffix_end != word_end)) {
-                malformed_compound = true;
-                end_index = suffix_end;
+                analysis.malformed_compound = true;
+                analysis.end_index = suffix_end;
                 // Once a language-owned suffix is rejected, consume any
                 // attached or spaced continuation through the shared scanner
                 // before the next normalizer can see a trailing number.
-                end_index = std::max(end_index,
-                                     scan_candidate_continuation(
-                                         document, end_index, CandidateSurfaceKind::Contextual));
-                end_index = std::max(end_index,
-                                     scan_spaced_numeric_continuation(
-                                         document, end_index, CandidateSurfaceKind::Contextual));
+                analysis.end_index =
+                    std::max(analysis.end_index,
+                             scan_candidate_continuation(
+                                 document, analysis.end_index, CandidateSurfaceKind::Contextual));
+                analysis.end_index =
+                    std::max(analysis.end_index,
+                             scan_spaced_numeric_continuation(
+                                 document, analysis.end_index, CandidateSurfaceKind::Contextual));
             }
             // An abbreviation ellipsis is terminal only when it is
             // followed by ordinary punctuation or the end of input.
@@ -631,8 +668,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             if (known_stem && suffix_end == word_end) {
                 const auto continuation = scan_nonterminal_ellipsis(points, suffix_end);
                 if (continuation != suffix_end) {
-                    malformed_compound = true;
-                    end_index = continuation;
+                    analysis.malformed_compound = true;
+                    analysis.end_index = continuation;
                 }
             }
         }
@@ -644,7 +681,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                           (previous_is_connector && index > 1 &&
                            text::is_lexical_numeric_boundary(points[index - 2].value)));
         if (embedded) {
-            std::size_t grouped_end = end_index;
+            std::size_t grouped_end = analysis.end_index;
             while (grouped_end < points.size()) {
                 auto probe = grouped_end;
                 while (probe < points.size() &&
@@ -673,16 +710,17 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 }
                 grouped_end = probe;
             }
-            end_index = grouped_end;
+            analysis.end_index = grouped_end;
         }
-        if (malformed_grouped) {
-            while (end_index < points.size() &&
-                   (text::is_lexical_numeric_boundary(points[end_index].value) ||
-                    text::is_combining_mark(points[end_index].value)))
-                ++end_index;
+        if (analysis.malformed_grouped) {
+            while (analysis.end_index < points.size() &&
+                   (text::is_lexical_numeric_boundary(points[analysis.end_index].value) ||
+                    text::is_combining_mark(points[analysis.end_index].value)))
+                ++analysis.end_index;
         }
-        const auto end =
-            end_index == 0 ? begin : points[end_index - 1].offset + points[end_index - 1].length;
+        const auto end = analysis.end_index == 0 ? begin
+                                                 : points[analysis.end_index - 1].offset +
+                                                       points[analysis.end_index - 1].length;
         const auto candidate = text.text.substr(begin, end - begin);
         const auto currency_prefix_begin = scan_currency_prefix_begin(document, index);
         const bool currency_prefix = currency_prefix_begin != index;
@@ -695,8 +733,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             ++currency_symbol;
         const auto currency_probe = currency_prefix ? currency_symbol + 1 : index;
         const bool attached_lexical_suffix =
-            separators != 0 && end_index < points.size() &&
-            text::is_lexical_numeric_boundary(points[end_index].value);
+            analysis.separators != 0 && analysis.end_index < points.size() &&
+            text::is_lexical_numeric_boundary(points[analysis.end_index].value);
         const bool valid_english_comma_group =
             rules.comma_grouping && rules.comma_grouped_value != nullptr &&
             rules.comma_grouped_percent != nullptr &&
@@ -711,18 +749,19 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         const auto digit_count = static_cast<std::size_t>(std::count_if(
             candidate.begin(), candidate.end(), [](unsigned char c) { return text::is_digit(c); }));
         if (digit_count > 9)
-            malformed_compound = true;
+            analysis.malformed_compound = true;
         const bool invalid_percent =
-            has_percent && (percent_attached_to_numeric ||
-                            (end_index < points.size() &&
-                             text::is_lexical_numeric_boundary(points[end_index].value)));
+            analysis.has_percent &&
+            (analysis.percent_attached_to_numeric ||
+             (analysis.end_index < points.size() &&
+              text::is_lexical_numeric_boundary(points[analysis.end_index].value)));
         const bool comma_group_followed_by_word = [&] {
             const auto comma = candidate.find(',');
             if (comma == std::string::npos || candidate.find('.', comma + 1) != std::string::npos ||
                 candidate.find(':', comma + 1) != std::string::npos ||
                 candidate.size() - comma - 1 != 3)
                 return false;
-            auto tail_index = end_index;
+            auto tail_index = analysis.end_index;
             while (tail_index < points.size() &&
                    (points[tail_index].value == ' ' || points[tail_index].value == '\t' ||
                     points[tail_index].value == '\n' || points[tail_index].value == '\r'))
@@ -732,7 +771,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             return text::is_letter(points[tail_index].value);
         }();
         bool valid_russian_date = false;
-        if (rules.dotted_dates && separators == 2) {
+        if (rules.dotted_dates && analysis.separators == 2) {
             const auto first_dot = candidate.find('.');
             const auto second_dot = candidate.find('.', first_dot + 1);
             if (first_dot != std::string::npos && second_dot != std::string::npos &&
@@ -756,8 +795,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             starts_phone || candidate.find('+') != std::string::npos ||
             candidate.find('=') != std::string::npos ||
             candidate.find('-', hyphen_search_start) != std::string::npos ||
-            candidate.find('/') != std::string::npos || has_range_connector ||
-            has_unsupported_numeric_connector;
+            candidate.find('/') != std::string::npos || analysis.has_range_connector ||
+            analysis.has_unsupported_numeric_connector;
         const auto protected_begin = currency_prefix ? points[currency_prefix_begin].offset : begin;
         const bool already_preserved = [&] {
             if (text.preserved_ranges == nullptr)
@@ -765,30 +804,36 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             const auto source = text.source_range(protected_begin, end);
             return text.preserved_ranges->overlaps(source);
         }();
-        if ((separators >= 2 || embedded || attached_lexical_suffix ||
-             (comma_group_followed_by_word && !valid_english_comma_group) ||
-             unsupported_numeric_connector || invalid_percent || malformed_english_comma_group ||
-             malformed_grouped || malformed_compound ||
-             (currency_prefix &&
-              (has_percent || currency_probe < index || points[index].value == '+' ||
-               points[index].value == '-' || points[currency_symbol].value != '$' ||
-               signed_currency_prefix))) &&
-            !(valid_russian_date && !embedded) &&
-            !(valid_english_comma_group && !embedded && !attached_lexical_suffix &&
-              !(currency_prefix && has_percent) && !malformed_compound &&
-              valid_currency_group_surface) &&
-            !already_preserved) {
-            NumericCandidate candidate{document.span_from_bytes(protected_begin, end),
-                                       currency_prefix ? NumericCandidateKind::Currency
-                                                       : (malformed_grouped || malformed_compound
-                                                              ? NumericCandidateKind::Grouped
-                                                              : NumericCandidateKind::Numeric),
-                                       true,
-                                       embedded,
-                                       has_percent};
+        const bool invalid_currency_prefix =
+            analysis.has_percent || currency_probe < index || points[index].value == '+' ||
+            points[index].value == '-' || points[currency_symbol].value != '$' ||
+            signed_currency_prefix;
+        PreservationFacts preservation;
+        preservation.embedded = embedded;
+        preservation.attached_lexical_suffix = attached_lexical_suffix;
+        preservation.comma_group_followed_by_word = comma_group_followed_by_word;
+        preservation.valid_english_comma_group = valid_english_comma_group;
+        preservation.unsupported_numeric_connector = unsupported_numeric_connector;
+        preservation.invalid_percent = invalid_percent;
+        preservation.malformed_english_comma_group = malformed_english_comma_group;
+        preservation.currency_prefix = currency_prefix;
+        preservation.invalid_currency_prefix = invalid_currency_prefix;
+        preservation.valid_russian_date = valid_russian_date;
+        preservation.valid_currency_group_surface = valid_currency_group_surface;
+        preservation.already_preserved = already_preserved;
+        if (requires_preservation(analysis, preservation)) {
+            NumericCandidate candidate{
+                document.span_from_bytes(protected_begin, end),
+                currency_prefix ? NumericCandidateKind::Currency
+                                : (analysis.malformed_grouped || analysis.malformed_compound
+                                       ? NumericCandidateKind::Grouped
+                                       : NumericCandidateKind::Numeric),
+                true,
+                embedded,
+                analysis.has_percent};
             add_protected_candidate(text, candidate, warnings, protected_spans, edits);
         }
-        index = end_index;
+        index = analysis.end_index;
     }
     return apply_source_edits(text, std::move(edits));
 }
