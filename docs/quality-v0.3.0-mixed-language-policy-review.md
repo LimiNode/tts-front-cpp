@@ -41,19 +41,27 @@ Use 2 кг for calibration.
 OpenAI API обработал 2 requests.
 ```
 
+In particular, a Latin-only sentence with a recognized English unit is not
+ambiguous merely because no additional noun follows it:
+
+```text
+Use 2 kg.       # one English candidate
+Use 2 kg 3.     # two independent English candidates
+```
+
 The policy must define how far the scanner may look for that head and what
 happens when both sides contain plausible heads. It must not infer ownership
 from one unrelated foreign word elsewhere in the document.
 
 ### No-head and conflicting-head fallback
 
-These surfaces need an explicit fail-closed result rather than a guessed
-formatter:
+These genuinely mixed or conflicting surfaces need an explicit fail-closed
+result rather than a guessed formatter:
 
 ```text
-Use 2 kg.
-Use 2 kg 3.
 2 reports на 3 сервера.
+OpenAI обработал 2 requests и 3 задачи.
+Deploy 5 replicas в the cluster.
 ```
 
 For a candidate with no safe local owner, the proposed result is unchanged
