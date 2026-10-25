@@ -117,6 +117,42 @@ int main() {
             CHECK(admission.end == document.points.size());
         }
     }
+    {
+        TextFrontendOptions en;
+        en.language = Language::English;
+        TextFrontendOptions auto_options;
+        auto_options.language = Language::Auto;
+        TextFrontendOptions segmented = auto_options;
+        segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        struct AdmissionCharacterization {
+            const TextFrontendOptions* options;
+            std::string input;
+            std::size_t warning_count;
+        };
+        const std::array<AdmissionCharacterization, 6> admission_characterization = {{
+            {&en, "2 kg /3", 1},
+            {&ru, "2 кг #3", 1},
+            {&ru, std::string("2") + "\xCC\x81" + " % 3", 1},
+            {&auto_options, "Привет 2 kg /3", 2},
+            {&segmented, "Привет 2 kg /3", 2},
+            {&en, "1,234.56.7", 1},
+        }};
+        for (const auto& test : admission_characterization) {
+            const auto result = frontend.process(test.input, *test.options);
+            CHECK(result.original_text == test.input);
+            CHECK(result.normalized_text == test.input);
+            CHECK(result.pronunciation_text == test.input);
+            CHECK(result.warnings.size() == test.warning_count);
+            const auto unresolved = std::find_if(
+                result.warnings.begin(), result.warnings.end(), [](const auto& warning) {
+                    return warning.code == WarningCode::UnresolvedNumber;
+                });
+            CHECK(unresolved != result.warnings.end());
+            CHECK(unresolved->offset == test.input.find('2') ||
+                  unresolved->offset == test.input.find('1'));
+            CHECK(unresolved->length == test.input.size() - unresolved->offset);
+        }
+    }
     CHECK(frontend.process("У меня 42 яблока.", ru).normalized_text == "У меня сорок два яблока.");
     CHECK(frontend.process("1% 2% 5% 11% 21%", ru).normalized_text ==
           "один процент два процента пять процентов одиннадцать процентов двадцать один процент");
