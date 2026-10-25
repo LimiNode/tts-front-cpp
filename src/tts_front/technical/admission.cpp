@@ -23,19 +23,30 @@ namespace tts_front::detail::technical {
 
 using CodePoint = Utf8CodePoint;
 
+namespace {
+
+using TechnicalPatternCatalog = std::array<const std::regex*, 10>;
+
+const TechnicalPatternCatalog& technical_pattern_catalog() {
+    const auto& source = technical::patterns();
+    static const TechnicalPatternCatalog catalog = {&source.technical_url,
+                                                    &source.technical_utf8_email,
+                                                    &source.technical_email,
+                                                    &source.technical_ipv4,
+                                                    &source.technical_version,
+                                                    &source.technical_http,
+                                                    &source.technical_gpu,
+                                                    &source.technical_identifier,
+                                                    &source.technical_cpp,
+                                                    &source.technical_csharp};
+    return catalog;
+}
+
+} // namespace
+
 MappedText protect(MappedText text, std::vector<ProtectedSpan>& protected_spans) {
     const auto& patterns = technical::patterns();
-    const std::array<const std::regex*, 10> technical_patterns = {&patterns.technical_url,
-                                                                  &patterns.technical_utf8_email,
-                                                                  &patterns.technical_email,
-                                                                  &patterns.technical_ipv4,
-                                                                  &patterns.technical_version,
-                                                                  &patterns.technical_http,
-                                                                  &patterns.technical_gpu,
-                                                                  &patterns.technical_identifier,
-                                                                  &patterns.technical_cpp,
-                                                                  &patterns.technical_csharp};
-    for (const auto* pattern : technical_patterns) {
+    for (const auto* pattern : technical_pattern_catalog()) {
         const Utf8Document document(text.text);
         const auto scientific_index = build_numeric_surface_index(document);
         MappedText output;
@@ -498,20 +509,9 @@ MappedText protect_numeric_candidates(MappedText text,
 }
 
 std::vector<SourceRange> scan_protected_ranges(const std::string_view text) {
-    const auto& technical_patterns = technical::patterns();
-    const std::array<const std::regex*, 10> patterns = {&technical_patterns.technical_url,
-                                                        &technical_patterns.technical_utf8_email,
-                                                        &technical_patterns.technical_email,
-                                                        &technical_patterns.technical_ipv4,
-                                                        &technical_patterns.technical_version,
-                                                        &technical_patterns.technical_http,
-                                                        &technical_patterns.technical_gpu,
-                                                        &technical_patterns.technical_identifier,
-                                                        &technical_patterns.technical_cpp,
-                                                        &technical_patterns.technical_csharp};
     std::vector<SourceRange> ranges;
     using Iterator = std::regex_iterator<std::string_view::const_iterator>;
-    for (const auto* pattern : patterns) {
+    for (const auto* pattern : technical_pattern_catalog()) {
         for (Iterator it(text.begin(), text.end(), *pattern), end; it != end; ++it)
             ranges.push_back(
                 {static_cast<std::size_t>(it->position()), static_cast<std::size_t>(it->length())});
