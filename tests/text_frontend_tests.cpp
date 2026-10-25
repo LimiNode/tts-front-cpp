@@ -41,11 +41,17 @@ int main() {
         const auto admission = tts_front::detail::scan_admission(
             document, candidate, tts_front::detail::CandidateSurfaceKind::Contextual);
         CHECK(admission.begin == 0);
+        CHECK(admission.kind == tts_front::detail::CandidateSurfaceKind::Contextual);
+        CHECK(admission.base_end == candidate.end);
+        CHECK(admission.outcome == tts_front::detail::AdmissionOutcome::Attached);
+        CHECK(admission.extended());
         CHECK(admission.end == document.points.size());
 
         const auto typed = tts_front::detail::scan_admission(
             document, 4, tts_front::detail::CandidateSurfaceKind::Contextual);
         CHECK(typed.begin == 4);
+        CHECK(typed.base_end == 4);
+        CHECK(typed.outcome == tts_front::detail::AdmissionOutcome::Attached);
         CHECK(typed.end == document.points.size());
     }
     {
@@ -55,6 +61,9 @@ int main() {
         const auto admission = tts_front::detail::scan_admission(
             document, candidate, tts_front::detail::CandidateSurfaceKind::Contextual);
         CHECK(admission.begin == 0);
+        CHECK(admission.base_end == candidate.end);
+        CHECK(admission.outcome == tts_front::detail::AdmissionOutcome::None);
+        CHECK(!admission.extended());
         CHECK(admission.end == candidate.end);
         CHECK(admission.end < document.points.size());
     }
