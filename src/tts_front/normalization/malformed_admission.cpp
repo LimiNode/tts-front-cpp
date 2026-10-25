@@ -21,10 +21,11 @@ namespace tts_front::detail {
 
 using CodePoint = Utf8CodePoint;
 
-// Per-candidate neutral observations.  Keep boundary movement and structural
-// facts together so later admission refactors cannot silently update one
-// without the other.  This is private state; language validity and emission
-// remain separate decisions below.
+// Intermediate mixed per-candidate state used while the admission phases are
+// still being separated. It includes language-conditioned observations from
+// AdmissionRules and is not a neutral/core scanner result. Keeping boundary
+// movement and structural facts together prevents a later refactor from
+// silently updating one without the other.
 struct CandidateAnalysis {
     std::size_t end_index = 0;
     std::size_t separators = 0;
