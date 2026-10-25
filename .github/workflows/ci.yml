@@ -15,7 +15,7 @@ jobs:
           clang-format --version
           cmake -S . -B build-format -DTTS_FRONT_CLANG_FORMAT=clang-format -DTTS_FRONT_BUILD_TESTS=OFF -DTTS_FRONT_BUILD_EXAMPLES=OFF -DTTS_FRONT_BUILD_BENCHMARKS=OFF
           cmake --build build-format --target format-check
-  warning-scaling:
+  normalization-scaling:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -26,6 +26,8 @@ jobs:
         run: cmake --build build-benchmark --target tts_front_benchmark --parallel
       - name: Run warning scaling gate
         run: ./build-benchmark/tts_front_benchmark --warning-scaling
+      - name: Run document pipeline scaling gate
+        run: ./build-benchmark/tts_front_benchmark --document-scaling
   linux:
     strategy:
       matrix:
