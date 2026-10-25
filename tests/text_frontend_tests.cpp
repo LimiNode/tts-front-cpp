@@ -41,11 +41,17 @@ int main() {
         const auto admission = tts_front::detail::scan_admission(
             document, candidate, tts_front::detail::CandidateSurfaceKind::Contextual);
         CHECK(admission.begin == 0);
+        CHECK(admission.kind == tts_front::detail::CandidateSurfaceKind::Contextual);
+        CHECK(admission.base_end == candidate.end);
+        CHECK(admission.outcome == tts_front::detail::AdmissionOutcome::Attached);
+        CHECK(admission.extended());
         CHECK(admission.end == document.points.size());
 
         const auto typed = tts_front::detail::scan_admission(
             document, 4, tts_front::detail::CandidateSurfaceKind::Contextual);
         CHECK(typed.begin == 4);
+        CHECK(typed.base_end == 4);
+        CHECK(typed.outcome == tts_front::detail::AdmissionOutcome::Attached);
         CHECK(typed.end == document.points.size());
     }
     {
@@ -55,8 +61,61 @@ int main() {
         const auto admission = tts_front::detail::scan_admission(
             document, candidate, tts_front::detail::CandidateSurfaceKind::Contextual);
         CHECK(admission.begin == 0);
+        CHECK(admission.base_end == candidate.end);
+        CHECK(admission.outcome == tts_front::detail::AdmissionOutcome::None);
+        CHECK(!admission.extended());
         CHECK(admission.end == candidate.end);
         CHECK(admission.end < document.points.size());
+    }
+    {
+        const tts_front::detail::Utf8Document document("2 kg #3");
+        const auto candidate = tts_front::detail::scan_candidate_surface(
+            document, 0, tts_front::detail::CandidateSurfaceKind::Contextual);
+        const auto admission = tts_front::detail::scan_admission(
+            document, candidate, tts_front::detail::CandidateSurfaceKind::Contextual);
+        CHECK(admission.outcome == tts_front::detail::AdmissionOutcome::Spaced);
+        CHECK(admission.extended());
+        CHECK(admission.end == document.points.size());
+    }
+    {
+        const tts_front::detail::Utf8Document document("2...+ 3");
+        const auto candidate = tts_front::detail::scan_candidate_surface(
+            document, 0, tts_front::detail::CandidateSurfaceKind::Contextual);
+        const auto admission = tts_front::detail::scan_admission(
+            document, candidate, tts_front::detail::CandidateSurfaceKind::Contextual);
+        CHECK(admission.outcome == tts_front::detail::AdmissionOutcome::Punctuated);
+        CHECK(admission.extended());
+        CHECK(admission.end == document.points.size());
+    }
+    {
+        const tts_front::detail::Utf8Document document("2 kg #3.../ 4");
+        const auto candidate = tts_front::detail::scan_candidate_surface(
+            document, 0, tts_front::detail::CandidateSurfaceKind::Contextual);
+        const auto admission = tts_front::detail::scan_admission(
+            document, candidate, tts_front::detail::CandidateSurfaceKind::Contextual);
+        CHECK(admission.outcome == tts_front::detail::AdmissionOutcome::Compound);
+        CHECK(admission.extended());
+        CHECK(admission.end == document.points.size());
+    }
+    {
+        const std::array<std::pair<std::string, tts_front::detail::AdmissionOutcome>, 3>
+            malformed_combining = {{{std::string("2") + "\xCC\x81" + "%",
+                                     tts_front::detail::AdmissionOutcome::Attached},
+                                    {std::string("2") + "\xCC\x81" + " %",
+                                     tts_front::detail::AdmissionOutcome::Spaced},
+                                    {std::string("2") + "\xCC\x81" + " % 3",
+                                     tts_front::detail::AdmissionOutcome::Compound}}};
+        for (const auto& [input, expected] : malformed_combining) {
+            const tts_front::detail::Utf8Document document(input);
+            const auto candidate = tts_front::detail::scan_candidate_surface(
+                document, 0, tts_front::detail::CandidateSurfaceKind::Contextual);
+            CHECK(candidate.numeric.malformed_combining);
+            const auto admission = tts_front::detail::scan_admission(
+                document, candidate, tts_front::detail::CandidateSurfaceKind::Contextual);
+            CHECK(admission.outcome == expected);
+            CHECK(admission.extended());
+            CHECK(admission.end == document.points.size());
+        }
     }
     CHECK(frontend.process("У меня 42 яблока.", ru).normalized_text == "У меня сорок два яблока.");
     CHECK(frontend.process("1% 2% 5% 11% 21%", ru).normalized_text ==

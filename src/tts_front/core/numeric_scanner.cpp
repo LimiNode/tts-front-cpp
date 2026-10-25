@@ -37,6 +37,46 @@ bool has_dollar_prefix(const Utf8Document& document, std::size_t begin) {
     return begin > 0 && points[begin - 1].value == '$';
 }
 
+AdmissionOutcome merge_admission_outcome(const AdmissionOutcome current,
+                                         const AdmissionOutcome step) {
+    if (step == AdmissionOutcome::None)
+        return current;
+    if (current == AdmissionOutcome::None || current == step)
+        return step;
+    return AdmissionOutcome::Compound;
+}
+
+bool record_admission_step(AdmissionResult& result,
+                           std::size_t& end,
+                           const std::size_t next,
+                           const AdmissionOutcome outcome) {
+    if (next <= end)
+        return false;
+    const auto recorded_outcome =
+        outcome == AdmissionOutcome::None ? AdmissionOutcome::Compound : outcome;
+    result.outcome = merge_admission_outcome(result.outcome, recorded_outcome);
+    end = next;
+    result.end = end;
+    return true;
+}
+
+AdmissionOutcome classify_admission_step(const Utf8Document& document,
+                                         const std::size_t begin,
+                                         const std::size_t attached,
+                                         const std::size_t spaced,
+                                         const std::size_t punctuated) {
+    if (punctuated > std::max(attached, spaced))
+        return AdmissionOutcome::Punctuated;
+    if (begin < document.points.size() && text::is_horizontal_space(document.points[begin].value) &&
+        spaced > begin)
+        return AdmissionOutcome::Spaced;
+    if (attached > begin)
+        return AdmissionOutcome::Attached;
+    if (spaced > begin)
+        return AdmissionOutcome::Spaced;
+    return AdmissionOutcome::None;
+}
+
 std::size_t scan_punctuated_continuation(const Utf8Document& document,
                                          const std::size_t begin,
                                          const CandidateSurfaceKind kind) {
@@ -412,6 +452,7 @@ AdmissionResult scan_admission(const Utf8Document& document,
                                const std::size_t begin,
                                const CandidateSurfaceKind kind) {
     auto end = begin;
+    AdmissionResult result{kind, begin, begin, begin, AdmissionOutcome::None};
     const bool dollar_prefixed_currency =
         kind == CandidateSurfaceKind::Currency && has_dollar_prefix(document, begin);
     for (;;) {
@@ -437,39 +478,51 @@ AdmissionResult scan_admission(const Utf8Document& document,
         const auto attached = scan_candidate_continuation(document, end, kind);
         const auto spaced = scan_spaced_numeric_continuation(document, end, kind);
         const auto next = std::max(attached, spaced);
-        if (next <= end)
+        const auto step = classify_admission_step(document, end, attached, spaced, 0);
+        if (!record_admission_step(result, end, next, step))
             break;
-        end = next;
     }
-    return {begin, end};
+    return result;
 }
 
 AdmissionResult scan_admission(const Utf8Document& document,
                                const CandidateSurface& candidate,
                                CandidateSurfaceKind kind) {
     if (!candidate.valid())
-        return {candidate.begin, candidate.begin};
+        return {kind, candidate.begin, candidate.begin, candidate.begin, AdmissionOutcome::None};
 
     auto end = candidate.end;
+    AdmissionResult result{
+        kind, candidate.begin, candidate.end, candidate.end, AdmissionOutcome::None};
     if (candidate.numeric.malformed_combining) {
         auto suffix = end;
         while (suffix < document.points.size() &&
                text::is_horizontal_space(document.points[suffix].value))
             ++suffix;
         if (suffix < document.points.size() &&
-            is_spaced_connector(document.points[suffix].value, kind))
-            end = suffix + 1;
+            is_spaced_connector(document.points[suffix].value, kind)) {
+            const auto outcome =
+                suffix == end ? AdmissionOutcome::Attached : AdmissionOutcome::Spaced;
+            record_admission_step(result, end, suffix + 1, outcome);
+        }
     }
     for (;;) {
         const auto attached = scan_candidate_continuation(document, end, kind);
         const auto spaced = scan_spaced_numeric_continuation(document, end, kind);
         const auto punctuated = scan_punctuated_continuation(document, end, kind);
         auto next = std::max({attached, spaced, punctuated});
+        auto step = classify_admission_step(document, end, attached, spaced, punctuated);
         if (end > candidate.begin) {
             const auto previous = document.points[end - 1].value;
             if (is_spaced_connector(previous, kind)) {
-                next = std::max(next, scan_candidate_continuation(document, end - 1, kind));
-                next = std::max(next, scan_spaced_numeric_continuation(document, end - 1, kind));
+                const auto previous_attached = scan_candidate_continuation(document, end - 1, kind);
+                const auto previous_spaced =
+                    scan_spaced_numeric_continuation(document, end - 1, kind);
+                const auto previous_next = std::max(previous_attached, previous_spaced);
+                if (previous_next > next) {
+                    next = previous_next;
+                    step = AdmissionOutcome::Attached;
+                }
             }
         }
         if (kind == CandidateSurfaceKind::Percent) {
@@ -480,15 +533,17 @@ AdmissionResult scan_admission(const Utf8Document& document,
             if (numeric_begin < document.points.size() &&
                 text::is_digit(document.points[numeric_begin].value)) {
                 const auto tail = scan_numeric_surface(document, numeric_begin);
-                if (tail.valid())
+                if (tail.valid() && tail.continuation_end > next) {
                     next = std::max(next, tail.continuation_end);
+                    step = numeric_begin == end ? AdmissionOutcome::Attached
+                                                : AdmissionOutcome::Spaced;
+                }
             }
         }
-        if (next <= end)
+        if (!record_admission_step(result, end, next, step))
             break;
-        end = next;
     }
-    return {candidate.begin, end};
+    return result;
 }
 
 bool NumericSurfaceIndex::contains(std::size_t point) const {

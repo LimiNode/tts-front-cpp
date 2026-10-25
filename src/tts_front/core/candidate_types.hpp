@@ -52,15 +52,24 @@ struct CandidateSurface {
     }
 };
 
-// The shared admission endpoint returns a complete source boundary. Callers
-// must decide whether to format or preserve the whole [begin, end) surface;
-// they must not reconstruct continuation tails independently.
+enum class AdmissionOutcome { None, Attached, Spaced, Punctuated, Compound };
+
+// The shared admission endpoint returns a typed source boundary and records
+// whether admission extended the supplied core through an attached, spaced,
+// punctuated, or compound continuation. Callers must decide whether to format
+// or preserve the whole [begin, end) surface; they must not reconstruct tails.
 struct AdmissionResult {
+    CandidateSurfaceKind kind = CandidateSurfaceKind::Numeric;
     std::size_t begin = 0;
+    // Boundary of the surface supplied to scan_admission. For a
+    // CandidateSurface this is candidate.end; for a language-owned typed core
+    // it is the caller-provided continuation begin.
+    std::size_t base_end = 0;
     std::size_t end = 0;
+    AdmissionOutcome outcome = AdmissionOutcome::None;
 
     bool extended() const {
-        return end > begin;
+        return end > base_end;
     }
 };
 

@@ -37,16 +37,16 @@ std::size_t scan_spaced_numeric_continuation(const Utf8Document& document,
                                              std::size_t begin,
                                              CandidateSurfaceKind kind);
 
-// Returns the complete admission result for a typed numeric surface. The
+// Returns the complete typed admission result for a numeric surface. The
 // result combines attached lexical suffixes, spaced connectors and following
-// numeric tokens so callers cannot normalize a rejected tail independently.
+// numeric tokens and records which continuation class extended the core.
 AdmissionResult scan_admission(const Utf8Document& document,
                                const CandidateSurface& candidate,
                                CandidateSurfaceKind kind);
 
 // Returns the admission result for a language-owned typed core. The matcher
 // supplies the first codepoint after the core; the shared scanner owns all
-// attached/spaced continuation rules.
+// attached/spaced continuation rules and reports the typed outcome.
 AdmissionResult
 scan_admission(const Utf8Document& document, std::size_t begin, CandidateSurfaceKind kind);
 
