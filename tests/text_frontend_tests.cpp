@@ -117,6 +117,75 @@ int main() {
             CHECK(admission.end == document.points.size());
         }
     }
+    {
+        TextFrontendOptions en;
+        en.language = Language::English;
+        TextFrontendOptions auto_options;
+        auto_options.language = Language::Auto;
+        TextFrontendOptions segmented = auto_options;
+        segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+        using ExpectedDiagnostic = std::tuple<WarningCode, std::size_t, std::size_t>;
+        const auto admission_case_matches = [&](const TextFrontendOptions& options,
+                                                const std::string& input,
+                                                const std::string& expected_normalized,
+                                                const std::vector<ExpectedDiagnostic>& expected) {
+            const auto result = frontend.process(input, options);
+            if (result.original_text != input || result.normalized_text != expected_normalized ||
+                result.pronunciation_text != expected_normalized ||
+                result.warnings.size() != expected.size())
+                return false;
+            for (std::size_t index = 0; index < expected.size(); ++index) {
+                if (result.warnings[index].code != std::get<0>(expected[index]) ||
+                    result.warnings[index].offset != std::get<1>(expected[index]) ||
+                    result.warnings[index].length != std::get<2>(expected[index]))
+                    return false;
+            }
+            for (std::size_t left = 0; left < result.warnings.size(); ++left) {
+                for (std::size_t right = left + 1; right < result.warnings.size(); ++right) {
+                    const auto& lhs = result.warnings[left];
+                    const auto& rhs = result.warnings[right];
+                    if (lhs.code == rhs.code && lhs.offset == rhs.offset &&
+                        lhs.length == rhs.length)
+                        return false;
+                    if (lhs.code == WarningCode::UnresolvedNumber &&
+                        rhs.code == WarningCode::UnresolvedNumber && lhs.length != 0 &&
+                        rhs.length != 0 && lhs.offset < rhs.offset + rhs.length &&
+                        rhs.offset < lhs.offset + lhs.length)
+                        return false;
+                }
+            }
+            return true;
+        };
+        CHECK(admission_case_matches(
+            en, "2 kg /3", "2 kg /3", {{WarningCode::UnresolvedNumber, 0, 7}}));
+        CHECK(admission_case_matches(
+            ru,
+            "2 кг #3",
+            "2 кг #3",
+            {{WarningCode::UnresolvedNumber, 0, std::string("2 кг #3").size()}}));
+        const std::string combining = std::string("2") + "\xCC\x81" + " % 3";
+        CHECK(admission_case_matches(
+            ru, combining, combining, {{WarningCode::UnresolvedNumber, 0, combining.size()}}));
+        for (const auto* options : {&auto_options, &segmented}) {
+            const std::string mixed = "Привет 2 kg /3";
+            CHECK(admission_case_matches(*options,
+                                         mixed,
+                                         mixed,
+                                         {{WarningCode::AmbiguousNormalization, 0, mixed.size()},
+                                          {WarningCode::UnresolvedNumber,
+                                           mixed.find('2'),
+                                           mixed.size() - mixed.find('2')}}));
+        }
+        CHECK(admission_case_matches(
+            en, "1,234.56.7", "1,234.56.7", {{WarningCode::UnresolvedNumber, 0, 10}}));
+        CHECK(admission_case_matches(
+            en, "2 kg #3.", "2 kg #3.", {{WarningCode::UnresolvedNumber, 0, 7}}));
+        CHECK(admission_case_matches(en, "2 kg 3", "two kilograms three", {}));
+        CHECK(admission_case_matches(en, "2 kg\n3", "two kilograms three", {}));
+        CHECK(admission_case_matches(
+            ru, "https://example.com/2,500руб.", "https://example.com/2,500руб.", {}));
+        CHECK(admission_case_matches(ru, "RTX-2,500руб.", "RTX-2,500руб.", {}));
+    }
     CHECK(frontend.process("У меня 42 яблока.", ru).normalized_text == "У меня сорок два яблока.");
     CHECK(frontend.process("1% 2% 5% 11% 21%", ru).normalized_text ==
           "один процент два процента пять процентов одиннадцать процентов двадцать один процент");

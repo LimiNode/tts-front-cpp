@@ -21,6 +21,24 @@ namespace tts_front::detail {
 
 using CodePoint = Utf8CodePoint;
 
+// Intermediate mixed per-candidate state used while the admission phases are
+// still being separated. It includes language-conditioned observations from
+// AdmissionRules and is not a neutral/core scanner result. Keeping boundary
+// movement and structural facts together prevents a later refactor from
+// silently updating one without the other.
+struct CandidateAnalysis {
+    std::size_t end_index = 0;
+    std::size_t separators = 0;
+    bool has_percent = false;
+    bool has_dot_decimal = false;
+    bool percent_attached_to_numeric = false;
+    bool has_range_connector = false;
+    bool has_unsupported_numeric_connector = false;
+    bool malformed_grouped = false;
+    bool malformed_compound = false;
+    bool grouped_seen = false;
+};
+
 bool valid_date(int day, int month, int year) {
     if (month < 1 || month > 12 || day < 1)
         return false;
@@ -135,18 +153,20 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             (index > 1 && points[index - 2].value == '(' &&
              (points[index - 1].value == '$' || points[index - 1].value == 0x20ac ||
               points[index - 1].value == 0xa3 || points[index - 1].value == 0xa5));
-        std::size_t end_index = index + 1;
+        CandidateAnalysis analysis;
+        analysis.end_index = index + 1;
+        auto& end_index = analysis.end_index;
+        auto& separators = analysis.separators;
+        auto& has_percent = analysis.has_percent;
+        auto& has_dot_decimal = analysis.has_dot_decimal;
+        auto& percent_attached_to_numeric = analysis.percent_attached_to_numeric;
+        auto& has_range_connector = analysis.has_range_connector;
+        auto& has_unsupported_numeric_connector = analysis.has_unsupported_numeric_connector;
+        auto& malformed_grouped = analysis.malformed_grouped;
+        auto& malformed_compound = analysis.malformed_compound;
+        auto& grouped_seen = analysis.grouped_seen;
         if (surface.exponent != ExponentState::None && candidate_surface.end > end_index)
             end_index = candidate_surface.end;
-        std::size_t separators = 0;
-        bool has_percent = false;
-        bool has_dot_decimal = false;
-        bool percent_attached_to_numeric = false;
-        bool has_range_connector = false;
-        bool has_unsupported_numeric_connector = false;
-        bool malformed_grouped = false;
-        bool malformed_compound = false;
-        bool grouped_seen = false;
         if (!currency_context && spaced_continuation > surface.end) {
             malformed_compound = true;
             end_index = spaced_continuation;
