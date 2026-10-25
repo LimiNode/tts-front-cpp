@@ -757,18 +757,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             if (text.preserved_ranges == nullptr)
                 return false;
             const auto source = text.source_range(protected_begin, end);
-            const auto& ranges = *text.preserved_ranges;
-            const auto overlaps = [source](const SourceRange& range) {
-                return source.offset < range.offset + range.length &&
-                       range.offset < source.offset + source.length;
-            };
-            auto next = std::lower_bound(
-                ranges.begin(),
-                ranges.end(),
-                source.offset,
-                [](const SourceRange& range, std::size_t at) { return range.offset < at; });
-            return (next != ranges.end() && overlaps(*next)) ||
-                   (next != ranges.begin() && overlaps(*std::prev(next)));
+            return text.preserved_ranges->overlaps(source);
         }();
         if ((separators >= 2 || embedded || attached_lexical_suffix ||
              (comma_group_followed_by_word && !valid_english_comma_group) ||

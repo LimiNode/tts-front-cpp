@@ -1,5 +1,6 @@
 #pragma once
 
+#include "source_range_index.hpp"
 #include "source_span.hpp"
 
 #include <string>
@@ -18,10 +19,10 @@ struct MappedRun {
 struct MappedText {
     std::string text;
     std::vector<MappedRun> runs;
-    const std::vector<SourceRange>* preserved_ranges = nullptr;
+    const SourceRangeIndex* preserved_ranges = nullptr;
 
     static MappedText from_original(std::string_view original,
-                                    const std::vector<SourceRange>* preserved_ranges);
+                                    const SourceRangeIndex* preserved_ranges);
     SourceRange source_range(std::size_t begin, std::size_t end) const;
     void append_copy(const MappedText& source, std::size_t begin, std::size_t end);
     void append_copy_with_cursor(const MappedText& source,

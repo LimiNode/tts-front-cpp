@@ -53,6 +53,7 @@ add_library(tts_front
     src/tts_front/core/tokenization.cpp
     src/tts_front/core/text/codepoint_classification.cpp
     src/tts_front/core/numeric_scanner.cpp
+    src/tts_front/core/source_range_index.cpp
     src/tts_front/core/normalization_support.cpp
     src/tts_front/normalization/admission.cpp
     src/tts_front/technical/admission.cpp
@@ -191,6 +192,7 @@ if(TTS_FRONT_BUILD_TESTS)
     src/tts_front/core/mapped_text.cpp
     src/tts_front/core/edit_script.cpp
     src/tts_front/core/numeric_scanner.cpp
+    src/tts_front/core/source_range_index.cpp
     src/tts_front/core/normalization_support.cpp
     src/tts_front/core/text/codepoint_classification.cpp
     src/tts_front/technical/admission.cpp

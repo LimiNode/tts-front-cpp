@@ -37,6 +37,19 @@ int main() {
         text = technical::restore(std::move(text), protected_spans);
         return text.text == input && warnings.empty();
     };
+    const auto check_warning_indexes = [] {
+        std::vector<TextWarning> warnings{{WarningCode::UnresolvedNumber, "existing", 8, 2}};
+        WarningSink warning_sink{warnings, {}};
+        warning_sink.add_range(WarningCode::UnresolvedNumber, "duplicate", 8, 2);
+        warning_sink.add_range(WarningCode::AmbiguousNormalization, "distinct code", 8, 2);
+        warning_sink.preserve({20, 5});
+        warning_sink.preserve({4, 4});
+        warning_sink.preserve({7, 15});
+        return warnings.size() == 2 && warning_sink.preserved_ranges.overlaps({3, 2}) &&
+               warning_sink.preserved_ranges.overlaps({21, 1}) &&
+               !warning_sink.preserved_ranges.overlaps({0, 4}) &&
+               !warning_sink.preserved_ranges.overlaps({25, 1});
+    };
 
     const std::string technical = "C++17,23% 456";
     const std::string ruble_suffix = "2.50 ₽";
@@ -45,7 +58,7 @@ int main() {
                    check(ruble_suffix, 0, ruble_suffix.size()) &&
                    check(ruble_prefix, 0, ruble_prefix.size()) &&
                    check_protected("https://example.com/2.50") &&
-                   check_protected("user2.50@example.com")
+                   check_protected("user2.50@example.com") && check_warning_indexes()
                ? 0
                : 1;
 }

@@ -5,7 +5,7 @@
 namespace tts_front::detail {
 
 MappedText MappedText::from_original(std::string_view original,
-                                     const std::vector<SourceRange>* preserved_ranges) {
+                                     const SourceRangeIndex* preserved_ranges) {
     MappedText result;
     result.text = std::string(original);
     result.preserved_ranges = preserved_ranges;

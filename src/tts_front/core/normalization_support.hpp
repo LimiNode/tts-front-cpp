@@ -4,17 +4,36 @@
 #include "tts_front/core/candidate_types.hpp"
 #include "tts_front/core/edit_script.hpp"
 #include "tts_front/core/mapped_text.hpp"
+#include "tts_front/core/source_range_index.hpp"
 #include "tts_front/core/source_span.hpp"
 
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <vector>
 
 namespace tts_front::detail {
 
 struct WarningSink {
+    struct DiagnosticKey {
+        WarningCode code;
+        std::size_t offset;
+        std::size_t length;
+
+        bool operator==(const DiagnosticKey& other) const {
+            return code == other.code && offset == other.offset && length == other.length;
+        }
+    };
+
+    struct DiagnosticKeyHash {
+        std::size_t operator()(const DiagnosticKey& key) const;
+    };
+
     std::vector<TextWarning>& warnings;
-    std::vector<SourceRange> preserved_ranges;
+    SourceRangeIndex preserved_ranges;
+    std::unordered_set<DiagnosticKey, DiagnosticKeyHash> diagnostic_keys;
+
+    explicit WarningSink(std::vector<TextWarning>& warning_output, SourceRangeIndex ranges = {});
 
     void preserve(SourceRange source);
     void add_range(WarningCode code, std::string message, std::size_t offset, std::size_t length);
