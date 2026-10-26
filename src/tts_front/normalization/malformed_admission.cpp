@@ -21,6 +21,8 @@ namespace tts_front::detail {
 
 using CodePoint = Utf8CodePoint;
 
+namespace {
+
 // Intermediate mixed per-candidate state used while the admission phases are
 // still being separated. It includes language-conditioned observations from
 // AdmissionRules and is not a neutral/core scanner result. Keeping boundary
@@ -69,6 +71,8 @@ bool requires_preservation(const CandidateAnalysis& analysis, const Preservation
     return malformed_surface && !supported_russian_date && !supported_english_group &&
            !facts.already_preserved;
 }
+
+} // namespace
 
 bool valid_date(int day, int month, int year) {
     if (month < 1 || month > 12 || day < 1)
