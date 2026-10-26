@@ -108,13 +108,13 @@ CandidateStart classify_candidate_start(const Utf8Document& document, std::size_
     return start;
 }
 
-void scan_structural_surface(const Utf8Document& document,
+bool scan_structural_surface(const Utf8Document& document,
                              const CandidateStart& start,
                              bool parenthesized_prefix,
                              std::size_t initial_digit_count,
-                             const AdmissionRules& rules,
                              CandidateAnalysis& analysis) {
     const auto& points = document.points;
+    bool saw_dot_decimal = false;
     if (start.starts_phone) {
         while (analysis.end_index < points.size()) {
             if (text::is_digit(points[analysis.end_index].value)) {
@@ -155,7 +155,7 @@ void scan_structural_surface(const Utf8Document& document,
             }
             break;
         }
-        return;
+        return saw_dot_decimal;
     }
 
     while (analysis.end_index < points.size()) {
@@ -230,9 +230,9 @@ void scan_structural_surface(const Utf8Document& document,
         if (value == '[' || value == ']')
             break;
         if (text::is_numeric_connector(value)) {
-            if (rules.dotted_dates && value == '.' && analysis.end_index + 1 < points.size() &&
+            if (value == '.' && analysis.end_index + 1 < points.size() &&
                 text::is_digit(points[analysis.end_index + 1].value))
-                analysis.has_dot_decimal = true;
+                saw_dot_decimal = true;
             if (analysis.grouped_seen && (value == '.' || value == ',' || value == ':'))
                 analysis.malformed_compound = true;
             if (value == '%') {
@@ -263,6 +263,7 @@ void scan_structural_surface(const Utf8Document& document,
         }
         break;
     }
+    return saw_dot_decimal;
 }
 
 bool requires_preservation(const CandidateAnalysis& analysis, const PreservationFacts& facts) {
@@ -386,8 +387,10 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                                  text::is_digit(points[initial_digit_index + 1].value);
         if (points[index].value == 0x2212)
             analysis.malformed_compound = true;
-        scan_structural_surface(
-            document, start, parenthesized_prefix, initial_digit_count, rules, analysis);
+        const bool saw_dot_decimal = scan_structural_surface(
+            document, start, parenthesized_prefix, initial_digit_count, analysis);
+        if (rules.dotted_dates)
+            analysis.has_dot_decimal = saw_dot_decimal;
         // Currency-prefixed malformed forms (`$ 1`, `$-1`, `$−1`) enter this
         // pass at their numeric component.  Once that context is known, use
         // the same typed endpoint as supported currency cores so an attached
