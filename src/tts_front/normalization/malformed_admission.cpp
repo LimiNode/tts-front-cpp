@@ -56,6 +56,58 @@ struct PreservationFacts {
     bool already_preserved = false;
 };
 
+struct CandidateStart {
+    bool currency_context = false;
+    bool positive_numeric = false;
+    bool starts_phone = false;
+    bool signed_number = false;
+    bool starts_number = false;
+
+    bool recognized() const {
+        return starts_number || starts_phone;
+    }
+};
+
+CandidateStart classify_candidate_start(const Utf8Document& document, std::size_t index) {
+    const auto& points = document.points;
+    CandidateStart start;
+    start.currency_context = scan_currency_prefix_begin(document, index) != index;
+    if (points[index].value == '+' && index + 1 < points.size() &&
+        text::is_digit(points[index + 1].value)) {
+        auto probe = index + 1;
+        while (probe < points.size() && text::is_digit(points[probe].value))
+            ++probe;
+        if (probe < points.size()) {
+            const auto continuation = points[probe].value;
+            // An incomplete scientific marker is still a signed numeric
+            // candidate. Admit it atomically so `+1e`, `+1e+` and
+            // `+1e+x` cannot fall through to a partial rewrite of `1`.
+            if (continuation == 'e' || continuation == 'E') {
+                start.positive_numeric = true;
+            } else if (text::is_numeric_connector(continuation) && continuation != '-' &&
+                       continuation != '/') {
+                start.positive_numeric = true;
+            } else if (text::is_horizontal_space(points[probe].value)) {
+                while (probe < points.size() && text::is_horizontal_space(points[probe].value))
+                    ++probe;
+                // A second digit group is characteristic of a phone number;
+                // leave it to the dedicated phone scanner. A lexical unit
+                // after the sign remains a malformed numeric candidate.
+                start.positive_numeric =
+                    probe < points.size() && text::is_letter(points[probe].value);
+            }
+        }
+    }
+    start.starts_phone = points[index].value == '+' && index + 1 < points.size() &&
+                         text::is_digit(points[index + 1].value) && !start.currency_context &&
+                         !start.positive_numeric;
+    start.signed_number = points[index].value == '-' || points[index].value == 0x2212;
+    start.starts_number = text::is_digit(points[index].value) || start.positive_numeric ||
+                          (start.signed_number && index + 1 < points.size() &&
+                           text::is_digit(points[index + 1].value));
+    return start;
+}
+
 bool requires_preservation(const CandidateAnalysis& analysis, const PreservationFacts& facts) {
     const bool malformed_surface =
         analysis.separators >= 2 || facts.embedded || facts.attached_lexical_suffix ||
@@ -132,51 +184,15 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             ++index;
             continue;
         }
-        const auto currency_context_begin = scan_currency_prefix_begin(document, index);
-        const bool currency_context = currency_context_begin != index;
+        const auto start = classify_candidate_start(document, index);
+        if (!start.recognized()) {
+            ++index;
+            continue;
+        }
         const auto candidate_surface = scan_candidate_surface(document, index);
         const auto& surface = candidate_surface.numeric;
         const auto spaced_continuation =
             scan_spaced_numeric_continuation(document, surface.end, CandidateSurfaceKind::Numeric);
-        const bool positive_numeric = [&] {
-            if (points[index].value != '+' || index + 1 >= points.size() ||
-                !text::is_digit(points[index + 1].value))
-                return false;
-            auto probe = index + 1;
-            while (probe < points.size() && text::is_digit(points[probe].value))
-                ++probe;
-            if (probe >= points.size())
-                return false;
-            const auto continuation = points[probe].value;
-            // An incomplete scientific marker is still a signed numeric
-            // candidate.  Admit it atomically so `+1e`, `+1e+` and
-            // `+1e+x` cannot fall through to a partial rewrite of `1`.
-            if (continuation == 'e' || continuation == 'E')
-                return true;
-            if (text::is_numeric_connector(continuation) && continuation != '-' &&
-                continuation != '/')
-                return true;
-            if (text::is_horizontal_space(points[probe].value)) {
-                while (probe < points.size() && text::is_horizontal_space(points[probe].value))
-                    ++probe;
-                // A second digit group is characteristic of a phone number;
-                // leave it to the dedicated phone scanner.  A lexical unit
-                // after the sign remains a malformed numeric candidate.
-                return probe < points.size() && text::is_letter(points[probe].value);
-            }
-            return false;
-        }();
-        const bool starts_phone = points[index].value == '+' && index + 1 < points.size() &&
-                                  text::is_digit(points[index + 1].value) && !currency_context &&
-                                  !positive_numeric;
-        const bool signed_number = points[index].value == '-' || points[index].value == 0x2212;
-        const bool starts_number =
-            text::is_digit(points[index].value) || positive_numeric ||
-            (signed_number && index + 1 < points.size() && text::is_digit(points[index + 1].value));
-        if (!starts_number && !starts_phone) {
-            ++index;
-            continue;
-        }
         const auto begin = points[index].offset;
         // Parentheses are ordinary sentence punctuation when they enclose a
         // numeric expression.  Treat a closing parenthesis as a boundary only
@@ -192,13 +208,13 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         analysis.end_index = index + 1;
         if (surface.exponent != ExponentState::None && candidate_surface.end > analysis.end_index)
             analysis.end_index = candidate_surface.end;
-        if (!currency_context && spaced_continuation > surface.end) {
+        if (!start.currency_context && spaced_continuation > surface.end) {
             analysis.malformed_compound = true;
             analysis.end_index = spaced_continuation;
         }
         if (surface.exponent != ExponentState::None)
             analysis.malformed_compound = true;
-        auto initial_digit_index = index + (signed_number || positive_numeric ? 1 : 0);
+        auto initial_digit_index = index + (start.signed_number || start.positive_numeric ? 1 : 0);
         const auto initial_digit_begin = initial_digit_index;
         while (initial_digit_index < points.size() &&
                text::is_digit(points[initial_digit_index].value))
@@ -207,13 +223,13 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         // A leading sign is not part of the supported clock-time grammar. Keep
         // the complete signed expression atomic so the time normalizer cannot
         // match the unsigned suffix after this admission pass.
-        const bool signed_time = signed_number && initial_digit_count > 0 &&
+        const bool signed_time = start.signed_number && initial_digit_count > 0 &&
                                  initial_digit_index + 1 < points.size() &&
                                  points[initial_digit_index].value == ':' &&
                                  text::is_digit(points[initial_digit_index + 1].value);
         if (points[index].value == 0x2212)
             analysis.malformed_compound = true;
-        if (starts_phone) {
+        if (start.starts_phone) {
             while (analysis.end_index < points.size()) {
                 if (text::is_digit(points[analysis.end_index].value)) {
                     ++analysis.end_index;
@@ -366,7 +382,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         // pass at their numeric component.  Once that context is known, use
         // the same typed endpoint as supported currency cores so an attached
         // or spaced connector tail cannot be rewritten independently.
-        if (currency_context) {
+        if (start.currency_context) {
             const auto currency_end =
                 scan_admission(document, analysis.end_index, CandidateSurfaceKind::Currency).end;
             if (currency_end > analysis.end_index) {
@@ -412,7 +428,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         // lexical continuation contains a combining mark. Extend the same
         // atomic span across a spaced suffix so a mixed path cannot leave
         // the mark outside the diagnostic (for example `+2.5 м́`).
-        if ((positive_numeric || signed_number) && analysis.end_index < points.size()) {
+        if ((start.positive_numeric || start.signed_number) && analysis.end_index < points.size()) {
             const auto suffix = scan_lexical_suffix(document, analysis.end_index);
             const auto has_combining =
                 std::any_of(points.begin() + static_cast<std::ptrdiff_t>(suffix.continuation_begin),
@@ -470,7 +486,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 analysis.end_index,
                 scan_admission(document, analysis.end_index, CandidateSurfaceKind::Contextual).end);
         }
-        if ((positive_numeric || points[index].value == 0x2212) &&
+        if ((start.positive_numeric || points[index].value == 0x2212) &&
             analysis.end_index < points.size()) {
             if (surface.exponent != ExponentState::None) {
                 analysis.malformed_compound = true;
@@ -554,7 +570,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             if (probe > analysis.end_index)
                 analysis.end_index = probe;
         }
-        if (currency_context && analysis.has_percent)
+        if (start.currency_context && analysis.has_percent)
             analysis.end_index =
                 scan_numeric_continuation_points(document, analysis.end_index, false);
         if (rules.dotted_dates && analysis.has_dot_decimal && analysis.has_percent) {
@@ -796,7 +812,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         }
         const auto hyphen_search_start = candidate.size() > 0 && candidate.front() == '-' ? 1 : 0;
         const bool unsupported_numeric_connector =
-            starts_phone || candidate.find('+') != std::string::npos ||
+            start.starts_phone || candidate.find('+') != std::string::npos ||
             candidate.find('=') != std::string::npos ||
             candidate.find('-', hyphen_search_start) != std::string::npos ||
             candidate.find('/') != std::string::npos || analysis.has_range_connector ||
