@@ -108,6 +108,163 @@ CandidateStart classify_candidate_start(const Utf8Document& document, std::size_
     return start;
 }
 
+void scan_structural_surface(const Utf8Document& document,
+                             const CandidateStart& start,
+                             bool parenthesized_prefix,
+                             std::size_t initial_digit_count,
+                             const AdmissionRules& rules,
+                             CandidateAnalysis& analysis) {
+    const auto& points = document.points;
+    if (start.starts_phone) {
+        while (analysis.end_index < points.size()) {
+            if (text::is_digit(points[analysis.end_index].value)) {
+                ++analysis.end_index;
+                continue;
+            }
+            if (points[analysis.end_index].value == '-' ||
+                points[analysis.end_index].value == '/') {
+                ++analysis.separators;
+                ++analysis.end_index;
+                continue;
+            }
+            if (points[analysis.end_index].value == '(' ||
+                points[analysis.end_index].value == ')') {
+                ++analysis.end_index;
+                continue;
+            }
+            if (points[analysis.end_index].value == ' ' ||
+                points[analysis.end_index].value == '\t') {
+                auto probe = analysis.end_index + 1;
+                while (probe < points.size() &&
+                       (points[probe].value == ' ' || points[probe].value == '\t'))
+                    ++probe;
+                if (probe < points.size() && points[probe].value == '(') {
+                    auto digit_probe = probe + 1;
+                    while (digit_probe < points.size() &&
+                           (points[digit_probe].value == ' ' || points[digit_probe].value == '\t'))
+                        ++digit_probe;
+                    if (digit_probe < points.size() && text::is_digit(points[digit_probe].value)) {
+                        analysis.end_index = probe;
+                        continue;
+                    }
+                }
+                if (probe < points.size() && text::is_digit(points[probe].value)) {
+                    analysis.end_index = probe;
+                    continue;
+                }
+            }
+            break;
+        }
+        return;
+    }
+
+    while (analysis.end_index < points.size()) {
+        const auto value = points[analysis.end_index].value;
+        if (value == ' ' || value == '\t' || value == '\n' || value == '\r') {
+            auto probe = analysis.end_index + 1;
+            while (probe < points.size() &&
+                   (points[probe].value == ' ' || points[probe].value == '\t' ||
+                    points[probe].value == '\n' || points[probe].value == '\r'))
+                ++probe;
+            if (probe < points.size() &&
+                (points[probe].value == '%' || text::is_range_connector(points[probe].value))) {
+                analysis.end_index = probe;
+                continue;
+            }
+            if (analysis.has_range_connector && probe < points.size() &&
+                text::is_digit(points[probe].value)) {
+                analysis.end_index = probe;
+                continue;
+            }
+            if (probe < points.size() && text::is_digit(points[probe].value)) {
+                auto group_end = probe;
+                while (group_end < points.size() && text::is_digit(points[group_end].value))
+                    ++group_end;
+                const auto group_size = group_end - probe;
+                const bool short_following_group =
+                    analysis.grouped_seen && group_size < 3 &&
+                    (group_end == points.size() ||
+                     text::is_lexical_numeric_boundary(points[group_end].value));
+                if (analysis.separators == 0 && initial_digit_count <= 3 &&
+                    (group_size >= 3 || short_following_group)) {
+                    analysis.grouped_seen = true;
+                    analysis.malformed_grouped = analysis.malformed_grouped || group_size != 3;
+                    if (group_end < points.size() &&
+                        text::is_lexical_numeric_boundary(points[group_end].value))
+                        analysis.malformed_grouped = true;
+                    analysis.end_index = group_end;
+                    continue;
+                }
+            }
+            break;
+        }
+        if ((value == '.' || value == ',' || value == ':') &&
+            (analysis.end_index + 1 >= points.size() ||
+             !text::is_digit(points[analysis.end_index + 1].value))) {
+            if (value == '.' && analysis.end_index + 1 < points.size() &&
+                points[analysis.end_index + 1].value == '.') {
+                auto probe = analysis.end_index;
+                while (probe < points.size() && points[probe].value == '.')
+                    ++probe;
+                if (probe < points.size() && text::is_digit(points[probe].value)) {
+                    analysis.malformed_compound = true;
+                    analysis.end_index = probe;
+                    continue;
+                }
+            }
+            if (analysis.separators != 0 && analysis.end_index + 1 < points.size() &&
+                (text::is_numeric_connector(points[analysis.end_index + 1].value) ||
+                 text::is_digit(points[analysis.end_index + 1].value))) {
+                analysis.malformed_compound = true;
+                ++analysis.end_index;
+                while (analysis.end_index < points.size() &&
+                       (text::is_numeric_connector(points[analysis.end_index].value) ||
+                        text::is_digit(points[analysis.end_index].value)))
+                    ++analysis.end_index;
+                continue;
+            }
+            break;
+        }
+        if (value == ')' && parenthesized_prefix)
+            break;
+        if (value == '[' || value == ']')
+            break;
+        if (text::is_numeric_connector(value)) {
+            if (rules.dotted_dates && value == '.' && analysis.end_index + 1 < points.size() &&
+                text::is_digit(points[analysis.end_index + 1].value))
+                analysis.has_dot_decimal = true;
+            if (analysis.grouped_seen && (value == '.' || value == ',' || value == ':'))
+                analysis.malformed_compound = true;
+            if (value == '%') {
+                analysis.has_percent = true;
+                const auto probe = analysis.end_index + 1;
+                if (probe < points.size() &&
+                    (text::is_lexical_numeric_boundary(points[probe].value) ||
+                     points[probe].value == '%'))
+                    analysis.percent_attached_to_numeric = true;
+            } else {
+                ++analysis.separators;
+            }
+            if (text::is_range_connector(value))
+                analysis.has_range_connector = true;
+            if (!text::is_supported_numeric_separator(value) &&
+                analysis.end_index + 1 < points.size() &&
+                points[analysis.end_index + 1].value != ' ' &&
+                points[analysis.end_index + 1].value != '\t' &&
+                points[analysis.end_index + 1].value != '\n' &&
+                points[analysis.end_index + 1].value != '\r')
+                analysis.has_unsupported_numeric_connector = true;
+            ++analysis.end_index;
+            continue;
+        }
+        if (text::is_digit(value)) {
+            ++analysis.end_index;
+            continue;
+        }
+        break;
+    }
+}
+
 bool requires_preservation(const CandidateAnalysis& analysis, const PreservationFacts& facts) {
     const bool malformed_surface =
         analysis.separators >= 2 || facts.embedded || facts.attached_lexical_suffix ||
@@ -229,155 +386,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                                  text::is_digit(points[initial_digit_index + 1].value);
         if (points[index].value == 0x2212)
             analysis.malformed_compound = true;
-        if (start.starts_phone) {
-            while (analysis.end_index < points.size()) {
-                if (text::is_digit(points[analysis.end_index].value)) {
-                    ++analysis.end_index;
-                    continue;
-                }
-                if (points[analysis.end_index].value == '-' ||
-                    points[analysis.end_index].value == '/') {
-                    ++analysis.separators;
-                    ++analysis.end_index;
-                    continue;
-                }
-                if (points[analysis.end_index].value == '(' ||
-                    points[analysis.end_index].value == ')') {
-                    ++analysis.end_index;
-                    continue;
-                }
-                if (points[analysis.end_index].value == ' ' ||
-                    points[analysis.end_index].value == '\t') {
-                    auto probe = analysis.end_index + 1;
-                    while (probe < points.size() &&
-                           (points[probe].value == ' ' || points[probe].value == '\t'))
-                        ++probe;
-                    if (probe < points.size() && points[probe].value == '(') {
-                        auto digit_probe = probe + 1;
-                        while (digit_probe < points.size() && (points[digit_probe].value == ' ' ||
-                                                               points[digit_probe].value == '\t'))
-                            ++digit_probe;
-                        if (digit_probe < points.size() &&
-                            text::is_digit(points[digit_probe].value)) {
-                            analysis.end_index = probe;
-                            continue;
-                        }
-                    }
-                    if (probe < points.size() && text::is_digit(points[probe].value)) {
-                        analysis.end_index = probe;
-                        continue;
-                    }
-                }
-                break;
-            }
-        } else {
-            while (analysis.end_index < points.size()) {
-                const auto value = points[analysis.end_index].value;
-                if (value == ' ' || value == '\t' || value == '\n' || value == '\r') {
-                    auto probe = analysis.end_index + 1;
-                    while (probe < points.size() &&
-                           (points[probe].value == ' ' || points[probe].value == '\t' ||
-                            points[probe].value == '\n' || points[probe].value == '\r'))
-                        ++probe;
-                    if (probe < points.size() && (points[probe].value == '%' ||
-                                                  text::is_range_connector(points[probe].value))) {
-                        analysis.end_index = probe;
-                        continue;
-                    }
-                    if (analysis.has_range_connector && probe < points.size() &&
-                        text::is_digit(points[probe].value)) {
-                        analysis.end_index = probe;
-                        continue;
-                    }
-                    if (probe < points.size() && text::is_digit(points[probe].value)) {
-                        auto group_end = probe;
-                        while (group_end < points.size() && text::is_digit(points[group_end].value))
-                            ++group_end;
-                        const auto group_size = group_end - probe;
-                        const bool short_following_group =
-                            analysis.grouped_seen && group_size < 3 &&
-                            (group_end == points.size() ||
-                             text::is_lexical_numeric_boundary(points[group_end].value));
-                        if (analysis.separators == 0 && initial_digit_count <= 3 &&
-                            (group_size >= 3 || short_following_group)) {
-                            analysis.grouped_seen = true;
-                            analysis.malformed_grouped =
-                                analysis.malformed_grouped || group_size != 3;
-                            if (group_end < points.size() &&
-                                text::is_lexical_numeric_boundary(points[group_end].value))
-                                analysis.malformed_grouped = true;
-                            analysis.end_index = group_end;
-                            continue;
-                        }
-                    }
-                    break;
-                }
-                if ((value == '.' || value == ',' || value == ':') &&
-                    (analysis.end_index + 1 >= points.size() ||
-                     !text::is_digit(points[analysis.end_index + 1].value))) {
-                    if (value == '.' && analysis.end_index + 1 < points.size() &&
-                        points[analysis.end_index + 1].value == '.') {
-                        auto probe = analysis.end_index;
-                        while (probe < points.size() && points[probe].value == '.')
-                            ++probe;
-                        if (probe < points.size() && text::is_digit(points[probe].value)) {
-                            analysis.malformed_compound = true;
-                            analysis.end_index = probe;
-                            continue;
-                        }
-                    }
-                    if (analysis.separators != 0 && analysis.end_index + 1 < points.size() &&
-                        (text::is_numeric_connector(points[analysis.end_index + 1].value) ||
-                         text::is_digit(points[analysis.end_index + 1].value))) {
-                        analysis.malformed_compound = true;
-                        ++analysis.end_index;
-                        while (analysis.end_index < points.size() &&
-                               (text::is_numeric_connector(points[analysis.end_index].value) ||
-                                text::is_digit(points[analysis.end_index].value)))
-                            ++analysis.end_index;
-                        continue;
-                    }
-                    break;
-                }
-                if (value == ')' && parenthesized_prefix)
-                    break;
-                if (value == '[' || value == ']')
-                    break;
-                if (text::is_numeric_connector(value)) {
-                    if (rules.dotted_dates && value == '.' &&
-                        analysis.end_index + 1 < points.size() &&
-                        text::is_digit(points[analysis.end_index + 1].value))
-                        analysis.has_dot_decimal = true;
-                    if (analysis.grouped_seen && (value == '.' || value == ',' || value == ':'))
-                        analysis.malformed_compound = true;
-                    if (value == '%') {
-                        analysis.has_percent = true;
-                        const auto probe = analysis.end_index + 1;
-                        if (probe < points.size() &&
-                            (text::is_lexical_numeric_boundary(points[probe].value) ||
-                             points[probe].value == '%'))
-                            analysis.percent_attached_to_numeric = true;
-                    } else
-                        ++analysis.separators;
-                    if (text::is_range_connector(value))
-                        analysis.has_range_connector = true;
-                    if (!text::is_supported_numeric_separator(value) &&
-                        analysis.end_index + 1 < points.size() &&
-                        points[analysis.end_index + 1].value != ' ' &&
-                        points[analysis.end_index + 1].value != '\t' &&
-                        points[analysis.end_index + 1].value != '\n' &&
-                        points[analysis.end_index + 1].value != '\r')
-                        analysis.has_unsupported_numeric_connector = true;
-                    ++analysis.end_index;
-                    continue;
-                }
-                if (text::is_digit(value)) {
-                    ++analysis.end_index;
-                    continue;
-                }
-                break;
-            }
-        }
+        scan_structural_surface(
+            document, start, parenthesized_prefix, initial_digit_count, rules, analysis);
         // Currency-prefixed malformed forms (`$ 1`, `$-1`, `$−1`) enter this
         // pass at their numeric component.  Once that context is known, use
         // the same typed endpoint as supported currency cores so an attached
