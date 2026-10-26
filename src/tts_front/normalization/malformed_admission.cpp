@@ -23,22 +23,30 @@ using CodePoint = Utf8CodePoint;
 
 namespace {
 
-// Intermediate mixed per-candidate state used while the admission phases are
-// still being separated. It includes language-conditioned observations from
-// AdmissionRules and is not a neutral/core scanner result. Keeping boundary
-// movement and structural facts together prevents a later refactor from
-// silently updating one without the other.
-struct CandidateAnalysis {
+// Intermediate per-candidate structural state used while the admission phases
+// are still being separated. Boundary movement and structural facts stay
+// together so a later refactor cannot silently update one without the other.
+// Language-conditioned observations are kept separate from the neutral
+// structural scan. The caller decides whether this observation participates in
+// a language policy before using it in later admission phases.
+struct CandidatePolicyObservations {
+    bool has_dot_decimal = false;
+};
+
+struct StructuralFacts {
     std::size_t end_index = 0;
     std::size_t separators = 0;
     bool has_percent = false;
-    bool has_dot_decimal = false;
     bool percent_attached_to_numeric = false;
     bool has_range_connector = false;
     bool has_unsupported_numeric_connector = false;
     bool malformed_grouped = false;
     bool malformed_compound = false;
     bool grouped_seen = false;
+};
+
+struct CandidateAnalysis : StructuralFacts {
+    CandidatePolicyObservations policy;
 };
 
 struct PreservationFacts {
@@ -390,7 +398,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         const bool saw_dot_decimal = scan_structural_surface(
             document, start, parenthesized_prefix, initial_digit_count, analysis);
         if (rules.dotted_dates)
-            analysis.has_dot_decimal = saw_dot_decimal;
+            analysis.policy.has_dot_decimal = saw_dot_decimal;
         // Currency-prefixed malformed forms (`$ 1`, `$-1`, `$−1`) enter this
         // pass at their numeric component.  Once that context is known, use
         // the same typed endpoint as supported currency cores so an attached
@@ -586,7 +594,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         if (start.currency_context && analysis.has_percent)
             analysis.end_index =
                 scan_numeric_continuation_points(document, analysis.end_index, false);
-        if (rules.dotted_dates && analysis.has_dot_decimal && analysis.has_percent) {
+        if (rules.dotted_dates && analysis.policy.has_dot_decimal && analysis.has_percent) {
             analysis.malformed_compound = true;
             const auto continuation =
                 scan_numeric_continuation_points(document, analysis.end_index, false);
