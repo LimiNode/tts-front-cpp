@@ -52,6 +52,24 @@ vertical slice to test the idea.
 Architecture, language policy, public API, and oracle changes need explicit
 developer review; an agent's self-review is evidence, not approval.
 
+## Workspace and dependency layout
+
+- Configure every local CMake build with a purpose-specific binary directory
+  under `.build/`, for example `.build/debug`, `.build/release`,
+  `.build/format`, `.build/benchmark`, or `.build/consumer`.
+- Keep downloaded SDKs, temporary source checkouts, reports, and probes under
+  `.temp/`. The repository root is source-only.
+- When a third-party library is needed as a project dependency, add it as a
+  direct submodule at `external/<name>` and record it in `.gitmodules`.
+  Avoid recursive submodule trees: prefer direct sibling entries and explicit
+  CMake wiring. A nested upstream dependency is an exception that requires a
+  documented reason and a pinned revision.
+- Do not introduce FetchContent, ExternalProject, or unpinned network downloads
+  for ordinary builds. CI-only binary SDKs may remain transient under
+  `.temp/` when their version and checksum are pinned.
+- Do not create a placeholder `external/` or `.gitmodules` when no dependency
+  is currently required.
+
 ## Release gate
 
 A release requires an actual PR, exact-head PR CI, clean release/archive
