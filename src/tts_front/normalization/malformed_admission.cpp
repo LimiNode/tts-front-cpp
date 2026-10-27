@@ -120,7 +120,7 @@ bool scan_structural_surface(const Utf8Document& document,
                              const CandidateStart& start,
                              bool parenthesized_prefix,
                              std::size_t initial_digit_count,
-                             CandidateAnalysis& analysis) {
+                             StructuralFacts& analysis) {
     const auto& points = document.points;
     bool saw_dot_decimal = false;
     if (start.starts_phone) {
