@@ -13,21 +13,21 @@ jobs:
       - name: Check formatting
         run: |
           clang-format --version
-          cmake -S . -B build-format -DTTS_FRONT_CLANG_FORMAT=clang-format -DTTS_FRONT_BUILD_TESTS=OFF -DTTS_FRONT_BUILD_EXAMPLES=OFF -DTTS_FRONT_BUILD_BENCHMARKS=OFF
-          cmake --build build-format --target format-check
+          cmake -S . -B .build/format -DTTS_FRONT_CLANG_FORMAT=clang-format -DTTS_FRONT_BUILD_TESTS=OFF -DTTS_FRONT_BUILD_EXAMPLES=OFF -DTTS_FRONT_BUILD_BENCHMARKS=OFF
+          cmake --build .build/format --target format-check
   normalization-scaling:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - name: Configure benchmark-only build
-        run: cmake -S . -B build-benchmark -DCMAKE_BUILD_TYPE=Release -DTTS_FRONT_BUILD_TESTS=OFF -DTTS_FRONT_BUILD_EXAMPLES=OFF -DTTS_FRONT_BUILD_BENCHMARKS=ON
+        run: cmake -S . -B .build/benchmark -DCMAKE_BUILD_TYPE=Release -DTTS_FRONT_BUILD_TESTS=OFF -DTTS_FRONT_BUILD_EXAMPLES=OFF -DTTS_FRONT_BUILD_BENCHMARKS=ON
       - name: Build benchmark
-        run: cmake --build build-benchmark --target tts_front_benchmark --parallel
+        run: cmake --build .build/benchmark --target tts_front_benchmark --parallel
       - name: Run warning scaling gate
-        run: ./build-benchmark/tts_front_benchmark --warning-scaling
+        run: ./.build/benchmark/tts_front_benchmark --warning-scaling
       - name: Run document pipeline scaling gate
-        run: ./build-benchmark/tts_front_benchmark --document-scaling
+        run: ./.build/benchmark/tts_front_benchmark --document-scaling
   linux:
     strategy:
       matrix:
@@ -41,15 +41,15 @@ jobs:
         run: |
           if [ "${{ matrix.compiler }}" = clang ]; then echo "CC=clang" >> "$GITHUB_ENV"; echo "CXX=clang++" >> "$GITHUB_ENV"; fi
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DTTS_FRONT_BUILD_TESTS=ON -DTTS_FRONT_BUILD_EXAMPLES=ON -DTTS_FRONT_BUILD_BENCHMARKS=ON
+        run: cmake -S . -B .build/linux-${{ matrix.compiler }}-${{ matrix.build_type }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DTTS_FRONT_BUILD_TESTS=ON -DTTS_FRONT_BUILD_EXAMPLES=ON -DTTS_FRONT_BUILD_BENCHMARKS=ON
       - name: Build and test
-        run: cmake --build build --parallel && ctest --test-dir build --output-on-failure
+        run: cmake --build .build/linux-${{ matrix.compiler }}-${{ matrix.build_type }} --parallel && ctest --test-dir .build/linux-${{ matrix.compiler }}-${{ matrix.build_type }} --output-on-failure
       - name: Install and consumer smoke
         run: |
-          cmake --install build --prefix "$PWD/stage"
-          cmake -S tests/consumer -B consumer-build -DCMAKE_PREFIX_PATH="$PWD/stage"
-          cmake --build consumer-build --parallel
-          ./consumer-build/tts_front_consumer
+          cmake --install .build/linux-${{ matrix.compiler }}-${{ matrix.build_type }} --prefix "$PWD/.build/stage"
+          cmake -S tests/consumer -B .build/consumer -DCMAKE_PREFIX_PATH="$PWD/.build/stage"
+          cmake --build .build/consumer --parallel
+          ./.build/consumer/tts_front_consumer
   windows-msvc:
     runs-on: windows-latest
     strategy:
@@ -58,15 +58,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Configure
-        run: cmake -S . -B build -DTTS_FRONT_BUILD_TESTS=ON -DTTS_FRONT_BUILD_EXAMPLES=ON -DTTS_FRONT_BUILD_BENCHMARKS=ON
+        run: cmake -S . -B .build/windows-${{ matrix.build_type }} -DTTS_FRONT_BUILD_TESTS=ON -DTTS_FRONT_BUILD_EXAMPLES=ON -DTTS_FRONT_BUILD_BENCHMARKS=ON
       - name: Build and test
-        run: cmake --build build --config ${{ matrix.build_type }} --parallel; ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure
+        run: cmake --build .build/windows-${{ matrix.build_type }} --config ${{ matrix.build_type }} --parallel; ctest --test-dir .build/windows-${{ matrix.build_type }} -C ${{ matrix.build_type }} --output-on-failure
       - name: Install and consumer smoke
         run: |
-          cmake --install build --config ${{ matrix.build_type }} --prefix stage
-          cmake -S tests/consumer -B consumer-build -DCMAKE_PREFIX_PATH="$PWD/stage"
-          cmake --build consumer-build --config ${{ matrix.build_type }} --parallel
-          .\consumer-build\${{ matrix.build_type }}\tts_front_consumer.exe
+          cmake --install .build/windows-${{ matrix.build_type }} --config ${{ matrix.build_type }} --prefix .build/stage
+          cmake -S tests/consumer -B .build/consumer -DCMAKE_PREFIX_PATH="$PWD/.build/stage"
+          cmake --build .build/consumer --config ${{ matrix.build_type }} --parallel
+          .\.build\consumer\${{ matrix.build_type }}\tts_front_consumer.exe
 
   native-research-linux:
     strategy:
@@ -84,9 +84,9 @@ jobs:
           fi
       - name: Build native research prototype
         run: |
-          cmake -S research/silero-native -B build-native -DCMAKE_BUILD_TYPE=Release
-          cmake --build build-native --parallel
-          ctest --test-dir build-native --output-on-failure
+          cmake -S research/silero-native -B .build/native-research-linux-${{ matrix.compiler }} -DCMAKE_BUILD_TYPE=Release
+          cmake --build .build/native-research-linux-${{ matrix.compiler }} --parallel
+          ctest --test-dir .build/native-research-linux-${{ matrix.compiler }} --output-on-failure
 
   native-research-windows:
     runs-on: windows-latest
@@ -94,9 +94,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build native research prototype
         run: |
-          cmake -S research/silero-native -B build-native
-          cmake --build build-native --config Release --parallel
-          ctest --test-dir build-native -C Release --output-on-failure
+          cmake -S research/silero-native -B .build/native-research-windows
+          cmake --build .build/native-research-windows --config Release --parallel
+          ctest --test-dir .build/native-research-windows -C Release --output-on-failure
 
   native-ort-windows:
     runs-on: windows-latest
@@ -105,56 +105,57 @@ jobs:
       - name: Download pinned ONNX Runtime SDK
         shell: pwsh
         run: |
+          New-Item -ItemType Directory -Force .temp | Out-Null
           $url = "https://github.com/microsoft/onnxruntime/releases/download/v1.30.0/onnxruntime-win-x64-1.30.0.zip"
-          Invoke-WebRequest -Uri $url -OutFile ort.zip
+          Invoke-WebRequest -Uri $url -OutFile .temp/ort.zip
           $expected = "c6ba983baf5681af108599675d2a89c2d145512d02de28aed0bff177cd0ba949"
-          $actual = (Get-FileHash ort.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          $actual = (Get-FileHash .temp/ort.zip -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($actual -ne $expected) { throw "ONNX Runtime SDK SHA-256 mismatch: $actual" }
-          Expand-Archive -Path ort.zip -DestinationPath .
+          Expand-Archive -Path .temp/ort.zip -DestinationPath .temp
       - name: Build native ONNX Runtime probe
         shell: pwsh
         run: |
-          cmake -S research/silero-native -B build-native-ort `
-            -DSILERO_NATIVE_ORT_ROOT="$PWD/onnxruntime-win-x64-1.30.0"
-          cmake --build build-native-ort --config Release --target silero_native_ort_probe silero_native_sentence --parallel
+          cmake -S research/silero-native -B .build/native-ort `
+            -DSILERO_NATIVE_ORT_ROOT="$PWD/.temp/onnxruntime-win-x64-1.30.0"
+          cmake --build .build/native-ort --config Release --target silero_native_ort_probe silero_native_sentence --parallel
       - name: Run native ONNX Runtime smoke
         shell: pwsh
         run: |
           python -m pip install onnx
           python tools/silero_native_ort_smoke.py `
-            --probe build-native-ort/Release/silero_native_ort_probe.exe
+            --probe .build/native-ort/Release/silero_native_ort_probe.exe
       - name: Build production ONNX-enabled root
         shell: pwsh
         run: |
-          cmake -S . -B build-production-ort `
+          cmake -S . -B .build/production-ort `
             -DTTS_FRONT_ENABLE_ONNX_STRESS=ON `
-            -DTTS_FRONT_ONNX_RUNTIME_ROOT="$PWD/onnxruntime-win-x64-1.30.0" `
+            -DTTS_FRONT_ONNX_RUNTIME_ROOT="$PWD/.temp/onnxruntime-win-x64-1.30.0" `
             -DTTS_FRONT_BUILD_TESTS=ON `
             -DTTS_FRONT_BUILD_EXAMPLES=ON `
             -DTTS_FRONT_BUILD_BENCHMARKS=OFF
-          cmake --build build-production-ort --config Release --parallel
-          ctest --test-dir build-production-ort -C Release --output-on-failure
+          cmake --build .build/production-ort --config Release --parallel
+          ctest --test-dir .build/production-ort -C Release --output-on-failure
       - name: Checkout pinned Silero source for parity assets
         uses: actions/checkout@v4
         with:
           repository: snakers4/silero-stress
           ref: d38096cae9bf3ac846bbb88705428f3ed3801b96
-          path: silero-source
+          path: .temp/silero-source
           lfs: true
       - name: Export pinned parity bundle
         shell: pwsh
         run: |
           python -m pip install torch onnx onnxruntime
           python tools/silero_phase2_onnx.py `
-            --source silero-source `
+            --source .temp/silero-source `
             --work-dir .temp/ci-phase2 `
             --receipt .temp/ci-phase2-receipt.json
           python tools/silero_phase3_accentor_onnx.py `
-            --source silero-source `
+            --source .temp/silero-source `
             --work-dir .temp/ci-phase3 `
             --receipt .temp/ci-phase3-receipt.json
           python tools/silero_export_native_assets.py `
-            --source silero-source `
+            --source .temp/silero-source `
             --output .temp/ci-silero-bundle `
             --stress-onnx .temp/ci-phase3/accentor-stress.onnx `
             --yo-onnx .temp/ci-phase3/accentor-yo.onnx `
@@ -162,16 +163,16 @@ jobs:
       - name: Run production full-sentence parity
         shell: pwsh
         run: |
-          $runtimeDll = Get-ChildItem -Path onnxruntime-win-x64-1.30.0 -Recurse -Filter onnxruntime.dll |
+          $runtimeDll = Get-ChildItem -Path .temp/onnxruntime-win-x64-1.30.0 -Recurse -Filter onnxruntime.dll |
             Select-Object -First 1
           if (-not $runtimeDll) { throw "Pinned onnxruntime.dll was not found" }
           $runtimeDir = $runtimeDll.Directory.FullName
           Write-Host "Pinned ORT runtime: $($runtimeDll.FullName)"
-          Get-ChildItem -Recurse onnxruntime-win-x64-1.30.0 -Filter onnxruntime.dll |
+          Get-ChildItem -Recurse .temp/onnxruntime-win-x64-1.30.0 -Filter onnxruntime.dll |
             Select-Object FullName,Length
           $targets = @(
-            "$PWD/build-production-ort/Release",
-            "$PWD/build-native-ort/Release"
+            "$PWD/.build/production-ort/Release",
+            "$PWD/.build/native-ort/Release"
           )
           foreach ($target in $targets) {
             Copy-Item $runtimeDll.FullName (Join-Path $target "onnxruntime.dll") -Force
@@ -185,11 +186,11 @@ jobs:
           Write-Host "ORT command resolution:"
           Get-Command onnxruntime.dll -ErrorAction SilentlyContinue
           $env:TTS_FRONT_SILERO_TEST_BUNDLE = "$PWD/.temp/ci-silero-bundle"
-          ctest --test-dir build-production-ort -C Release `
+          ctest --test-dir .build/production-ort -C Release `
             -R tts_front_silero_bundle_tests --output-on-failure
           python tools/silero_production_sentence_parity.py `
-            --production build-production-ort/Release/tts_front_silero_sentence_probe.exe `
-            --research build-native-ort/Release/silero_native_sentence.exe `
+            --production .build/production-ort/Release/tts_front_silero_sentence_probe.exe `
+            --research .build/native-ort/Release/silero_native_sentence.exe `
             --assets .temp/ci-silero-bundle `
             --stress .temp/ci-silero-bundle/stress.onnx `
             --yo .temp/ci-silero-bundle/yo.onnx `
@@ -203,12 +204,12 @@ jobs:
       - name: Install production ONNX package
         shell: pwsh
         run: |
-          cmake --install build-production-ort --config Release --prefix stage-production-ort
+          cmake --install .build/production-ort --config Release --prefix .build/stage-production-ort
       - name: Build production ONNX install consumer
         shell: pwsh
         run: |
-          cmake -S tests/consumer -B consumer-production-ort `
-            -DCMAKE_PREFIX_PATH="$PWD/stage-production-ort"
-          cmake --build consumer-production-ort --config Release --parallel
-          $env:PATH = "$PWD/onnxruntime-win-x64-1.30.0/lib;$env:PATH"
-          .\consumer-production-ort\Release\tts_front_consumer.exe
+          cmake -S tests/consumer -B .build/consumer-production-ort `
+            -DCMAKE_PREFIX_PATH="$PWD/.build/stage-production-ort"
+          cmake --build .build/consumer-production-ort --config Release --parallel
+          $env:PATH = "$PWD/.temp/onnxruntime-win-x64-1.30.0/lib;$env:PATH"
+          .\.build\consumer-production-ort\Release\tts_front_consumer.exe
