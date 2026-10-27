@@ -274,7 +274,7 @@ bool scan_structural_surface(const Utf8Document& document,
     return saw_dot_decimal;
 }
 
-bool requires_preservation(const CandidateAnalysis& analysis, const PreservationFacts& facts) {
+bool requires_preservation(const StructuralFacts& analysis, const PreservationFacts& facts) {
     const bool malformed_surface =
         analysis.separators >= 2 || facts.embedded || facts.attached_lexical_suffix ||
         (facts.comma_group_followed_by_word && !facts.valid_english_comma_group) ||
