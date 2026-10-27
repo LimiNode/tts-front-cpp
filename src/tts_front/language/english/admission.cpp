@@ -3,6 +3,7 @@
 #include "tts_front/language/english/patterns.hpp"
 
 #include <array>
+#include <string>
 #include <string_view>
 
 namespace tts_front::detail::english {
@@ -44,15 +45,21 @@ void classify_surface(std::string_view unit,
         valid_surface = valid_surface || unit == surface;
 }
 
+CandidateValidity classify_candidate(std::string_view candidate, std::size_t, bool) {
+    if (candidate.find(',') == std::string_view::npos)
+        return CandidateValidity::NotApplicable;
+    const auto& language_patterns = patterns();
+    const std::string candidate_text(candidate);
+    if (std::regex_match(candidate_text, language_patterns.comma_grouped_value) ||
+        std::regex_match(candidate_text, language_patterns.comma_grouped_percent))
+        return CandidateValidity::SupportedEnglishGrouping;
+    return CandidateValidity::MalformedEnglishGrouping;
+}
+
 } // namespace
 
 const AdmissionRules& admission_rules() {
-    const auto& language_patterns = patterns();
-    static const AdmissionRules rules{&language_patterns.comma_grouped_value,
-                                      &language_patterns.comma_grouped_percent,
-                                      true,
-                                      false,
-                                      &classify_surface};
+    static const AdmissionRules rules{false, &classify_surface, &classify_candidate};
     return rules;
 }
 

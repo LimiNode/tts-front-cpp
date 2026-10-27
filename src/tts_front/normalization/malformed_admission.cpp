@@ -10,7 +10,6 @@
 #include <cctype>
 #include <cstdint>
 #include <iterator>
-#include <regex>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -776,17 +775,18 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         const bool attached_lexical_suffix =
             analysis.separators != 0 && analysis.end_index < points.size() &&
             text::is_lexical_numeric_boundary(points[analysis.end_index].value);
+        const auto candidate_validity =
+            rules.classify_candidate != nullptr
+                ? rules.classify_candidate(candidate, analysis.separators, attached_lexical_suffix)
+                : CandidateValidity::NotApplicable;
         const bool valid_english_comma_group =
-            rules.comma_grouping && rules.comma_grouped_value != nullptr &&
-            rules.comma_grouped_percent != nullptr &&
-            (std::regex_match(candidate, *rules.comma_grouped_value) ||
-             std::regex_match(candidate, *rules.comma_grouped_percent));
+            candidate_validity == CandidateValidity::SupportedEnglishGrouping;
         const bool valid_currency_group_surface =
             !currency_prefix ||
             (!signed_currency_prefix && currency_probe == index && points[index].value != '+' &&
              points[index].value != '-' && points[currency_symbol].value == '$');
         const bool malformed_english_comma_group =
-            rules.comma_grouping && candidate.find(',') != std::string::npos;
+            candidate_validity == CandidateValidity::MalformedEnglishGrouping;
         const auto digit_count = static_cast<std::size_t>(std::count_if(
             candidate.begin(), candidate.end(), [](unsigned char c) { return text::is_digit(c); }));
         if (digit_count > 9)
@@ -811,26 +811,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 return false;
             return text::is_letter(points[tail_index].value);
         }();
-        bool valid_russian_date = false;
-        if (rules.dotted_dates && analysis.separators == 2) {
-            const auto first_dot = candidate.find('.');
-            const auto second_dot = candidate.find('.', first_dot + 1);
-            if (first_dot != std::string::npos && second_dot != std::string::npos &&
-                candidate.find('.', second_dot + 1) == std::string::npos) {
-                long long day = 0, month = 0, year = 0;
-                valid_russian_date =
-                    try_parse_long(candidate.substr(0, first_dot), day) &&
-                    try_parse_long(candidate.substr(first_dot + 1, second_dot - first_dot - 1),
-                                   month) &&
-                    try_parse_long(candidate.substr(second_dot + 1), year) &&
-                    candidate.substr(0, first_dot).size() <= 2 &&
-                    candidate.substr(first_dot + 1, second_dot - first_dot - 1).size() <= 2 &&
-                    candidate.substr(second_dot + 1).size() == 4 &&
-                    valid_date(
-                        static_cast<int>(day), static_cast<int>(month), static_cast<int>(year)) &&
-                    !attached_lexical_suffix;
-            }
-        }
+        const bool valid_russian_date =
+            candidate_validity == CandidateValidity::SupportedRussianDate;
         const auto hyphen_search_start = candidate.size() > 0 && candidate.front() == '-' ? 1 : 0;
         const bool unsupported_numeric_connector =
             start.starts_phone || candidate.find('+') != std::string::npos ||
