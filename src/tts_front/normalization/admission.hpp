@@ -12,16 +12,22 @@ namespace tts_front::detail {
 using SurfaceClassifier =
     void (*)(std::string_view, const Utf8Document&, std::size_t, bool&, bool&);
 
-enum class CandidateValidity {
-    NotApplicable,
-    SupportedEnglishGrouping,
-    MalformedEnglishGrouping,
-    SupportedRussianDate,
+enum class CandidateValidityState { NotApplicable, Supported, Malformed };
+enum class CandidateSurfaceClass { Unknown, CommaGrouped, DottedDate };
+
+struct CandidateValidity {
+    CandidateValidityState state = CandidateValidityState::NotApplicable;
+    CandidateSurfaceClass surface = CandidateSurfaceClass::Unknown;
 };
 
+/*
+ * The scanner-mode flag is a transitional seam for dotted numeric handling;
+ * completed-surface classification itself is returned through classify_candidate.
+ */
 using CandidateValidityClassifier = CandidateValidity (*)(std::string_view, std::size_t, bool);
 
 struct AdmissionRules {
+    // Transitional scanner-mode seam; this is not a language validity result.
     bool dotted_dates = false;
     SurfaceClassifier classify_surface = nullptr;
     CandidateValidityClassifier classify_candidate = nullptr;

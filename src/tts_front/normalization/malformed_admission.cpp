@@ -778,15 +778,17 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         const auto candidate_validity =
             rules.classify_candidate != nullptr
                 ? rules.classify_candidate(candidate, analysis.separators, attached_lexical_suffix)
-                : CandidateValidity::NotApplicable;
+                : CandidateValidity{};
         const bool valid_english_comma_group =
-            candidate_validity == CandidateValidity::SupportedEnglishGrouping;
+            candidate_validity.state == CandidateValidityState::Supported &&
+            candidate_validity.surface == CandidateSurfaceClass::CommaGrouped;
         const bool valid_currency_group_surface =
             !currency_prefix ||
             (!signed_currency_prefix && currency_probe == index && points[index].value != '+' &&
              points[index].value != '-' && points[currency_symbol].value == '$');
         const bool malformed_english_comma_group =
-            candidate_validity == CandidateValidity::MalformedEnglishGrouping;
+            candidate_validity.state == CandidateValidityState::Malformed &&
+            candidate_validity.surface == CandidateSurfaceClass::CommaGrouped;
         const auto digit_count = static_cast<std::size_t>(std::count_if(
             candidate.begin(), candidate.end(), [](unsigned char c) { return text::is_digit(c); }));
         if (digit_count > 9)
@@ -812,7 +814,8 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             return text::is_letter(points[tail_index].value);
         }();
         const bool valid_russian_date =
-            candidate_validity == CandidateValidity::SupportedRussianDate;
+            candidate_validity.state == CandidateValidityState::Supported &&
+            candidate_validity.surface == CandidateSurfaceClass::DottedDate;
         const auto hyphen_search_start = candidate.size() > 0 && candidate.front() == '-' ? 1 : 0;
         const bool unsupported_numeric_connector =
             start.starts_phone || candidate.find('+') != std::string::npos ||

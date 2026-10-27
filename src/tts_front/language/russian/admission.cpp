@@ -68,12 +68,12 @@ CandidateValidity classify_candidate(std::string_view candidate,
                                      std::size_t separators,
                                      bool attached_lexical_suffix) {
     if (separators != 2)
-        return CandidateValidity::NotApplicable;
+        return {CandidateValidityState::NotApplicable, CandidateSurfaceClass::Unknown};
     const auto first_dot = candidate.find('.');
     const auto second_dot = candidate.find('.', first_dot + 1);
     if (first_dot == std::string_view::npos || second_dot == std::string_view::npos ||
         candidate.find('.', second_dot + 1) != std::string_view::npos)
-        return CandidateValidity::NotApplicable;
+        return {CandidateValidityState::NotApplicable, CandidateSurfaceClass::Unknown};
 
     long long day = 0, month = 0, year = 0;
     const auto day_token = candidate.substr(0, first_dot);
@@ -85,7 +85,10 @@ CandidateValidity classify_candidate(std::string_view candidate,
         year_token.size() == 4 &&
         valid_date(static_cast<int>(day), static_cast<int>(month), static_cast<int>(year)) &&
         !attached_lexical_suffix;
-    return valid ? CandidateValidity::SupportedRussianDate : CandidateValidity::NotApplicable;
+    return valid ? CandidateValidity{CandidateValidityState::Supported,
+                                     CandidateSurfaceClass::DottedDate}
+                 : CandidateValidity{CandidateValidityState::NotApplicable,
+                                     CandidateSurfaceClass::Unknown};
 }
 
 } // namespace

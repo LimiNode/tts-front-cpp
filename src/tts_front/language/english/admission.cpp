@@ -47,13 +47,13 @@ void classify_surface(std::string_view unit,
 
 CandidateValidity classify_candidate(std::string_view candidate, std::size_t, bool) {
     if (candidate.find(',') == std::string_view::npos)
-        return CandidateValidity::NotApplicable;
+        return {CandidateValidityState::NotApplicable, CandidateSurfaceClass::Unknown};
     const auto& language_patterns = patterns();
     const std::string candidate_text(candidate);
     if (std::regex_match(candidate_text, language_patterns.comma_grouped_value) ||
         std::regex_match(candidate_text, language_patterns.comma_grouped_percent))
-        return CandidateValidity::SupportedEnglishGrouping;
-    return CandidateValidity::MalformedEnglishGrouping;
+        return {CandidateValidityState::Supported, CandidateSurfaceClass::CommaGrouped};
+    return {CandidateValidityState::Malformed, CandidateSurfaceClass::CommaGrouped};
 }
 
 } // namespace
