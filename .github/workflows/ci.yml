@@ -211,5 +211,5 @@ jobs:
           cmake -S tests/consumer -B .build/consumer-production-ort `
             -DCMAKE_PREFIX_PATH="$PWD/.build/stage-production-ort"
           cmake --build .build/consumer-production-ort --config Release --parallel
-          $env:PATH = "$PWD/onnxruntime-win-x64-1.30.0/lib;$env:PATH"
-          .\.build\.build\consumer-production-ort\Release\tts_front_consumer.exe
+          $env:PATH = "$PWD/.temp/onnxruntime-win-x64-1.30.0/lib;$env:PATH"
+          .\.build\consumer-production-ort\Release\tts_front_consumer.exe
