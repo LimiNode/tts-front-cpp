@@ -2,6 +2,7 @@
 /build-*/
 /stage-*/
 /consumer-*/
+/.build/
 /.temp/
 /.vs/
 *.user
