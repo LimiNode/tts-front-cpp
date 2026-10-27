@@ -85,12 +85,31 @@ describes the non-negotiable project contract and the development workflow.
 
 - Keep the repository root free of generated builds, test output, coverage files,
   downloaded tools, and other temporary artifacts.
-- Put all temporary work under `.temp/` (for example, `.temp/build-debug`,
-  `.temp/build-release`, `.temp/coverage`, or a temporary worktree).
-- Do not create `build*`, `cmake-build-*`, `coverage`, or ad-hoc output
-  directories in the repository root.
-- Before completing work, remove accidental generated artifacts outside `.temp/`
-  and verify that the worktree is clean apart from intentional changes.
+- Put every CMake build tree and install/consumer staging tree under
+  `.build/` (for example, `.build/debug`, `.build/release`,
+  `.build/format`, `.build/benchmark`, or `.build/consumer`).
+- Put downloaded SDKs, temporary source checkouts, coverage data, probes, and
+  other non-build transient files under `.temp/`.
+- Do not create `build*`, `stage*`, `consumer-*`, `cmake-build-*`,
+  `coverage`, or ad-hoc output directories in the repository root.
+- Before completing work, remove accidental generated artifacts outside
+  `.build/` and `.temp/`, and verify that the worktree is clean apart from
+  intentional changes.
+
+## Dependencies and external layout
+
+- Project-owned third-party dependencies must be direct Git submodules under
+  `external/<name>`, with one flat entry per dependency in `.gitmodules`.
+- Prefer direct sibling submodules over recursively initialized nested
+  submodules. If an upstream dependency requires a nested dependency, keep the
+  exception explicit in CMake and document why it cannot be flattened.
+- Do not use FetchContent, ExternalProject, or an unpinned network download to
+  provide a normal build dependency without an explicit architecture decision.
+- Downloaded binary SDKs and CI-only source checkouts are transient inputs, not
+  project submodules; keep them under `.temp/` and verify their revision or
+  checksum.
+- Do not add an empty `external/` directory or `.gitmodules` file when the
+  project has no vendored dependency.
 
 ## Coding and documentation
 
@@ -111,7 +130,9 @@ describes the non-negotiable project contract and the development workflow.
 
 ## Verification and handoff
 
-- Use `.temp/` for builds, probes, generated reports, and temporary worktrees.
+- Use `.build/` for all CMake builds, CTest trees, and install/consumer
+  staging; use `.temp/` for probes, downloads, generated reports, and
+  temporary worktrees.
 - Run format-check, Debug and Release builds, CTest, fixture tests, the
   header-self-containment test, and install-consumer smoke as applicable.
 - For normalization changes, also run the quality corpus, strict archive audit,
