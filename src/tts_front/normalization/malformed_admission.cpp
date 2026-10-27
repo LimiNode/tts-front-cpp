@@ -52,13 +52,13 @@ struct PreservationFacts {
     bool embedded = false;
     bool attached_lexical_suffix = false;
     bool comma_group_followed_by_word = false;
-    bool valid_english_comma_group = false;
+    bool supported_comma_group = false;
     bool unsupported_numeric_connector = false;
     bool invalid_percent = false;
-    bool malformed_english_comma_group = false;
+    bool malformed_comma_group = false;
     bool currency_prefix = false;
     bool invalid_currency_prefix = false;
-    bool valid_russian_date = false;
+    bool supported_dotted_date = false;
     bool valid_currency_group_surface = false;
     bool already_preserved = false;
 };
@@ -276,16 +276,16 @@ bool scan_structural_surface(const Utf8Document& document,
 bool requires_preservation(const StructuralFacts& analysis, const PreservationFacts& facts) {
     const bool malformed_surface =
         analysis.separators >= 2 || facts.embedded || facts.attached_lexical_suffix ||
-        (facts.comma_group_followed_by_word && !facts.valid_english_comma_group) ||
+        (facts.comma_group_followed_by_word && !facts.supported_comma_group) ||
         facts.unsupported_numeric_connector || facts.invalid_percent ||
-        facts.malformed_english_comma_group || analysis.malformed_grouped ||
-        analysis.malformed_compound || (facts.currency_prefix && facts.invalid_currency_prefix);
-    const bool supported_russian_date = facts.valid_russian_date && !facts.embedded;
-    const bool supported_english_group =
-        facts.valid_english_comma_group && !facts.embedded && !facts.attached_lexical_suffix &&
+        facts.malformed_comma_group || analysis.malformed_grouped || analysis.malformed_compound ||
+        (facts.currency_prefix && facts.invalid_currency_prefix);
+    const bool supported_dotted_date = facts.supported_dotted_date && !facts.embedded;
+    const bool supported_comma_group =
+        facts.supported_comma_group && !facts.embedded && !facts.attached_lexical_suffix &&
         !(facts.currency_prefix && analysis.has_percent) && !analysis.malformed_compound &&
         facts.valid_currency_group_surface;
-    return malformed_surface && !supported_russian_date && !supported_english_group &&
+    return malformed_surface && !supported_dotted_date && !supported_comma_group &&
            !facts.already_preserved;
 }
 
@@ -779,14 +779,14 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             rules.classify_candidate != nullptr
                 ? rules.classify_candidate(candidate, analysis.separators, attached_lexical_suffix)
                 : CandidateValidity{};
-        const bool valid_english_comma_group =
+        const bool supported_comma_group =
             candidate_validity.state == CandidateValidityState::Supported &&
             candidate_validity.surface == CandidateSurfaceClass::CommaGrouped;
         const bool valid_currency_group_surface =
             !currency_prefix ||
             (!signed_currency_prefix && currency_probe == index && points[index].value != '+' &&
              points[index].value != '-' && points[currency_symbol].value == '$');
-        const bool malformed_english_comma_group =
+        const bool malformed_comma_group =
             candidate_validity.state == CandidateValidityState::Malformed &&
             candidate_validity.surface == CandidateSurfaceClass::CommaGrouped;
         const auto digit_count = static_cast<std::size_t>(std::count_if(
@@ -813,7 +813,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
                 return false;
             return text::is_letter(points[tail_index].value);
         }();
-        const bool valid_russian_date =
+        const bool supported_dotted_date =
             candidate_validity.state == CandidateValidityState::Supported &&
             candidate_validity.surface == CandidateSurfaceClass::DottedDate;
         const auto hyphen_search_start = candidate.size() > 0 && candidate.front() == '-' ? 1 : 0;
@@ -838,13 +838,13 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         preservation.embedded = embedded;
         preservation.attached_lexical_suffix = attached_lexical_suffix;
         preservation.comma_group_followed_by_word = comma_group_followed_by_word;
-        preservation.valid_english_comma_group = valid_english_comma_group;
+        preservation.supported_comma_group = supported_comma_group;
         preservation.unsupported_numeric_connector = unsupported_numeric_connector;
         preservation.invalid_percent = invalid_percent;
-        preservation.malformed_english_comma_group = malformed_english_comma_group;
+        preservation.malformed_comma_group = malformed_comma_group;
         preservation.currency_prefix = currency_prefix;
         preservation.invalid_currency_prefix = invalid_currency_prefix;
-        preservation.valid_russian_date = valid_russian_date;
+        preservation.supported_dotted_date = supported_dotted_date;
         preservation.valid_currency_group_surface = valid_currency_group_surface;
         preservation.already_preserved = already_preserved;
         if (requires_preservation(analysis, preservation)) {
