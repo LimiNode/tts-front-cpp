@@ -13,22 +13,24 @@ using SurfaceClassifier =
     void (*)(std::string_view, const Utf8Document&, std::size_t, bool&, bool&);
 
 enum class CandidateValidityState { NotApplicable, Supported, Malformed };
-enum class CandidateSurfaceClass { Unknown, CommaGrouped, DottedDate };
+enum class CandidateSurfaceClass { Unknown, CommaGrouped, DottedDate, DottedPercentage };
+
+struct CandidateStructure {
+    std::size_t separators = 0;
+    bool attached_lexical_suffix = false;
+    bool has_dotted_decimal = false;
+    bool has_percent = false;
+};
 
 struct CandidateValidity {
     CandidateValidityState state = CandidateValidityState::NotApplicable;
     CandidateSurfaceClass surface = CandidateSurfaceClass::Unknown;
 };
 
-/*
- * The scanner-mode flag is a transitional seam for dotted numeric handling;
- * completed-surface classification itself is returned through classify_candidate.
- */
-using CandidateValidityClassifier = CandidateValidity (*)(std::string_view, std::size_t, bool);
+using CandidateValidityClassifier = CandidateValidity (*)(std::string_view,
+                                                          const CandidateStructure&);
 
 struct AdmissionRules {
-    // Transitional scanner-mode seam; this is not a language validity result.
-    bool dotted_dates = false;
     SurfaceClassifier classify_surface = nullptr;
     CandidateValidityClassifier classify_candidate = nullptr;
 };

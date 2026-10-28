@@ -65,9 +65,10 @@ void classify_surface(std::string_view unit,
 }
 
 CandidateValidity classify_candidate(std::string_view candidate,
-                                     std::size_t separators,
-                                     bool attached_lexical_suffix) {
-    if (separators != 2)
+                                     const CandidateStructure& structure) {
+    if (structure.has_dotted_decimal && structure.has_percent)
+        return {CandidateValidityState::Malformed, CandidateSurfaceClass::DottedPercentage};
+    if (structure.separators != 2)
         return {CandidateValidityState::NotApplicable, CandidateSurfaceClass::Unknown};
     const auto first_dot = candidate.find('.');
     const auto second_dot = candidate.find('.', first_dot + 1);
@@ -84,7 +85,7 @@ CandidateValidity classify_candidate(std::string_view candidate,
         try_parse_long(year_token, year) && day_token.size() <= 2 && month_token.size() <= 2 &&
         year_token.size() == 4 &&
         valid_date(static_cast<int>(day), static_cast<int>(month), static_cast<int>(year)) &&
-        !attached_lexical_suffix;
+        !structure.attached_lexical_suffix;
     return valid ? CandidateValidity{CandidateValidityState::Supported,
                                      CandidateSurfaceClass::DottedDate}
                  : CandidateValidity{CandidateValidityState::NotApplicable,
@@ -293,7 +294,7 @@ GenitiveSurfaceAdmission classify_genitive_surface(const std::string_view text,
 }
 
 const AdmissionRules& admission_rules() {
-    static const AdmissionRules rules{true, &classify_surface, &classify_candidate};
+    static const AdmissionRules rules{&classify_surface, &classify_candidate};
     return rules;
 }
 

@@ -185,6 +185,58 @@ int main() {
         CHECK(admission_case_matches(
             ru, "https://example.com/2,500руб.", "https://example.com/2,500руб.", {}));
         CHECK(admission_case_matches(ru, "RTX-2,500руб.", "RTX-2,500руб.", {}));
+
+        const auto unresolved_whole = [&](const TextFrontendOptions& options,
+                                          const std::string& input,
+                                          const std::string& expected_normalized) {
+            return admission_case_matches(options,
+                                          input,
+                                          expected_normalized,
+                                          {{WarningCode::UnresolvedNumber, 0, input.size()}});
+        };
+        for (const auto& input : {std::string("1.5%"),
+                                  std::string("1.5% 123"),
+                                  std::string("1.5%/4"),
+                                  std::string("1.5%#4"),
+                                  std::string("1.5%$4"),
+                                  std::string("1.5%word"),
+                                  std::string("1.5%слово"),
+                                  std::string("1.5%!"),
+                                  std::string("+1.5% 123"),
+                                  std::string("-1.5% 123"),
+                                  std::string("−1.5% 123")})
+            CHECK(unresolved_whole(ru, input, input));
+        const std::string dotted_percent_newline = "1.5%\n123";
+        CHECK(unresolved_whole(ru, dotted_percent_newline, "1.5% 123"));
+        const std::string dotted_percent_combining = std::string("1.5%") + "\xCC\x81" + "word";
+        CHECK(unresolved_whole(ru, dotted_percent_combining, dotted_percent_combining));
+
+        CHECK(admission_case_matches(en, "1.5%", "one point five percent", {}));
+        CHECK(admission_case_matches(
+            en, "1.5% 123", "one point five percent one hundred twenty three", {}));
+        CHECK(unresolved_whole(en, "1.5%/4", "1.5%/4"));
+
+        const std::string russian_context = "Порог 1.5% 123 задан";
+        const auto russian_candidate_offset = russian_context.find("1.5%");
+        const std::vector<ExpectedDiagnostic> russian_context_warning = {
+            {WarningCode::UnresolvedNumber, russian_candidate_offset, 8}};
+        for (const auto* options : {&auto_options, &segmented})
+            CHECK(admission_case_matches(
+                *options, russian_context, russian_context, russian_context_warning));
+
+        const std::string english_context = "Use 1.5% 123 now";
+        const std::string normalized_english_context =
+            "Use one point five percent one hundred twenty three now";
+        for (const auto* options : {&auto_options, &segmented})
+            CHECK(
+                admission_case_matches(*options, english_context, normalized_english_context, {}));
+
+        for (const auto& input : {std::string("https://example.com/1.5%"),
+                                  std::string("user1.5%@example.com"),
+                                  std::string("RTX-1.5%")}) {
+            CHECK(admission_case_matches(ru, input, input, {}));
+            CHECK(admission_case_matches(en, input, input, {}));
+        }
     }
     CHECK(frontend.process("У меня 42 яблока.", ru).normalized_text == "У меня сорок два яблока.");
     CHECK(frontend.process("1% 2% 5% 11% 21%", ru).normalized_text ==
