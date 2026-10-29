@@ -186,6 +186,114 @@ int main() {
             ru, "https://example.com/2,500руб.", "https://example.com/2,500руб.", {}));
         CHECK(admission_case_matches(ru, "RTX-2,500руб.", "RTX-2,500руб.", {}));
 
+        const std::string foreign_unit = "Use 2 кг.";
+        CHECK(admission_case_matches(ru, foreign_unit, "Use два килограмма.", {}));
+        CHECK(admission_case_matches(en,
+                                     foreign_unit,
+                                     foreign_unit,
+                                     {{WarningCode::UnresolvedNumber, foreign_unit.find('2'), 6}}));
+        for (const auto* options : {&auto_options, &segmented})
+            CHECK(admission_case_matches(
+                *options,
+                foreign_unit,
+                "Use два килограмма.",
+                {{WarningCode::AmbiguousNormalization, 0, foreign_unit.size()}}));
+
+        const std::string independent_number = "Use 2 кг 3.";
+        CHECK(admission_case_matches(ru, independent_number, "Use два килограмма три.", {}));
+        CHECK(admission_case_matches(
+            en,
+            independent_number,
+            "Use 2 кг three.",
+            {{WarningCode::UnresolvedNumber, independent_number.find('2'), 6}}));
+        CHECK(admission_case_matches(
+            auto_options,
+            independent_number,
+            "Use два килограмма три.",
+            {{WarningCode::AmbiguousNormalization, 0, independent_number.size()}}));
+        CHECK(admission_case_matches(
+            segmented,
+            independent_number,
+            "Use два килограмма three.",
+            {{WarningCode::AmbiguousNormalization, 0, independent_number.size()}}));
+
+        for (const auto& input : {std::string("Use 2 кг #3."),
+                                  std::string("Use 2 кг /3."),
+                                  std::string("Use 2 кг % 3.")}) {
+            const auto candidate_offset = input.find('2');
+            const auto candidate_length = input.size() - candidate_offset - 1;
+            CHECK(admission_case_matches(
+                ru,
+                input,
+                input,
+                {{WarningCode::UnresolvedNumber, candidate_offset, candidate_length}}));
+            for (const auto* options : {&auto_options, &segmented})
+                CHECK(admission_case_matches(
+                    *options,
+                    input,
+                    input,
+                    {{WarningCode::AmbiguousNormalization, 0, input.size()},
+                     {WarningCode::UnresolvedNumber, candidate_offset, candidate_length}}));
+        }
+        for (const auto& input : {std::string("Use 2 kg #3."),
+                                  std::string("Use 2 kg /3."),
+                                  std::string("Use 2 kg % 3.")}) {
+            const auto candidate_offset = input.find('2');
+            const auto candidate_length = input.size() - candidate_offset - 1;
+            for (const auto* options : {&en, &auto_options, &segmented})
+                CHECK(admission_case_matches(
+                    *options,
+                    input,
+                    input,
+                    {{WarningCode::UnresolvedNumber, candidate_offset, candidate_length}}));
+        }
+
+        const std::string two_local_heads = "2 reports на 3 сервера.";
+        CHECK(admission_case_matches(ru, two_local_heads, "два reports на три сервера.", {}));
+        CHECK(admission_case_matches(en, two_local_heads, "two reports на three сервера.", {}));
+        CHECK(admission_case_matches(
+            auto_options,
+            two_local_heads,
+            "два reports на три сервера.",
+            {{WarningCode::AmbiguousNormalization, 0, two_local_heads.size()}}));
+        CHECK(admission_case_matches(
+            segmented,
+            two_local_heads,
+            "two reports на три сервера.",
+            {{WarningCode::AmbiguousNormalization, 0, two_local_heads.size()}}));
+
+        const std::string technical_neighbor = "RTX-4090 использует 2 GB.";
+        CHECK(admission_case_matches(
+            ru, technical_neighbor, "RTX-4090 использует два гигабайта.", {}));
+        CHECK(admission_case_matches(
+            en, technical_neighbor, "RTX-4090 использует two gigabytes.", {}));
+        CHECK(admission_case_matches(
+            auto_options,
+            technical_neighbor,
+            "RTX-4090 использует два гигабайта.",
+            {{WarningCode::AmbiguousNormalization, 0, technical_neighbor.size()}}));
+        CHECK(admission_case_matches(
+            segmented,
+            technical_neighbor,
+            "RTX-4090 использует two gigabytes.",
+            {{WarningCode::AmbiguousNormalization, 0, technical_neighbor.size()}}));
+        CHECK(
+            admission_case_matches(ru, "https://example.com/2 GB", "https://example.com/2 GB", {}));
+        CHECK(
+            admission_case_matches(en, "https://example.com/2 GB", "https://example.com/2 GB", {}));
+        CHECK(admission_case_matches(
+            auto_options, "https://example.com/2 GB", "https://example.com/2 GB", {}));
+        CHECK(admission_case_matches(
+            segmented, "https://example.com/2 GB", "https://example.com/2 GB", {}));
+        const std::string combining_unit = "2 кѓ.";
+        for (const auto* options : {&ru, &en, &auto_options, &segmented}) {
+            CHECK(admission_case_matches(
+                *options,
+                combining_unit,
+                combining_unit,
+                {{WarningCode::UnresolvedNumber, 0, combining_unit.size() - 1}}));
+        }
+
         const auto unresolved_whole = [&](const TextFrontendOptions& options,
                                           const std::string& input,
                                           const std::string& expected_normalized) {
