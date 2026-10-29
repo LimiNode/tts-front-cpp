@@ -45,7 +45,7 @@ void classify_surface(std::string_view unit,
         valid_surface = valid_surface || unit == surface;
 }
 
-CandidateValidity classify_candidate(std::string_view candidate, std::size_t, bool) {
+CandidateValidity classify_candidate(std::string_view candidate, const CandidateStructure&) {
     if (candidate.find(',') == std::string_view::npos)
         return {CandidateValidityState::NotApplicable, CandidateSurfaceClass::Unknown};
     const auto& language_patterns = patterns();
@@ -59,7 +59,7 @@ CandidateValidity classify_candidate(std::string_view candidate, std::size_t, bo
 } // namespace
 
 const AdmissionRules& admission_rules() {
-    static const AdmissionRules rules{false, &classify_surface, &classify_candidate};
+    static const AdmissionRules rules{&classify_surface, &classify_candidate};
     return rules;
 }
 

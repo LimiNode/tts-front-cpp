@@ -25,13 +25,6 @@ namespace {
 // Intermediate per-candidate structural state used while the admission phases
 // are still being separated. Boundary movement and structural facts stay
 // together so a later refactor cannot silently update one without the other.
-// Language-conditioned observations are kept separate from the neutral
-// structural scan. The caller decides whether this observation participates in
-// a language policy before using it in later admission phases.
-struct CandidatePolicyObservations {
-    bool has_dot_decimal = false;
-};
-
 struct StructuralFacts {
     std::size_t end_index = 0;
     std::size_t separators = 0;
@@ -42,10 +35,6 @@ struct StructuralFacts {
     bool malformed_grouped = false;
     bool malformed_compound = false;
     bool grouped_seen = false;
-};
-
-struct CandidateAnalysis : StructuralFacts {
-    CandidatePolicyObservations policy;
 };
 
 struct PreservationFacts {
@@ -369,7 +358,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             (index > 1 && points[index - 2].value == '(' &&
              (points[index - 1].value == '$' || points[index - 1].value == 0x20ac ||
               points[index - 1].value == 0xa3 || points[index - 1].value == 0xa5));
-        CandidateAnalysis analysis;
+        StructuralFacts analysis;
         analysis.end_index = index + 1;
         if (surface.exponent != ExponentState::None && candidate_surface.end > analysis.end_index)
             analysis.end_index = candidate_surface.end;
@@ -396,8 +385,25 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             analysis.malformed_compound = true;
         const bool saw_dot_decimal = scan_structural_surface(
             document, start, parenthesized_prefix, initial_digit_count, analysis);
-        if (rules.dotted_dates)
-            analysis.policy.has_dot_decimal = saw_dot_decimal;
+        const auto candidate_structure_at = [&](const std::size_t end_index) {
+            CandidateStructure structure;
+            structure.separators = analysis.separators;
+            structure.attached_lexical_suffix =
+                analysis.separators != 0 && end_index < points.size() &&
+                text::is_lexical_numeric_boundary(points[end_index].value);
+            structure.has_dotted_decimal = saw_dot_decimal;
+            structure.has_percent = analysis.has_percent;
+            return structure;
+        };
+        const auto classify_candidate_at = [&](const std::size_t end_index) {
+            if (rules.classify_candidate == nullptr)
+                return CandidateValidity{};
+            const auto byte_end = end_index == 0
+                                      ? begin
+                                      : points[end_index - 1].offset + points[end_index - 1].length;
+            const auto structure = candidate_structure_at(end_index);
+            return rules.classify_candidate(text.text.substr(begin, byte_end - begin), structure);
+        };
         // Currency-prefixed malformed forms (`$ 1`, `$-1`, `$−1`) enter this
         // pass at their numeric component.  Once that context is known, use
         // the same typed endpoint as supported currency cores so an attached
@@ -593,7 +599,13 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         if (start.currency_context && analysis.has_percent)
             analysis.end_index =
                 scan_numeric_continuation_points(document, analysis.end_index, false);
-        if (rules.dotted_dates && analysis.policy.has_dot_decimal && analysis.has_percent) {
+        const auto provisional_validity = saw_dot_decimal && analysis.has_percent
+                                              ? classify_candidate_at(analysis.end_index)
+                                              : CandidateValidity{};
+        const bool malformed_dotted_percentage =
+            provisional_validity.state == CandidateValidityState::Malformed &&
+            provisional_validity.surface == CandidateSurfaceClass::DottedPercentage;
+        if (malformed_dotted_percentage) {
             analysis.malformed_compound = true;
             const auto continuation =
                 scan_numeric_continuation_points(document, analysis.end_index, false);
@@ -772,12 +784,10 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         while (currency_symbol < index && text::is_horizontal_space(points[currency_symbol].value))
             ++currency_symbol;
         const auto currency_probe = currency_prefix ? currency_symbol + 1 : index;
-        const bool attached_lexical_suffix =
-            analysis.separators != 0 && analysis.end_index < points.size() &&
-            text::is_lexical_numeric_boundary(points[analysis.end_index].value);
+        const auto candidate_structure = candidate_structure_at(analysis.end_index);
         const auto candidate_validity =
             rules.classify_candidate != nullptr
-                ? rules.classify_candidate(candidate, analysis.separators, attached_lexical_suffix)
+                ? rules.classify_candidate(candidate, candidate_structure)
                 : CandidateValidity{};
         const bool supported_comma_group =
             candidate_validity.state == CandidateValidityState::Supported &&
@@ -836,7 +846,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             signed_currency_prefix;
         PreservationFacts preservation;
         preservation.embedded = embedded;
-        preservation.attached_lexical_suffix = attached_lexical_suffix;
+        preservation.attached_lexical_suffix = candidate_structure.attached_lexical_suffix;
         preservation.comma_group_followed_by_word = comma_group_followed_by_word;
         preservation.supported_comma_group = supported_comma_group;
         preservation.unsupported_numeric_connector = unsupported_numeric_connector;
