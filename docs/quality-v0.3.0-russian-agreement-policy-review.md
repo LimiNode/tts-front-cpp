@@ -47,6 +47,7 @@ The policy must explicitly choose which contexts can request a grammatical case:
 | `дату 01.01.2024` | `дату первое января` | `дату первого января` |
 | `после 01.01.2024` | `после первое января` | `после первого января` |
 | `из 01.01.2024` | `из первое января` | `из первого января` |
+| `до 01.01.2024` | `до первое января` | отложено: требуется отдельное решение о temporal/date agreement |
 | `за 01.01.2024` | `за первое января` | отложено: temporal и duration readings требуют разных контрактов |
 
 The contextual option must define the supported preposition/governor set,
