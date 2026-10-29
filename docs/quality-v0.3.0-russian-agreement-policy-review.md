@@ -47,6 +47,7 @@ The policy must explicitly choose which contexts can request a grammatical case:
 | `дату 01.01.2024` | `дату первое января` | `дату первого января` |
 | `после 01.01.2024` | `после первое января` | `после первого января` |
 | `из 01.01.2024` | `из первое января` | `из первого января` |
+| `за 01.01.2024` | `за первое января` | отложено: temporal и duration readings требуют разных контрактов |
 
 The contextual option must define the supported preposition/governor set,
 gender and case for day and month, and behavior when the governor is separated
@@ -55,9 +56,32 @@ case from a distant word or from a numeric value alone.
 
 ### Fail-closed boundary
 
-When no reliable governor is available, preserve the complete admitted date and
-emit the existing candidate diagnostic rather than guessing. In particular,
-these surfaces must remain separate from contextual agreement:
+The absence of a reliable governor is not itself an admission error. A valid
+date with no governor keeps the current surface-local normalization and emits no
+warning:
+
+```text
+01.01.2024
+→ первое января две тысячи двадцать четвёртого года
+```
+
+A valid date with an unsupported or ambiguous governor is a separate product
+decision. Until that decision is approved, it must not be silently converted to
+another grammatical case; the behavior PR must record whether the existing
+surface-local result or a dedicated fail-closed result is selected.
+
+The three cases have different contracts:
+
+| Surface/context | Required behavior before a new decision |
+|---|---|
+| Valid date without a governor | Current surface-local normalization, no warning |
+| Valid date with unsupported or ambiguous governor | Deferred product decision; no guessed case |
+| Malformed, unsupported continuation, or technical overlap | Preserve the complete source span with `UnresolvedNumber` |
+
+Preservation of the complete source span with `UnresolvedNumber` applies only to
+malformed or unsupported candidate surfaces, not to a valid date merely lacking
+a governor. In particular, these surfaces remain separate from contextual
+agreement:
 
 ```text
 01.01.2024
