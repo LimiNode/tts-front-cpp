@@ -19,7 +19,7 @@ const auto result = frontend.process("В 2026 г. API готов.", options);
 включить `MixedLanguagePolicy::SegmentCandidates`; технические идентификаторы и
 остальной текст при этом остаются в языке основной фразы.
 
-Сборка: `cmake -S . -B build && cmake --build build`, тесты: `ctest --test-dir build`.
+Build and test: `cmake -S . -B .build/debug && cmake --build .build/debug`, tests: `ctest --test-dir .build/debug`.
 
 Установка экспортирует пакет `TtsFront::tts_front`; потребитель может использовать `find_package(TtsFront CONFIG REQUIRED)`.
 
@@ -48,9 +48,9 @@ Silero Stress Phase 1 reference receipt: [docs/research/silero-phase1.md](docs/r
 `clang-format` — canonical formatter для C++-кода. Локальные команды:
 
 ```text
-cmake -S . -B build-format -DTTS_FRONT_CLANG_FORMAT=clang-format
-cmake --build build-format --target format
-cmake --build build-format --target format-check
+cmake -S . -B .build/format -DTTS_FRONT_CLANG_FORMAT=clang-format
+cmake --build .build/format --target format
+cmake --build .build/format --target format-check
 ```
 
 Перед отправкой PR запускайте `format-check`.
@@ -68,3 +68,14 @@ cmake --build build-format --target format-check
 преобразования; snapshot фиксирует counts, mismatch IDs, фактические outputs и diagnostics. Новые
 расхождения, пересечения `UnresolvedNumber`, рассинхронизация генератора, нарушения UTF-8,
 warning spans и утечки служебных markers останавливают тест.
+
+## Workspace layout
+
+- `.build/` contains CMake build trees and install/consumer staging, such as
+  `.build/debug`, `.build/release`, `.build/format`, `.build/benchmark`, and
+  `.build/consumer`.
+- `.temp/` contains downloaded SDKs, probes, reports, and temporary source
+  checkouts. It is not a build directory.
+- Future project-owned third-party dependencies belong in direct submodules at
+  `external/<name>`, with one documented entry per dependency in `.gitmodules`.
+  Do not create an empty `external/` directory or `.gitmodules` file.
