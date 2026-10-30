@@ -151,7 +151,8 @@ evidence and regression coverage.
 - Silero research не меняет normalization semantics и не тащит ML runtime в core;
 - новые языки не добавляются «для задела» без работающего контракта;
 - performance cleanup не оправдывает speculative abstractions;
-- все сборки, тесты, coverage и временные файлы выполняются под `.temp/`.
+- All CMake build trees, install/consumer staging, tests, and benchmarks belong under `.build/`.
+- Downloaded SDKs, probes, reports, and temporary source checkouts belong under `.temp/`.
 
 Каждый этап заканчивается отдельным focused PR, exact-head CI verification и
 обновлением этого документа.
