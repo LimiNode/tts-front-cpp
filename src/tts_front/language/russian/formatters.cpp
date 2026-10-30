@@ -120,6 +120,41 @@ std::string ordinal_day(int day) {
                                           "тридцать первое"};
     return day >= 1 && day <= 31 ? ordinal[day] : number(day);
 }
+std::string ordinal_day_genitive(int day) {
+    static const char* const ordinal[] = {"",
+                                          "первого",
+                                          "второго",
+                                          "третьего",
+                                          "четвёртого",
+                                          "пятого",
+                                          "шестого",
+                                          "седьмого",
+                                          "восьмого",
+                                          "девятого",
+                                          "десятого",
+                                          "одиннадцатого",
+                                          "двенадцатого",
+                                          "тринадцатого",
+                                          "четырнадцатого",
+                                          "пятнадцатого",
+                                          "шестнадцатого",
+                                          "семнадцатого",
+                                          "восемнадцатого",
+                                          "девятнадцатого",
+                                          "двадцатого",
+                                          "двадцать первого",
+                                          "двадцать второго",
+                                          "двадцать третьего",
+                                          "двадцать четвёртого",
+                                          "двадцать пятого",
+                                          "двадцать шестого",
+                                          "двадцать седьмого",
+                                          "двадцать восьмого",
+                                          "двадцать девятого",
+                                          "тридцатого",
+                                          "тридцать первого"};
+    return day >= 1 && day <= 31 ? ordinal[day] : number(day);
+}
 std::string year_ordinal(int n, YearCase grammatical_case) {
     const bool genitive = grammatical_case == YearCase::Genitive;
     const bool accusative = grammatical_case == YearCase::Accusative;
