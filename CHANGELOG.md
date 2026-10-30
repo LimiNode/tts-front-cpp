@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.4
+
+- Added Russian contextual date agreement after `до`, including UTF-8-aware
+  whitespace and boundary handling for spaces, tabs, newlines, and NBSP.
+- Preserved fail-closed behavior for malformed dates and unsupported
+  continuations with complete source spans and `UnresolvedNumber` diagnostics.
+- Consolidated Russian ordinal-day nominative and genitive forms into one
+  behavior-preserving formatter table.
+- Standardized documented workspace paths: CMake builds and staging use
+  `.build/`, while SDKs, probes, reports, and temporary checkouts use `.temp/`.
+
 ## 0.2.3
 
 - Исправлена атомарная обработка currency-prefix форм для `$`, `€`, `£` и `¥`, включая знаки, пробелы, grouped и decimal values.
