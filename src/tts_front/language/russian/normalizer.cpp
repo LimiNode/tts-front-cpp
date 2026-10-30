@@ -12,8 +12,8 @@
 #include "tts_front/technical/admission.hpp"
 
 #include <algorithm>
-#include <cctype>
 #include <cstdlib>
+#include <initializer_list>
 #include <regex>
 #include <string>
 #include <string_view>
@@ -46,19 +46,25 @@ bool has_context_boundary(const std::string_view value, const std::size_t begin)
            !text::is_combining_mark(previous);
 }
 
-bool has_until_date_prefix(const std::string_view value, const std::size_t begin) {
-    for (const auto prefix : {std::string_view("до "), std::string_view("До ")}) {
-        if (begin >= prefix.size() && value.substr(begin - prefix.size(), prefix.size()) == prefix)
-            return has_context_boundary(value, begin - prefix.size());
-    }
-    return false;
+bool is_context_space(const std::uint32_t value) {
+    return value == ' ' || value == '\t' || value == '\n' || value == '\r' || value == '\v' ||
+           value == '\f' || value == 0x00a0;
 }
 
-bool has_genitive_prefix(const MappedText& source, const std::size_t position) {
+bool has_contextual_prefix(const MappedText& source,
+                           const std::size_t position,
+                           const std::initializer_list<std::string_view> suffixes) {
     const auto& text = source.text;
     auto end = position;
-    while (end > 0 && std::isspace(static_cast<unsigned char>(text[end - 1])))
-        --end;
+    while (end > 0) {
+        const auto previous = previous_codepoint(text, end);
+        if (!is_context_space(previous))
+            break;
+        auto begin = end - 1;
+        while (begin > 0 && (static_cast<unsigned char>(text[begin]) & 0xc0) == 0x80)
+            --begin;
+        end = begin;
+    }
     const auto has_suffix = [&](const std::string_view suffix) {
         if (end < suffix.size() || text.compare(end - suffix.size(), suffix.size(), suffix) != 0)
             return false;
@@ -81,7 +87,11 @@ bool has_genitive_prefix(const MappedText& source, const std::size_t position) {
         }
         return !text::is_letter(previous) && !text::is_digit(previous) && previous != '_';
     };
-    return has_suffix("после") || has_suffix("После") || has_suffix("из") || has_suffix("Из");
+    return std::any_of(suffixes.begin(), suffixes.end(), has_suffix);
+}
+
+bool has_genitive_prefix(const MappedText& source, const std::size_t position) {
+    return has_contextual_prefix(source, position, {"после", "После", "из", "Из"});
 }
 
 std::size_t unsupported_genitive_end(const MappedText& source,
@@ -338,10 +348,11 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                                                  "октября",
                                                  "ноября",
                                                  "декабря"};
-            const auto day_word =
-                has_until_date_prefix(source.text, static_cast<std::size_t>(match.position()))
-                    ? ordinal_day_genitive(static_cast<int>(day))
-                    : ordinal_day(static_cast<int>(day));
+            const auto day_word = has_contextual_prefix(source,
+                                                        static_cast<std::size_t>(match.position()),
+                                                        {"до", "До"})
+                                      ? ordinal_day_genitive(static_cast<int>(day))
+                                      : ordinal_day(static_cast<int>(day));
             return day_word + " " + months[month] + " " + year_genitive(static_cast<int>(year)) +
                    " года";
         });

@@ -564,6 +564,36 @@ int main() {
         CHECK(until_continuation.warnings.front().offset == 5);
         CHECK(until_continuation.warnings.front().length == 12);
 
+        const std::array<std::pair<std::string, std::string>, 5> until_day_forms = {{
+            {"до 02.02.2024", "до второго февраля две тысячи двадцать четвёртого года"},
+            {"до 04.02.2024", "до четвёртого февраля две тысячи двадцать четвёртого года"},
+            {"до 21.02.2024", "до двадцать первого февраля две тысячи двадцать четвёртого года"},
+            {"до 30.04.2024", "до тридцатого апреля две тысячи двадцать четвёртого года"},
+            {"до 31.12.2024", "до тридцать первого декабря две тысячи двадцать четвёртого года"},
+        }};
+        for (const auto& [input, expected] : until_day_forms) {
+            const auto result = frontend.process(input, options);
+            CHECK(result.original_text == input);
+            CHECK(result.normalized_text == expected);
+            CHECK(result.pronunciation_text == expected);
+            CHECK(result.warnings.empty());
+        }
+
+        const std::array<std::pair<std::string, std::string>, 3> until_whitespace = {{
+            {"до\t01.01.2024", "до первого января две тысячи двадцать четвёртого года"},
+            {"до\n01.01.2024", "до первого января две тысячи двадцать четвёртого года"},
+            {"до\xC2\xA0"
+             "01.01.2024",
+             "до первого января две тысячи двадцать четвёртого года"},
+        }};
+        for (const auto& [input, expected] : until_whitespace) {
+            const auto result = frontend.process(input, options);
+            CHECK(result.original_text == input);
+            CHECK(result.normalized_text == expected);
+            CHECK(result.pronunciation_text == expected);
+            CHECK(result.warnings.empty());
+        }
+
         for (const auto& surface :
              {std::string("29.02.2025"), std::string("31.04.2024"), std::string("32.01.2024")}) {
             const auto input = "Дата " + surface + ".";
