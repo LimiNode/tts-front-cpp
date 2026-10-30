@@ -12,6 +12,7 @@ std::string plural_form(long long value, const char* one, const char* few, const
 std::string feminine_number(long long value);
 std::string genitive_number(long long value);
 std::string ordinal_day(int day);
+std::string ordinal_day_genitive(int day);
 // Calendar-year ordinals. Locative and accusative are masculine to agree
 // with "год"; the contextual formatters support years 1000 through 9999.
 std::string year_ordinal(int value, YearCase grammatical_case);

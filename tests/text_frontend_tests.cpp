@@ -517,7 +517,7 @@ int main() {
         const std::array<std::pair<std::string, std::string>, 4> surface_local_contexts = {{
             {"на 01.01.2024", "на первое января две тысячи двадцать четвёртого года"},
             {"дату 01.01.2024", "дату первое января две тысячи двадцать четвёртого года"},
-            {"до 01.01.2024", "до первое января две тысячи двадцать четвёртого года"},
+            {"до 01.01.2024", "до первого января две тысячи двадцать четвёртого года"},
             {"за 01.01.2024", "за первое января две тысячи двадцать четвёртого года"},
         }};
         for (const auto& [input, expected] : surface_local_contexts) {
@@ -541,6 +541,28 @@ int main() {
             CHECK(result.warnings.front().offset == warning_offset);
             CHECK(result.warnings.front().length == 10);
         }
+        const auto until_sentence = frontend.process("Крайний срок — до 01.01.2024.", options);
+        CHECK(until_sentence.normalized_text ==
+              "Крайний срок — до первого января две тысячи двадцать четвёртого года.");
+        CHECK(until_sentence.pronunciation_text == until_sentence.normalized_text);
+        CHECK(until_sentence.warnings.empty());
+        const auto until_independent = frontend.process("до 01.01.2024 7", options);
+        CHECK(until_independent.normalized_text ==
+              "до первого января две тысячи двадцать четвёртого года семь");
+        CHECK(until_independent.pronunciation_text == until_independent.normalized_text);
+        CHECK(until_independent.warnings.empty());
+        const auto until_invalid = frontend.process("до 31.04.2024", options);
+        CHECK(until_invalid.normalized_text == until_invalid.original_text);
+        CHECK(until_invalid.warnings.size() == 1);
+        CHECK(until_invalid.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(until_invalid.warnings.front().offset == 5);
+        CHECK(until_invalid.warnings.front().length == 10);
+        const auto until_continuation = frontend.process("до 01.01.2024#4", options);
+        CHECK(until_continuation.normalized_text == until_continuation.original_text);
+        CHECK(until_continuation.warnings.size() == 1);
+        CHECK(until_continuation.warnings.front().code == WarningCode::UnresolvedNumber);
+        CHECK(until_continuation.warnings.front().offset == 5);
+        CHECK(until_continuation.warnings.front().length == 12);
 
         for (const auto& surface :
              {std::string("29.02.2025"), std::string("31.04.2024"), std::string("32.01.2024")}) {

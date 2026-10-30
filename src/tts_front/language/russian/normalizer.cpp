@@ -46,6 +46,14 @@ bool has_context_boundary(const std::string_view value, const std::size_t begin)
            !text::is_combining_mark(previous);
 }
 
+bool has_until_date_prefix(const std::string_view value, const std::size_t begin) {
+    for (const auto prefix : {std::string_view("до "), std::string_view("До ")}) {
+        if (begin >= prefix.size() && value.substr(begin - prefix.size(), prefix.size()) == prefix)
+            return has_context_boundary(value, begin - prefix.size());
+    }
+    return false;
+}
+
 bool has_genitive_prefix(const MappedText& source, const std::size_t position) {
     const auto& text = source.text;
     auto end = position;
@@ -330,8 +338,12 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                                                  "октября",
                                                  "ноября",
                                                  "декабря"};
-            return ordinal_day(static_cast<int>(day)) + " " + months[month] + " " +
-                   year_genitive(static_cast<int>(year)) + " года";
+            const auto day_word =
+                has_until_date_prefix(source.text, static_cast<std::size_t>(match.position()))
+                    ? ordinal_day_genitive(static_cast<int>(day))
+                    : ordinal_day(static_cast<int>(day));
+            return day_word + " " + months[month] + " " + year_genitive(static_cast<int>(year)) +
+                   " года";
         });
     text = replace_numeric_matches(
         text, russian::patterns().year, [&](const std::smatch& match, const MappedText& source) {
