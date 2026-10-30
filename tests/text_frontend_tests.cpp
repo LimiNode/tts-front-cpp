@@ -514,6 +514,34 @@ int main() {
         CHECK(surface_local.pronunciation_text == surface_local.normalized_text);
         CHECK(surface_local.warnings.empty());
 
+        const std::array<std::pair<std::string, std::string>, 4> surface_local_contexts = {{
+            {"на 01.01.2024", "на первое января две тысячи двадцать четвёртого года"},
+            {"дату 01.01.2024", "дату первое января две тысячи двадцать четвёртого года"},
+            {"до 01.01.2024", "до первое января две тысячи двадцать четвёртого года"},
+            {"за 01.01.2024", "за первое января две тысячи двадцать четвёртого года"},
+        }};
+        for (const auto& [input, expected] : surface_local_contexts) {
+            const auto result = frontend.process(input, options);
+            CHECK(result.original_text == input);
+            CHECK(result.normalized_text == expected);
+            CHECK(result.pronunciation_text == expected);
+            CHECK(result.warnings.empty());
+        }
+        const std::array<std::tuple<std::string, std::size_t>, 2> unsupported_contexts = {{
+            {"после 01.01.2024", 11},
+            {"из 01.01.2024", 5},
+        }};
+        for (const auto& [input, warning_offset] : unsupported_contexts) {
+            const auto result = frontend.process(input, options);
+            CHECK(result.original_text == input);
+            CHECK(result.normalized_text == input);
+            CHECK(result.pronunciation_text == input);
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(result.warnings.front().offset == warning_offset);
+            CHECK(result.warnings.front().length == 10);
+        }
+
         for (const auto& surface :
              {std::string("29.02.2025"), std::string("31.04.2024"), std::string("32.01.2024")}) {
             const auto input = "Дата " + surface + ".";
