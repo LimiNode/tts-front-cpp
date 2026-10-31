@@ -20,6 +20,19 @@ contextual interpretation. A valid date with no approved interpretation is not
 malformed and must not receive `UnresolvedNumber` merely because its governor
 is unresolved.
 
+## Decision for the current product contract
+
+The current product choice is to keep valid dates after `за` surface-local.
+The formatter does not infer a temporal, duration, or object/reference reading
+from `за` alone, does not apply a contextual case rewrite, and does not emit a
+warning for an otherwise valid date. The characterization matrix in PR #63
+records this contract in Russian, Auto, and SegmentCandidates modes.
+
+This closes the deferred item for the current release line. A future temporal
+interpretation requires a separate product decision with a bounded pattern,
+explicit fallback, regression tests, and a separately justified oracle change;
+no such behavior is part of the current contract.
+
 ## Why `за` is ambiguous
 
 The preposition `за` has several ordinary readings, and the date surface alone
@@ -109,5 +122,6 @@ The work is intentionally split into separate steps:
    justified commit;
 4. verify exact-head CI and post-merge CI before the next policy track.
 
-Until step 1 is approved, `за 01.01.2024` and equivalent valid surfaces retain
-the current surface-local normalization with no warning.
+Unless a future product decision explicitly approves a bounded contextual
+interpretation, `за 01.01.2024` and equivalent valid surfaces retain the
+current surface-local normalization with no warning.
