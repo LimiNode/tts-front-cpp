@@ -527,6 +527,60 @@ int main() {
             CHECK(result.pronunciation_text == expected);
             CHECK(result.warnings.empty());
         }
+
+        using ExpectedDiagnostic = std::tuple<WarningCode, std::size_t, std::size_t>;
+        const auto check_za_case = [&](const std::string& input,
+                                       const std::string& expected_normalized,
+                                       const std::vector<ExpectedDiagnostic>& expected) {
+            const auto result = frontend.process(input, options);
+            if (result.original_text != input || result.normalized_text != expected_normalized ||
+                result.pronunciation_text != expected_normalized ||
+                result.warnings.size() != expected.size())
+                return false;
+            for (std::size_t index = 0; index < expected.size(); ++index) {
+                if (result.warnings[index].code != std::get<0>(expected[index]) ||
+                    result.warnings[index].offset != std::get<1>(expected[index]) ||
+                    result.warnings[index].length != std::get<2>(expected[index]))
+                    return false;
+            }
+            return true;
+        };
+
+        const std::array<std::pair<std::string, std::string>, 7> za_cardinals = {{
+            {"за 1", "за один"},
+            {"за 2", "за два"},
+            {"за 5", "за пять"},
+            {"за 21", "за двадцать один"},
+            {"за 22", "за двадцать два"},
+            {"за 42", "за сорок два"},
+            {"за 100", "за сто"},
+        }};
+        for (const auto& [input, expected] : za_cardinals)
+            CHECK(check_za_case(input, expected, {}));
+
+        CHECK(check_za_case(
+            "за 01.01.2024.", "за первое января две тысячи двадцать четвёртого года.", {}));
+        CHECK(check_za_case(
+            "за 01.01.2024\n7", "за первое января две тысячи двадцать четвёртого года семь", {}));
+        CHECK(check_za_case(
+            "за 01.01.2024 7", "за первое января две тысячи двадцать четвёртого года семь", {}));
+
+        const std::array<std::pair<std::string, std::size_t>, 8> za_malformed = {{
+            {"за 31.04.2024", 10},
+            {"за 01.01.2024#4", 12},
+            {"за 01.01.2024/4", 12},
+            {"за 01.01.2024%4", 12},
+            {"за +01.01.2024", 11},
+            {"за -01.01.2024", 11},
+            {std::string("за 01.01.2024") + "\xE2\x88\x92" + "4", 14},
+            {std::string("за 01.01.2024") + "\xCC\x81", 12},
+        }};
+        for (const auto& [input, length] : za_malformed)
+            CHECK(check_za_case(input, input, {{WarningCode::UnresolvedNumber, 5, length}}));
+
+        CHECK(
+            check_za_case("https://example.com/01.01.2024", "https://example.com/01.01.2024", {}));
+        CHECK(check_za_case("user01.01.2024@example.com", "user01.01.2024@example.com", {}));
         const std::array<std::tuple<std::string, std::size_t>, 2> unsupported_contexts = {{
             {"после 01.01.2024", 11},
             {"из 01.01.2024", 5},
@@ -668,6 +722,14 @@ int main() {
         CHECK(independent.pronunciation_text == independent.normalized_text);
         CHECK(independent.warnings.empty());
     }
+    const auto za_technical = frontend.process("RTX-01.01.2024", ru);
+    CHECK(za_technical.original_text == "RTX-01.01.2024");
+    CHECK(za_technical.normalized_text == za_technical.original_text);
+    CHECK(za_technical.pronunciation_text == za_technical.original_text);
+    CHECK(za_technical.warnings.size() == 1);
+    CHECK(za_technical.warnings.front().code == WarningCode::UnresolvedNumber);
+    CHECK(za_technical.warnings.front().offset == 3);
+    CHECK(za_technical.warnings.front().length == 11);
     CHECK(frontend.process("01.02.2026", ru).normalized_text ==
           "первое февраля две тысячи двадцать шестого года");
     CHECK(frontend.process("1,1 2,2 5,1", ru).normalized_text ==
