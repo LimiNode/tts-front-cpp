@@ -32,6 +32,10 @@ v0.1. Этапы намеренно разделены: corpus и deterministic 
   benchmark gate и `StressMode::Automatic` подключены за optional build boundary.
 - **Silero distribution contract** — библиотека не поставляет и не скачивает
   model bundle; приложение передаёт bundle root через options или environment.
+- **v0.2.4 stability line** — русская policy для дат после `за` закрыта как
+  surface-local: валидная дата нормализуется без contextual rewrite и warning.
+  Любая будущая temporal-интерпретация допускается только отдельным bounded
+  behavior PR с явно утверждённым продуктовым контрактом.
 
 ## Порядок этапов
 
@@ -144,6 +148,15 @@ production parity receipt.
 throughput, allocation reduction, broader normalization corpus and additional
 language support are post-release `v0.2.0` work, accepted only with benchmark
 evidence and regression coverage.
+
+### 7. Следующий крупный продуктовый этап
+
+После стабилизации `v0.2.4` следующий этап выбирается отдельным product
+proposal. Два допустимых направления и их критерии зафиксированы в
+[docs/next-product-stage-proposal.md](next-product-stage-proposal.md):
+расширение естественного sentence corpus для RU/EN или добавление нового языка.
+Ни одно направление не начинается изменением production semantics без отдельного
+контракта, characterization matrix и exact-head CI.
 
 ## Не смешиваем этапы
 
