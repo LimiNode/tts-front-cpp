@@ -8,6 +8,9 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <map>
+#include <set>
+#include <sstream>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -3279,6 +3282,123 @@ int main() {
         CHECK(result.normalized_text == test.second);
         CHECK(result.pronunciation_text == test.second);
         CHECK(result.warnings.empty());
+    }
+    {
+        const auto inventory_path = std::string(TTS_FRONT_SOURCE_DIR) +
+                                    "/tests/characterization/natural_sentence_inventory.tsv";
+        std::ifstream inventory(inventory_path, std::ios::binary);
+        CHECK(inventory.good());
+        const auto split_tabs = [](const std::string& line) {
+            std::vector<std::string> fields;
+            std::size_t begin = 0;
+            while (true) {
+                const auto end = line.find('\t', begin);
+                fields.push_back(line.substr(begin, end == std::string::npos ? end : end - begin));
+                if (end == std::string::npos)
+                    return fields;
+                begin = end + 1;
+            }
+        };
+        const auto decode_escapes = [](const std::string& value) {
+            std::string decoded;
+            for (std::size_t index = 0; index < value.size(); ++index) {
+                if (value[index] == '\\' && index + 1 < value.size() &&
+                    (value[index + 1] == 'n' || value[index + 1] == 't')) {
+                    decoded.push_back(value[index + 1] == 'n' ? '\n' : '\t');
+                    ++index;
+                } else {
+                    decoded.push_back(value[index]);
+                }
+            }
+            return decoded;
+        };
+        const auto options_for_mode = [&](const std::string& mode) {
+            TextFrontendOptions options;
+            if (mode == "ru") {
+                options.language = Language::Russian;
+            } else if (mode == "en") {
+                options.language = Language::English;
+            } else {
+                options.language = Language::Auto;
+                if (mode == "segment")
+                    options.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+            }
+            return options;
+        };
+        std::string line;
+        CHECK(std::getline(inventory, line));
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+        CHECK(line == "id\tmode\tcategory\tinput\texpected_normalized\t"
+                      "expected_pronunciation\tdiagnostics");
+        const std::array<std::string, 8> expected_categories = {"date",
+                                                                "year",
+                                                                "measurement",
+                                                                "currency",
+                                                                "percent",
+                                                                "mixed_language",
+                                                                "punctuation",
+                                                                "ambiguous_or_technical"};
+        std::set<std::string> ids;
+        std::map<std::string, std::size_t> category_counts;
+        std::map<std::string, std::size_t> mode_counts;
+        std::size_t case_count = 0;
+        while (std::getline(inventory, line)) {
+            if (!line.empty() && line.back() == '\r')
+                line.pop_back();
+            if (line.empty())
+                continue;
+            const auto fields = split_tabs(line);
+            CHECK(fields.size() == 7);
+            CHECK(ids.insert(fields[0]).second);
+            CHECK(std::find(expected_categories.begin(), expected_categories.end(), fields[2]) !=
+                  expected_categories.end());
+            CHECK(fields[1] == "ru" || fields[1] == "en" || fields[1] == "auto" ||
+                  fields[1] == "segment");
+            ++category_counts[fields[2]];
+            ++mode_counts[fields[1]];
+            ++case_count;
+
+            const auto input = decode_escapes(fields[3]);
+            const auto result = frontend.process(input, options_for_mode(fields[1]));
+            CHECK(result.original_text == input);
+            CHECK(result.normalized_text == decode_escapes(fields[4]));
+            CHECK(result.pronunciation_text == decode_escapes(fields[5]));
+
+            std::vector<std::string> diagnostic_parts;
+            if (fields[6] != "none") {
+                std::size_t begin = 0;
+                while (true) {
+                    const auto end = fields[6].find(';', begin);
+                    diagnostic_parts.push_back(
+                        fields[6].substr(begin, end == std::string::npos ? end : end - begin));
+                    if (end == std::string::npos)
+                        break;
+                    begin = end + 1;
+                }
+            }
+            CHECK(result.warnings.size() == diagnostic_parts.size());
+            for (std::size_t index = 0; index < diagnostic_parts.size(); ++index) {
+                const auto& part = diagnostic_parts[index];
+                const auto at = part.find('@');
+                const auto colon = part.find(':', at == std::string::npos ? at : at + 1);
+                CHECK(at != std::string::npos && colon != std::string::npos);
+                const auto code = part.substr(0, at);
+                const auto offset = std::stoull(part.substr(at + 1, colon - at - 1));
+                const auto length = std::stoull(part.substr(colon + 1));
+                CHECK(to_string(result.warnings[index].code) == code);
+                CHECK(result.warnings[index].offset == offset);
+                CHECK(result.warnings[index].length == length);
+            }
+        }
+        CHECK(case_count == 96);
+        CHECK(ids.size() == case_count);
+        for (const auto& category : expected_categories)
+            CHECK(category_counts[category] == 12);
+        CHECK(mode_counts["ru"] == 32);
+        CHECK(mode_counts["en"] == 32);
+        CHECK(mode_counts["auto"] == 16);
+        CHECK(mode_counts["segment"] == 16);
     }
     std::cout << "tts_front tests passed\n";
     return EXIT_SUCCESS;
