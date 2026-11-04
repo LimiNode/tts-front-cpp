@@ -425,6 +425,31 @@ int main() {
     const std::array<TextFrontendOptions, 3> RussianYearModes = {
         ru, russian_year_auto, russian_year_segmented};
     for (const auto& options : RussianYearModes) {
+        const std::array<std::pair<std::string, std::string>, 5> leading_zero_years = {{
+            {"Год 0999 указан неверно.", "0999"},
+            {"Год +0999 указан неверно.", "+0999"},
+            {"Год -0999 указан неверно.", "-0999"},
+            {"Год −0999 указан неверно.", "−0999"},
+            {"Год 0999#4 указан неверно.", "0999#4"},
+        }};
+        for (const auto& [input, candidate] : leading_zero_years) {
+            const auto result = frontend.process(input, options);
+            CHECK(result.original_text == input);
+            CHECK(result.normalized_text == input);
+            CHECK(result.pronunciation_text == input);
+            CHECK(result.warnings.size() == 1);
+            if (result.warnings.size() != 1)
+                continue;
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+            const auto offset = input.find(candidate);
+            CHECK(offset != std::string::npos);
+            if (offset == std::string::npos)
+                continue;
+            CHECK(result.warnings.front().offset == offset);
+            CHECK(result.warnings.front().length == candidate.size());
+        }
+    }
+    for (const auto& options : RussianYearModes) {
         const auto positive = frontend.process("в 2024 году.", options);
         CHECK(positive.normalized_text == "в две тысячи двадцать четвёртом году.");
         CHECK(positive.pronunciation_text == positive.normalized_text);
@@ -3369,6 +3394,19 @@ int main() {
             const auto input = decode_escapes(fields[3]);
             const auto result = frontend.process(input, options_for_mode(fields[1]));
             CHECK(result.original_text == input);
+            if (fields[7] == "policy_mismatch") {
+                CHECK(result.normalized_text == input);
+                CHECK(result.pronunciation_text == input);
+                CHECK(result.warnings.size() == 1);
+                if (result.warnings.size() == 1) {
+                    const auto offset = input.find("0999");
+                    CHECK(offset != std::string::npos);
+                    CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+                    CHECK(result.warnings.front().offset == offset);
+                    CHECK(result.warnings.front().length == 4);
+                }
+                continue;
+            }
             CHECK(result.normalized_text == decode_escapes(fields[4]));
             CHECK(result.pronunciation_text == decode_escapes(fields[5]));
 

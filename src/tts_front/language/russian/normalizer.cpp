@@ -184,6 +184,80 @@ bool try_parse_context_year(const std::string& token, long long& year) {
            try_parse_long(token, year) && year >= 1000 && year <= 9999;
 }
 
+void protect_leading_zero_years(MappedText& text,
+                                WarningSink& warnings,
+                                std::vector<ProtectedSpan>& protected_spans) {
+    const Utf8Document document(text.text);
+    if (!document.valid)
+        return;
+
+    std::vector<std::size_t> typed_year_offsets;
+    const auto collect_typed_years = [&](const std::regex& pattern,
+                                         const int first_group,
+                                         const int second_group = -1) {
+        for (std::sregex_iterator it(text.text.begin(), text.text.end(), pattern), end; it != end;
+             ++it) {
+            typed_year_offsets.push_back(static_cast<std::size_t>(it->position(first_group)));
+            if (second_group >= 0)
+                typed_year_offsets.push_back(static_cast<std::size_t>(it->position(second_group)));
+        }
+    };
+    collect_typed_years(patterns().year_locative_context, 3);
+    collect_typed_years(patterns().year_accusative_context, 3);
+    collect_typed_years(patterns().year_locative_attached, 3);
+    collect_typed_years(patterns().year_accusative_attached, 3);
+    collect_typed_years(patterns().year_range_context, 3, 5);
+    std::sort(typed_year_offsets.begin(), typed_year_offsets.end());
+    typed_year_offsets.erase(std::unique(typed_year_offsets.begin(), typed_year_offsets.end()),
+                             typed_year_offsets.end());
+
+    std::vector<SourceEdit> edits;
+    for (std::size_t point = 0; point < document.points.size(); ++point) {
+        const auto value = document.points[point].value;
+        const auto signed_start = (value == '+' || value == '-' || value == 0x2212) &&
+                                  point + 1 < document.points.size() &&
+                                  text::is_digit(document.points[point + 1].value);
+        const auto unsigned_start =
+            text::is_digit(value) &&
+            (point == 0 || !text::is_digit(document.points[point - 1].value));
+        if (!signed_start && !unsigned_start)
+            continue;
+
+        const auto candidate =
+            scan_candidate_surface(document, point, CandidateSurfaceKind::Contextual);
+        if (!candidate.valid() ||
+            candidate.numeric.digits_end - candidate.numeric.digits_begin != 4 ||
+            document.points[candidate.numeric.digits_begin].value != '0')
+            continue;
+
+        const auto candidate_offset = document.points[candidate.numeric.digits_begin].offset;
+        if (std::binary_search(
+                typed_year_offsets.begin(), typed_year_offsets.end(), candidate_offset))
+            continue;
+
+        auto admission_candidate = candidate;
+        admission_candidate.core_end = candidate.numeric.end;
+        admission_candidate.end = candidate.numeric.end;
+        const auto admission =
+            scan_admission(document, admission_candidate, CandidateSurfaceKind::Contextual);
+        const auto end = std::max(candidate.numeric.end, admission.end);
+        if (end <= point)
+            continue;
+        const auto byte_end = document.span_from_codepoints(0, end).byte_end;
+        if (overlaps_preserved_range(text, document.points[point].offset, byte_end))
+            continue;
+        add_protected_candidate(
+            text,
+            NumericCandidate{SourceSpan{document.points[point].offset, byte_end},
+                             NumericCandidateKind::Numeric,
+                             true},
+            warnings,
+            protected_spans,
+            edits);
+    }
+    text = apply_source_edits(text, std::move(edits));
+}
+
 void protect_typed_continuations(MappedText& text,
                                  WarningSink& warnings,
                                  std::vector<ProtectedSpan>& protected_spans,
@@ -318,6 +392,7 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
     text = protect_unsupported_genitive_candidates(std::move(text), warnings);
     text = technical::protect_numeric_candidates(std::move(text), warnings, protected_spans);
     text = technical::protect(std::move(text), protected_spans);
+    protect_leading_zero_years(text, warnings, protected_spans);
     text = protect_malformed_numeric_candidates(
         std::move(text), warnings, protected_spans, admission_rules());
     text = collapse_grouped_numbers(std::move(text));
