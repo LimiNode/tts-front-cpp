@@ -1,0 +1,97 @@
+id	mode	category	input	observed_normalized	observed_pronunciation	diagnostics	contract_status
+date-ru-01	ru	date	Срок — 01.02.2024.	Срок — первое февраля две тысячи двадцать четвёртого года.	Срок — первое февраля две тысячи двадцать четвёртого года.	none	observed_current
+date-ru-02	ru	date	Дата: 29.02.2024.	Дата: двадцать девятое февраля две тысячи двадцать четвёртого года.	Дата: двадцать девятое февраля две тысячи двадцать четвёртого года.	none	observed_current
+date-ru-03	ru	date	Цитата: «15.03.2025».	Цитата: «пятнадцатое марта две тысячи двадцать пятого года».	Цитата: «пятнадцатое марта две тысячи двадцать пятого года».	none	observed_current
+date-ru-04	ru	date	Ошибка даты 31.04.2024.	Ошибка даты 31.04.2024.	Ошибка даты 31.04.2024.	unresolved_number@22:10	observed_current
+date-en-01	en	date	The meeting is on January 2, 2027.	The meeting is on January second, two thousand twenty seven.	The meeting is on January second, two thousand twenty seven.	none	observed_current
+date-en-02	en	date	Invoice dated March 14, 2026.	Invoice dated March fourteenth, two thousand twenty six.	Invoice dated March fourteenth, two thousand twenty six.	none	observed_current
+date-en-03	en	date	Quote: "April 5, 2025".	Quote: "April fifth, two thousand twenty five".	Quote: "April fifth, two thousand twenty five".	none	observed_current
+date-en-04	en	date	Bad date April 31, 2024.	Bad date April 31, 2024.	Bad date April 31, 2024.	unresolved_number@9:14	observed_current
+date-auto-01	auto	date	Дата 01.01.2024 и 7.	Дата первое января две тысячи двадцать четвёртого года и семь.	Дата первое января две тысячи двадцать четвёртого года и семь.	none	observed_current
+date-auto-02	auto	date	The date is January 2, 2027 and 8.	The date is January second, two thousand twenty seven and eight.	The date is January second, two thousand twenty seven and eight.	none	observed_current
+date-segment-01	segment	date	Срок 02.01.2024 and 3.	Срок второе января две тысячи двадцать четвёртого года and три.	Срок второе января две тысячи двадцать четвёртого года and три.	ambiguous_normalization@0:26	observed_current
+date-segment-02	segment	date	Meeting March 4, 2026 и 5.	Meeting March four, две тысячи двадцать шесть и five.	Meeting March four, две тысячи двадцать шесть и five.	ambiguous_normalization@0:27	observed_current
+year-ru-01	ru	year	В 2024 году запланировано 3 этапа.	В две тысячи двадцать четвёртом году запланировано три этапа.	В две тысячи двадцать четвёртом году запланировано три этапа.	none	observed_current
+year-ru-02	ru	year	Отчёт за 1999 год готов.	Отчёт за тысяча девятьсот девяносто девятый год готов.	Отчёт за тысяча девятьсот девяносто девятый год готов.	none	observed_current
+year-ru-03	ru	year	Архив 2000 года закрыт.	Архив две тысячи года закрыт.	Архив две тысячи года закрыт.	none	observed_current
+year-ru-04	ru	year	Год 0999 указан неверно.	Год девятьсот девяносто девять указан неверно.	Год девятьсот девяносто девять указан неверно.	none	policy_mismatch
+year-en-01	en	year	In 2024 the service starts.	In two thousand twenty four the service starts.	In two thousand twenty four the service starts.	none	observed_current
+year-en-02	en	year	The report covers 1999.	The report covers one thousand nine hundred ninety nine.	The report covers one thousand nine hundred ninety nine.	none	observed_current
+year-en-03	en	year	Archive from 2000 is closed.	Archive from two thousand is closed.	Archive from two thousand is closed.	none	observed_current
+year-en-04	en	year	Build 2024foo failed.	Build 2024foo failed.	Build 2024foo failed.	none	observed_current
+year-auto-01	auto	year	В 2024 году стартуют 2 сервиса.	В две тысячи двадцать четвёртом году стартуют два сервиса.	В две тысячи двадцать четвёртом году стартуют два сервиса.	none	observed_current
+year-auto-02	auto	year	The report covers 1999 и 3 файла.	The report covers одна тысяча девятьсот девяносто девять и три файла.	The report covers одна тысяча девятьсот девяносто девять и три файла.	ambiguous_normalization@0:39	observed_current
+year-segment-01	segment	year	Архив 2000 года and 4 files.	Архив две тысячи года and four files.	Архив две тысячи года and four files.	ambiguous_normalization@0:37	observed_current
+year-segment-02	segment	year	In 2024 году осталось 5 дней.	In две тысячи двадцать четыре году осталось пять дней.	In две тысячи двадцать четыре году осталось пять дней.	ambiguous_normalization@0:45	observed_current
+unit-ru-01	ru	measurement	Вес 2 кг.	Вес два килограмма.	Вес два килограмма.	none	observed_current
+unit-ru-02	ru	measurement	Требуется 5 литров воды.	Требуется пять литров воды.	Требуется пять литров воды.	none	observed_current
+unit-ru-03	ru	measurement	Длина детали — 2,5 см.	Длина детали — две целых пять десятых сантиметра.	Длина детали — две целых пять десятых сантиметра.	none	observed_current
+unit-ru-04	ru	measurement	Сломан 2 xyz.	Сломан два xyz.	Сломан два xyz.	none	observed_current
+unit-en-01	en	measurement	The box weighs 2 kg.	The box weighs two kilograms.	The box weighs two kilograms.	none	observed_current
+unit-en-02	en	measurement	Add 5 liters of water.	Add five liters of water.	Add five liters of water.	none	observed_current
+unit-en-03	en	measurement	The part is 2.5 cm long.	The part is two point five centimeters long.	The part is two point five centimeters long.	none	observed_current
+unit-en-04	en	measurement	Broken 2 xyz.	Broken two xyz.	Broken two xyz.	none	observed_current
+unit-auto-01	auto	measurement	Вес 2 kg и 3 кг.	Вес два kg и три килограмма.	Вес два kg и три килограмма.	ambiguous_normalization@0:22	observed_current
+unit-auto-02	auto	measurement	The box weighs 2 кг and 4 kg.	The box weighs два килограмма and четыре kg.	The box weighs два килограмма and четыре kg.	ambiguous_normalization@0:31	observed_current
+unit-segment-01	segment	measurement	Требуется 5 liters воды.	Требуется five liters воды.	Требуется five liters воды.	ambiguous_normalization@0:37	observed_current
+unit-segment-02	segment	measurement	Add 2 ГБ и 3 GB.	Add два гигабайта и три гигабайта.	Add два гигабайта и три гигабайта.	ambiguous_normalization@0:19	observed_current
+currency-ru-01	ru	currency	Цена — 2 рубля.	Цена — два рубля.	Цена — два рубля.	none	observed_current
+currency-ru-02	ru	currency	Счёт на 1 234 рубля.	Счёт на одна тысяча двести тридцать четыре рубля.	Счёт на одна тысяча двести тридцать четыре рубля.	none	observed_current
+currency-ru-03	ru	currency	Оплата составила 2,5 рубля.	Оплата составила два рубля пятьдесят копеек.	Оплата составила два рубля пятьдесят копеек.	none	observed_current
+currency-ru-04	ru	currency	Сумма 1,23,45 рубля.	Сумма 1,23,45 рубля.	Сумма 1,23,45 рубля.	unresolved_number@11:7	observed_current
+currency-en-01	en	currency	The price is $2.	The price is two dollars.	The price is two dollars.	none	observed_current
+currency-en-02	en	currency	The invoice is $1,234.	The invoice is one thousand two hundred thirty four dollars.	The invoice is one thousand two hundred thirty four dollars.	none	observed_current
+currency-en-03	en	currency	Payment was $2.50.	Payment was two dollars fifty cents.	Payment was two dollars fifty cents.	none	observed_current
+currency-en-04	en	currency	Amount $1,23.45 is invalid.	Amount $1,23.45 is invalid.	Amount $1,23.45 is invalid.	unresolved_number@7:8	observed_current
+currency-auto-01	auto	currency	Цена $2 и 3 рубля.	Цена $два и три рубля.	Цена $два и три рубля.	none	observed_current
+currency-auto-02	auto	currency	The price is 2 рубля and $4.	The price is два рубля and $четыре.	The price is два рубля and $четыре.	ambiguous_normalization@0:33	observed_current
+currency-segment-01	segment	currency	Счёт $5 и 6 рублей.	Счёт five dollars и шесть рублей.	Счёт five dollars и шесть рублей.	none	observed_current
+currency-segment-02	segment	currency	Payment 7 долларов и 8 USD.	Payment семь долларов и eight USD.	Payment семь долларов и eight USD.	ambiguous_normalization@0:36	observed_current
+percent-ru-01	ru	percent	Загрузка достигла 42%.	Загрузка достигла сорок два процента.	Загрузка достигла сорок два процента.	none	observed_current
+percent-ru-02	ru	percent	Скидка составляет 5 процентов.	Скидка составляет пять процентов.	Скидка составляет пять процентов.	none	observed_current
+percent-ru-03	ru	percent	Рост равен 2,5%.	Рост равен две целых пять десятых процента.	Рост равен две целых пять десятых процента.	none	observed_current
+percent-ru-04	ru	percent	Значение 12%% ошибочно.	Значение 12%% ошибочно.	Значение 12%% ошибочно.	unresolved_number@17:4	observed_current
+percent-en-01	en	percent	CPU usage reached 42%.	CPU usage reached forty two percent.	CPU usage reached forty two percent.	none	observed_current
+percent-en-02	en	percent	The discount is 5 percent.	The discount is five percent.	The discount is five percent.	none	observed_current
+percent-en-03	en	percent	Growth reached 2.5%.	Growth reached two point five percent.	Growth reached two point five percent.	none	observed_current
+percent-en-04	en	percent	Value 12%% is invalid.	Value 12%% is invalid.	Value 12%% is invalid.	unresolved_number@6:4	observed_current
+percent-auto-01	auto	percent	Загрузка 42% and 5 percent.	Загрузка сорок два процента and пять percent.	Загрузка сорок два процента and пять percent.	ambiguous_normalization@0:35	observed_current
+percent-auto-02	auto	percent	CPU usage 5 процентов и 7%.	CPU usage пять процентов и семь процентов.	CPU usage пять процентов и семь процентов.	ambiguous_normalization@0:37	observed_current
+percent-segment-01	segment	percent	Рост 2.5% и 3 процентов.	Рост 2.5% и три процентов.	Рост 2.5% и три процентов.	unresolved_number@9:4	observed_current
+percent-segment-02	segment	percent	Скидка 4% and 6 процентов.	Скидка четыре процента and шесть процентов.	Скидка четыре процента and шесть процентов.	ambiguous_normalization@0:41	observed_current
+mixed-ru-01	ru	mixed_language	OpenAI обработал 2 запроса.	OpenAI обработал два запроса.	OpenAI обработал два запроса.	none	observed_current
+mixed-ru-02	ru	mixed_language	Build завершил 7 задач.	Build завершил семь задач.	Build завершил семь задач.	none	observed_current
+mixed-ru-03	auto	mixed_language	RTX-4090 обработал 2 GB.	RTX-4090 обработал два гигабайта.	RTX-4090 обработал два гигабайта.	ambiguous_normalization@0:33	observed_current
+mixed-ru-04	auto	mixed_language	Use 2 кг в отчёте.	Use два килограмма в отчёте.	Use два килограмма в отчёте.	ambiguous_normalization@0:27	observed_current
+mixed-en-01	en	mixed_language	OpenAI processed 2 requests.	OpenAI processed two requests.	OpenAI processed two requests.	none	observed_current
+mixed-en-02	en	mixed_language	Сборка завершила 7 tasks.	Сборка завершила seven tasks.	Сборка завершила seven tasks.	none	observed_current
+mixed-en-03	segment	mixed_language	RTX-4090 processed 2 GB.	RTX-4090 processed two gigabytes.	RTX-4090 processed two gigabytes.	none	observed_current
+mixed-en-04	segment	mixed_language	Use 2 кг in the report.	Use два килограмма in the report.	Use два килограмма in the report.	ambiguous_normalization@0:25	observed_current
+mixed-auto-01	auto	mixed_language	OpenAI обработал 2 requests.	OpenAI обработал два requests.	OpenAI обработал два requests.	ambiguous_normalization@0:37	observed_current
+mixed-auto-02	auto	mixed_language	Сборка completed 7 задач.	Сборка completed семь задач.	Сборка completed семь задач.	ambiguous_normalization@0:36	observed_current
+mixed-segment-01	segment	mixed_language	OpenAI обработал 2 requests и 3 задачи.	OpenAI обработал two requests и три задачи.	OpenAI обработал two requests и три задачи.	ambiguous_normalization@0:55	observed_current
+mixed-segment-02	segment	mixed_language	Build завершил 4 tasks и 5 файлов.	Build завершил four tasks и пять файлов.	Build завершил four tasks и пять файлов.	ambiguous_normalization@0:49	observed_current
+punct-ru-01	ru	punctuation	Порог равен 2.	Порог равен два.	Порог равен два.	none	observed_current
+punct-ru-02	ru	punctuation	Проверка: 3, затем 4.	Проверка: три, затем четыре.	Проверка: три, затем четыре.	none	observed_current
+punct-ru-03	ru	punctuation	«Значение 5» указано.	«Значение пять» указано.	«Значение пять» указано.	none	observed_current
+punct-ru-04	ru	punctuation	Строка 2\nпродолжена.	Строка два продолжена.	Строка два продолжена.	none	observed_current
+punct-en-01	en	punctuation	The threshold is 2.	The threshold is two.	The threshold is two.	none	observed_current
+punct-en-02	en	punctuation	Check: 3, then 4.	Check: three, then four.	Check: three, then four.	none	observed_current
+punct-en-03	en	punctuation	"Value 5" is recorded.	"Value five" is recorded.	"Value five" is recorded.	none	observed_current
+punct-en-04	en	punctuation	Line 2\ncontinued.	Line two continued.	Line two continued.	none	observed_current
+punct-auto-01	auto	punctuation	Порог 2 and threshold 3.	Порог два and threshold три.	Порог два and threshold три.	ambiguous_normalization@0:29	observed_current
+punct-auto-02	auto	punctuation	Check 4 и затем 5.	Check четыре и затем пять.	Check четыре и затем пять.	ambiguous_normalization@0:24	observed_current
+punct-segment-01	segment	punctuation	«Значение 6» and value 7.	«Значение шесть» and value семь.	«Значение шесть» and value семь.	ambiguous_normalization@0:35	observed_current
+punct-segment-02	segment	punctuation	Line 8\nпродолжена.	Line восемь продолжена.	Line восемь продолжена.	ambiguous_normalization@0:28	observed_current
+tech-ru-01	ru	ambiguous_or_technical	URL https://example.com/v2/3 защищён.	URL https://example.com/v2/3 защищён.	URL https://example.com/v2/3 защищён.	none	observed_current
+tech-ru-02	ru	ambiguous_or_technical	Письмо user2@example.com получено.	Письмо user2@example.com получено.	Письмо user2@example.com получено.	none	observed_current
+tech-ru-03	ru	ambiguous_or_technical	Версия C++17 использует 2 GB.	Версия C++17 использует два гигабайта.	Версия C++17 использует два гигабайта.	none	observed_current
+tech-ru-04	ru	ambiguous_or_technical	Адрес 192.168.1.10 и порт 443.	Адрес 192.168.1.10 и порт четыреста сорок три.	Адрес 192.168.1.10 и порт четыреста сорок три.	none	observed_current
+tech-en-01	en	ambiguous_or_technical	URL https://example.com/v2/3 is protected.	URL https://example.com/v2/3 is protected.	URL https://example.com/v2/3 is protected.	none	observed_current
+tech-en-02	en	ambiguous_or_technical	Email user2@example.com arrived.	Email user2@example.com arrived.	Email user2@example.com arrived.	none	observed_current
+tech-en-03	en	ambiguous_or_technical	Version C++17 uses 2 GB.	Version C++17 uses two gigabytes.	Version C++17 uses two gigabytes.	none	observed_current
+tech-en-04	en	ambiguous_or_technical	Address 192.168.1.10 uses port 443.	Address 192.168.1.10 uses port four hundred forty three.	Address 192.168.1.10 uses port four hundred forty three.	none	observed_current
+tech-auto-01	auto	ambiguous_or_technical	RTX-4090 обработал 2 GB.	RTX-4090 обработал два гигабайта.	RTX-4090 обработал два гигабайта.	ambiguous_normalization@0:33	observed_current
+tech-auto-02	auto	ambiguous_or_technical	HTTP/2 обслужил 3 запроса.	HTTP/2 обслужил три запроса.	HTTP/2 обслужил три запроса.	ambiguous_normalization@0:41	observed_current
+tech-segment-01	segment	ambiguous_or_technical	C# обработал 4 файла и 5 GB.	C# обработал четыре файла и five gigabytes.	C# обработал четыре файла и five gigabytes.	ambiguous_normalization@0:43	observed_current
+tech-segment-02	segment	ambiguous_or_technical	CUDA 13.3 completed 6 задач.	CUDA 13.3 completed шесть задач.	CUDA 13.3 completed шесть задач.	ambiguous_normalization@0:33	observed_current
