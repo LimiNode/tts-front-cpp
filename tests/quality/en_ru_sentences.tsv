@@ -669,6 +669,7 @@ date-segment-02	ru	auto_segment	date	normalize	Meeting March 4, 2026 и 5.	Meeti
 year-ru-01	ru	explicit	year	normalize	В 2024 году запланировано 3 этапа.	В две тысячи двадцать четвёртом году запланировано три этапа.	В две тысячи двадцать четвёртом году запланировано три этапа.	none
 year-ru-02	ru	explicit	year	normalize	Отчёт за 1999 год готов.	Отчёт за тысяча девятьсот девяносто девятый год готов.	Отчёт за тысяча девятьсот девяносто девятый год готов.	none
 year-ru-03	ru	explicit	year	normalize	Архив 2000 года закрыт.	Архив две тысячи года закрыт.	Архив две тысячи года закрыт.	none
+year-ru-04	ru	explicit	year	preserve	Год 0999 указан неверно.	Год 0999 указан неверно.	Год 0999 указан неверно.	unresolved_number@7:4
 year-en-01	en	explicit	year	normalize	In 2024 the service starts.	In two thousand twenty four the service starts.	In two thousand twenty four the service starts.	none
 year-en-02	en	explicit	year	normalize	The report covers 1999.	The report covers one thousand nine hundred ninety nine.	The report covers one thousand nine hundred ninety nine.	none
 year-en-03	en	explicit	year	normalize	Archive from 2000 is closed.	Archive from two thousand is closed.	Archive from two thousand is closed.	none

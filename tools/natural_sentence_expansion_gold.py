@@ -1,8 +1,7 @@
 """Static working-oracle expansion from reviewed characterization observations.
 
 Expected fields are copied from the reviewed inventory; this module never runs
-the frontend to derive them. The policy-mismatch row ``year-ru-04`` is
-intentionally excluded.
+the frontend to derive them.
 """
 
 EXPANSION_CASES = [
@@ -170,6 +169,17 @@ EXPANSION_CASES = [
         "normalized": "\u0410\u0440\u0445\u0438\u0432 \u0434\u0432\u0435 \u0442\u044b\u0441\u044f\u0447\u0438 \u0433\u043e\u0434\u0430 \u0437\u0430\u043a\u0440\u044b\u0442.",
         "pronunciation": "\u0410\u0440\u0445\u0438\u0432 \u0434\u0432\u0435 \u0442\u044b\u0441\u044f\u0447\u0438 \u0433\u043e\u0434\u0430 \u0437\u0430\u043a\u0440\u044b\u0442.",
         "diagnostics": "none",
+    },
+    {
+        "id": "year-ru-04",
+        "language": "ru",
+        "mode": "explicit",
+        "category": "year",
+        "expectation": "preserve",
+        "source": "Год 0999 указан неверно.",
+        "normalized": "Год 0999 указан неверно.",
+        "pronunciation": "Год 0999 указан неверно.",
+        "diagnostics": "unresolved_number@7:4",
     },
     {
         "id": "year-en-01",
@@ -1054,6 +1064,5 @@ EXPANSION_CASES = [
 ]
 
 def natural_sentence_expansion_cases():
-    assert len(EXPANSION_CASES) == 95
-    assert all(case["id"] != "year-ru-04" for case in EXPANSION_CASES)
+    assert len(EXPANSION_CASES) == 96
     return list(EXPANSION_CASES)
