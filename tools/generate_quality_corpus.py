@@ -4,6 +4,7 @@
 import sys
 from pathlib import Path
 
+from natural_sentence_expansion_gold import natural_sentence_expansion_cases
 from natural_sentence_gold import natural_sentence_cases
 
 
@@ -39,15 +40,16 @@ def row(
         pronunciation,
         diagnostics,
     )
-    assert all("\t" not in field and "\n" not in field for field in fields)
+    encoded_fields = tuple(field.replace("\t", "\\t").replace("\n", "\\n") for field in fields)
+    assert all("\t" not in field and "\n" not in field for field in encoded_fields)
     assert language in {"en", "ru"}
-    assert mode in {"explicit", "auto_segment"}
+    assert mode in {"explicit", "auto", "auto_segment"}
     assert expectation in {"normalize", "preserve"}
     assert diagnostics == "none" or all(
         "@" in item and ":" in item for item in diagnostics.split(";")
     )
     assert (source == expected) == (expectation == "preserve")
-    return "\t".join(fields)
+    return "\t".join(encoded_fields)
 
 
 def warning(source, needle, code="unresolved_number"):
@@ -526,6 +528,8 @@ rows.append(row("ru-mixed-malformed-unit-suffix", "ru", "auto_segment", "measure
 def gold_diagnostics(source, specification):
     if specification == "none":
         return "none"
+    if isinstance(specification, str):
+        return specification
     code, needle = specification
     return warning(source, needle, code)
 
@@ -541,6 +545,21 @@ for case in natural_sentence_cases():
             case["source"],
             case["normalized"],
             gold_diagnostics(case["source"], case["diagnostics"]),
+            pronunciation=case["pronunciation"],
+        )
+    )
+
+for case in natural_sentence_expansion_cases():
+    rows.append(
+        row(
+            case["id"],
+            case["language"],
+            case["mode"],
+            case["category"],
+            case["expectation"],
+            case["source"],
+            case["normalized"],
+            case["diagnostics"],
             pronunciation=case["pronunciation"],
         )
     )

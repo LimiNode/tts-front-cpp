@@ -69,6 +69,20 @@ std::vector<std::string> split_tabs(const std::string& line) {
     }
 }
 
+std::string decode_escapes(const std::string& value) {
+    std::string decoded;
+    for (std::size_t index = 0; index < value.size(); ++index) {
+        if (value[index] == '\\' && index + 1 < value.size() &&
+            (value[index + 1] == 'n' || value[index + 1] == 't')) {
+            decoded.push_back(value[index + 1] == 'n' ? '\n' : '\t');
+            ++index;
+        } else {
+            decoded.push_back(value[index]);
+        }
+    }
+    return decoded;
+}
+
 bool valid_utf8(const std::string& value);
 bool contains_marker(const std::string& value);
 
@@ -333,14 +347,14 @@ int main(int argc, char** argv) {
                          fields[2],
                          fields[3],
                          fields[4],
-                         fields[5],
-                         fields[6],
-                         fields[7],
+                         decode_escapes(fields[5]),
+                         decode_escapes(fields[6]),
+                         decode_escapes(fields[7]),
                          fields[8]};
         if (item.id.empty() || item.category.empty() || item.input.empty() ||
             item.expected_normalized.empty() || item.expected_pronunciation.empty() ||
             !ids.insert(item.id).second || (item.language != "en" && item.language != "ru") ||
-            (item.mode != "explicit" && item.mode != "auto_segment") ||
+            (item.mode != "explicit" && item.mode != "auto" && item.mode != "auto_segment") ||
             (item.expectation != "normalize" && item.expectation != "preserve") ||
             (item.expectation == "preserve") != (item.input == item.expected_normalized) ||
             !valid_diagnostic_signature(item.diagnostics) || !valid_utf8(item.input) ||
@@ -413,6 +427,8 @@ int main(int argc, char** argv) {
         if (item.mode == "auto_segment") {
             options.language = tts_front::Language::Auto;
             options.mixed_language_policy = tts_front::MixedLanguagePolicy::SegmentCandidates;
+        } else if (item.mode == "auto") {
+            options.language = tts_front::Language::Auto;
         } else {
             options.language =
                 item.language == "en" ? tts_front::Language::English : tts_front::Language::Russian;
