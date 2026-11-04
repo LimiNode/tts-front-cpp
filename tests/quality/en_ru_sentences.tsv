@@ -654,3 +654,98 @@ ru-v030-control-12	ru	explicit	ambiguous_or_technical	preserve	Некоррек�
 ru-v030-control-13	ru	explicit	ambiguous_or_technical	preserve	Некорректное 1:02::3 нужно сохранить.	Некорректное 1:02::3 нужно сохранить.	Некорректное 1:02::3 нужно сохранить.	unresolved_number@25:7
 ru-v030-control-14	ru	explicit	ambiguous_or_technical	preserve	Значение 1.5%RTX- 4090 не поддерживается.	Значение 1.5%RTX- 4090 не поддерживается.	Значение 1.5%RTX- 4090 не поддерживается.	unresolved_number@17:13
 ru-v030-control-15	ru	explicit	ambiguous_or_technical	preserve	Значение 1.5%RTX− 4090 не поддерживается.	Значение 1.5%RTX− 4090 не поддерживается.	Значение 1.5%RTX− 4090 не поддерживается.	unresolved_number@17:15
+date-ru-01	ru	explicit	date	normalize	Срок — 01.02.2024.	Срок — первое февраля две тысячи двадцать четвёртого года.	Срок — первое февраля две тысячи двадцать четвёртого года.	none
+date-ru-02	ru	explicit	date	normalize	Дата: 29.02.2024.	Дата: двадцать девятое февраля две тысячи двадцать четвёртого года.	Дата: двадцать девятое февраля две тысячи двадцать четвёртого года.	none
+date-ru-03	ru	explicit	date	normalize	Цитата: «15.03.2025».	Цитата: «пятнадцатое марта две тысячи двадцать пятого года».	Цитата: «пятнадцатое марта две тысячи двадцать пятого года».	none
+date-ru-04	ru	explicit	date	preserve	Ошибка даты 31.04.2024.	Ошибка даты 31.04.2024.	Ошибка даты 31.04.2024.	unresolved_number@22:10
+date-en-01	en	explicit	date	normalize	The meeting is on January 2, 2027.	The meeting is on January second, two thousand twenty seven.	The meeting is on January second, two thousand twenty seven.	none
+date-en-02	en	explicit	date	normalize	Invoice dated March 14, 2026.	Invoice dated March fourteenth, two thousand twenty six.	Invoice dated March fourteenth, two thousand twenty six.	none
+date-en-03	en	explicit	date	normalize	Quote: "April 5, 2025".	Quote: "April fifth, two thousand twenty five".	Quote: "April fifth, two thousand twenty five".	none
+date-en-04	en	explicit	date	preserve	Bad date April 31, 2024.	Bad date April 31, 2024.	Bad date April 31, 2024.	unresolved_number@9:14
+date-auto-01	ru	auto	date	normalize	Дата 01.01.2024 и 7.	Дата первое января две тысячи двадцать четвёртого года и семь.	Дата первое января две тысячи двадцать четвёртого года и семь.	none
+date-auto-02	en	auto	date	normalize	The date is January 2, 2027 and 8.	The date is January second, two thousand twenty seven and eight.	The date is January second, two thousand twenty seven and eight.	none
+date-segment-01	ru	auto_segment	date	normalize	Срок 02.01.2024 and 3.	Срок второе января две тысячи двадцать четвёртого года and три.	Срок второе января две тысячи двадцать четвёртого года and три.	ambiguous_normalization@0:26
+date-segment-02	ru	auto_segment	date	normalize	Meeting March 4, 2026 и 5.	Meeting March four, две тысячи двадцать шесть и five.	Meeting March four, две тысячи двадцать шесть и five.	ambiguous_normalization@0:27
+year-ru-01	ru	explicit	year	normalize	В 2024 году запланировано 3 этапа.	В две тысячи двадцать четвёртом году запланировано три этапа.	В две тысячи двадцать четвёртом году запланировано три этапа.	none
+year-ru-02	ru	explicit	year	normalize	Отчёт за 1999 год готов.	Отчёт за тысяча девятьсот девяносто девятый год готов.	Отчёт за тысяча девятьсот девяносто девятый год готов.	none
+year-ru-03	ru	explicit	year	normalize	Архив 2000 года закрыт.	Архив две тысячи года закрыт.	Архив две тысячи года закрыт.	none
+year-en-01	en	explicit	year	normalize	In 2024 the service starts.	In two thousand twenty four the service starts.	In two thousand twenty four the service starts.	none
+year-en-02	en	explicit	year	normalize	The report covers 1999.	The report covers one thousand nine hundred ninety nine.	The report covers one thousand nine hundred ninety nine.	none
+year-en-03	en	explicit	year	normalize	Archive from 2000 is closed.	Archive from two thousand is closed.	Archive from two thousand is closed.	none
+year-en-04	en	explicit	year	preserve	Build 2024foo failed.	Build 2024foo failed.	Build 2024foo failed.	none
+year-auto-01	ru	auto	year	normalize	В 2024 году стартуют 2 сервиса.	В две тысячи двадцать четвёртом году стартуют два сервиса.	В две тысячи двадцать четвёртом году стартуют два сервиса.	none
+year-auto-02	ru	auto	year	normalize	The report covers 1999 и 3 файла.	The report covers одна тысяча девятьсот девяносто девять и три файла.	The report covers одна тысяча девятьсот девяносто девять и три файла.	ambiguous_normalization@0:39
+year-segment-01	ru	auto_segment	year	normalize	Архив 2000 года and 4 files.	Архив две тысячи года and four files.	Архив две тысячи года and four files.	ambiguous_normalization@0:37
+year-segment-02	ru	auto_segment	year	normalize	In 2024 году осталось 5 дней.	In две тысячи двадцать четыре году осталось пять дней.	In две тысячи двадцать четыре году осталось пять дней.	ambiguous_normalization@0:45
+unit-ru-01	ru	explicit	measurement	normalize	Вес 2 кг.	Вес два килограмма.	Вес два килограмма.	none
+unit-ru-02	ru	explicit	measurement	normalize	Требуется 5 литров воды.	Требуется пять литров воды.	Требуется пять литров воды.	none
+unit-ru-03	ru	explicit	measurement	normalize	Длина детали — 2,5 см.	Длина детали — две целых пять десятых сантиметра.	Длина детали — две целых пять десятых сантиметра.	none
+unit-ru-04	ru	explicit	measurement	normalize	Сломан 2 xyz.	Сломан два xyz.	Сломан два xyz.	none
+unit-en-01	en	explicit	measurement	normalize	The box weighs 2 kg.	The box weighs two kilograms.	The box weighs two kilograms.	none
+unit-en-02	en	explicit	measurement	normalize	Add 5 liters of water.	Add five liters of water.	Add five liters of water.	none
+unit-en-03	en	explicit	measurement	normalize	The part is 2.5 cm long.	The part is two point five centimeters long.	The part is two point five centimeters long.	none
+unit-en-04	en	explicit	measurement	normalize	Broken 2 xyz.	Broken two xyz.	Broken two xyz.	none
+unit-auto-01	ru	auto	measurement	normalize	Вес 2 kg и 3 кг.	Вес два kg и три килограмма.	Вес два kg и три килограмма.	ambiguous_normalization@0:22
+unit-auto-02	ru	auto	measurement	normalize	The box weighs 2 кг and 4 kg.	The box weighs два килограмма and четыре kg.	The box weighs два килограмма and четыре kg.	ambiguous_normalization@0:31
+unit-segment-01	ru	auto_segment	measurement	normalize	Требуется 5 liters воды.	Требуется five liters воды.	Требуется five liters воды.	ambiguous_normalization@0:37
+unit-segment-02	ru	auto_segment	measurement	normalize	Add 2 ГБ и 3 GB.	Add два гигабайта и три гигабайта.	Add два гигабайта и три гигабайта.	ambiguous_normalization@0:19
+currency-ru-01	ru	explicit	currency	normalize	Цена — 2 рубля.	Цена — два рубля.	Цена — два рубля.	none
+currency-ru-02	ru	explicit	currency	normalize	Счёт на 1 234 рубля.	Счёт на одна тысяча двести тридцать четыре рубля.	Счёт на одна тысяча двести тридцать четыре рубля.	none
+currency-ru-03	ru	explicit	currency	normalize	Оплата составила 2,5 рубля.	Оплата составила два рубля пятьдесят копеек.	Оплата составила два рубля пятьдесят копеек.	none
+currency-ru-04	ru	explicit	currency	preserve	Сумма 1,23,45 рубля.	Сумма 1,23,45 рубля.	Сумма 1,23,45 рубля.	unresolved_number@11:7
+currency-en-01	en	explicit	currency	normalize	The price is $2.	The price is two dollars.	The price is two dollars.	none
+currency-en-02	en	explicit	currency	normalize	The invoice is $1,234.	The invoice is one thousand two hundred thirty four dollars.	The invoice is one thousand two hundred thirty four dollars.	none
+currency-en-03	en	explicit	currency	normalize	Payment was $2.50.	Payment was two dollars fifty cents.	Payment was two dollars fifty cents.	none
+currency-en-04	en	explicit	currency	preserve	Amount $1,23.45 is invalid.	Amount $1,23.45 is invalid.	Amount $1,23.45 is invalid.	unresolved_number@7:8
+currency-auto-01	ru	auto	currency	normalize	Цена $2 и 3 рубля.	Цена $два и три рубля.	Цена $два и три рубля.	none
+currency-auto-02	ru	auto	currency	normalize	The price is 2 рубля and $4.	The price is два рубля and $четыре.	The price is два рубля and $четыре.	ambiguous_normalization@0:33
+currency-segment-01	ru	auto_segment	currency	normalize	Счёт $5 и 6 рублей.	Счёт five dollars и шесть рублей.	Счёт five dollars и шесть рублей.	none
+currency-segment-02	ru	auto_segment	currency	normalize	Payment 7 долларов и 8 USD.	Payment семь долларов и eight USD.	Payment семь долларов и eight USD.	ambiguous_normalization@0:36
+percent-ru-01	ru	explicit	percent	normalize	Загрузка достигла 42%.	Загрузка достигла сорок два процента.	Загрузка достигла сорок два процента.	none
+percent-ru-02	ru	explicit	percent	normalize	Скидка составляет 5 процентов.	Скидка составляет пять процентов.	Скидка составляет пять процентов.	none
+percent-ru-03	ru	explicit	percent	normalize	Рост равен 2,5%.	Рост равен две целых пять десятых процента.	Рост равен две целых пять десятых процента.	none
+percent-ru-04	ru	explicit	percent	preserve	Значение 12%% ошибочно.	Значение 12%% ошибочно.	Значение 12%% ошибочно.	unresolved_number@17:4
+percent-en-01	en	explicit	percent	normalize	CPU usage reached 42%.	CPU usage reached forty two percent.	CPU usage reached forty two percent.	none
+percent-en-02	en	explicit	percent	normalize	The discount is 5 percent.	The discount is five percent.	The discount is five percent.	none
+percent-en-03	en	explicit	percent	normalize	Growth reached 2.5%.	Growth reached two point five percent.	Growth reached two point five percent.	none
+percent-en-04	en	explicit	percent	preserve	Value 12%% is invalid.	Value 12%% is invalid.	Value 12%% is invalid.	unresolved_number@6:4
+percent-auto-01	ru	auto	percent	normalize	Загрузка 42% and 5 percent.	Загрузка сорок два процента and пять percent.	Загрузка сорок два процента and пять percent.	ambiguous_normalization@0:35
+percent-auto-02	ru	auto	percent	normalize	CPU usage 5 процентов и 7%.	CPU usage пять процентов и семь процентов.	CPU usage пять процентов и семь процентов.	ambiguous_normalization@0:37
+percent-segment-01	ru	auto_segment	percent	normalize	Рост 2.5% и 3 процентов.	Рост 2.5% и три процентов.	Рост 2.5% и три процентов.	unresolved_number@9:4
+percent-segment-02	ru	auto_segment	percent	normalize	Скидка 4% and 6 процентов.	Скидка четыре процента and шесть процентов.	Скидка четыре процента and шесть процентов.	ambiguous_normalization@0:41
+mixed-ru-01	ru	explicit	mixed_language	normalize	OpenAI обработал 2 запроса.	OpenAI обработал два запроса.	OpenAI обработал два запроса.	none
+mixed-ru-02	ru	explicit	mixed_language	normalize	Build завершил 7 задач.	Build завершил семь задач.	Build завершил семь задач.	none
+mixed-ru-03	ru	auto	mixed_language	normalize	RTX-4090 обработал 2 GB.	RTX-4090 обработал два гигабайта.	RTX-4090 обработал два гигабайта.	ambiguous_normalization@0:33
+mixed-ru-04	ru	auto	mixed_language	normalize	Use 2 кг в отчёте.	Use два килограмма в отчёте.	Use два килограмма в отчёте.	ambiguous_normalization@0:27
+mixed-en-01	en	explicit	mixed_language	normalize	OpenAI processed 2 requests.	OpenAI processed two requests.	OpenAI processed two requests.	none
+mixed-en-02	en	explicit	mixed_language	normalize	Сборка завершила 7 tasks.	Сборка завершила seven tasks.	Сборка завершила seven tasks.	none
+mixed-en-03	en	auto_segment	mixed_language	normalize	RTX-4090 processed 2 GB.	RTX-4090 processed two gigabytes.	RTX-4090 processed two gigabytes.	none
+mixed-en-04	ru	auto_segment	mixed_language	normalize	Use 2 кг in the report.	Use два килограмма in the report.	Use два килограмма in the report.	ambiguous_normalization@0:25
+mixed-auto-01	ru	auto	mixed_language	normalize	OpenAI обработал 2 requests.	OpenAI обработал два requests.	OpenAI обработал два requests.	ambiguous_normalization@0:37
+mixed-auto-02	ru	auto	mixed_language	normalize	Сборка completed 7 задач.	Сборка completed семь задач.	Сборка completed семь задач.	ambiguous_normalization@0:36
+mixed-segment-01	ru	auto_segment	mixed_language	normalize	OpenAI обработал 2 requests и 3 задачи.	OpenAI обработал two requests и три задачи.	OpenAI обработал two requests и три задачи.	ambiguous_normalization@0:55
+mixed-segment-02	ru	auto_segment	mixed_language	normalize	Build завершил 4 tasks и 5 файлов.	Build завершил four tasks и пять файлов.	Build завершил four tasks и пять файлов.	ambiguous_normalization@0:49
+punct-ru-01	ru	explicit	punctuation	normalize	Порог равен 2.	Порог равен два.	Порог равен два.	none
+punct-ru-02	ru	explicit	punctuation	normalize	Проверка: 3, затем 4.	Проверка: три, затем четыре.	Проверка: три, затем четыре.	none
+punct-ru-03	ru	explicit	punctuation	normalize	«Значение 5» указано.	«Значение пять» указано.	«Значение пять» указано.	none
+punct-ru-04	ru	explicit	punctuation	normalize	Строка 2\nпродолжена.	Строка два продолжена.	Строка два продолжена.	none
+punct-en-01	en	explicit	punctuation	normalize	The threshold is 2.	The threshold is two.	The threshold is two.	none
+punct-en-02	en	explicit	punctuation	normalize	Check: 3, then 4.	Check: three, then four.	Check: three, then four.	none
+punct-en-03	en	explicit	punctuation	normalize	Value 5 is recorded.	Value five is recorded.	Value five is recorded.	none
+punct-en-04	en	explicit	punctuation	normalize	Line 2\ncontinued.	Line two continued.	Line two continued.	none
+punct-auto-01	ru	auto	punctuation	normalize	Порог 2 and threshold 3.	Порог два and threshold три.	Порог два and threshold три.	ambiguous_normalization@0:29
+punct-auto-02	ru	auto	punctuation	normalize	Check 4 и затем 5.	Check четыре и затем пять.	Check четыре и затем пять.	ambiguous_normalization@0:24
+punct-segment-01	ru	auto_segment	punctuation	normalize	«Значение 6» and value 7.	«Значение шесть» and value семь.	«Значение шесть» and value семь.	ambiguous_normalization@0:35
+punct-segment-02	ru	auto_segment	punctuation	normalize	Line 8\nпродолжена.	Line восемь продолжена.	Line восемь продолжена.	ambiguous_normalization@0:28
+tech-ru-01	ru	explicit	ambiguous_or_technical	preserve	URL https://example.com/v2/3 защищён.	URL https://example.com/v2/3 защищён.	URL https://example.com/v2/3 защищён.	none
+tech-ru-02	ru	explicit	ambiguous_or_technical	preserve	Письмо user2@example.com получено.	Письмо user2@example.com получено.	Письмо user2@example.com получено.	none
+tech-ru-03	ru	explicit	ambiguous_or_technical	normalize	Версия C++17 использует 2 GB.	Версия C++17 использует два гигабайта.	Версия C++17 использует два гигабайта.	none
+tech-ru-04	ru	explicit	ambiguous_or_technical	normalize	Адрес 192.168.1.10 и порт 443.	Адрес 192.168.1.10 и порт четыреста сорок три.	Адрес 192.168.1.10 и порт четыреста сорок три.	none
+tech-en-01	en	explicit	ambiguous_or_technical	preserve	URL https://example.com/v2/3 is protected.	URL https://example.com/v2/3 is protected.	URL https://example.com/v2/3 is protected.	none
+tech-en-02	en	explicit	ambiguous_or_technical	preserve	Email user2@example.com arrived.	Email user2@example.com arrived.	Email user2@example.com arrived.	none
+tech-en-03	en	explicit	ambiguous_or_technical	normalize	Version C++17 uses 2 GB.	Version C++17 uses two gigabytes.	Version C++17 uses two gigabytes.	none
+tech-en-04	en	explicit	ambiguous_or_technical	normalize	Address 192.168.1.10 uses port 443.	Address 192.168.1.10 uses port four hundred forty three.	Address 192.168.1.10 uses port four hundred forty three.	none
+tech-auto-01	ru	auto	ambiguous_or_technical	normalize	RTX-4090 обработал 2 GB.	RTX-4090 обработал два гигабайта.	RTX-4090 обработал два гигабайта.	ambiguous_normalization@0:33
+tech-auto-02	ru	auto	ambiguous_or_technical	normalize	HTTP/2 обслужил 3 запроса.	HTTP/2 обслужил три запроса.	HTTP/2 обслужил три запроса.	ambiguous_normalization@0:41
+tech-segment-01	ru	auto_segment	ambiguous_or_technical	normalize	C# обработал 4 файла и 5 GB.	C# обработал четыре файла и five gigabytes.	C# обработал четыре файла и five gigabytes.	ambiguous_normalization@0:43
+tech-segment-02	ru	auto_segment	ambiguous_or_technical	normalize	CUDA 13.3 completed 6 задач.	CUDA 13.3 completed шесть задач.	CUDA 13.3 completed шесть задач.	ambiguous_normalization@0:33
