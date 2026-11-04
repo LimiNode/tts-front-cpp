@@ -3329,8 +3329,8 @@ int main() {
         CHECK(std::getline(inventory, line));
         if (!line.empty() && line.back() == '\r')
             line.pop_back();
-        CHECK(line == "id\tmode\tcategory\tinput\texpected_normalized\t"
-                      "expected_pronunciation\tdiagnostics");
+        CHECK(line == "id\tmode\tcategory\tinput\tobserved_normalized\t"
+                      "observed_pronunciation\tdiagnostics\tcontract_status");
         const std::array<std::string, 8> expected_categories = {"date",
                                                                 "year",
                                                                 "measurement",
@@ -3341,7 +3341,9 @@ int main() {
                                                                 "ambiguous_or_technical"};
         std::set<std::string> ids;
         std::map<std::string, std::size_t> category_counts;
+        std::map<std::string, std::size_t> category_mode_counts;
         std::map<std::string, std::size_t> mode_counts;
+        std::map<std::string, std::size_t> status_counts;
         std::size_t case_count = 0;
         while (std::getline(inventory, line)) {
             if (!line.empty() && line.back() == '\r')
@@ -3349,14 +3351,19 @@ int main() {
             if (line.empty())
                 continue;
             const auto fields = split_tabs(line);
-            CHECK(fields.size() == 7);
+            CHECK(fields.size() == 8);
             CHECK(ids.insert(fields[0]).second);
             CHECK(std::find(expected_categories.begin(), expected_categories.end(), fields[2]) !=
                   expected_categories.end());
             CHECK(fields[1] == "ru" || fields[1] == "en" || fields[1] == "auto" ||
                   fields[1] == "segment");
+            CHECK(fields[7] == "observed_current" || fields[7] == "policy_mismatch");
+            if (fields[7] == "policy_mismatch")
+                CHECK(fields[0] == "year-ru-04");
             ++category_counts[fields[2]];
+            ++category_mode_counts[fields[2] + "/" + fields[1]];
             ++mode_counts[fields[1]];
+            ++status_counts[fields[7]];
             ++case_count;
 
             const auto input = decode_escapes(fields[3]);
@@ -3395,10 +3402,28 @@ int main() {
         CHECK(ids.size() == case_count);
         for (const auto& category : expected_categories)
             CHECK(category_counts[category] == 12);
-        CHECK(mode_counts["ru"] == 32);
-        CHECK(mode_counts["en"] == 32);
-        CHECK(mode_counts["auto"] == 16);
-        CHECK(mode_counts["segment"] == 16);
+        for (const auto& category : {"date",
+                                     "year",
+                                     "measurement",
+                                     "currency",
+                                     "percent",
+                                     "punctuation",
+                                     "ambiguous_or_technical"}) {
+            CHECK(category_mode_counts[std::string(category) + "/ru"] == 4);
+            CHECK(category_mode_counts[std::string(category) + "/en"] == 4);
+            CHECK(category_mode_counts[std::string(category) + "/auto"] == 2);
+            CHECK(category_mode_counts[std::string(category) + "/segment"] == 2);
+        }
+        CHECK(category_mode_counts["mixed_language/ru"] == 2);
+        CHECK(category_mode_counts["mixed_language/en"] == 2);
+        CHECK(category_mode_counts["mixed_language/auto"] == 4);
+        CHECK(category_mode_counts["mixed_language/segment"] == 4);
+        CHECK(mode_counts["ru"] == 30);
+        CHECK(mode_counts["en"] == 30);
+        CHECK(mode_counts["auto"] == 18);
+        CHECK(mode_counts["segment"] == 18);
+        CHECK(status_counts["observed_current"] == 95);
+        CHECK(status_counts["policy_mismatch"] == 1);
     }
     std::cout << "tts_front tests passed\n";
     return EXIT_SUCCESS;
