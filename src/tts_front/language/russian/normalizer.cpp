@@ -184,6 +184,87 @@ bool try_parse_context_year(const std::string& token, long long& year) {
            try_parse_long(token, year) && year >= 1000 && year <= 9999;
 }
 
+void protect_leading_zero_years(MappedText& text,
+                                WarningSink& warnings,
+                                std::vector<ProtectedSpan>& protected_spans) {
+    const Utf8Document document(text.text);
+    if (!document.valid)
+        return;
+
+    const auto technical_ranges = technical::scan_protected_ranges(text.text);
+    std::vector<SourceEdit> edits;
+    for (std::sregex_iterator it(text.text.begin(), text.text.end(), patterns().year_range_context),
+         end;
+         it != end;
+         ++it) {
+        if (!has_context_boundary(text.text, static_cast<std::size_t>(it->position())))
+            continue;
+        const auto range_begin = static_cast<std::size_t>(it->position(3));
+        const bool first_leading_zero = it->str(3).front() == '0';
+        const bool second_leading_zero = it->str(5).front() == '0';
+        if (!first_leading_zero && !second_leading_zero)
+            continue;
+        const auto match_end = static_cast<std::size_t>(it->position() + it->length());
+        if (std::any_of(
+                technical_ranges.begin(), technical_ranges.end(), [&](const SourceRange& range) {
+                    return range_begin < range.offset + range.length && range.offset < match_end;
+                }))
+            continue;
+        if (overlaps_preserved_range(text, range_begin, match_end))
+            continue;
+        add_protected_candidate(text,
+                                NumericCandidate{SourceSpan{range_begin, match_end},
+                                                 NumericCandidateKind::Numeric,
+                                                 true},
+                                warnings,
+                                protected_spans,
+                                edits);
+    }
+    for (std::size_t point = 0; point < document.points.size(); ++point) {
+        const auto value = document.points[point].value;
+        const auto signed_start = (value == '+' || value == '-' || value == 0x2212) &&
+                                  point + 1 < document.points.size() &&
+                                  text::is_digit(document.points[point + 1].value);
+        const auto unsigned_start =
+            text::is_digit(value) &&
+            (point == 0 || !text::is_digit(document.points[point - 1].value));
+        if (!signed_start && !unsigned_start)
+            continue;
+
+        const auto candidate =
+            scan_candidate_surface(document, point, CandidateSurfaceKind::Contextual);
+        if (!candidate.valid() ||
+            candidate.numeric.digits_end - candidate.numeric.digits_begin != 4 ||
+            document.points[candidate.numeric.digits_begin].value != '0')
+            continue;
+
+        auto admission_candidate = candidate;
+        admission_candidate.core_end = candidate.numeric.end;
+        admission_candidate.end = candidate.numeric.end;
+        const auto admission =
+            scan_admission(document, admission_candidate, CandidateSurfaceKind::Contextual);
+        const auto end = std::max(candidate.numeric.end, admission.end);
+        if (end <= point)
+            continue;
+        const auto byte_end = document.span_from_codepoints(0, end).byte_end;
+        const auto begin = document.points[point].offset;
+        if (std::any_of(
+                technical_ranges.begin(), technical_ranges.end(), [&](const SourceRange& range) {
+                    return begin < range.offset + range.length && range.offset < byte_end;
+                }))
+            continue;
+        if (overlaps_preserved_range(text, begin, byte_end))
+            continue;
+        add_protected_candidate(
+            text,
+            NumericCandidate{SourceSpan{begin, byte_end}, NumericCandidateKind::Numeric, true},
+            warnings,
+            protected_spans,
+            edits);
+    }
+    text = apply_source_edits(text, std::move(edits));
+}
+
 void protect_typed_continuations(MappedText& text,
                                  WarningSink& warnings,
                                  std::vector<ProtectedSpan>& protected_spans,
@@ -311,6 +392,7 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
         }
         text = apply_source_edits(text, std::move(date_edits));
     }
+    protect_leading_zero_years(text, warnings, protected_spans);
     std::vector<SourceEdit> typed_edits;
     protect_typed_continuations(text, warnings, protected_spans, typed_edits);
     text = apply_source_edits(text, std::move(typed_edits));

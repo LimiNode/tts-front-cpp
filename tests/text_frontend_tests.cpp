@@ -425,6 +425,31 @@ int main() {
     const std::array<TextFrontendOptions, 3> RussianYearModes = {
         ru, russian_year_auto, russian_year_segmented};
     for (const auto& options : RussianYearModes) {
+        const std::array<std::pair<std::string, std::string>, 5> leading_zero_years = {{
+            {"Год 0999 указан неверно.", "0999"},
+            {"Год +0999 указан неверно.", "+0999"},
+            {"Год -0999 указан неверно.", "-0999"},
+            {"Год −0999 указан неверно.", "−0999"},
+            {"Год 0999#4 указан неверно.", "0999#4"},
+        }};
+        for (const auto& [input, candidate] : leading_zero_years) {
+            const auto result = frontend.process(input, options);
+            CHECK(result.original_text == input);
+            CHECK(result.normalized_text == input);
+            CHECK(result.pronunciation_text == input);
+            CHECK(result.warnings.size() == 1);
+            if (result.warnings.size() != 1)
+                continue;
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+            const auto offset = input.find(candidate);
+            CHECK(offset != std::string::npos);
+            if (offset == std::string::npos)
+                continue;
+            CHECK(result.warnings.front().offset == offset);
+            CHECK(result.warnings.front().length == candidate.size());
+        }
+    }
+    for (const auto& options : RussianYearModes) {
         const auto positive = frontend.process("в 2024 году.", options);
         CHECK(positive.normalized_text == "в две тысячи двадцать четвёртом году.");
         CHECK(positive.pronunciation_text == positive.normalized_text);
@@ -444,8 +469,6 @@ int main() {
                                   std::string("за 2001 год/4"),
                                   std::string("с 1999 по 2001 год"),
                                   std::string("с 1999 по 2001 год#4"),
-                                  std::string("в 0999 году"),
-                                  std::string("за 0999 год"),
                                   std::string("в +1999 году"),
                                   std::string("в -1999 году"),
                                   std::string("в −1999 году"),
@@ -482,6 +505,40 @@ int main() {
             CHECK(unresolved->offset == candidate_begin);
             CHECK(unresolved->length == input.size() - candidate_begin);
         }
+
+        const std::array<std::pair<std::string, std::string>, 9> leading_zero_contexts = {{
+            {"В 0999 году", "0999"},
+            {"За 0999 год", "0999"},
+            {"Архив 0999 года.", "0999"},
+            {"с 0999 по 1000 год", "0999 по 1000 год"},
+            {"В +0999 году", "+0999"},
+            {"За −0999 год", "−0999"},
+            {"В 0999#4 году", "0999#4"},
+            {"В 0999/4 году", "0999/4"},
+            {"В 0999% году", "0999% году"},
+        }};
+        for (const auto& [input, candidate] : leading_zero_contexts) {
+            const auto result = frontend.process(input, options);
+            CHECK(result.normalized_text == input);
+            CHECK(result.pronunciation_text == input);
+            CHECK(result.warnings.size() == 1);
+            if (result.warnings.size() != 1)
+                continue;
+            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+            const auto offset = input.find(candidate);
+            CHECK(offset != std::string::npos);
+            if (offset == std::string::npos)
+                continue;
+            CHECK(result.warnings.front().offset == offset);
+            CHECK(result.warnings.front().length == candidate.size());
+        }
+
+        const auto technical = frontend.process("RTX-0999 архив", options);
+        CHECK(technical.normalized_text == "RTX-0999 архив");
+        CHECK(std::none_of(
+            technical.warnings.begin(), technical.warnings.end(), [](const TextWarning& warning) {
+                return warning.code == WarningCode::UnresolvedNumber;
+            }));
     }
     for (const auto& options : RussianYearModes) {
         const std::array<std::pair<std::string, std::string>, 3> canonical_date_years = {{
@@ -3369,6 +3426,19 @@ int main() {
             const auto input = decode_escapes(fields[3]);
             const auto result = frontend.process(input, options_for_mode(fields[1]));
             CHECK(result.original_text == input);
+            if (fields[7] == "policy_mismatch") {
+                CHECK(result.normalized_text == input);
+                CHECK(result.pronunciation_text == input);
+                CHECK(result.warnings.size() == 1);
+                if (result.warnings.size() == 1) {
+                    const auto offset = input.find("0999");
+                    CHECK(offset != std::string::npos);
+                    CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+                    CHECK(result.warnings.front().offset == offset);
+                    CHECK(result.warnings.front().length == 4);
+                }
+                continue;
+            }
             CHECK(result.normalized_text == decode_escapes(fields[4]));
             CHECK(result.pronunciation_text == decode_escapes(fields[5]));
 
