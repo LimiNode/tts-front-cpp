@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.5
+
+- Added atomic fail-closed handling for Russian four-digit leading-zero years,
+  including `В/За/Архив 0999`, signed forms, continuations and unsupported
+  year ranges; each preserved candidate keeps its UTF-8 byte span and emits one
+  `UnresolvedNumber` diagnostic.
+- Preserved technical neighbors and existing contextual year behavior while
+  extending regression coverage to RU, Auto and SegmentCandidates.
+- Updated the working EN/RU quality baseline to 751 cases: `651/100/0/0`
+  (correct transformation / justified preservation / unnecessary refusal /
+  incorrect or partial).
+- Public API, CMake targets and published quality archives were unchanged.
+
 ## 0.2.4
 
 - Added Russian contextual date agreement after `до`, including UTF-8-aware
