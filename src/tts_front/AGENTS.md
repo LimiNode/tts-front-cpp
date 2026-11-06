@@ -4,6 +4,12 @@ The frontend is a deterministic pipeline with explicit ownership. Keep the
 dependency direction visible and avoid solving a local problem by adding a
 cross-domain shortcut.
 
+Header dependency structure follows
+[`docs/header-include-policy.md`](../../docs/header-include-policy.md): domain
+umbrellas are deliberate aggregation points, leaf headers are not promised
+standalone entry points unless documented, and reverse or cyclic domain edges
+are forbidden.
+
 ## Ownership
 
 - `core/` owns UTF-8 decoding, codepoint classification, source spans, mapped
