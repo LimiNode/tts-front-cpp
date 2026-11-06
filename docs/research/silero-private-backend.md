@@ -6,7 +6,7 @@ default build.
 
 ## Bundle verification
 
-`src/detail/silero_bundle.*` validates `manifest.json` before any graph is
+`src/tts_front/backend/silero/silero_bundle.*` validates `manifest.json` before any graph is
 opened. The loader checks the complete compatibility profile:
 
 - record type, schema, bundle version, and pinned ORT version;
@@ -23,7 +23,7 @@ components.
 Configure the private owner explicitly:
 
 ```text
-cmake -S . -B build \
+cmake -S . -B .build/production-ort \
   -DTTS_FRONT_ENABLE_ONNX_STRESS=ON \
   -DTTS_FRONT_ONNX_RUNTIME_ROOT=/path/to/onnxruntime
 ```
@@ -46,8 +46,8 @@ can be audited against the research executable with:
 
 ```text
 python tools/silero_production_sentence_parity.py \
-  --production build-production-ort/Release/tts_front_silero_sentence_probe.exe \
-  --research build-native-ort/Release/silero_native_sentence.exe \
+  --production .build/production-ort/Release/tts_front_silero_sentence_probe.exe \
+  --research .build/native-ort/Release/silero_native_sentence.exe \
   --assets .temp/ci-silero-bundle \
   --stress .temp/ci-silero-bundle/stress.onnx \
   --yo .temp/ci-silero-bundle/yo.onnx \

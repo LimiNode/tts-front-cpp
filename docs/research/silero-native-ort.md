@@ -22,9 +22,9 @@ production integration.
 Example configuration:
 
 ```text
-cmake -S research/silero-native -B .temp/silero-native-ort-build \
+cmake -S research/silero-native -B .build/native-ort \
   -DSILERO_NATIVE_ORT_ROOT=.temp/onnxruntime-win-x64-1.30.0
-cmake --build .temp/silero-native-ort-build --config Release
+cmake --build .build/native-ort --config Release
 
 silero_native_ort_probe.exe \
   --graph .temp/silero-phase3/accentor-stress.onnx \
@@ -42,7 +42,7 @@ python tools/silero_native_ort_parity.py \
   --stress-onnx .temp/silero-phase3/accentor-stress.onnx \
   --yo-onnx .temp/silero-phase3/accentor-yo.onnx \
   --homosolver-onnx .temp/silero-phase2-dynamic/homosolver.onnx \
-  --probe .temp/silero-native-ort-build/silero_native_ort_probe.exe \
+  --probe .build/native-ort/Release/silero_native_ort_probe.exe \
   --receipt .temp/silero-native-ort-receipt.json
 ```
 
