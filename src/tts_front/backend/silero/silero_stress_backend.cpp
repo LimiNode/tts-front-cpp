@@ -1,4 +1,4 @@
-#include "silero_stress_backend.hpp"
+#include "tts_front/backend/silero/silero_stress_backend.hpp"
 
 #include "tts_front/core/utf8.hpp"
 
@@ -9,8 +9,8 @@
 #include <stdexcept>
 
 #if defined(TTS_FRONT_ENABLE_ONNX_STRESS)
-#include "silero_ort_session_owner.hpp"
-#include "silero_sentence.hpp"
+#include "tts_front/backend/silero/silero_ort_session_owner.hpp"
+#include "tts_front/backend/silero/silero_sentence.hpp"
 
 #include <onnxruntime_cxx_api.h>
 #endif

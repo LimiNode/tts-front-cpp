@@ -1,6 +1,6 @@
 #pragma once
 
-#include "source_span.hpp"
+#include "tts_front/core/source_span.hpp"
 
 #include <cstddef>
 #include <set>

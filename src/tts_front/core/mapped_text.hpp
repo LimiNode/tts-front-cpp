@@ -1,7 +1,7 @@
 #pragma once
 
-#include "source_range_index.hpp"
-#include "source_span.hpp"
+#include "tts_front/core/source_range_index.hpp"
+#include "tts_front/core/source_span.hpp"
 
 #include <string>
 #include <string_view>

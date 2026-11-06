@@ -1,5 +1,4 @@
-#include "tts_front/core/numeric_scanner.hpp"
-
+#include "tts_front/core.hpp"
 #include "tts_front/core/text/codepoint_classification.hpp"
 
 #include <algorithm>

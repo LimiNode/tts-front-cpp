@@ -1,6 +1,6 @@
 #pragma once
 
-#include "silero_bundle.hpp"
+#include "tts_front/backend/silero/silero_bundle.hpp"
 
 #include <memory>
 #include <onnxruntime_cxx_api.h>

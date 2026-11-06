@@ -1,5 +1,4 @@
-#include "tts_front/language/english/mixed_candidates.hpp"
-
+#include "tts_front/language/english.hpp"
 #include "tts_front/language/english/numbers.hpp"
 #include "tts_front/language/english/patterns.hpp"
 #include "tts_front/normalization/admission.hpp"

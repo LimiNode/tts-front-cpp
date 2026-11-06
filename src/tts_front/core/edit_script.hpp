@@ -1,6 +1,6 @@
 #pragma once
 
-#include "mapped_text.hpp"
+#include "tts_front/core/mapped_text.hpp"
 
 #include <vector>
 

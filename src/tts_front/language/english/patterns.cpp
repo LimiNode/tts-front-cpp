@@ -1,4 +1,4 @@
-#include "tts_front/language/english/patterns.hpp"
+#include "tts_front/language/english.hpp"
 
 namespace tts_front::detail::english {
 
