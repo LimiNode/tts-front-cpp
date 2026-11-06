@@ -1,5 +1,4 @@
-#include "tts_front/language/english/admission.hpp"
-
+#include "tts_front/language/english.hpp"
 #include "tts_front/language/english/patterns.hpp"
 
 #include <array>

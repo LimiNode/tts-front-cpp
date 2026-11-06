@@ -1,10 +1,9 @@
-#include "tts_front/normalization/mixed_language.hpp"
-
 #include "tts_front/core/edit_script.hpp"
 #include "tts_front/core/numeric_scanner.hpp"
 #include "tts_front/core/text/codepoint_classification.hpp"
 #include "tts_front/core/utf8.hpp"
 #include "tts_front/core/utf8_document.hpp"
+#include "tts_front/normalization.hpp"
 #include "tts_front/technical/admission.hpp"
 #include "tts_front/technical/patterns.hpp"
 

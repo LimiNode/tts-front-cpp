@@ -1,4 +1,4 @@
-#include "tts_front/technical/patterns.hpp"
+#include "tts_front/technical.hpp"
 
 #include <array>
 

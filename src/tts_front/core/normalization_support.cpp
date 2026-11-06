@@ -1,4 +1,4 @@
-#include "tts_front/core/normalization_support.hpp"
+#include "tts_front/core.hpp"
 
 #include <utility>
 

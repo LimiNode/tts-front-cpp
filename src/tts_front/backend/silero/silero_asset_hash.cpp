@@ -1,6 +1,6 @@
-#include "silero_asset_hash.hpp"
+#include "tts_front/backend/silero/silero_asset_hash.hpp"
 
-#include "sha256.hpp"
+#include "tts_front/backend/silero/sha256.hpp"
 
 #include <fstream>
 #include <iomanip>

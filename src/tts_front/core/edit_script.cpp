@@ -1,4 +1,4 @@
-#include "edit_script.hpp"
+#include "tts_front/core.hpp"
 
 #include <algorithm>
 #include <stdexcept>

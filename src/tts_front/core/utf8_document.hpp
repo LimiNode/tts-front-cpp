@@ -1,7 +1,7 @@
 #pragma once
 
-#include "source_span.hpp"
-#include "utf8.hpp"
+#include "tts_front/core/source_span.hpp"
+#include "tts_front/core/utf8.hpp"
 
 #include <string_view>
 #include <vector>

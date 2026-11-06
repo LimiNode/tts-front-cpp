@@ -1,8 +1,7 @@
-#include "tts_front/language/english/normalizer.hpp"
-
 #include "tts_front/core/numeric_scanner.hpp"
 #include "tts_front/core/text/codepoint_classification.hpp"
 #include "tts_front/core/utf8_document.hpp"
+#include "tts_front/language/english.hpp"
 #include "tts_front/language/english/admission.hpp"
 #include "tts_front/language/english/grouped_numbers.hpp"
 #include "tts_front/language/english/numbers.hpp"

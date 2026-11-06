@@ -1,4 +1,4 @@
-#include "silero_sentence.hpp"
+#include "tts_front/backend/silero/silero_sentence.hpp"
 
 #include "tts_front/core/utf8.hpp"
 
