@@ -10,7 +10,7 @@ The fail-closed auditor is:
 
 ```text
 python tools/silero_native_sentence_parity.py \
-  --executable .temp/silero-native-fullcall-build/silero_native_sentence.exe \
+  --executable .build/native-research-fullcall/Release/silero_native_sentence.exe \
   --assets .temp/silero-native-assets-fullcall \
   --stress .temp/silero-native-assets-fullcall/stress.onnx \
   --yo .temp/silero-native-assets-fullcall/yo.onnx \
@@ -32,7 +32,7 @@ regression check is:
 
 ```text
 python tools/silero_native_opaque_unicode.py \
-  --executable .temp/silero-native-fullcall-build/silero_native_sentence.exe \
+  --executable .build/native-research-fullcall/Release/silero_native_sentence.exe \
   --assets .temp/silero-native-assets-fullcall \
   --stress .temp/silero-native-assets-fullcall/stress.onnx \
   --yo .temp/silero-native-assets-fullcall/yo.onnx \
@@ -48,7 +48,7 @@ Provenance regressions for changing only `source_revision` or only
 
 ```text
 python tools/silero_native_bundle_negative.py \
-  --executable .temp/silero-native-fullcall-build/silero_native_sentence.exe \
+  --executable .build/native-research-fullcall/Release/silero_native_sentence.exe \
   --assets .temp/silero-native-assets-fullcall
 ```
 
@@ -61,7 +61,7 @@ audited with:
 
 ```text
 python tools/silero_native_phrase_parity.py \
-  --executable .temp/silero-native-fullcall-build/silero_native_sentence.exe \
+  --executable .build/native-research-fullcall/Release/silero_native_sentence.exe \
   --assets .temp/silero-native-assets-fullcall
 ```
 

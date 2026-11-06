@@ -24,5 +24,5 @@ Regenerate and verify this report with:
 
 ```text
 python tools/generate_quality_corpus.py --check
-ctest --test-dir .temp/quality-debug -R tts_front_quality_corpus_audit --output-on-failure
+ctest --test-dir .build/quality-debug -R tts_front_quality_corpus_audit --output-on-failure
 ```

@@ -64,11 +64,11 @@ matrix is executed for English, Russian, and Auto/segment mode.
 ```text
 python tools/generate_quality_corpus.py --check
 python tools/check_quality_archive.py
-cmake --build build --target tts_front_tests tts_front_quality_corpus_audit
-ctest --test-dir build --output-on-failure
-ctest --test-dir build-release --output-on-failure
-build/tts_front_quality_corpus_audit
-build/tts_front_quality_archive_smoke --strict v0.2.2
+cmake --build .build/debug --target tts_front_tests tts_front_quality_corpus_audit
+ctest --test-dir .build/debug --output-on-failure
+ctest --test-dir .build/release --output-on-failure
+.build/debug/tts_front_quality_corpus_audit
+.build/debug/tts_front_quality_archive_smoke --strict v0.2.2
 ```
 
 ## Next behavior priorities

@@ -25,15 +25,15 @@ python tools/silero_export_native_assets.py \
   --yo-onnx .temp/silero-phase3/accentor-yo.onnx \
   --homosolver-onnx .temp/silero-phase2-dynamic/homosolver.onnx
 
-cmake -S research/silero-native -B .temp/silero-native-build
-cmake --build .temp/silero-native-build --config Release
+cmake -S research/silero-native -B .build/native-research
+cmake --build .build/native-research --config Release
 
 python tools/silero_native_parity.py \
   --source .temp/silero-source \
   --assets .temp/silero-native-assets \
-  --preprocess-exe .temp/silero-native-build/silero_native_preprocess.exe \
-  --wordpiece-exe .temp/silero-native-build/silero_native_wordpiece.exe \
-  --utf8-smoke-exe .temp/silero-native-build/silero_native_utf8_smoke.exe \
+  --preprocess-exe .build/native-research/Release/silero_native_preprocess.exe \
+  --wordpiece-exe .build/native-research/Release/silero_native_wordpiece.exe \
+  --utf8-smoke-exe .build/native-research/Release/silero_native_utf8_smoke.exe \
   --receipt .temp/silero-native-assets/parity-receipt.json
 ```
 

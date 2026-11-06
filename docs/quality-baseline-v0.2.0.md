@@ -99,9 +99,9 @@ Regenerate the deterministic corpus and run the audit with:
 ```text
 python tools/generate_quality_corpus.py
 python tools/generate_quality_corpus.py --check
-cmake -S . -B .temp/quality -DTTS_FRONT_BUILD_TESTS=ON
-cmake --build .temp/quality --parallel
-ctest --test-dir .temp/quality -R tts_front_quality_corpus_audit --output-on-failure
+cmake -S . -B .build/quality -DTTS_FRONT_BUILD_TESTS=ON
+cmake --build .build/quality --parallel
+ctest --test-dir .build/quality -R tts_front_quality_corpus_audit --output-on-failure
 ```
 
 The complete gold data is in `tests/quality/en_ru_sentences.tsv`; the strict snapshot is in

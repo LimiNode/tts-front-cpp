@@ -14,7 +14,7 @@ Run it with the exact native executable and hashed bundle:
 
 ```text
 python tools/silero_native_benchmark.py \
-  --executable .temp/silero-native-fullcall-build/silero_native_sentence.exe \
+  --executable .build/native-research-fullcall/Release/silero_native_sentence.exe \
   --assets .temp/silero-native-assets-fullcall \
   --stress .temp/silero-native-assets-fullcall/stress.onnx \
   --yo .temp/silero-native-assets-fullcall/yo.onnx \
