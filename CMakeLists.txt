@@ -172,6 +172,21 @@ if(TTS_FRONT_BUILD_TESTS)
   target_link_libraries(tts_front_header_self_test PRIVATE TtsFront::tts_front)
   target_compile_definitions(tts_front_header_self_test PRIVATE TTS_FRONT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
   add_test(NAME tts_front_header_self_test COMMAND tts_front_header_self_test)
+  add_library(tts_front_umbrella_headers_objects OBJECT
+    tests/umbrella_core.cpp
+    tests/umbrella_language.cpp
+    tests/umbrella_language_english.cpp
+    tests/umbrella_language_russian.cpp
+    tests/umbrella_normalization.cpp
+    tests/umbrella_serialization.cpp
+    tests/umbrella_technical.cpp)
+  tts_front_configure_target(tts_front_umbrella_headers_objects)
+  target_link_libraries(tts_front_umbrella_headers_objects PRIVATE TtsFront::tts_front)
+  add_executable(tts_front_umbrella_headers_test tests/umbrella_headers.cpp
+    $<TARGET_OBJECTS:tts_front_umbrella_headers_objects>)
+  tts_front_configure_target(tts_front_umbrella_headers_test)
+  target_link_libraries(tts_front_umbrella_headers_test PRIVATE TtsFront::tts_front)
+  add_test(NAME tts_front_umbrella_headers_test COMMAND tts_front_umbrella_headers_test)
   add_executable(tts_front_silero_asset_hash_tests tests/silero_asset_hash_tests.cpp)
   tts_front_configure_target(tts_front_silero_asset_hash_tests)
   target_include_directories(tts_front_silero_asset_hash_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
