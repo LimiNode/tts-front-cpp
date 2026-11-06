@@ -70,6 +70,10 @@ describes the non-negotiable project contract and the development workflow.
 ## Architecture rules
 
 - Read `src/tts_front/AGENTS.md` and the nearest domain rules for source changes.
+- Header dependencies follow the project's Hierarchical Umbrella-Based
+  Dependencies policy in [`docs/header-include-policy.md`](docs/header-include-policy.md):
+  domains own dependency edges, umbrellas are deliberate aggregation points,
+  and reverse or cyclic domain dependencies are forbidden.
 - Shared UTF-8, source mapping, edit scripts, numeric surfaces, and neutral text
   classification belong under `src/tts_front/core/`.
 - Language-specific patterns, dictionaries, formatters, and mixed-language
