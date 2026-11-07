@@ -92,6 +92,6 @@ tech-en-02	en	ambiguous_or_technical	Email user2@example.com arrived.	Email user
 tech-en-03	en	ambiguous_or_technical	Version C++17 uses 2 GB.	Version C++17 uses two gigabytes.	Version C++17 uses two gigabytes.	none	observed_current
 tech-en-04	en	ambiguous_or_technical	Address 192.168.1.10 uses port 443.	Address 192.168.1.10 uses port four hundred forty three.	Address 192.168.1.10 uses port four hundred forty three.	none	observed_current
 tech-auto-01	auto	ambiguous_or_technical	RTX-4090 обработал 2 GB.	RTX-4090 обработал два гигабайта.	RTX-4090 обработал два гигабайта.	ambiguous_normalization@0:33	observed_current
-tech-auto-02	auto	ambiguous_or_technical	HTTP/2 обслужил 3 запроса.	HTTP/2 обслужил три запроса.	HTTP/2 обслужил три запроса.	ambiguous_normalization@0:41	observed_current
+tech-auto-02	auto	ambiguous_or_technical	HTTP/2 обслужил 3 запроса.	HTTP/2 обслужил три запроса.	аш ти ти пи два обслужил три запроса.	ambiguous_normalization@0:41	observed_current
 tech-segment-01	segment	ambiguous_or_technical	C# обработал 4 файла и 5 GB.	C# обработал четыре файла и five gigabytes.	C# обработал четыре файла и five gigabytes.	ambiguous_normalization@0:43	observed_current
 tech-segment-02	segment	ambiguous_or_technical	CUDA 13.3 completed 6 задач.	CUDA 13.3 completed шесть задач.	CUDA 13.3 completed шесть задач.	ambiguous_normalization@0:33	observed_current

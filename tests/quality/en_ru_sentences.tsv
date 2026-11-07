@@ -300,29 +300,29 @@ en-date-preserve-1	en	explicit	date	preserve	Keep the machine-readable date 02/0
 en-date-preserve-2	en	explicit	date	preserve	Keep the machine-readable date 2026-02-01.	Keep the machine-readable date 2026-02-01.	Keep the machine-readable date 2026-02-01.	unresolved_number@31:10
 en-date-preserve-3	en	explicit	date	preserve	Keep the machine-readable date 2025-12-31.	Keep the machine-readable date 2025-12-31.	Keep the machine-readable date 2025-12-31.	unresolved_number@31:10
 ru-mixed-0	ru	auto_segment	mixed_language	normalize	У меня 2 GPU и 3 ядра. Использую OpenAI API.	У меня два GPU и три ядра. Использую OpenAI API.	У меня два GPU и три ядра. Использую OpenAI API.	ambiguous_normalization@0:63
-ru-mixed-1	ru	auto_segment	mixed_language	normalize	Видеокарта RTX 4090 работает на 1.5 GB RAM.	Видеокарта RTX 4090 работает на one point five gigabytes RAM.	Видеокарта RTX 4090 работает на one point five gigabytes RAM.	ambiguous_normalization@0:63
-ru-mixed-2	ru	auto_segment	mixed_language	normalize	HTTP/2 вернул 2 ошибки.	HTTP/2 вернул две ошибки.	HTTP/2 вернул две ошибки.	none
+ru-mixed-1	ru	auto_segment	mixed_language	normalize	Видеокарта RTX 4090 работает на 1.5 GB RAM.	Видеокарта RTX 4090 работает на one point five gigabytes RAM.	Видеокарта эр ти икс сорок девяносто работает на one point five gigabytes RAM.	ambiguous_normalization@0:63
+ru-mixed-2	ru	auto_segment	mixed_language	normalize	HTTP/2 вернул 2 ошибки.	HTTP/2 вернул две ошибки.	аш ти ти пи два вернул две ошибки.	none
 ru-mixed-3	ru	auto_segment	mixed_language	normalize	Сборка 7 использует C++17.	Сборка семь использует C++17.	Сборка семь использует C++17.	none
 ru-mixed-4	ru	auto_segment	mixed_language	normalize	Напишите dev42@example.com после 3 попыток.	Напишите dev42@example.com после трёх попыток.	Напишите dev42@example.com после трёх попыток.	none
 en-mixed-5	en	auto_segment	mixed_language	normalize	Use 2 кг for the calibration weight.	Use два килограмма for the calibration weight.	Use два килограмма for the calibration weight.	ambiguous_normalization@0:38
 en-mixed-6	en	auto_segment	mixed_language	normalize	Build 7 targets RTX-4090.	Build seven targets RTX-4090.	Build seven targets RTX-4090.	none
-en-mixed-7	en	auto_segment	mixed_language	normalize	HTTP/2 returned 3 errors.	HTTP/2 returned three errors.	HTTP/2 returned three errors.	none
+en-mixed-7	en	auto_segment	mixed_language	normalize	HTTP/2 returned 3 errors.	HTTP/2 returned three errors.	H-T-T-P two returned three errors.	none
 en-mixed-8	en	auto_segment	mixed_language	normalize	Email dev42@example.com after 2 attempts.	Email dev42@example.com after two attempts.	Email dev42@example.com after two attempts.	none
 en-mixed-9	en	auto_segment	mixed_language	normalize	The OpenAI API accepted 42 requests.	The OpenAI API accepted forty two requests.	The OpenAI API accepted forty two requests.	none
 ru-mixed-10	ru	auto_segment	mixed_language	normalize	Устройство CUDA 13.3 потребляет 2 GB памяти.	Устройство CUDA 13.3 потребляет two gigabytes памяти.	Устройство CUDA 13.3 потребляет two gigabytes памяти.	ambiguous_normalization@0:70
-ru-mixed-11	ru	auto_segment	mixed_language	normalize	На сервере HTTP/2 работает 4 процесса.	На сервере HTTP/2 работает четыре процесса.	На сервере HTTP/2 работает четыре процесса.	none
+ru-mixed-11	ru	auto_segment	mixed_language	normalize	На сервере HTTP/2 работает 4 процесса.	На сервере HTTP/2 работает четыре процесса.	На сервере аш ти ти пи два работает четыре процесса.	none
 ru-mixed-12	ru	auto_segment	mixed_language	normalize	OpenAI API обработал 12 запросов.	OpenAI API обработал двенадцать запросов.	OpenAI API обработал двенадцать запросов.	ambiguous_normalization@0:50
 ru-mixed-13	ru	auto_segment	mixed_language	preserve	Порог 0.5% задан для RTX-4090.	Порог 0.5% задан для RTX-4090.	Порог 0.5% задан для RTX-4090.	unresolved_number@11:4
 ru-mixed-14	ru	auto_segment	mixed_language	normalize	Версия V2.1.0—123 отмечена номером 7.	Версия V2.1.0—123 отмечена номером семь.	Версия V2.1.0—123 отмечена номером семь.	none
 en-mixed-15	en	auto_segment	mixed_language	normalize	Use 3 кг порошка with OpenAI API.	Use три килограмма порошка with OpenAI API.	Use три килограмма порошка with OpenAI API.	ambiguous_normalization@0:42
-en-mixed-16	en	auto_segment	mixed_language	normalize	The GPU RTX 4090 needs 8 GB of memory.	The GPU RTX 4090 needs eight gigabytes of memory.	The GPU RTX 4090 needs eight gigabytes of memory.	none
-en-mixed-17	en	auto_segment	mixed_language	normalize	Build 12 on HTTP/2 passed validation.	Build twelve on HTTP/2 passed validation.	Build twelve on HTTP/2 passed validation.	none
+en-mixed-16	en	auto_segment	mixed_language	normalize	The GPU RTX 4090 needs 8 GB of memory.	The GPU RTX 4090 needs eight gigabytes of memory.	The GPU R-T-X forty ninety needs eight gigabytes of memory.	none
+en-mixed-17	en	auto_segment	mixed_language	normalize	Build 12 on HTTP/2 passed validation.	Build twelve on HTTP/2 passed validation.	Build twelve on H-T-T-P two passed validation.	none
 en-mixed-18	en	auto_segment	mixed_language	normalize	Deploy 5 replicas в the cluster.	Deploy five replicas в the cluster.	Deploy five replicas в the cluster.	ambiguous_normalization@0:33
 en-mixed-19	en	auto_segment	mixed_language	normalize	Version V2.1.0—123 is tagged 7.	Version V2.1.0—123 is tagged seven.	Version V2.1.0—123 is tagged seven.	none
 ru-mixed-20	ru	auto_segment	mixed_language	normalize	У меня -0 kg	У меня minus zero kilograms	У меня minus zero kilograms	ambiguous_normalization@0:17
 ru-mixed-21	ru	auto_segment	mixed_language	normalize	У меня -0.0 kg	У меня minus zero point zero kilograms	У меня minus zero point zero kilograms	ambiguous_normalization@0:19
 en-preserve-0	en	explicit	ambiguous_or_technical	preserve	Deploy C++17 to RTX-4090 at https://example.com/v2.1.0.	Deploy C++17 to RTX-4090 at https://example.com/v2.1.0.	Deploy C++17 to RTX-4090 at https://example.com/v2.1.0.	none
-en-preserve-1	en	explicit	ambiguous_or_technical	preserve	The endpoint HTTP/2 returned code #123.	The endpoint HTTP/2 returned code #123.	The endpoint HTTP/2 returned code #123.	none
+en-preserve-1	en	explicit	ambiguous_or_technical	preserve	The endpoint HTTP/2 returned code #123.	The endpoint HTTP/2 returned code #123.	The endpoint H-T-T-P two returned code #123.	none
 en-preserve-2	en	explicit	ambiguous_or_technical	preserve	Keep malformed value 1.2..3 unchanged.	Keep malformed value 1.2..3 unchanged.	Keep malformed value 1.2..3 unchanged.	unresolved_number@21:6
 en-preserve-3	en	explicit	ambiguous_or_technical	preserve	Keep malformed time 1:02::3 unchanged.	Keep malformed time 1:02::3 unchanged.	Keep malformed time 1:02::3 unchanged.	unresolved_number@20:7
 en-preserve-4	en	explicit	ambiguous_or_technical	preserve	Identifier V2.1.0—123 must remain atomic.	Identifier V2.1.0—123 must remain atomic.	Identifier V2.1.0—123 must remain atomic.	unresolved_number@11:12
@@ -330,7 +330,7 @@ en-preserve-5	en	explicit	ambiguous_or_technical	preserve	The malformed amount 1
 en-preserve-6	en	explicit	ambiguous_or_technical	preserve	The malformed unit 2 kgfoo stays unchanged.	The malformed unit 2 kgfoo stays unchanged.	The malformed unit 2 kgfoo stays unchanged.	unresolved_number@19:7
 en-preserve-7	en	explicit	ambiguous_or_technical	preserve	Invalid clock values 24:00 and 99:99 remain digits.	Invalid clock values 24:00 and 99:99 remain digits.	Invalid clock values 24:00 and 99:99 remain digits.	unresolved_number@21:5;unresolved_number@31:5
 ru-preserve-8	ru	explicit	ambiguous_or_technical	preserve	Запустите C++17 на RTX-4090 через https://example.com/v2.1.0.	Запустите C++17 на RTX-4090 через https://example.com/v2.1.0.	Запустите C++17 на RTX-4090 через https://example.com/v2.1.0.	none
-ru-preserve-9	ru	explicit	ambiguous_or_technical	preserve	Ответ HTTP/2 содержит код #123.	Ответ HTTP/2 содержит код #123.	Ответ HTTP/2 содержит код #123.	none
+ru-preserve-9	ru	explicit	ambiguous_or_technical	preserve	Ответ HTTP/2 содержит код #123.	Ответ HTTP/2 содержит код #123.	Ответ аш ти ти пи два содержит код #123.	none
 ru-preserve-10	ru	explicit	ambiguous_or_technical	preserve	Некорректное значение 1,2..3 сохраняется.	Некорректное значение 1,2..3 сохраняется.	Некорректное значение 1,2..3 сохраняется.	unresolved_number@42:6
 ru-preserve-11	ru	explicit	ambiguous_or_technical	preserve	Некорректное время 1:02::3 сохраняется.	Некорректное время 1:02::3 сохраняется.	Некорректное время 1:02::3 сохраняется.	unresolved_number@36:7
 ru-preserve-12	ru	explicit	ambiguous_or_technical	preserve	Идентификатор V2.1.0—123 остаётся атомарным.	Идентификатор V2.1.0—123 остаётся атомарным.	Идентификатор V2.1.0—123 остаётся атомарным.	unresolved_number@27:12
@@ -596,8 +596,8 @@ en-v030-mixed-1-0	en	auto_segment	mixed_language	normalize	Use 3 кг of materia
 en-v030-mixed-1-1	en	auto_segment	mixed_language	normalize	Use 3 кг of material. Проверка завершена.	Use три килограмма of material. Проверка завершена.	Use три килограмма of material. Проверка завершена.	ambiguous_normalization@0:60
 en-v030-mixed-2-0	en	auto_segment	mixed_language	normalize	RTX-4090 completed 4 задачи.	RTX-4090 completed четыре задачи.	RTX-4090 completed четыре задачи.	ambiguous_normalization@0:34
 en-v030-mixed-2-1	en	auto_segment	mixed_language	normalize	RTX-4090 completed 4 задачи. Проверка завершена.	RTX-4090 completed четыре задачи. Проверка завершена.	RTX-4090 completed четыре задачи. Проверка завершена.	ambiguous_normalization@0:71
-en-v030-mixed-3-0	en	auto_segment	mixed_language	normalize	HTTP/2 returned 5 ошибок.	HTTP/2 returned пять ошибок.	HTTP/2 returned пять ошибок.	ambiguous_normalization@0:31
-en-v030-mixed-3-1	en	auto_segment	mixed_language	normalize	HTTP/2 returned 5 ошибок. Проверка завершена.	HTTP/2 returned пять ошибок. Проверка завершена.	HTTP/2 returned пять ошибок. Проверка завершена.	ambiguous_normalization@0:68
+en-v030-mixed-3-0	en	auto_segment	mixed_language	normalize	HTTP/2 returned 5 ошибок.	HTTP/2 returned пять ошибок.	H-T-T-P two returned пять ошибок.	ambiguous_normalization@0:31
+en-v030-mixed-3-1	en	auto_segment	mixed_language	normalize	HTTP/2 returned 5 ошибок. Проверка завершена.	HTTP/2 returned пять ошибок. Проверка завершена.	аш ти ти пи два returned пять ошибок. Проверка завершена.	ambiguous_normalization@0:68
 en-v030-mixed-4-0	en	auto_segment	mixed_language	normalize	Send 2 отчёта to dev@example.com.	Send два отчёта to dev@example.com.	Send два отчёта to dev@example.com.	ambiguous_normalization@0:39
 en-v030-mixed-4-1	en	auto_segment	mixed_language	normalize	Send 2 отчёта to dev@example.com. Проверка завершена.	Send два отчёта to dev@example.com. Проверка завершена.	Send два отчёта to dev@example.com. Проверка завершена.	ambiguous_normalization@0:76
 en-v030-mixed-5-0	en	auto_segment	mixed_language	normalize	The CUDA job used 8 ГБ памяти.	The CUDA job used восемь гигабайт памяти.	The CUDA job used восемь гигабайт памяти.	ambiguous_normalization@0:38
@@ -612,8 +612,8 @@ ru-v030-mixed-1-0	ru	auto_segment	mixed_language	normalize	Используйт�
 ru-v030-mixed-1-1	ru	auto_segment	mixed_language	normalize	Используйте 3 kg материала. Validation complete.	Используйте three kilograms материала. Validation complete.	Используйте three kilograms материала. Validation complete.	ambiguous_normalization@0:68
 ru-v030-mixed-2-0	ru	auto_segment	mixed_language	normalize	RTX-4090 завершил 4 tasks.	RTX-4090 завершил four tasks.	RTX-4090 завершил four tasks.	ambiguous_normalization@0:34
 ru-v030-mixed-2-1	ru	auto_segment	mixed_language	normalize	RTX-4090 завершил 4 tasks. Validation complete.	RTX-4090 завершил four tasks. Validation complete.	RTX-4090 завершил four tasks. Validation complete.	ambiguous_normalization@0:55
-ru-v030-mixed-3-0	ru	auto_segment	mixed_language	normalize	HTTP/2 вернул 5 errors.	HTTP/2 вернул five errors.	HTTP/2 вернул five errors.	ambiguous_normalization@0:29
-ru-v030-mixed-3-1	ru	auto_segment	mixed_language	normalize	HTTP/2 вернул 5 errors. Validation complete.	HTTP/2 вернул five errors. Validation complete.	HTTP/2 вернул five errors. Validation complete.	ambiguous_normalization@0:50
+ru-v030-mixed-3-0	ru	auto_segment	mixed_language	normalize	HTTP/2 вернул 5 errors.	HTTP/2 вернул five errors.	аш ти ти пи два вернул five errors.	ambiguous_normalization@0:29
+ru-v030-mixed-3-1	ru	auto_segment	mixed_language	normalize	HTTP/2 вернул 5 errors. Validation complete.	HTTP/2 вернул five errors. Validation complete.	H-T-T-P two вернул five errors. Validation complete.	ambiguous_normalization@0:50
 ru-v030-mixed-4-0	ru	auto_segment	mixed_language	normalize	Отправьте 2 reports на dev@example.com.	Отправьте two reports на dev@example.com.	Отправьте two reports на dev@example.com.	ambiguous_normalization@0:50
 ru-v030-mixed-4-1	ru	auto_segment	mixed_language	normalize	Отправьте 2 reports на dev@example.com. Validation complete.	Отправьте two reports на dev@example.com. Validation complete.	Отправьте two reports на dev@example.com. Validation complete.	ambiguous_normalization@0:71
 ru-v030-mixed-5-0	ru	auto_segment	mixed_language	normalize	Задача CUDA использовала 8 GB памяти.	Задача CUDA использовала eight gigabytes памяти.	Задача CUDA использовала eight gigabytes памяти.	ambiguous_normalization@0:61
@@ -747,6 +747,6 @@ tech-en-02	en	explicit	ambiguous_or_technical	preserve	Email user2@example.com a
 tech-en-03	en	explicit	ambiguous_or_technical	normalize	Version C++17 uses 2 GB.	Version C++17 uses two gigabytes.	Version C++17 uses two gigabytes.	none
 tech-en-04	en	explicit	ambiguous_or_technical	normalize	Address 192.168.1.10 uses port 443.	Address 192.168.1.10 uses port four hundred forty three.	Address 192.168.1.10 uses port four hundred forty three.	none
 tech-auto-01	ru	auto	ambiguous_or_technical	normalize	RTX-4090 обработал 2 GB.	RTX-4090 обработал два гигабайта.	RTX-4090 обработал два гигабайта.	ambiguous_normalization@0:33
-tech-auto-02	ru	auto	ambiguous_or_technical	normalize	HTTP/2 обслужил 3 запроса.	HTTP/2 обслужил три запроса.	HTTP/2 обслужил три запроса.	ambiguous_normalization@0:41
+tech-auto-02	ru	auto	ambiguous_or_technical	normalize	HTTP/2 обслужил 3 запроса.	HTTP/2 обслужил три запроса.	аш ти ти пи два обслужил три запроса.	ambiguous_normalization@0:41
 tech-segment-01	ru	auto_segment	ambiguous_or_technical	normalize	C# обработал 4 файла и 5 GB.	C# обработал четыре файла и five gigabytes.	C# обработал четыре файла и five gigabytes.	ambiguous_normalization@0:43
 tech-segment-02	ru	auto_segment	ambiguous_or_technical	normalize	CUDA 13.3 completed 6 задач.	CUDA 13.3 completed шесть задач.	CUDA 13.3 completed шесть задач.	ambiguous_normalization@0:33
