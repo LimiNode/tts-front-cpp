@@ -60,14 +60,13 @@ bool overlaps(const SourcePronunciationRewrite& rewrite, std::size_t begin, std:
     return rewrite.begin < end && begin < rewrite.end;
 }
 
-const PronunciationDictionary::Entry* find_technical_dictionary_entry(
-    const PronunciationDictionary& dictionary,
-    std::string_view surface) {
+const PronunciationDictionary::Entry*
+find_technical_dictionary_entry(const PronunciationDictionary& dictionary,
+                                std::string_view surface) {
     if (const auto* entry = dictionary.find_token(surface))
         return entry;
     for (const auto& entry : dictionary.entries()) {
-        if (entry.match == PronunciationDictionary::Match::ExactPhrase &&
-            entry.pattern == surface)
+        if (entry.match == PronunciationDictionary::Match::ExactPhrase && entry.pattern == surface)
             return &entry;
     }
     return nullptr;
@@ -290,11 +289,10 @@ TextFrontendResult TextFrontend::process(std::string_view input,
         const auto end = begin + candidate.length;
         const auto surface =
             std::string_view(result.normalized_text).substr(begin, candidate.length);
-        const auto covered = std::any_of(source_rewrites.begin(),
-                                         source_rewrites.end(),
-                                         [&](const auto& rewrite) {
-                                             return overlaps(rewrite, begin, end);
-                                         });
+        const auto covered =
+            std::any_of(source_rewrites.begin(), source_rewrites.end(), [&](const auto& rewrite) {
+                return overlaps(rewrite, begin, end);
+            });
         if (covered)
             continue;
         const PronunciationDictionary::Entry* dictionary_entry = nullptr;
@@ -319,11 +317,8 @@ TextFrontendResult TextFrontend::process(std::string_view input,
         if (!replacement || *replacement == surface)
             continue;
         source_rewrites.push_back({begin, end, *replacement, false});
-        result.automatic_rewrites.push_back({std::string(surface),
-                                             *replacement,
-                                             begin,
-                                             "technical pronunciation default",
-                                             true});
+        result.automatic_rewrites.push_back(
+            {std::string(surface), *replacement, begin, "technical pronunciation default", true});
     }
     if (!source_rewrites.empty()) {
         std::sort(source_rewrites.begin(),

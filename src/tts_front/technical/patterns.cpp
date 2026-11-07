@@ -28,8 +28,8 @@ std::vector<SourceRange> scan_pronunciation_candidates(std::string_view value) {
     const auto collect_opaque = [&](const std::regex& pattern) {
         using Iterator = std::regex_iterator<std::string_view::const_iterator>;
         for (Iterator it(value.begin(), value.end(), pattern), end; it != end; ++it)
-            opaque_ranges.push_back({static_cast<std::size_t>(it->position()),
-                                     static_cast<std::size_t>(it->length())});
+            opaque_ranges.push_back(
+                {static_cast<std::size_t>(it->position()), static_cast<std::size_t>(it->length())});
     };
     collect_opaque(source.technical_url);
     collect_opaque(source.technical_utf8_email);
@@ -69,11 +69,12 @@ std::vector<SourceRange> scan_pronunciation_candidates(std::string_view value) {
     append_exact(source.technical_gpu, "RTX 4090");
     append_exact(source.technical_cpp, "C++");
     append_exact(source.technical_http, "HTTP/2");
-    std::sort(candidates.begin(), candidates.end(), [](const SourceRange& left,
-                                                       const SourceRange& right) {
-        return left.offset < right.offset ||
-               (left.offset == right.offset && left.length > right.length);
-    });
+    std::sort(candidates.begin(),
+              candidates.end(),
+              [](const SourceRange& left, const SourceRange& right) {
+                  return left.offset < right.offset ||
+                         (left.offset == right.offset && left.length > right.length);
+              });
     return candidates;
 }
 

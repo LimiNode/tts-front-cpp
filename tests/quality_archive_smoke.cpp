@@ -40,36 +40,21 @@ struct CurrentCase {
 
 const std::set<std::string>& approved_supersession_ids() {
     static const std::set<std::string> ids = {
-        "en-mixed-7",
-        "en-mixed-16",
-        "en-mixed-17",
-        "en-preserve-1",
-        "ru-mixed-1",
-        "ru-mixed-2",
-        "ru-mixed-10",
-        "ru-mixed-11",
-        "ru-mixed-13",
-        "ru-mixed-21",
-        "ru-preserve-9",
-        "ru-natural-05",
-        "ru-natural-10",
-        "ru-mixed-malformed-unit-suffix",
-        "ru-v030-year-0-a",
-        "ru-v030-year-0-b",
-        "ru-v030-year-1-a",
-        "ru-v030-year-1-b",
-        "ru-v030-year-2-a",
-        "ru-v030-year-2-b",
-        "ru-v030-year-3-a",
-        "ru-v030-year-3-b",
-        "ru-v030-year-4-a",
-        "ru-v030-year-4-b",
-        "ru-v030-year-5-a",
-        "ru-v030-year-5-b",
-        "ru-v030-year-6-a",
-        "ru-v030-year-6-b",
-        "ru-v030-year-7-a",
-        "ru-v030-year-7-b",
+        "en-mixed-7",       "en-mixed-16",
+        "en-mixed-17",      "en-preserve-1",
+        "ru-mixed-1",       "ru-mixed-2",
+        "ru-mixed-10",      "ru-mixed-11",
+        "ru-mixed-13",      "ru-mixed-21",
+        "ru-preserve-9",    "ru-natural-05",
+        "ru-natural-10",    "ru-mixed-malformed-unit-suffix",
+        "ru-v030-year-0-a", "ru-v030-year-0-b",
+        "ru-v030-year-1-a", "ru-v030-year-1-b",
+        "ru-v030-year-2-a", "ru-v030-year-2-b",
+        "ru-v030-year-3-a", "ru-v030-year-3-b",
+        "ru-v030-year-4-a", "ru-v030-year-4-b",
+        "ru-v030-year-5-a", "ru-v030-year-5-b",
+        "ru-v030-year-6-a", "ru-v030-year-6-b",
+        "ru-v030-year-7-a", "ru-v030-year-7-b",
     };
     return ids;
 }
@@ -322,8 +307,7 @@ int main(int argc, char** argv) {
             approved_supersession_ids().find(item.id) != approved_supersession_ids().end())
             expected_supersessions.insert(item.id);
         const bool supersession_candidate =
-            contract_differs &&
-            result.normalized_text == current->second.expected_normalized &&
+            contract_differs && result.normalized_text == current->second.expected_normalized &&
             result.pronunciation_text == current->second.expected_pronunciation &&
             actual_diagnostics == current->second.diagnostics;
         if (supersession_candidate &&

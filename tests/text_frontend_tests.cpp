@@ -1431,21 +1431,15 @@ int main() {
                                   "эр ти икс сорок девяносто"));
     CHECK(check_technical_default(
         technical_en, "RTX 4090", "R-T-X forty ninety", "RTX 4090", "R-T-X forty ninety"));
-    CHECK(check_technical_default(
-        technical_ru, "C++", "си плюс плюс", "C++", "си плюс плюс"));
-    CHECK(check_technical_default(
-        technical_en, "C++", "C plus plus", "C++", "C plus plus"));
+    CHECK(check_technical_default(technical_ru, "C++", "си плюс плюс", "C++", "си плюс плюс"));
+    CHECK(check_technical_default(technical_en, "C++", "C plus plus", "C++", "C plus plus"));
     CHECK(check_technical_default(
         technical_ru, "HTTP/2", "аш ти ти пи два", "HTTP/2", "аш ти ти пи два"));
-    CHECK(check_technical_default(
-        technical_en, "HTTP/2", "H-T-T-P two", "HTTP/2", "H-T-T-P two"));
+    CHECK(check_technical_default(technical_en, "HTTP/2", "H-T-T-P two", "HTTP/2", "H-T-T-P two"));
     CHECK(check_technical_default(
         technical_auto, "RTX 4090", "R-T-X forty ninety", "RTX 4090", "R-T-X forty ninety"));
-    CHECK(check_technical_default(technical_segmented,
-                                  "RTX 4090",
-                                  "R-T-X forty ninety",
-                                  "RTX 4090",
-                                  "R-T-X forty ninety"));
+    CHECK(check_technical_default(
+        technical_segmented, "RTX 4090", "R-T-X forty ninety", "RTX 4090", "R-T-X forty ninety"));
     const auto mixed_auto = frontend.process("Тест RTX 4090", technical_auto);
     CHECK(mixed_auto.normalized_text == "Тест RTX 4090");
     CHECK(mixed_auto.pronunciation_text == "Тест эр ти икс сорок девяносто");
@@ -1455,18 +1449,11 @@ int main() {
     CHECK(mixed_segmented.normalized_text == "Тест RTX 4090");
     CHECK(mixed_segmented.pronunciation_text == "Тест эр ти икс сорок девяносто");
     CHECK(mixed_segmented.warnings.empty());
-    CHECK(check_technical_default(technical_auto,
-                                  "Test HTTP/2",
-                                  "Test H-T-T-P two",
-                                  "HTTP/2",
-                                  "H-T-T-P two"));
-    CHECK(check_technical_default(technical_segmented,
-                                  "Test HTTP/2",
-                                  "Test H-T-T-P two",
-                                  "HTTP/2",
-                                  "H-T-T-P two"));
-    const auto punctuation =
-        frontend.process("RTX 4090, C++ и HTTP/2.", technical_ru);
+    CHECK(check_technical_default(
+        technical_auto, "Test HTTP/2", "Test H-T-T-P two", "HTTP/2", "H-T-T-P two"));
+    CHECK(check_technical_default(
+        technical_segmented, "Test HTTP/2", "Test H-T-T-P two", "HTTP/2", "H-T-T-P two"));
+    const auto punctuation = frontend.process("RTX 4090, C++ и HTTP/2.", technical_ru);
     CHECK(punctuation.normalized_text == "RTX 4090, C++ и HTTP/2.");
     CHECK(punctuation.pronunciation_text ==
           "эр ти икс сорок девяносто, си плюс плюс и аш ти ти пи два.");
@@ -1796,11 +1783,9 @@ int main() {
             const auto result = frontend.process(input, segmented);
             CHECK(result.normalized_text == expected);
             const auto expected_pronunciation =
-                input == "HTTP/2 returned 5 ошибок."
-                    ? "H-T-T-P two returned пять ошибок."
-                : input == "HTTP/2 вернул 5 errors."
-                    ? "аш ти ти пи два вернул five errors."
-                    : expected;
+                input == "HTTP/2 returned 5 ошибок." ? "H-T-T-P two returned пять ошибок."
+                : input == "HTTP/2 вернул 5 errors." ? "аш ти ти пи два вернул five errors."
+                                                     : expected;
             CHECK(result.pronunciation_text == expected_pronunciation);
             CHECK(std::any_of(
                 result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
