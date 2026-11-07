@@ -346,8 +346,16 @@ for index, (language, source, expected) in enumerate(mixed_cases):
     if index in {5, 15, 18} and language == "en":
         diagnostics = f"ambiguous_normalization@0:{len(source.encode('utf-8'))}"
     expectation = "preserve" if index == 13 else "normalize"
+    pronunciation = {
+        1: "Видеокарта эр ти икс сорок девяносто работает на one point five gigabytes RAM.",
+        2: "аш ти ти пи два вернул две ошибки.",
+        7: "H-T-T-P two returned three errors.",
+        11: "На сервере аш ти ти пи два работает четыре процесса.",
+        16: "The GPU R-T-X forty ninety needs eight gigabytes of memory.",
+        17: "Build twelve on H-T-T-P two passed validation.",
+    }.get(index)
     rows.append(row(f"{language}-mixed-{index}", language, "auto_segment", "mixed_language",
-                    expectation, source, expected, diagnostics))
+                    expectation, source, expected, diagnostics, pronunciation=pronunciation))
 
 preserved = [
     ("en", "Deploy C++17 to RTX-4090 at https://example.com/v2.1.0.", "none"),
@@ -393,8 +401,13 @@ for index, (language, source, diagnostics) in enumerate(preserved):
             diagnostics = warning(source, "2 кгfoo")
         elif language == "ru" and index == 15:
             diagnostics = warnings(source, "24:00", "99:99")
+    pronunciation = {
+        1: "The endpoint H-T-T-P two returned code #123.",
+        9: "Ответ аш ти ти пи два содержит код #123.",
+    }.get(index)
     rows.append(row(f"{language}-preserve-{index}", language, "explicit",
-                    "ambiguous_or_technical", "preserve", source, source, diagnostics))
+                    "ambiguous_or_technical", "preserve", source, source, diagnostics,
+                    pronunciation=pronunciation))
 
 natural_cases = [
     ("en-natural-00", "en", "integer", "normalize", "At 08:05, the train leaves platform 3.",
