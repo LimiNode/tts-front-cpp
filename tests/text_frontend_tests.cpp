@@ -1489,17 +1489,19 @@ int main() {
     CHECK(frontend.process("HTTP/2.0", technical_ru).automatic_rewrites.empty());
 
     PronunciationDictionary technical_dictionary;
+    CHECK(technical_dictionary.add_phrase("RTX 4090", "эр ти икс пользовательский"));
     CHECK(technical_dictionary.add_token("C++", "си плюс плюс пользовательский"));
     CHECK(technical_dictionary.add_token("HTTP/2", "аш ти ти пи два пользовательский"));
     TextFrontendOptions technical_dictionary_options = technical_ru;
     technical_dictionary_options.dictionary = &technical_dictionary;
     const auto technical_dictionary_result =
-        frontend.process("C++ и HTTP/2", technical_dictionary_options);
-    CHECK(technical_dictionary_result.normalized_text == "C++ и HTTP/2");
+        frontend.process("RTX 4090, C++ и HTTP/2", technical_dictionary_options);
+    CHECK(technical_dictionary_result.normalized_text == "RTX 4090, C++ и HTTP/2");
     CHECK(technical_dictionary_result.pronunciation_text ==
-          "си плюс плюс пользовательский и аш ти ти пи два пользовательский");
+          "эр ти икс пользовательский, си плюс плюс пользовательский и "
+          "аш ти ти пи два пользовательский");
     CHECK(technical_dictionary_result.automatic_rewrites.empty());
-    CHECK(technical_dictionary_result.dictionary_replacements.size() == 2);
+    CHECK(technical_dictionary_result.dictionary_replacements.size() == 3);
 
     // Automatic initialism expansion is opt-in and deliberately allowlisted.
     TextFrontendOptions initialisms;

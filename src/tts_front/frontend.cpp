@@ -7,11 +7,11 @@
 #include "tts_front/core/utf8.hpp"
 #include "tts_front/language/english/mixed_candidates.hpp"
 #include "tts_front/language/english/normalizer.hpp"
+#include "tts_front/language/english/technical_pronunciation.hpp"
 #include "tts_front/language/russian/initialisms.hpp"
 #include "tts_front/language/russian/mixed_candidates.hpp"
 #include "tts_front/language/russian/normalizer.hpp"
 #include "tts_front/language/russian/technical_pronunciation.hpp"
-#include "tts_front/language/english/technical_pronunciation.hpp"
 #include "tts_front/normalization/admission.hpp"
 #include "tts_front/normalization/language_detection.hpp"
 #include "tts_front/normalization/mixed_language.hpp"
@@ -258,7 +258,8 @@ TextFrontendResult TextFrontend::process(std::string_view input,
             if (entry) {
                 matched_entries[i] = entry;
                 rendered += entry->pronunciation;
-                source_rewrites.push_back({spans[i].begin, spans[i].end, entry->pronunciation, true});
+                source_rewrites.push_back(
+                    {spans[i].begin, spans[i].end, entry->pronunciation, true});
                 if (entry->pronunciation != token)
                     result.dictionary_replacements.push_back(
                         {token, entry->pronunciation, spans[i].begin});
@@ -427,29 +428,8 @@ TextFrontendResult TextFrontend::process(std::string_view input,
                     std::string output;
                 };
                 std::vector<ProtectedRewrite> protected_rewrites;
-                for (std::size_t index = 0; index < normalized_spans.size();) {
-                    const auto* entry =
-                        index < matched_entries.size() ? matched_entries[index] : nullptr;
-                    if (entry) {
-                        std::size_t end = index + 1;
-                        if (entry->match == PronunciationDictionary::Match::ExactPhrase) {
-                            while (end < matched_entries.size() && matched_entries[end] == entry)
-                                ++end;
-                        }
-                        protected_rewrites.push_back({normalized_spans[index].begin,
-                                                      normalized_spans[end - 1].end,
-                                                      entry->pronunciation});
-                        index = end;
-                    } else if (index < automatic_replacements.size() &&
-                               !automatic_replacements[index].empty()) {
-                        protected_rewrites.push_back({normalized_spans[index].begin,
-                                                      normalized_spans[index].end,
-                                                      automatic_replacements[index]});
-                        ++index;
-                    } else {
-                        ++index;
-                    }
-                }
+                for (const auto& rewrite : source_rewrites)
+                    protected_rewrites.push_back({rewrite.begin, rewrite.end, rewrite.output});
 
                 std::string protected_input;
                 std::size_t cursor = 0;
