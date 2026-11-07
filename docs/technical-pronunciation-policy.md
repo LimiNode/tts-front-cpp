@@ -88,7 +88,7 @@ an ordinary word, an unknown suffix, or only part of a compound identifier.
 | Initialism | `ABI` | `эй би ай` / `A-B-I` | deferred | `ABI2` attached version | yes |
 | Initialism | `TTS` | `ти ти эс` / `T-T-S` | deferred | `TTS-front` project identifier | yes |
 | Initialism | `ASR` | `эй эс ар` / `A-S-R` | deferred | `ASR2` unknown model | yes |
-| Protocol | `HTTP/2` | `аш ти ти пи два` / `H-T-T-P two` | approved (scope) | `HTTP/2.0` must not be partially rewritten | yes |
+| Protocol | `HTTP/2` | `аш ти ти пи два` / `H-T-T-P two` | approved | `HTTP/2.0` must not be partially rewritten | yes |
 | Protocol | `HTTP/3` | `аш ти ти пи три` / `H-T-T-P three` | deferred | `HTTP/300` numeric continuation | yes |
 | Protocol | `HTTPS` | `аш ти ти пи эс` / `H-T-T-P-S` | deferred | `https://` URL protected range | yes |
 | Protocol | `TCP` | `ти си пи` / `T-C-P` | deferred | `TCPdump` unknown compound | yes |
@@ -97,7 +97,7 @@ an ordinary word, an unknown suffix, or only part of a compound identifier.
 | Protocol | `SSL` | `эс эс эл` / `S-S-L` | deferred | `SSLv3` version family | yes |
 | Protocol | `SSH` | `эс эс эйч` / `S-S-H` | deferred | `ssh://` URL protected range | yes |
 | Protocol | `DNS` | `ди эн эс` / `D-N-S` | deferred | `DNSSEC` unknown compound | yes |
-| Hardware/model | `RTX 4090` | `эр ти икс сорок девяносто` / `R-T-X forty ninety` | approved (scope) | `RTX 4090 Ti` requires a whole-token rule | yes |
+| Hardware/model | `RTX 4090` | `эр ти икс сорок девяносто` / `R-T-X forty ninety` | approved | `RTX 4090 Ti` requires a whole-token rule | yes |
 | Hardware/model | `RTX-4090` | same family, hyphen-aware / `R-T-X four zero nine zero` | deferred | `RTX-4090x` unknown model suffix | yes |
 | Hardware/model | `VRAM` | `ви рам` / `V-R-A-M` | deferred | `VRAM2` unknown model | yes |
 | Hardware/model | `RAM` | `рам` or `эр эй эм` / `R-A-M` | deferred | ordinary word `рам` in Russian text | yes |
@@ -112,7 +112,7 @@ an ordinary word, an unknown suffix, or only part of a compound identifier.
 | AI/ML | `Qwen3` | `кьювэнь три` / `Qwen three` | deferred | `Qwen3.5` requires a version policy | yes |
 | AI/ML | `GPT-5` | `джи пи ти пять` / `G-P-T five` | deferred | `GPT-5-mini` unknown model suffix | yes |
 | AI/ML | `Llama 3` | `лама три` / `Llama three` | deferred | `Llama.cpp` compound identifier | yes |
-| Language/tool | `C++` | `си плюс плюс` / `C plus plus` | approved (scope) | `C++17` must not rewrite only `C++` | yes |
+| Language/tool | `C++` | `си плюс плюс` / `C plus plus` | approved | `C++17` must not rewrite only `C++` | yes |
 | Language/tool | `C++17` | whole-token language/version form | deferred | `C++17x` unknown suffix | yes |
 | Language/tool | `C#` | `си шарп` / `C sharp` | deferred | `C#12x` unknown suffix | yes |
 | Language/tool | `CMake` | `си мейк` / `CMake` | deferred | `cmake-format` tool compound | yes |
@@ -124,7 +124,9 @@ an ordinary word, an unknown suffix, or only part of a compound identifier.
 | Version/compound | `GPU/CPU` | two protected initialisms with explicit slash policy | deferred | URL-like `GPU/CPU/path` | yes |
 | Version/compound | `RTX 50xx` | model-family spelling, cardinal deferred | deferred | `RTX 5090 Ti` unapproved extension | yes |
 
-The three `approved (scope)` rows are the only proposed first behavior cluster.
+The three `approved` rows are approved for the first behavior scope; their
+exact spoken defaults still require product confirmation. They are the only
+proposed first behavior cluster.
 `GPU`, `API`, and `CPU` are the only candidates that may be considered for the
 next small cluster; all other rows remain inventory-only.
 
