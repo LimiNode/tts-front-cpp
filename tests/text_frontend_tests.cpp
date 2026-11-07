@@ -1424,8 +1424,11 @@ int main() {
                result.pronunciation_text.find('\x01') == std::string::npos &&
                result.pronunciation_text.find('\x02') == std::string::npos;
     };
-    CHECK(check_technical_default(
-        technical_ru, "RTX 4090", "эр ти икс сорок девяносто", "RTX 4090", "эр ти икс сорок девяносто"));
+    CHECK(check_technical_default(technical_ru,
+                                  "RTX 4090",
+                                  "эр ти икс сорок девяносто",
+                                  "RTX 4090",
+                                  "эр ти икс сорок девяносто"));
     CHECK(check_technical_default(
         technical_en, "RTX 4090", "R-T-X forty ninety", "RTX 4090", "R-T-X forty ninety"));
     CHECK(check_technical_default(
@@ -1473,6 +1476,14 @@ int main() {
     CHECK(frontend.process("C++17", technical_ru).pronunciation_text == "C++17");
     CHECK(frontend.process("HTTP/2.0", technical_ru).pronunciation_text == "HTTP/2.0");
     CHECK(frontend.process("RTX-4090", technical_ru).pronunciation_text == "RTX-4090");
+    for (const auto& input : {std::string("https://example.com/C++"),
+                              std::string("https://example.com/RTX%204090"),
+                              std::string("user+C++@example.com")}) {
+        const auto result = frontend.process(input, technical_ru);
+        CHECK(result.normalized_text == input);
+        CHECK(result.pronunciation_text == input);
+        CHECK(result.automatic_rewrites.empty());
+    }
     CHECK(frontend.process("RTX 4090 Ti", technical_ru).automatic_rewrites.empty());
     CHECK(frontend.process("C++17", technical_ru).automatic_rewrites.empty());
     CHECK(frontend.process("HTTP/2.0", technical_ru).automatic_rewrites.empty());

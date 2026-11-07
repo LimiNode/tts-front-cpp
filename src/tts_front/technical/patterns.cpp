@@ -24,11 +24,27 @@ bool has_known_identifier_prefix(std::string_view value) {
 std::vector<SourceRange> scan_pronunciation_candidates(std::string_view value) {
     const auto& source = patterns();
     std::vector<SourceRange> candidates;
+    std::vector<SourceRange> opaque_ranges;
+    const auto collect_opaque = [&](const std::regex& pattern) {
+        using Iterator = std::regex_iterator<std::string_view::const_iterator>;
+        for (Iterator it(value.begin(), value.end(), pattern), end; it != end; ++it)
+            opaque_ranges.push_back({static_cast<std::size_t>(it->position()),
+                                     static_cast<std::size_t>(it->length())});
+    };
+    collect_opaque(source.technical_url);
+    collect_opaque(source.technical_utf8_email);
+    collect_opaque(source.technical_email);
     const auto append_exact = [&](const std::regex& pattern, std::string_view expected) {
         using Iterator = std::regex_iterator<std::string_view::const_iterator>;
         for (Iterator it(value.begin(), value.end(), pattern), end; it != end; ++it) {
             const auto offset = static_cast<std::size_t>(it->position());
             const auto length = static_cast<std::size_t>(it->length());
+            const auto overlaps_opaque = std::any_of(
+                opaque_ranges.begin(), opaque_ranges.end(), [&](const SourceRange& range) {
+                    return range.offset < offset + length && offset < range.offset + range.length;
+                });
+            if (overlaps_opaque)
+                continue;
             if (value.substr(offset, length) != expected)
                 continue;
             const auto before = offset == 0 ? '\0' : value[offset - 1];
