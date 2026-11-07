@@ -1,7 +1,11 @@
 #pragma once
 
+#include "tts_front/core/source_span.hpp"
+
+#include <cstddef>
 #include <regex>
 #include <string_view>
+#include <vector>
 
 namespace tts_front::detail::technical {
 
@@ -25,5 +29,9 @@ struct Patterns {
 const Patterns& patterns();
 
 bool has_known_identifier_prefix(std::string_view value);
+
+// Return only whole technical surfaces with an approved spoken rewrite.
+// The caller supplies the language-specific pronunciation policy.
+std::vector<SourceRange> scan_pronunciation_candidates(std::string_view value);
 
 } // namespace tts_front::detail::technical
