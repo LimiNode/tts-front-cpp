@@ -1400,6 +1400,96 @@ int main() {
     CHECK(frontend.process("New Yorkshire", dictionary_options).pronunciation_text ==
           "New Yorkshire");
 
+    // Approved technical pronunciation defaults affect spoken rendering only.
+    TextFrontendOptions technical_ru;
+    technical_ru.language = Language::Russian;
+    TextFrontendOptions technical_en;
+    technical_en.language = Language::English;
+    TextFrontendOptions technical_auto;
+    technical_auto.language = Language::Auto;
+    TextFrontendOptions technical_segmented = technical_auto;
+    technical_segmented.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+    const auto check_technical_default = [&](const TextFrontendOptions& options,
+                                             const std::string& input,
+                                             const std::string& expected,
+                                             const std::string& token,
+                                             const std::string& spoken) {
+        const auto result = frontend.process(input, options);
+        return result.original_text == input && result.normalized_text == input &&
+               result.pronunciation_text == expected && result.warnings.empty() &&
+               result.automatic_rewrites.size() == 1 &&
+               result.automatic_rewrites.front().input == token &&
+               result.automatic_rewrites.front().output == spoken &&
+               result.automatic_rewrites.front().offset == input.find(token) &&
+               result.pronunciation_text.find('\x01') == std::string::npos &&
+               result.pronunciation_text.find('\x02') == std::string::npos;
+    };
+    CHECK(check_technical_default(technical_ru,
+                                  "RTX 4090",
+                                  "эр ти икс сорок девяносто",
+                                  "RTX 4090",
+                                  "эр ти икс сорок девяносто"));
+    CHECK(check_technical_default(
+        technical_en, "RTX 4090", "R-T-X forty ninety", "RTX 4090", "R-T-X forty ninety"));
+    CHECK(check_technical_default(technical_ru, "C++", "си плюс плюс", "C++", "си плюс плюс"));
+    CHECK(check_technical_default(technical_en, "C++", "C plus plus", "C++", "C plus plus"));
+    CHECK(check_technical_default(
+        technical_ru, "HTTP/2", "аш ти ти пи два", "HTTP/2", "аш ти ти пи два"));
+    CHECK(check_technical_default(technical_en, "HTTP/2", "H-T-T-P two", "HTTP/2", "H-T-T-P two"));
+    CHECK(check_technical_default(
+        technical_auto, "RTX 4090", "R-T-X forty ninety", "RTX 4090", "R-T-X forty ninety"));
+    CHECK(check_technical_default(
+        technical_segmented, "RTX 4090", "R-T-X forty ninety", "RTX 4090", "R-T-X forty ninety"));
+    const auto mixed_auto = frontend.process("Тест RTX 4090", technical_auto);
+    CHECK(mixed_auto.normalized_text == "Тест RTX 4090");
+    CHECK(mixed_auto.pronunciation_text == "Тест эр ти икс сорок девяносто");
+    CHECK(mixed_auto.warnings.size() == 1);
+    CHECK(mixed_auto.warnings.front().code == WarningCode::AmbiguousNormalization);
+    const auto mixed_segmented = frontend.process("Тест RTX 4090", technical_segmented);
+    CHECK(mixed_segmented.normalized_text == "Тест RTX 4090");
+    CHECK(mixed_segmented.pronunciation_text == "Тест эр ти икс сорок девяносто");
+    CHECK(mixed_segmented.warnings.empty());
+    CHECK(check_technical_default(
+        technical_auto, "Test HTTP/2", "Test H-T-T-P two", "HTTP/2", "H-T-T-P two"));
+    CHECK(check_technical_default(
+        technical_segmented, "Test HTTP/2", "Test H-T-T-P two", "HTTP/2", "H-T-T-P two"));
+    const auto punctuation = frontend.process("RTX 4090, C++ и HTTP/2.", technical_ru);
+    CHECK(punctuation.normalized_text == "RTX 4090, C++ и HTTP/2.");
+    CHECK(punctuation.pronunciation_text ==
+          "эр ти икс сорок девяносто, си плюс плюс и аш ти ти пи два.");
+    CHECK(punctuation.warnings.empty());
+    CHECK(punctuation.automatic_rewrites.size() == 3);
+    CHECK(frontend.process("RTX 4090 Ti", technical_ru).pronunciation_text == "RTX 4090 Ti");
+    CHECK(frontend.process("C++17", technical_ru).pronunciation_text == "C++17");
+    CHECK(frontend.process("HTTP/2.0", technical_ru).pronunciation_text == "HTTP/2.0");
+    CHECK(frontend.process("RTX-4090", technical_ru).pronunciation_text == "RTX-4090");
+    for (const auto& input : {std::string("https://example.com/C++"),
+                              std::string("https://example.com/RTX%204090"),
+                              std::string("user+C++@example.com")}) {
+        const auto result = frontend.process(input, technical_ru);
+        CHECK(result.normalized_text == input);
+        CHECK(result.pronunciation_text == input);
+        CHECK(result.automatic_rewrites.empty());
+    }
+    CHECK(frontend.process("RTX 4090 Ti", technical_ru).automatic_rewrites.empty());
+    CHECK(frontend.process("C++17", technical_ru).automatic_rewrites.empty());
+    CHECK(frontend.process("HTTP/2.0", technical_ru).automatic_rewrites.empty());
+
+    PronunciationDictionary technical_dictionary;
+    CHECK(technical_dictionary.add_phrase("RTX 4090", "эр ти икс пользовательский"));
+    CHECK(technical_dictionary.add_token("C++", "си плюс плюс пользовательский"));
+    CHECK(technical_dictionary.add_token("HTTP/2", "аш ти ти пи два пользовательский"));
+    TextFrontendOptions technical_dictionary_options = technical_ru;
+    technical_dictionary_options.dictionary = &technical_dictionary;
+    const auto technical_dictionary_result =
+        frontend.process("RTX 4090, C++ и HTTP/2", technical_dictionary_options);
+    CHECK(technical_dictionary_result.normalized_text == "RTX 4090, C++ и HTTP/2");
+    CHECK(technical_dictionary_result.pronunciation_text ==
+          "эр ти икс пользовательский, си плюс плюс пользовательский и "
+          "аш ти ти пи два пользовательский");
+    CHECK(technical_dictionary_result.automatic_rewrites.empty());
+    CHECK(technical_dictionary_result.dictionary_replacements.size() == 3);
+
     // Automatic initialism expansion is opt-in and deliberately allowlisted.
     TextFrontendOptions initialisms;
     initialisms.language = Language::Russian;
@@ -1692,7 +1782,11 @@ int main() {
         for (const auto& [input, expected] : local_heads) {
             const auto result = frontend.process(input, segmented);
             CHECK(result.normalized_text == expected);
-            CHECK(result.pronunciation_text == expected);
+            const auto expected_pronunciation =
+                input == "HTTP/2 returned 5 ошибок." ? "H-T-T-P two returned пять ошибок."
+                : input == "HTTP/2 вернул 5 errors." ? "аш ти ти пи два вернул five errors."
+                                                     : expected;
+            CHECK(result.pronunciation_text == expected_pronunciation);
             CHECK(std::any_of(
                 result.warnings.begin(), result.warnings.end(), [](const TextWarning& warning) {
                     return warning.code == WarningCode::AmbiguousNormalization;

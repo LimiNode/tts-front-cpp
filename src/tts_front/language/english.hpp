@@ -7,5 +7,6 @@
 #include "tts_front/language/english/normalizer.hpp"
 #include "tts_front/language/english/numbers.hpp"
 #include "tts_front/language/english/patterns.hpp"
+#include "tts_front/language/english/technical_pronunciation.hpp"
 #include "tts_front/normalization.hpp"
 #include "tts_front/technical.hpp"

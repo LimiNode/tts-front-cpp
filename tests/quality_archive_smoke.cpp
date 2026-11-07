@@ -40,24 +40,21 @@ struct CurrentCase {
 
 const std::set<std::string>& approved_supersession_ids() {
     static const std::set<std::string> ids = {
-        "ru-natural-10",
-        "ru-mixed-malformed-unit-suffix",
-        "ru-v030-year-0-a",
-        "ru-v030-year-0-b",
-        "ru-v030-year-1-a",
-        "ru-v030-year-1-b",
-        "ru-v030-year-2-a",
-        "ru-v030-year-2-b",
-        "ru-v030-year-3-a",
-        "ru-v030-year-3-b",
-        "ru-v030-year-4-a",
-        "ru-v030-year-4-b",
-        "ru-v030-year-5-a",
-        "ru-v030-year-5-b",
-        "ru-v030-year-6-a",
-        "ru-v030-year-6-b",
-        "ru-v030-year-7-a",
-        "ru-v030-year-7-b",
+        "en-mixed-7",       "en-mixed-16",
+        "en-mixed-17",      "en-preserve-1",
+        "ru-mixed-1",       "ru-mixed-2",
+        "ru-mixed-10",      "ru-mixed-11",
+        "ru-mixed-13",      "ru-mixed-21",
+        "ru-preserve-9",    "ru-natural-05",
+        "ru-natural-10",    "ru-mixed-malformed-unit-suffix",
+        "ru-v030-year-0-a", "ru-v030-year-0-b",
+        "ru-v030-year-1-a", "ru-v030-year-1-b",
+        "ru-v030-year-2-a", "ru-v030-year-2-b",
+        "ru-v030-year-3-a", "ru-v030-year-3-b",
+        "ru-v030-year-4-a", "ru-v030-year-4-b",
+        "ru-v030-year-5-a", "ru-v030-year-5-b",
+        "ru-v030-year-6-a", "ru-v030-year-6-b",
+        "ru-v030-year-7-a", "ru-v030-year-7-b",
     };
     return ids;
 }
@@ -223,9 +220,9 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
     std::map<std::string, CurrentCase> current_cases;
-    if (strict && !load_current_cases(std::string(TTS_FRONT_SOURCE_DIR) +
-                                          "/tests/quality/en_ru_sentences.tsv",
-                                      current_cases)) {
+    if (!load_current_cases(std::string(TTS_FRONT_SOURCE_DIR) +
+                                "/tests/quality/en_ru_sentences.tsv",
+                            current_cases)) {
         std::cerr << "cannot load current corpus\n";
         return EXIT_FAILURE;
     }
@@ -252,6 +249,7 @@ int main(int argc, char** argv) {
     actual_outcomes["incorrect_or_partial"] = 0;
     std::set<std::string> actual_mismatches;
     std::set<std::string> actual_supersessions;
+    std::set<std::string> expected_supersessions;
     std::map<std::string, std::pair<std::string, std::string>> actual_mismatch_outputs;
     std::set<std::string> actual_diagnostic_exceptions;
     tts_front::TextFrontend frontend;
@@ -299,13 +297,17 @@ int main(int argc, char** argv) {
             return output.str();
         }();
         const auto current = current_cases.find(item.id);
-        const bool supersession_candidate =
-            strict && current != current_cases.end() && current->second.language == item.language &&
+        const bool contract_differs =
+            current != current_cases.end() && current->second.language == item.language &&
             current->second.mode == item.mode && current->second.input == item.input &&
             (current->second.expected_normalized != item.expected ||
              current->second.expected_pronunciation != item.expected ||
-             current->second.diagnostics != item.diagnostics) &&
-            result.normalized_text == current->second.expected_normalized &&
+             current->second.diagnostics != item.diagnostics);
+        if (strict && contract_differs &&
+            approved_supersession_ids().find(item.id) != approved_supersession_ids().end())
+            expected_supersessions.insert(item.id);
+        const bool supersession_candidate =
+            contract_differs && result.normalized_text == current->second.expected_normalized &&
             result.pronunciation_text == current->second.expected_pronunciation &&
             actual_diagnostics == current->second.diagnostics;
         if (supersession_candidate &&
@@ -355,10 +357,6 @@ int main(int argc, char** argv) {
         ++cases;
     }
     if (strict) {
-        std::set<std::string> expected_supersessions;
-        for (const auto& id : approved_supersession_ids())
-            if (corpus_ids.find(id) != corpus_ids.end())
-                expected_supersessions.insert(id);
         if (actual_supersessions != expected_supersessions) {
             std::cerr << "archive supersession set mismatch\n";
             return EXIT_FAILURE;

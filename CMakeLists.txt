@@ -68,6 +68,7 @@ add_library(tts_front
     src/tts_front/language/english/normalizer.cpp
     src/tts_front/language/english/grouped_numbers.cpp
     src/tts_front/language/english/mixed_candidates.cpp
+    src/tts_front/language/english/technical_pronunciation.cpp
     src/tts_front/language/russian/numbers.cpp
     src/tts_front/language/russian/admission.cpp
     src/tts_front/language/russian/patterns.cpp
@@ -75,6 +76,7 @@ add_library(tts_front
     src/tts_front/language/russian/normalizer.cpp
     src/tts_front/language/russian/initialisms.cpp
     src/tts_front/language/russian/mixed_candidates.cpp
+    src/tts_front/language/russian/technical_pronunciation.cpp
     src/tts_front/backend/silero/silero_asset_hash.cpp
     src/tts_front/backend/silero/silero_bundle.cpp
     src/tts_front/backend/silero/silero_sentence.cpp

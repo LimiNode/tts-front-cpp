@@ -7,12 +7,15 @@
 #include "tts_front/core/utf8.hpp"
 #include "tts_front/language/english/mixed_candidates.hpp"
 #include "tts_front/language/english/normalizer.hpp"
+#include "tts_front/language/english/technical_pronunciation.hpp"
 #include "tts_front/language/russian/initialisms.hpp"
 #include "tts_front/language/russian/mixed_candidates.hpp"
 #include "tts_front/language/russian/normalizer.hpp"
+#include "tts_front/language/russian/technical_pronunciation.hpp"
 #include "tts_front/normalization/admission.hpp"
 #include "tts_front/normalization/language_detection.hpp"
 #include "tts_front/normalization/mixed_language.hpp"
+#include "tts_front/technical/patterns.hpp"
 
 #include <algorithm>
 #include <array>
@@ -44,6 +47,29 @@ void add_warning(std::vector<TextWarning>& warnings,
                  std::size_t offset,
                  std::size_t length) {
     warnings.push_back({code, std::move(message), offset, length});
+}
+
+struct SourcePronunciationRewrite {
+    std::size_t begin = 0;
+    std::size_t end = 0;
+    std::string output;
+    bool dictionary = false;
+};
+
+bool overlaps(const SourcePronunciationRewrite& rewrite, std::size_t begin, std::size_t end) {
+    return rewrite.begin < end && begin < rewrite.end;
+}
+
+const PronunciationDictionary::Entry*
+find_technical_dictionary_entry(const PronunciationDictionary& dictionary,
+                                std::string_view surface) {
+    if (const auto* entry = dictionary.find_token(surface))
+        return entry;
+    for (const auto& entry : dictionary.entries()) {
+        if (entry.match == PronunciationDictionary::Match::ExactPhrase && entry.pattern == surface)
+            return &entry;
+    }
+    return nullptr;
 }
 
 [[maybe_unused]] std::optional<std::filesystem::path>
@@ -168,6 +194,7 @@ TextFrontendResult TextFrontend::process(std::string_view input,
     const auto spans = detail::token_spans(text.text);
     matched_entries.assign(spans.size(), nullptr);
     std::vector<std::string> automatic_replacements(spans.size());
+    std::vector<SourcePronunciationRewrite> source_rewrites;
     if ((options.apply_dictionary && options.dictionary) || options.expand_initialisms) {
         struct PhraseCandidate {
             const PronunciationDictionary::Entry* entry = nullptr;
@@ -211,6 +238,8 @@ TextFrontendResult TextFrontend::process(std::string_view input,
                     text.text.substr(spans[i].begin, spans[best_end - 1].end - spans[i].begin);
                 result.dictionary_replacements.push_back(
                     {phrase_surface, best->pronunciation, spans[i].begin});
+                source_rewrites.push_back(
+                    {spans[i].begin, spans[best_end - 1].end, best->pronunciation, true});
                 if (options.resolve_stress && options.stress_mode != StressMode::Disabled &&
                     best->stressed_vowel)
                     result.stress_decisions.push_back({phrase_surface,
@@ -228,6 +257,8 @@ TextFrontendResult TextFrontend::process(std::string_view input,
             if (entry) {
                 matched_entries[i] = entry;
                 rendered += entry->pronunciation;
+                source_rewrites.push_back(
+                    {spans[i].begin, spans[i].end, entry->pronunciation, true});
                 if (entry->pronunciation != token)
                     result.dictionary_replacements.push_back(
                         {token, entry->pronunciation, spans[i].begin});
@@ -235,6 +266,7 @@ TextFrontendResult TextFrontend::process(std::string_view input,
                 if (const auto replacement = detail::russian::safe_initialism(token)) {
                     automatic_replacements[i] = *replacement;
                     rendered += *replacement;
+                    source_rewrites.push_back({spans[i].begin, spans[i].end, *replacement, false});
                     result.automatic_rewrites.push_back(
                         {token, *replacement, spans[i].begin, "safe Russian initialism", true});
                 } else {
@@ -247,6 +279,65 @@ TextFrontendResult TextFrontend::process(std::string_view input,
             ++i;
         }
         rendered += text.text.substr(cursor);
+        result.pronunciation_text = std::move(rendered);
+    }
+
+    const auto technical_candidates =
+        detail::technical::scan_pronunciation_candidates(result.normalized_text);
+    for (const auto& candidate : technical_candidates) {
+        const auto begin = candidate.offset;
+        const auto end = begin + candidate.length;
+        const auto surface =
+            std::string_view(result.normalized_text).substr(begin, candidate.length);
+        const auto covered =
+            std::any_of(source_rewrites.begin(), source_rewrites.end(), [&](const auto& rewrite) {
+                return overlaps(rewrite, begin, end);
+            });
+        if (covered)
+            continue;
+        const PronunciationDictionary::Entry* dictionary_entry = nullptr;
+        if (options.apply_dictionary && options.dictionary)
+            dictionary_entry = find_technical_dictionary_entry(*options.dictionary, surface);
+        if (dictionary_entry) {
+            source_rewrites.push_back({begin, end, dictionary_entry->pronunciation, true});
+            if (dictionary_entry->pronunciation != surface)
+                result.dictionary_replacements.push_back(
+                    {std::string(surface), dictionary_entry->pronunciation, begin});
+            if (options.resolve_stress && options.stress_mode != StressMode::Disabled &&
+                dictionary_entry->stressed_vowel)
+                result.stress_decisions.push_back({std::string(surface),
+                                                   dictionary_entry->stressed_vowel,
+                                                   true,
+                                                   "pronunciation dictionary technical token"});
+            continue;
+        }
+        const auto replacement = language == Language::Russian
+                                     ? detail::russian::technical_pronunciation(surface)
+                                     : detail::english::technical_pronunciation(surface);
+        if (!replacement || *replacement == surface)
+            continue;
+        source_rewrites.push_back({begin, end, *replacement, false});
+        result.automatic_rewrites.push_back(
+            {std::string(surface), *replacement, begin, "technical pronunciation default", true});
+    }
+    if (!source_rewrites.empty()) {
+        std::sort(source_rewrites.begin(),
+                  source_rewrites.end(),
+                  [](const auto& left, const auto& right) {
+                      return left.begin < right.begin ||
+                             (left.begin == right.begin && left.end > right.end);
+                  });
+        std::string rendered;
+        rendered.reserve(result.normalized_text.size());
+        std::size_t cursor = 0;
+        for (const auto& rewrite : source_rewrites) {
+            if (rewrite.begin < cursor)
+                continue;
+            rendered.append(result.normalized_text, cursor, rewrite.begin - cursor);
+            rendered += rewrite.output;
+            cursor = rewrite.end;
+        }
+        rendered.append(result.normalized_text, cursor, std::string::npos);
         result.pronunciation_text = std::move(rendered);
     }
 
@@ -287,6 +378,17 @@ TextFrontendResult TextFrontend::process(std::string_view input,
             word.pronunciation = automatic_replacements[span_index];
             word.from_automatic_rewrite = true;
         }
+        for (const auto& rewrite : source_rewrites) {
+            if (span.begin < rewrite.begin || span.end > rewrite.end)
+                continue;
+            if (rewrite.dictionary)
+                word.from_dictionary = true;
+            else
+                word.from_automatic_rewrite = true;
+            if (span.begin == rewrite.begin)
+                word.pronunciation = rewrite.output;
+            break;
+        }
         result.words.push_back(word);
         if (stress_enabled && matched_entry &&
             matched_entry->match == PronunciationDictionary::Match::ExactPhrase)
@@ -321,29 +423,8 @@ TextFrontendResult TextFrontend::process(std::string_view input,
                     std::string output;
                 };
                 std::vector<ProtectedRewrite> protected_rewrites;
-                for (std::size_t index = 0; index < normalized_spans.size();) {
-                    const auto* entry =
-                        index < matched_entries.size() ? matched_entries[index] : nullptr;
-                    if (entry) {
-                        std::size_t end = index + 1;
-                        if (entry->match == PronunciationDictionary::Match::ExactPhrase) {
-                            while (end < matched_entries.size() && matched_entries[end] == entry)
-                                ++end;
-                        }
-                        protected_rewrites.push_back({normalized_spans[index].begin,
-                                                      normalized_spans[end - 1].end,
-                                                      entry->pronunciation});
-                        index = end;
-                    } else if (index < automatic_replacements.size() &&
-                               !automatic_replacements[index].empty()) {
-                        protected_rewrites.push_back({normalized_spans[index].begin,
-                                                      normalized_spans[index].end,
-                                                      automatic_replacements[index]});
-                        ++index;
-                    } else {
-                        ++index;
-                    }
-                }
+                for (const auto& rewrite : source_rewrites)
+                    protected_rewrites.push_back({rewrite.begin, rewrite.end, rewrite.output});
 
                 std::string protected_input;
                 std::size_t cursor = 0;

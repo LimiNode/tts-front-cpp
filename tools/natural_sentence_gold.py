@@ -6,7 +6,14 @@ from tts-front output.
 """
 
 
-def _case(case_id, language, mode, category, source, normalized, diagnostics="none"):
+def _case(case_id,
+          language,
+          mode,
+          category,
+          source,
+          normalized,
+          diagnostics="none",
+          pronunciation=None):
     return {
         "id": case_id,
         "language": language,
@@ -15,7 +22,7 @@ def _case(case_id, language, mode, category, source, normalized, diagnostics="no
         "expectation": "preserve" if source == normalized else "normalize",
         "source": source,
         "normalized": normalized,
-        "pronunciation": normalized,
+        "pronunciation": normalized if pronunciation is None else pronunciation,
         "diagnostics": diagnostics,
     }
 
@@ -264,9 +271,14 @@ def natural_sentence_cases():
         for variant, suffix in enumerate(("", " Проверка завершена.")):
             full_source = source + suffix
             full_normalized = normalized + suffix
+            pronunciation = full_normalized
+            if index == 3 and variant == 0:
+                pronunciation = "H-T-T-P two returned пять ошибок."
+            elif index == 3 and variant == 1:
+                pronunciation = "аш ти ти пи два returned пять ошибок. Проверка завершена."
             cases.append(_case(f"en-v030-mixed-{index}-{variant}", "en", "auto_segment",
                                "mixed_language", full_source, full_normalized,
-                               _full_warning(full_source)))
+                               _full_warning(full_source), pronunciation))
 
     ru_mixed = [
         ("OpenAI API обработал 2 requests.", "OpenAI API обработал two requests."),
@@ -284,9 +296,14 @@ def natural_sentence_cases():
         for variant, suffix in enumerate(("", " Validation complete.")):
             full_source = source + suffix
             full_normalized = normalized + suffix
+            pronunciation = full_normalized
+            if index == 3 and variant == 0:
+                pronunciation = "аш ти ти пи два вернул five errors."
+            elif index == 3 and variant == 1:
+                pronunciation = "H-T-T-P two вернул five errors. Validation complete."
             cases.append(_case(f"ru-v030-mixed-{index}-{variant}", "ru", "auto_segment",
                                "mixed_language", full_source, full_normalized,
-                               _full_warning(full_source)))
+                               _full_warning(full_source), pronunciation))
 
     en_controls = [
         ("Values 1, 2, and 3 were accepted.", "Values one, two, and three were accepted.", "punctuation", "none"),
