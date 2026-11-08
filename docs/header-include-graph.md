@@ -1,7 +1,9 @@
 # Header Include Graph Inventory
 
-This inventory records the include graph at the start of the HUBD cleanup.
+This inventory records the include graph after the first HUBD umbrella phase.
 Edges below mean "the left-hand domain includes the right-hand domain".
+It is a structural inventory, not a promise that every leaf header is a
+standalone public entry point.
 
 ## Observed domain edges
 
@@ -25,20 +27,19 @@ to make the public root include the implementation tree.
 
 ## Current include-path findings
 
-The graph is already mostly rooted at `tts_front/...`, but several local
-includes still depend on the source file's directory or include search order:
+The source tree now uses canonical project paths for every internal include:
 
-- core implementation files include bare names such as `mapped_text.hpp`,
-  `source_range_index.hpp`, and `utf8.hpp`;
-- Silero implementation files include bare sibling names such as
-  `silero_bundle.hpp` and `silero_sentence.hpp`;
-- language implementation files include bare `numbers.hpp` and
-  `formatters.hpp`;
-- no domain umbrella headers currently exist.
+- project headers use `tts_front/...` or the public `tts_front.hpp` facade;
+- no `../`, `./`, backslash, or bare project-header include remains;
+- umbrella headers use deliberate aggregation for their documented domain
+  dependencies;
+- optional Silero implementation headers remain explicit internal exceptions,
+  so the public facade does not pull in ONNX or backend details.
 
-These are structural seams only. The cleanup must preserve behavior, public
-API, quality oracle, snapshots, release archives, and optional backend
-boundaries.
+This was checked against tracked source files with `git ls-files`, the explicit
+CMake source lists, and a recursive include-path scan. The cleanup preserved
+behavior, public API, quality oracle, snapshots, release archives, and optional
+backend boundaries.
 
 ## Promised entry points after cleanup
 
@@ -59,6 +60,14 @@ does not receive a general umbrella because its optional ONNX owner must not
 become a mandatory dependency. Silero headers remain explicitly registered
 standalone/internal exceptions until a separate optional-backend facade is
 designed.
+
+## Workspace cleanup result
+
+The historical paths `include/` and `src/detail/` are absent from the current
+tree and have zero tracked files. There are no tracked `external/` or build
+directories either; generated build trees and temporary probes remain confined
+to the allowed `.build/` and `.temp/` workspaces. No deletion was required in
+this pass.
 
 ## Verification points
 
