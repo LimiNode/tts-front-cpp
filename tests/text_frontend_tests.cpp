@@ -1449,6 +1449,39 @@ int main() {
     CHECK(mixed_segmented.normalized_text == "Тест RTX 4090");
     CHECK(mixed_segmented.pronunciation_text == "Тест эр ти икс сорок девяносто");
     CHECK(mixed_segmented.warnings.empty());
+    // Characterize current dominant-language technical pronunciation in mixed
+    // SegmentCandidates input. A local-ownership change is a separate behavior
+    // decision and must not be hidden in this characterization baseline.
+    const auto segmented_russian_head =
+        frontend.process("Тест RTX 4090 and C++", technical_segmented);
+    CHECK(segmented_russian_head.normalized_text == "Тест RTX 4090 and C++");
+    CHECK(segmented_russian_head.pronunciation_text ==
+          "Тест эр ти икс сорок девяносто and си плюс плюс");
+    CHECK(segmented_russian_head.warnings.size() == 1);
+    CHECK(segmented_russian_head.warnings.front().code == WarningCode::AmbiguousNormalization);
+    CHECK(segmented_russian_head.warnings.front().offset == 0);
+    CHECK(segmented_russian_head.warnings.front().length ==
+          segmented_russian_head.original_text.size());
+    CHECK(segmented_russian_head.automatic_rewrites.size() == 2);
+    CHECK(segmented_russian_head.automatic_rewrites[0].input == "RTX 4090");
+    CHECK(segmented_russian_head.automatic_rewrites[0].output == "эр ти икс сорок девяносто");
+    CHECK(segmented_russian_head.automatic_rewrites[1].input == "C++");
+    CHECK(segmented_russian_head.automatic_rewrites[1].output == "си плюс плюс");
+    const auto segmented_english_head =
+        frontend.process("Test RTX 4090 и C++", technical_segmented);
+    CHECK(segmented_english_head.normalized_text == "Test RTX 4090 и C++");
+    CHECK(segmented_english_head.pronunciation_text ==
+          "Test R-T-X forty ninety и C plus plus");
+    CHECK(segmented_english_head.warnings.size() == 1);
+    CHECK(segmented_english_head.warnings.front().code == WarningCode::AmbiguousNormalization);
+    CHECK(segmented_english_head.warnings.front().offset == 0);
+    CHECK(segmented_english_head.warnings.front().length ==
+          segmented_english_head.original_text.size());
+    CHECK(segmented_english_head.automatic_rewrites.size() == 2);
+    CHECK(segmented_english_head.automatic_rewrites[0].input == "RTX 4090");
+    CHECK(segmented_english_head.automatic_rewrites[0].output == "R-T-X forty ninety");
+    CHECK(segmented_english_head.automatic_rewrites[1].input == "C++");
+    CHECK(segmented_english_head.automatic_rewrites[1].output == "C plus plus");
     CHECK(check_technical_default(
         technical_auto, "Test HTTP/2", "Test H-T-T-P two", "HTTP/2", "H-T-T-P two"));
     CHECK(check_technical_default(
