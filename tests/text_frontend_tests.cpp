@@ -1469,7 +1469,8 @@ int main() {
     CHECK(segmented_russian_head.automatic_rewrites[1].output == "си плюс плюс");
     const auto segmented_english_head =
         frontend.process("Test RTX 4090 и C++", technical_segmented);
-    CHECK(segmented_english_head.normalized_text == "Test RTX 4090 и C++");
+    CHECK(segmented_english_head.normalized_text ==
+          "Test RTX 4090 и C++");
     CHECK(segmented_english_head.pronunciation_text ==
           "Test R-T-X forty ninety и C plus plus");
     CHECK(segmented_english_head.warnings.size() == 1);
