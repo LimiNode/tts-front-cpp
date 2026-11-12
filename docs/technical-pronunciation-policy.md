@@ -28,11 +28,16 @@ gold is changed here.
 | --- | --- | --- |
 | `RU` | Russian language policy | Use only an approved Russian spoken form. |
 | `EN` | English language policy | Use only an approved English spoken form. |
-| `Auto` | Detected dominant language | Do not infer a language from the token alone; preserve when detection is missing or tied. |
+| `Auto` | Reliable lexical evidence, then configured fallback | Do not infer a language from a technical token alone. With no lexical evidence, use the configured fallback (English by default); when evidence conflicts or ties, ignore fallback and preserve the token while keeping the existing ambiguity diagnostic. |
 | `SegmentCandidates` | Candidate segment language | Apply the segment's approved language rule; this is not equivalent to plain `Auto`. |
 
 The same protected token may therefore have different spoken forms by mode,
 but its normalized bytes and source span do not change.
+
+The `Auto` row above is the forward-looking contract proposed by
+`docs/auto-fallback-language-policy-review.md`; it does not claim that the
+fallback field already exists. Until a separate behavior PR lands, the
+implementation remains the current compatibility baseline.
 
 ## Primary review candidates
 

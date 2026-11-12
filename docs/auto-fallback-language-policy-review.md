@@ -22,15 +22,15 @@ Language ownership is resolved in this order:
    priority.
 2. For `Language::Auto`, reliable lexical language evidence wins over any
    fallback. Technical identifiers alone are not lexical evidence.
-3. If `Auto` has no reliable evidence, the configured fallback may select the
-   technical pronunciation. Without a configured fallback, the technical
-   surface is preserved in spoken output.
+3. If `Auto` has no language evidence outside technical spans, the configured
+   fallback may select the technical pronunciation. Without a configured
+   fallback, the technical surface is preserved in spoken output.
 4. `MixedLanguagePolicy::SegmentCandidates` uses the local lexical segment
    owner. A global fallback must not override reliable local ownership.
-5. Missing, conflicting, or ambiguous ownership is preserved unless the
-   caller explicitly enables fallback for that case. The behavior PR must
-   define whether an ambiguous segment is eligible; the default proposal is
-   preservation.
+5. Conflicting or ambiguous language evidence is never resolved by this
+   fallback. The technical surface is preserved and the existing ambiguity
+   diagnostic remains, even when a fallback is configured. A separate policy
+   option would be required for deliberate ambiguity resolution.
 6. A `PronunciationDictionary` entry always overrides a built-in technical
    default.
 
@@ -63,9 +63,9 @@ std::optional<Language> auto_fallback_language = Language::English;
 
 Only `Language::Russian` and `Language::English` are valid configured values.
 `std::nullopt` requests preservation when no reliable owner exists. A value of
-`Language::Auto` is invalid for this field and must not silently select a
-language; the behavior PR should reject it or treat it as unset, with the
-choice covered by a direct test.
+`Language::Auto` is invalid for this field and is treated fail-closed as
+`std::nullopt`; it must not silently select a language. The behavior PR must
+cover this with a direct test.
 
 The field is consulted only when `language == Language::Auto`. Explicit RU/EN
 requests ignore it. In `SegmentCandidates`, local ownership is resolved first;
@@ -73,7 +73,9 @@ the fallback is considered only for a candidate with no local owner.
 
 Appending the field preserves source compatibility for existing aggregate
 initializers that omit trailing members and preserves runtime behavior through
-the English default.
+the English default. It changes the public struct layout, so binary/ABI
+compatibility is not promised by this proposal and would require a separate
+compatibility review.
 
 ## Observable examples
 
@@ -86,7 +88,7 @@ The following are behavior-PR targets, not current gold changes:
 | `Auto("RTX 4090")`, fallback unset | No owner | Preserve `RTX 4090` |
 | `Auto("Тест RTX 4090")`, any fallback | Reliable Russian context | Russian reading; fallback is ignored |
 | `Auto("Test RTX 4090")`, any fallback | Reliable English context | English reading; fallback is ignored |
-| `Auto("Тест Test RTX 4090")` | Conflicting context | Preserve the technical token; keep existing ambiguity diagnostic |
+| `Auto("Тест Test RTX 4090")`, fallback RU | Conflicting context | Ignore fallback; preserve the technical token and keep existing ambiguity diagnostic |
 | `SegmentCandidates("Тест RTX 4090 and C++")` | Local RU then EN owners | Russian `RTX 4090`, English `C++`; global fallback cannot override either |
 | `SegmentCandidates("RTX 4090")`, fallback RU | No local owner | Russian fallback |
 
@@ -102,6 +104,8 @@ The behavior PR must compare exact results for:
 - Auto with Russian fallback, English fallback, and no fallback;
 - reliable Russian and English lexical governors;
 - mixed and ambiguous Auto input;
+- configured fallback on ambiguous input (must be ignored);
+- invalid `auto_fallback_language = Language::Auto` (must fail closed as unset);
 - SegmentCandidates with independent local owners and with no local owner;
 - `RTX 4090`, `C++`, and `HTTP/2`;
 - dictionary overrides for every token and mode;
@@ -127,7 +131,8 @@ results. Published `v0.2.x` archives remain immutable.
 The policy is ready for implementation when reviewers confirm:
 
 - the selected field and its `std::nullopt` preservation meaning;
-- the treatment of an invalid `Language::Auto` value in the field;
+- fail-closed treatment of an invalid `Language::Auto` value in the field;
+- the rule that fallback is ignored for conflicting or ambiguous evidence;
 - preservation for conflicting ownership;
 - local ownership precedence in SegmentCandidates;
 - dictionary precedence and unchanged diagnostics/spans.
