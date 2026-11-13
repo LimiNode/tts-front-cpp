@@ -275,7 +275,7 @@ def natural_sentence_cases():
             if index == 3 and variant == 0:
                 pronunciation = "H-T-T-P two returned пять ошибок."
             elif index == 3 and variant == 1:
-                pronunciation = "аш ти ти пи два returned пять ошибок. Проверка завершена."
+                pronunciation = "H-T-T-P two returned пять ошибок. Проверка завершена."
             cases.append(_case(f"en-v030-mixed-{index}-{variant}", "en", "auto_segment",
                                "mixed_language", full_source, full_normalized,
                                _full_warning(full_source), pronunciation))
@@ -300,7 +300,7 @@ def natural_sentence_cases():
             if index == 3 and variant == 0:
                 pronunciation = "аш ти ти пи два вернул five errors."
             elif index == 3 and variant == 1:
-                pronunciation = "H-T-T-P two вернул five errors. Validation complete."
+                pronunciation = "аш ти ти пи два вернул five errors. Validation complete."
             cases.append(_case(f"ru-v030-mixed-{index}-{variant}", "ru", "auto_segment",
                                "mixed_language", full_source, full_normalized,
                                _full_warning(full_source), pronunciation))

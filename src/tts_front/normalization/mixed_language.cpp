@@ -289,6 +289,73 @@ Language detect_mixed_language(std::string_view text,
     return has_cyrillic && !has_latin ? Language::Russian : Language::English;
 }
 
+std::optional<Language> detect_local_language(std::string_view text,
+                                              std::size_t begin,
+                                              std::size_t end,
+                                              const TechnicalRangeIndex& technical_index) {
+    const Utf8Document document(text);
+    if (!document.valid)
+        return std::nullopt;
+
+    const auto is_protected = [&](std::size_t point) {
+        const auto offset = document.points[point].offset;
+        if (offset >= begin && offset < end)
+            return true;
+        return std::any_of(
+            technical_index.ranges.begin(), technical_index.ranges.end(), [&](const auto& range) {
+                return offset >= range.offset && offset < range.offset + range.length;
+            });
+    };
+    const auto inspect_run = [&](std::size_t point) -> std::optional<Language> {
+        std::size_t run_begin = point;
+        std::size_t run_end = point + 1;
+        while (run_begin > 0 && !is_protected(run_begin - 1) &&
+               (text::is_letter(document.points[run_begin - 1].value) ||
+                text::is_combining_mark(document.points[run_begin - 1].value)))
+            --run_begin;
+        while (run_end < document.points.size() && !is_protected(run_end) &&
+               (text::is_letter(document.points[run_end].value) ||
+                text::is_combining_mark(document.points[run_end].value)))
+            ++run_end;
+        bool has_cyrillic = false;
+        bool has_latin = false;
+        for (std::size_t index = run_begin; index < run_end; ++index) {
+            has_cyrillic = has_cyrillic || text::is_cyrillic(document.points[index].value);
+            has_latin = has_latin || text::is_latin(document.points[index].value);
+        }
+        if (has_cyrillic == has_latin)
+            return std::nullopt;
+        return has_cyrillic ? Language::Russian : Language::English;
+    };
+    const auto find_left = [&]() -> std::optional<Language> {
+        auto point = codepoint_index_at_or_after(document, begin);
+        while (point > 0) {
+            --point;
+            if (is_protected(point))
+                continue;
+            if (text::is_letter(document.points[point].value))
+                return inspect_run(point);
+        }
+        return std::nullopt;
+    };
+    const auto find_right = [&]() -> std::optional<Language> {
+        auto point = codepoint_index_at_or_after(document, end);
+        while (point < document.points.size()) {
+            if (is_protected(point)) {
+                ++point;
+                continue;
+            }
+            if (text::is_letter(document.points[point].value))
+                return inspect_run(point);
+            ++point;
+        }
+        return std::nullopt;
+    };
+    if (const auto language = find_left())
+        return language;
+    return find_right();
+}
+
 MappedText normalize_mixed_candidates(MappedText text,
                                       WarningSink& warnings,
                                       const MixedLanguageRules& dominant,
