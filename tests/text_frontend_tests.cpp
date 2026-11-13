@@ -1540,9 +1540,8 @@ int main() {
     CHECK(auto_russian_rtx.warnings.empty());
     CHECK(auto_russian_rtx.automatic_rewrites.size() == 1);
     CHECK(auto_russian_rtx.automatic_rewrites.front().offset == 0);
-    for (const auto& [input, spoken] : std::array<std::pair<std::string, std::string>, 2>{{
-             {"C++", "си плюс плюс"},
-             {"HTTP/2", "аш ти ти пи два"}}}) {
+    for (const auto& [input, spoken] : std::array<std::pair<std::string, std::string>, 2>{
+             {{"C++", "си плюс плюс"}, {"HTTP/2", "аш ти ти пи два"}}}) {
         const auto result = frontend.process(input, auto_russian_fallback);
         CHECK(result.original_text == input);
         CHECK(result.normalized_text == input);
@@ -1575,7 +1574,8 @@ int main() {
     CHECK(auto_russian_context.warnings.size() == 1);
     CHECK(auto_russian_context.warnings.front().code == WarningCode::AmbiguousNormalization);
     CHECK(auto_russian_context.warnings.front().offset == 0);
-    CHECK(auto_russian_context.warnings.front().length == auto_russian_context.original_text.size());
+    CHECK(auto_russian_context.warnings.front().length ==
+          auto_russian_context.original_text.size());
 
     const auto auto_english_context = frontend.process("Test RTX 4090", auto_russian_fallback);
     CHECK(auto_english_context.normalized_text == "Test RTX 4090");
@@ -1590,12 +1590,12 @@ int main() {
     CHECK(auto_ambiguous_context.warnings.size() == 1);
     CHECK(auto_ambiguous_context.warnings.front().code == WarningCode::AmbiguousNormalization);
     CHECK(auto_ambiguous_context.warnings.front().offset == 0);
-    CHECK(auto_ambiguous_context.warnings.front().length == auto_ambiguous_context.original_text.size());
+    CHECK(auto_ambiguous_context.warnings.front().length ==
+          auto_ambiguous_context.original_text.size());
 
     TextFrontendOptions segmented_auto = auto_russian_fallback;
     segmented_auto.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
-    const auto segmented_local_ru =
-        frontend.process("Тест RTX 4090 and C++", segmented_auto);
+    const auto segmented_local_ru = frontend.process("Тест RTX 4090 and C++", segmented_auto);
     CHECK(segmented_local_ru.normalized_text == "Тест RTX 4090 and C++");
     CHECK(segmented_local_ru.pronunciation_text ==
           "Тест эр ти икс сорок девяносто and C plus plus");
@@ -1605,11 +1605,9 @@ int main() {
     CHECK(segmented_local_ru.warnings.front().length == segmented_local_ru.original_text.size());
     CHECK(segmented_local_ru.automatic_rewrites.size() == 2);
 
-    const auto segmented_local_en =
-        frontend.process("Test RTX 4090 и C++", segmented_auto);
+    const auto segmented_local_en = frontend.process("Test RTX 4090 и C++", segmented_auto);
     CHECK(segmented_local_en.normalized_text == "Test RTX 4090 и C++");
-    CHECK(segmented_local_en.pronunciation_text ==
-          "Test R-T-X forty ninety и си плюс плюс");
+    CHECK(segmented_local_en.pronunciation_text == "Test R-T-X forty ninety и си плюс плюс");
     CHECK(segmented_local_en.warnings.size() == 1);
     CHECK(segmented_local_en.warnings.front().code == WarningCode::AmbiguousNormalization);
     CHECK(segmented_local_en.warnings.front().offset == 0);

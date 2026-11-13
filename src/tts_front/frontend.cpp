@@ -47,20 +47,20 @@ std::optional<Language> valid_auto_fallback(const TextFrontendOptions& options) 
     return options.auto_fallback_language;
 }
 
-std::optional<Language> technical_language_for(
-    const TextFrontendOptions& options,
-    bool lexical_has_cyrillic,
-    bool lexical_has_latin,
-    std::string_view normalized_text,
-    std::size_t begin,
-    std::size_t end,
-    const std::optional<detail::TechnicalRangeIndex>& technical_index) {
+std::optional<Language>
+technical_language_for(const TextFrontendOptions& options,
+                       bool lexical_has_cyrillic,
+                       bool lexical_has_latin,
+                       std::string_view normalized_text,
+                       std::size_t begin,
+                       std::size_t end,
+                       const std::optional<detail::TechnicalRangeIndex>& technical_index) {
     if (options.language != Language::Auto)
         return options.language;
     if (options.mixed_language_policy == MixedLanguagePolicy::SegmentCandidates &&
         technical_index) {
-        if (const auto local = detail::detect_local_language(
-                normalized_text, begin, end, *technical_index))
+        if (const auto local =
+                detail::detect_local_language(normalized_text, begin, end, *technical_index))
             return local;
     }
     if (lexical_has_cyrillic && lexical_has_latin)
@@ -222,8 +222,7 @@ TextFrontendResult TextFrontend::process(std::string_view input,
     std::optional<detail::TechnicalRangeIndex> pronunciation_technical_index;
     if (options.language == Language::Auto &&
         options.mixed_language_policy == MixedLanguagePolicy::SegmentCandidates)
-        pronunciation_technical_index =
-            detail::build_technical_range_index(result.normalized_text);
+        pronunciation_technical_index = detail::build_technical_range_index(result.normalized_text);
     const bool stress_enabled =
         options.resolve_stress && options.stress_mode != StressMode::Disabled;
 
@@ -350,12 +349,12 @@ TextFrontendResult TextFrontend::process(std::string_view input,
             continue;
         }
         const auto technical_language = technical_language_for(options,
-                                                                lexical_has_cyrillic,
-                                                                lexical_has_latin,
-                                                                result.normalized_text,
-                                                                begin,
-                                                                end,
-                                                                pronunciation_technical_index);
+                                                               lexical_has_cyrillic,
+                                                               lexical_has_latin,
+                                                               result.normalized_text,
+                                                               begin,
+                                                               end,
+                                                               pronunciation_technical_index);
         if (!technical_language)
             continue;
         const auto replacement = *technical_language == Language::Russian

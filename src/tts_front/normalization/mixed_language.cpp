@@ -301,12 +301,10 @@ std::optional<Language> detect_local_language(std::string_view text,
         const auto offset = document.points[point].offset;
         if (offset >= begin && offset < end)
             return true;
-        return std::any_of(technical_index.ranges.begin(),
-                           technical_index.ranges.end(),
-                           [&](const auto& range) {
-                               return offset >= range.offset &&
-                                      offset < range.offset + range.length;
-                           });
+        return std::any_of(
+            technical_index.ranges.begin(), technical_index.ranges.end(), [&](const auto& range) {
+                return offset >= range.offset && offset < range.offset + range.length;
+            });
     };
     const auto inspect_run = [&](std::size_t point) -> std::optional<Language> {
         std::size_t run_begin = point;
