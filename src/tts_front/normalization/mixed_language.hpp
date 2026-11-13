@@ -4,6 +4,7 @@
 #include "tts_front/core/mapped_text.hpp"
 #include "tts_front/normalization/admission.hpp"
 
+#include <cstddef>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -39,6 +40,13 @@ Language detect_mixed_language(std::string_view text,
                                bool& has_cyrillic,
                                bool& has_latin,
                                const TechnicalRangeIndex& technical_index);
+
+/// Find the language owner of the nearest local lexical segment.
+/// Technical ranges are skipped; no owner is returned for a mixed-script word.
+std::optional<Language> detect_local_language(std::string_view text,
+                                              std::size_t begin,
+                                              std::size_t end,
+                                              const TechnicalRangeIndex& technical_index);
 
 /// Normalize explicitly marked foreign-language number/unit candidates while
 /// leaving the surrounding sentence in its dominant language.
