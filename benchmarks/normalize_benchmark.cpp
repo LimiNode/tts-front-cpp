@@ -3,7 +3,9 @@
 #include "tts_front/core/normalization_support.hpp"
 #include "tts_front/core/numeric_scanner.hpp"
 #include "tts_front/core/utf8_document.hpp"
+#include "tts_front/normalization/mixed_language.hpp"
 #include "tts_front/technical/admission.hpp"
+#include "tts_front/technical/patterns.hpp"
 
 #include <algorithm>
 #include <array>
@@ -292,6 +294,53 @@ void benchmark_technical_heavy_scaling() {
     }
 }
 
+bool benchmark_technical_ownership_scaling() {
+    constexpr std::array<unsigned int, 4> counts = {1000u, 5000u, 10000u, 20000u};
+    std::array<double, counts.size()> elapsed_seconds{};
+    for (std::size_t sample = 0; sample < counts.size(); ++sample) {
+        const auto count = counts[sample];
+        std::string text;
+        text.reserve(static_cast<std::size_t>(count) * 24);
+        for (unsigned int index = 0; index < count; ++index) {
+            if (index != 0)
+                text.push_back(' ');
+            text += "Тест RTX 4090 and";
+        }
+        const auto technical_index = tts_front::detail::build_technical_range_index(text);
+        const auto candidates = tts_front::detail::technical::scan_pronunciation_candidates(text);
+        const auto begin = std::chrono::steady_clock::now();
+        const auto owner_index =
+            tts_front::detail::build_local_language_owner_index(text, technical_index);
+        std::size_t owned = 0;
+        for (const auto& candidate : candidates) {
+            if (tts_front::detail::detect_local_language(
+                    candidate.offset, candidate.offset + candidate.length, owner_index))
+                ++owned;
+        }
+        elapsed_seconds[sample] =
+            std::chrono::duration<double>(std::chrono::steady_clock::now() - begin).count();
+        std::cout << count << " technical ownership candidates, " << elapsed_seconds[sample]
+                  << " s, " << (elapsed_seconds[sample] / static_cast<double>(count) * 1e6)
+                  << " us/candidate\n";
+        if (candidates.size() != count || owned != count) {
+            std::cerr << "unexpected technical ownership result\n";
+            return false;
+        }
+    }
+    for (std::size_t sample = 1; sample < counts.size(); ++sample) {
+        const auto input_ratio =
+            static_cast<double>(counts[sample]) / static_cast<double>(counts[sample - 1]);
+        const auto time_ratio = elapsed_seconds[sample] / elapsed_seconds[sample - 1];
+        std::cout << "technical ownership scaling " << counts[sample - 1] << "->" << counts[sample]
+                  << ": " << time_ratio << "x time for " << input_ratio << "x candidates\n";
+        if (time_ratio > input_ratio * 3.0) {
+            std::cerr << "technical ownership scaling exceeded the allowed slope\n";
+            return false;
+        }
+    }
+    return true;
+}
+
 int main(int argc, char** argv) {
     if (argc == 2 && std::string_view(argv[1]) == "--currency-prefix-scaling") {
         benchmark_currency_prefix_scaling();
@@ -301,6 +350,8 @@ int main(int argc, char** argv) {
         return benchmark_warning_sink_scaling() ? EXIT_SUCCESS : EXIT_FAILURE;
     if (argc == 2 && std::string_view(argv[1]) == "--document-scaling")
         return benchmark_document_pipeline_scaling() ? EXIT_SUCCESS : EXIT_FAILURE;
+    if (argc == 2 && std::string_view(argv[1]) == "--technical-ownership-scaling")
+        return benchmark_technical_ownership_scaling() ? EXIT_SUCCESS : EXIT_FAILURE;
     const std::string text = "В 2026 году GPU RTX 4090 обработал 12500 запросов.";
     tts_front::TextFrontend frontend;
     tts_front::TextFrontendOptions options;
@@ -320,4 +371,6 @@ int main(int argc, char** argv) {
     benchmark_candidate_surface_scaling();
     benchmark_mixed_candidate_scaling();
     benchmark_technical_heavy_scaling();
+    if (!benchmark_technical_ownership_scaling())
+        return EXIT_FAILURE;
 }

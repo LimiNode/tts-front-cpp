@@ -16,6 +16,18 @@ struct TechnicalRangeIndex {
     std::vector<SourceRange> ranges;
 };
 
+struct LocalLanguageRun {
+    std::size_t begin = 0;
+    std::size_t end = 0;
+    std::size_t segment = 0;
+    std::optional<Language> language;
+};
+
+struct LocalLanguageOwnerIndex {
+    std::vector<std::size_t> segment_starts;
+    std::vector<LocalLanguageRun> runs;
+};
+
 struct MixedCandidateMatch {
     std::size_t begin = 0;
     std::size_t end = 0;
@@ -35,18 +47,21 @@ struct MixedLanguageRules {
 
 TechnicalRangeIndex build_technical_range_index(std::string_view text);
 
+/// Build bounded lexical runs once for local technical-token ownership.
+LocalLanguageOwnerIndex
+build_local_language_owner_index(std::string_view text, const TechnicalRangeIndex& technical_index);
+
 /// Detect the dominant language while excluding recognized technical spans.
 Language detect_mixed_language(std::string_view text,
                                bool& has_cyrillic,
                                bool& has_latin,
                                const TechnicalRangeIndex& technical_index);
 
-/// Find the language owner of the nearest local lexical segment.
-/// Technical ranges are skipped; no owner is returned for a mixed-script word.
-std::optional<Language> detect_local_language(std::string_view text,
-                                              std::size_t begin,
+/// Find the nearest owner in the candidate's bounded lexical segment.
+/// Technical ranges and punctuation/newline boundaries are excluded.
+std::optional<Language> detect_local_language(std::size_t begin,
                                               std::size_t end,
-                                              const TechnicalRangeIndex& technical_index);
+                                              const LocalLanguageOwnerIndex& owner_index);
 
 /// Normalize explicitly marked foreign-language number/unit candidates while
 /// leaving the surrounding sentence in its dominant language.

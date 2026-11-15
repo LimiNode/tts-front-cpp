@@ -1614,6 +1614,58 @@ int main() {
     CHECK(segmented_local_en.warnings.front().length == segmented_local_en.original_text.size());
     CHECK(segmented_local_en.automatic_rewrites.size() == 2);
 
+    // Segment ownership is bounded by punctuation and newlines. A language in
+    // another segment must not become a local owner.
+    TextFrontendOptions segmented_no_fallback = segmented_auto;
+    segmented_no_fallback.auto_fallback_language = std::nullopt;
+    const auto segmented_other_segment = frontend.process("Тест, RTX 4090", segmented_no_fallback);
+    CHECK(segmented_other_segment.normalized_text == "Тест, RTX 4090");
+    CHECK(segmented_other_segment.pronunciation_text == "Тест, RTX 4090");
+    CHECK(segmented_other_segment.automatic_rewrites.empty());
+    CHECK(segmented_other_segment.warnings.empty());
+
+    const auto segmented_punctuation_owner = frontend.process("Тест, RTX 4090 and", segmented_auto);
+    CHECK(segmented_punctuation_owner.pronunciation_text == "Тест, R-T-X forty ninety and");
+    CHECK(segmented_punctuation_owner.automatic_rewrites.size() == 1);
+
+    TextFrontendOptions segmented_newline_options = segmented_auto;
+    segmented_newline_options.cleanup_spacing = false;
+    const auto segmented_newline_owner =
+        frontend.process("Test\nRTX 4090 и", segmented_newline_options);
+    CHECK(segmented_newline_owner.pronunciation_text == "Test\nэр ти икс сорок девяносто и");
+    CHECK(segmented_newline_owner.automatic_rewrites.size() == 1);
+
+    const auto segmented_nearest_right =
+        frontend.process("Test          RTX 4090 русский", segmented_newline_options);
+    CHECK(segmented_nearest_right.pronunciation_text ==
+          "Test          эр ти икс сорок девяносто русский");
+    const auto segmented_nearest_left =
+        frontend.process("русский RTX 4090          Test", segmented_newline_options);
+    CHECK(segmented_nearest_left.pronunciation_text ==
+          "русский эр ти икс сорок девяносто          Test");
+
+    const std::array<std::pair<std::string, std::string>, 3> standalone_technical = {{
+        {"RTX 4090", "эр ти икс сорок девяносто"},
+        {"C++", "си плюс плюс"},
+        {"HTTP/2", "аш ти ти пи два"},
+    }};
+    for (const auto& [token, spoken] : standalone_technical) {
+        const auto fallback = frontend.process(token, segmented_auto);
+        CHECK(fallback.normalized_text == token);
+        CHECK(fallback.pronunciation_text == spoken);
+        CHECK(fallback.automatic_rewrites.size() == 1);
+        const auto no_fallback = frontend.process(token, segmented_no_fallback);
+        CHECK(no_fallback.normalized_text == token);
+        CHECK(no_fallback.pronunciation_text == token);
+        CHECK(no_fallback.automatic_rewrites.empty());
+        TextFrontendOptions invalid_segmented = segmented_auto;
+        invalid_segmented.auto_fallback_language = Language::Auto;
+        const auto invalid = frontend.process(token, invalid_segmented);
+        CHECK(invalid.normalized_text == token);
+        CHECK(invalid.pronunciation_text == token);
+        CHECK(invalid.automatic_rewrites.empty());
+    }
+
     PronunciationDictionary auto_technical_dictionary;
     CHECK(auto_technical_dictionary.add_phrase("RTX 4090", "fallback override"));
     CHECK(auto_technical_dictionary.add_token("C++", "cpp override"));
