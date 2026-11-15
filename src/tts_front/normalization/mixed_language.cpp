@@ -9,6 +9,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdint>
+#include <iterator>
 #include <regex>
 #include <string>
 #include <string_view>
@@ -34,6 +36,10 @@ bool preserved(const MappedText& input, std::size_t begin, std::size_t end) {
     if (input.preserved_ranges == nullptr)
         return false;
     return input.preserved_ranges->overlaps(input.source_range(begin, end));
+}
+
+bool is_local_segment_boundary(std::uint32_t value) {
+    return value == '\n' || value == '\r' || text::is_ascii_punctuation(value);
 }
 
 struct CandidateRangeIndex {
@@ -262,6 +268,69 @@ TechnicalRangeIndex build_technical_range_index(std::string_view text) {
     return {scan_technical_ranges(std::string(text))};
 }
 
+LocalLanguageOwnerIndex
+build_local_language_owner_index(std::string_view text,
+                                 const TechnicalRangeIndex& technical_index) {
+    LocalLanguageOwnerIndex index;
+    const Utf8Document document(text);
+    if (!document.valid)
+        return index;
+
+    index.segment_starts.push_back(0);
+    std::size_t technical_cursor = 0;
+    std::size_t segment = 0;
+    std::size_t run_begin = 0;
+    std::size_t run_end = 0;
+    bool run_has_cyrillic = false;
+    bool run_has_latin = false;
+
+    const auto finish_run = [&] {
+        if (run_begin == run_end)
+            return;
+        std::optional<Language> language;
+        if (run_has_cyrillic != run_has_latin)
+            language = run_has_cyrillic ? Language::Russian : Language::English;
+        if (language)
+            index.runs.push_back({run_begin, run_end, segment, language});
+        run_begin = 0;
+        run_end = 0;
+        run_has_cyrillic = false;
+        run_has_latin = false;
+    };
+
+    for (const auto& point : document.points) {
+        while (technical_cursor < technical_index.ranges.size() &&
+               technical_index.ranges[technical_cursor].offset +
+                       technical_index.ranges[technical_cursor].length <=
+                   point.offset)
+            ++technical_cursor;
+        const bool protected_point =
+            technical_cursor < technical_index.ranges.size() &&
+            technical_index.ranges[technical_cursor].offset <= point.offset;
+        if (protected_point) {
+            finish_run();
+            continue;
+        }
+        if (is_local_segment_boundary(point.value)) {
+            finish_run();
+            ++segment;
+            index.segment_starts.push_back(point.offset + point.length);
+            continue;
+        }
+        if (!text::is_letter(point.value) && !text::is_combining_mark(point.value)) {
+            finish_run();
+            continue;
+        }
+        if (run_begin == run_end)
+            run_begin = point.offset;
+        run_end = point.offset + point.length;
+        run_has_cyrillic = run_has_cyrillic || text::is_cyrillic(point.value);
+        run_has_latin = run_has_latin || text::is_latin(point.value);
+    }
+    finish_run();
+    return index;
+}
+
 Language detect_mixed_language(std::string_view text,
                                bool& has_cyrillic,
                                bool& has_latin,
@@ -287,6 +356,53 @@ Language detect_mixed_language(std::string_view text,
     if (has_cyrillic && has_latin && cyrillic_count >= latin_count)
         return Language::Russian;
     return has_cyrillic && !has_latin ? Language::Russian : Language::English;
+}
+
+std::optional<Language> detect_local_language(std::size_t begin,
+                                              std::size_t end,
+                                              const LocalLanguageOwnerIndex& owner_index) {
+    if (owner_index.runs.empty() || owner_index.segment_starts.empty())
+        return std::nullopt;
+    const auto segment_it = std::upper_bound(
+        owner_index.segment_starts.begin(), owner_index.segment_starts.end(), begin);
+    const auto segment =
+        static_cast<std::size_t>(std::distance(owner_index.segment_starts.begin(), segment_it) - 1);
+    const auto first_right =
+        std::lower_bound(owner_index.runs.begin(),
+                         owner_index.runs.end(),
+                         end,
+                         [](const auto& run, std::size_t value) { return run.begin < value; });
+    const auto first_at_begin =
+        std::lower_bound(owner_index.runs.begin(),
+                         owner_index.runs.end(),
+                         begin,
+                         [](const auto& run, std::size_t value) { return run.begin < value; });
+
+    const LocalLanguageRun* left = nullptr;
+    if (first_at_begin != owner_index.runs.begin()) {
+        const auto& candidate = *std::prev(first_at_begin);
+        if (candidate.end <= begin && candidate.segment == segment)
+            left = &candidate;
+    }
+    const LocalLanguageRun* right = nullptr;
+    if (first_right != owner_index.runs.end() && first_right->segment == segment)
+        right = &*first_right;
+
+    if (!left && !right)
+        return std::nullopt;
+    if (!left)
+        return right->language;
+    if (!right)
+        return left->language;
+    const auto left_distance = begin - left->end;
+    const auto right_distance = right->begin - end;
+    if (left_distance < right_distance)
+        return left->language;
+    if (right_distance < left_distance)
+        return right->language;
+    // Equal-distance ties retain the left owner for compatibility with the
+    // previous segment rule; only the distance ordering is changed.
+    return left->language;
 }
 
 MappedText normalize_mixed_candidates(MappedText text,

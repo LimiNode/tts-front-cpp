@@ -143,6 +143,9 @@ struct TextFrontendOptions {
     const PronunciationDictionary* dictionary = nullptr;
     /// Mixed-language candidate policy; used only with Language::Auto.
     MixedLanguagePolicy mixed_language_policy = MixedLanguagePolicy::DominantLanguage;
+    /// Optional language for technical pronunciation when Auto has no lexical owner.
+    /// English preserves the historical default; nullopt preserves the token.
+    std::optional<Language> auto_fallback_language = Language::English;
 };
 
 /// \brief All text stages, replacements, token metadata, and diagnostics.

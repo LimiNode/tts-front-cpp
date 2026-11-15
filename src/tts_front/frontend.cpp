@@ -41,6 +41,33 @@ using detail::decode_utf8;
 using detail::MappedText;
 using detail::WarningSink;
 
+std::optional<Language> valid_auto_fallback(const TextFrontendOptions& options) {
+    if (!options.auto_fallback_language || *options.auto_fallback_language == Language::Auto)
+        return std::nullopt;
+    return options.auto_fallback_language;
+}
+
+std::optional<Language>
+technical_language_for(const TextFrontendOptions& options,
+                       bool lexical_has_cyrillic,
+                       bool lexical_has_latin,
+                       std::size_t begin,
+                       std::size_t end,
+                       const std::optional<detail::LocalLanguageOwnerIndex>& owner_index) {
+    if (options.language != Language::Auto)
+        return options.language;
+    if (options.mixed_language_policy == MixedLanguagePolicy::SegmentCandidates && owner_index) {
+        if (const auto local = detail::detect_local_language(begin, end, *owner_index))
+            return local;
+        return valid_auto_fallback(options);
+    }
+    if (lexical_has_cyrillic && lexical_has_latin)
+        return std::nullopt;
+    if (lexical_has_cyrillic != lexical_has_latin)
+        return lexical_has_cyrillic ? Language::Russian : Language::English;
+    return valid_auto_fallback(options);
+}
+
 void add_warning(std::vector<TextWarning>& warnings,
                  WarningCode code,
                  std::string message,
@@ -128,10 +155,14 @@ TextFrontendResult TextFrontend::process(std::string_view input,
     bool has_cyrillic = false;
     bool has_latin = false;
     std::optional<detail::TechnicalRangeIndex> technical_index;
+    bool lexical_has_cyrillic = false;
+    bool lexical_has_latin = false;
     Language language = options.language;
     if (language == Language::Auto) {
+        technical_index = detail::build_technical_range_index(text.text);
+        detail::detect_mixed_language(
+            text.text, lexical_has_cyrillic, lexical_has_latin, *technical_index);
         if (options.mixed_language_policy == MixedLanguagePolicy::SegmentCandidates) {
-            technical_index = detail::build_technical_range_index(text.text);
             language =
                 detail::detect_mixed_language(text.text, has_cyrillic, has_latin, *technical_index);
         } else {
@@ -186,6 +217,14 @@ TextFrontendResult TextFrontend::process(std::string_view input,
         text = detail::cleanup_spacing(text);
     result.normalized_text = text.text;
     result.pronunciation_text = text.text;
+    std::optional<detail::TechnicalRangeIndex> pronunciation_technical_index;
+    std::optional<detail::LocalLanguageOwnerIndex> pronunciation_owner_index;
+    if (options.language == Language::Auto &&
+        options.mixed_language_policy == MixedLanguagePolicy::SegmentCandidates) {
+        pronunciation_technical_index = detail::build_technical_range_index(result.normalized_text);
+        pronunciation_owner_index = detail::build_local_language_owner_index(
+            result.normalized_text, *pronunciation_technical_index);
+    }
     const bool stress_enabled =
         options.resolve_stress && options.stress_mode != StressMode::Disabled;
 
@@ -311,7 +350,15 @@ TextFrontendResult TextFrontend::process(std::string_view input,
                                                    "pronunciation dictionary technical token"});
             continue;
         }
-        const auto replacement = language == Language::Russian
+        const auto technical_language = technical_language_for(options,
+                                                               lexical_has_cyrillic,
+                                                               lexical_has_latin,
+                                                               begin,
+                                                               end,
+                                                               pronunciation_owner_index);
+        if (!technical_language)
+            continue;
+        const auto replacement = *technical_language == Language::Russian
                                      ? detail::russian::technical_pronunciation(surface)
                                      : detail::english::technical_pronunciation(surface);
         if (!replacement || *replacement == surface)

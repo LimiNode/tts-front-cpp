@@ -1449,14 +1449,13 @@ int main() {
     CHECK(mixed_segmented.normalized_text == "Тест RTX 4090");
     CHECK(mixed_segmented.pronunciation_text == "Тест эр ти икс сорок девяносто");
     CHECK(mixed_segmented.warnings.empty());
-    // Characterize current dominant-language technical pronunciation in mixed
-    // SegmentCandidates input. A local-ownership change is a separate behavior
-    // decision and must not be hidden in this characterization baseline.
+    // SegmentCandidates assigns each technical surface to its local lexical
+    // owner instead of applying one dominant language to the whole sentence.
     const auto segmented_russian_head =
         frontend.process("Тест RTX 4090 and C++", technical_segmented);
     CHECK(segmented_russian_head.normalized_text == "Тест RTX 4090 and C++");
     CHECK(segmented_russian_head.pronunciation_text ==
-          "Тест эр ти икс сорок девяносто and си плюс плюс");
+          "Тест эр ти икс сорок девяносто and C plus plus");
     CHECK(segmented_russian_head.warnings.size() == 1);
     CHECK(segmented_russian_head.warnings.front().code == WarningCode::AmbiguousNormalization);
     CHECK(segmented_russian_head.warnings.front().offset == 0);
@@ -1466,11 +1465,11 @@ int main() {
     CHECK(segmented_russian_head.automatic_rewrites[0].input == "RTX 4090");
     CHECK(segmented_russian_head.automatic_rewrites[0].output == "эр ти икс сорок девяносто");
     CHECK(segmented_russian_head.automatic_rewrites[1].input == "C++");
-    CHECK(segmented_russian_head.automatic_rewrites[1].output == "си плюс плюс");
+    CHECK(segmented_russian_head.automatic_rewrites[1].output == "C plus plus");
     const auto segmented_english_head =
         frontend.process("Test RTX 4090 и C++", technical_segmented);
     CHECK(segmented_english_head.normalized_text == "Test RTX 4090 и C++");
-    CHECK(segmented_english_head.pronunciation_text == "Test R-T-X forty ninety и C plus plus");
+    CHECK(segmented_english_head.pronunciation_text == "Test R-T-X forty ninety и си плюс плюс");
     CHECK(segmented_english_head.warnings.size() == 1);
     CHECK(segmented_english_head.warnings.front().code == WarningCode::AmbiguousNormalization);
     CHECK(segmented_english_head.warnings.front().offset == 0);
@@ -1480,7 +1479,7 @@ int main() {
     CHECK(segmented_english_head.automatic_rewrites[0].input == "RTX 4090");
     CHECK(segmented_english_head.automatic_rewrites[0].output == "R-T-X forty ninety");
     CHECK(segmented_english_head.automatic_rewrites[1].input == "C++");
-    CHECK(segmented_english_head.automatic_rewrites[1].output == "C plus plus");
+    CHECK(segmented_english_head.automatic_rewrites[1].output == "си плюс плюс");
     CHECK(check_technical_default(
         technical_auto, "Test HTTP/2", "Test H-T-T-P two", "HTTP/2", "H-T-T-P two"));
     CHECK(check_technical_default(
@@ -1521,6 +1520,179 @@ int main() {
           "аш ти ти пи два пользовательский");
     CHECK(technical_dictionary_result.automatic_rewrites.empty());
     CHECK(technical_dictionary_result.dictionary_replacements.size() == 3);
+
+    // Auto technical pronunciation may use an explicit caller fallback only
+    // when lexical ownership is absent. Ambiguous evidence remains preserved.
+    TextFrontendOptions auto_default;
+    auto_default.language = Language::Auto;
+    const auto auto_default_rtx = frontend.process("RTX 4090", auto_default);
+    CHECK(auto_default_rtx.normalized_text == "RTX 4090");
+    CHECK(auto_default_rtx.pronunciation_text == "R-T-X forty ninety");
+    CHECK(auto_default_rtx.warnings.empty());
+    CHECK(auto_default_rtx.automatic_rewrites.size() == 1);
+
+    TextFrontendOptions auto_russian_fallback = auto_default;
+    auto_russian_fallback.auto_fallback_language = Language::Russian;
+    const auto auto_russian_rtx = frontend.process("RTX 4090", auto_russian_fallback);
+    CHECK(auto_russian_rtx.original_text == auto_default_rtx.original_text);
+    CHECK(auto_russian_rtx.normalized_text == auto_default_rtx.normalized_text);
+    CHECK(auto_russian_rtx.pronunciation_text == "эр ти икс сорок девяносто");
+    CHECK(auto_russian_rtx.warnings.empty());
+    CHECK(auto_russian_rtx.automatic_rewrites.size() == 1);
+    CHECK(auto_russian_rtx.automatic_rewrites.front().offset == 0);
+    for (const auto& [input, spoken] : std::array<std::pair<std::string, std::string>, 2>{
+             {{"C++", "си плюс плюс"}, {"HTTP/2", "аш ти ти пи два"}}}) {
+        const auto result = frontend.process(input, auto_russian_fallback);
+        CHECK(result.original_text == input);
+        CHECK(result.normalized_text == input);
+        CHECK(result.pronunciation_text == spoken);
+        CHECK(result.warnings.empty());
+        CHECK(result.automatic_rewrites.size() == 1);
+        CHECK(result.automatic_rewrites.front().input == input);
+        CHECK(result.automatic_rewrites.front().output == spoken);
+        CHECK(result.automatic_rewrites.front().offset == 0);
+    }
+
+    TextFrontendOptions auto_preserve = auto_default;
+    auto_preserve.auto_fallback_language = std::nullopt;
+    const auto auto_preserved_rtx = frontend.process("RTX 4090", auto_preserve);
+    CHECK(auto_preserved_rtx.normalized_text == auto_default_rtx.normalized_text);
+    CHECK(auto_preserved_rtx.pronunciation_text == "RTX 4090");
+    CHECK(auto_preserved_rtx.warnings.empty());
+    CHECK(auto_preserved_rtx.automatic_rewrites.empty());
+
+    TextFrontendOptions auto_invalid_fallback = auto_default;
+    auto_invalid_fallback.auto_fallback_language = Language::Auto;
+    const auto auto_invalid_rtx = frontend.process("RTX 4090", auto_invalid_fallback);
+    CHECK(auto_invalid_rtx.pronunciation_text == "RTX 4090");
+    CHECK(auto_invalid_rtx.warnings.empty());
+    CHECK(auto_invalid_rtx.automatic_rewrites.empty());
+
+    const auto auto_russian_context = frontend.process("Тест RTX 4090", auto_russian_fallback);
+    CHECK(auto_russian_context.normalized_text == "Тест RTX 4090");
+    CHECK(auto_russian_context.pronunciation_text == "Тест эр ти икс сорок девяносто");
+    CHECK(auto_russian_context.warnings.size() == 1);
+    CHECK(auto_russian_context.warnings.front().code == WarningCode::AmbiguousNormalization);
+    CHECK(auto_russian_context.warnings.front().offset == 0);
+    CHECK(auto_russian_context.warnings.front().length ==
+          auto_russian_context.original_text.size());
+
+    const auto auto_english_context = frontend.process("Test RTX 4090", auto_russian_fallback);
+    CHECK(auto_english_context.normalized_text == "Test RTX 4090");
+    CHECK(auto_english_context.pronunciation_text == "Test R-T-X forty ninety");
+    CHECK(auto_english_context.warnings.empty());
+
+    const auto auto_ambiguous_context =
+        frontend.process("Тест Test RTX 4090", auto_russian_fallback);
+    CHECK(auto_ambiguous_context.normalized_text == "Тест Test RTX 4090");
+    CHECK(auto_ambiguous_context.pronunciation_text == "Тест Test RTX 4090");
+    CHECK(auto_ambiguous_context.automatic_rewrites.empty());
+    CHECK(auto_ambiguous_context.warnings.size() == 1);
+    CHECK(auto_ambiguous_context.warnings.front().code == WarningCode::AmbiguousNormalization);
+    CHECK(auto_ambiguous_context.warnings.front().offset == 0);
+    CHECK(auto_ambiguous_context.warnings.front().length ==
+          auto_ambiguous_context.original_text.size());
+
+    TextFrontendOptions segmented_auto = auto_russian_fallback;
+    segmented_auto.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+    const auto segmented_local_ru = frontend.process("Тест RTX 4090 and C++", segmented_auto);
+    CHECK(segmented_local_ru.normalized_text == "Тест RTX 4090 and C++");
+    CHECK(segmented_local_ru.pronunciation_text ==
+          "Тест эр ти икс сорок девяносто and C plus plus");
+    CHECK(segmented_local_ru.warnings.size() == 1);
+    CHECK(segmented_local_ru.warnings.front().code == WarningCode::AmbiguousNormalization);
+    CHECK(segmented_local_ru.warnings.front().offset == 0);
+    CHECK(segmented_local_ru.warnings.front().length == segmented_local_ru.original_text.size());
+    CHECK(segmented_local_ru.automatic_rewrites.size() == 2);
+
+    const auto segmented_local_en = frontend.process("Test RTX 4090 и C++", segmented_auto);
+    CHECK(segmented_local_en.normalized_text == "Test RTX 4090 и C++");
+    CHECK(segmented_local_en.pronunciation_text == "Test R-T-X forty ninety и си плюс плюс");
+    CHECK(segmented_local_en.warnings.size() == 1);
+    CHECK(segmented_local_en.warnings.front().code == WarningCode::AmbiguousNormalization);
+    CHECK(segmented_local_en.warnings.front().offset == 0);
+    CHECK(segmented_local_en.warnings.front().length == segmented_local_en.original_text.size());
+    CHECK(segmented_local_en.automatic_rewrites.size() == 2);
+
+    // Segment ownership is bounded by punctuation and newlines. A language in
+    // another segment must not become a local owner.
+    TextFrontendOptions segmented_no_fallback = segmented_auto;
+    segmented_no_fallback.auto_fallback_language = std::nullopt;
+    const auto segmented_other_segment = frontend.process("Тест, RTX 4090", segmented_no_fallback);
+    CHECK(segmented_other_segment.normalized_text == "Тест, RTX 4090");
+    CHECK(segmented_other_segment.pronunciation_text == "Тест, RTX 4090");
+    CHECK(segmented_other_segment.automatic_rewrites.empty());
+    CHECK(segmented_other_segment.warnings.empty());
+
+    const auto segmented_punctuation_owner = frontend.process("Тест, RTX 4090 and", segmented_auto);
+    CHECK(segmented_punctuation_owner.pronunciation_text == "Тест, R-T-X forty ninety and");
+    CHECK(segmented_punctuation_owner.automatic_rewrites.size() == 1);
+
+    TextFrontendOptions segmented_newline_options = segmented_auto;
+    segmented_newline_options.cleanup_spacing = false;
+    const auto segmented_newline_owner =
+        frontend.process("Test\nRTX 4090 и", segmented_newline_options);
+    CHECK(segmented_newline_owner.pronunciation_text == "Test\nэр ти икс сорок девяносто и");
+    CHECK(segmented_newline_owner.automatic_rewrites.size() == 1);
+
+    const auto segmented_nearest_right =
+        frontend.process("Test          RTX 4090 русский", segmented_newline_options);
+    CHECK(segmented_nearest_right.pronunciation_text ==
+          "Test          эр ти икс сорок девяносто русский");
+    const auto segmented_nearest_left =
+        frontend.process("русский RTX 4090          Test", segmented_newline_options);
+    CHECK(segmented_nearest_left.pronunciation_text ==
+          "русский эр ти икс сорок девяносто          Test");
+
+    const auto segmented_mixed_right =
+        frontend.process("RTX 4090 Teст русский", segmented_no_fallback);
+    CHECK(segmented_mixed_right.pronunciation_text == "эр ти икс сорок девяносто Teст русский");
+    const auto segmented_mixed_left =
+        frontend.process("русский Teст RTX 4090", segmented_no_fallback);
+    CHECK(segmented_mixed_left.pronunciation_text == "русский Teст эр ти икс сорок девяносто");
+
+    const std::array<std::pair<std::string, std::string>, 3> standalone_technical = {{
+        {"RTX 4090", "эр ти икс сорок девяносто"},
+        {"C++", "си плюс плюс"},
+        {"HTTP/2", "аш ти ти пи два"},
+    }};
+    for (const auto& [token, spoken] : standalone_technical) {
+        const auto fallback = frontend.process(token, segmented_auto);
+        CHECK(fallback.normalized_text == token);
+        CHECK(fallback.pronunciation_text == spoken);
+        CHECK(fallback.automatic_rewrites.size() == 1);
+        const auto no_fallback = frontend.process(token, segmented_no_fallback);
+        CHECK(no_fallback.normalized_text == token);
+        CHECK(no_fallback.pronunciation_text == token);
+        CHECK(no_fallback.automatic_rewrites.empty());
+        TextFrontendOptions invalid_segmented = segmented_auto;
+        invalid_segmented.auto_fallback_language = Language::Auto;
+        const auto invalid = frontend.process(token, invalid_segmented);
+        CHECK(invalid.normalized_text == token);
+        CHECK(invalid.pronunciation_text == token);
+        CHECK(invalid.automatic_rewrites.empty());
+    }
+
+    PronunciationDictionary auto_technical_dictionary;
+    CHECK(auto_technical_dictionary.add_phrase("RTX 4090", "fallback override"));
+    CHECK(auto_technical_dictionary.add_token("C++", "cpp override"));
+    TextFrontendOptions auto_dictionary_options = auto_russian_fallback;
+    auto_dictionary_options.dictionary = &auto_technical_dictionary;
+    const auto auto_dictionary_result =
+        frontend.process("RTX 4090 and C++", auto_dictionary_options);
+    CHECK(auto_dictionary_result.normalized_text == "RTX 4090 and C++");
+    CHECK(auto_dictionary_result.pronunciation_text == "fallback override and cpp override");
+    CHECK(auto_dictionary_result.automatic_rewrites.empty());
+    CHECK(auto_dictionary_result.dictionary_replacements.size() == 2);
+    TextFrontendOptions segmented_dictionary_options = segmented_auto;
+    segmented_dictionary_options.dictionary = &auto_technical_dictionary;
+    const auto segmented_dictionary_result =
+        frontend.process("Тест RTX 4090 and C++", segmented_dictionary_options);
+    CHECK(segmented_dictionary_result.normalized_text == "Тест RTX 4090 and C++");
+    CHECK(segmented_dictionary_result.pronunciation_text ==
+          "Тест fallback override and cpp override");
+    CHECK(segmented_dictionary_result.automatic_rewrites.empty());
+    CHECK(segmented_dictionary_result.dictionary_replacements.size() == 2);
 
     // Automatic initialism expansion is opt-in and deliberately allowlisted.
     TextFrontendOptions initialisms;
