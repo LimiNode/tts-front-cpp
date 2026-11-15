@@ -1644,6 +1644,13 @@ int main() {
     CHECK(segmented_nearest_left.pronunciation_text ==
           "русский эр ти икс сорок девяносто          Test");
 
+    const auto segmented_mixed_right =
+        frontend.process("RTX 4090 Teст русский", segmented_no_fallback);
+    CHECK(segmented_mixed_right.pronunciation_text == "эр ти икс сорок девяносто Teст русский");
+    const auto segmented_mixed_left =
+        frontend.process("русский Teст RTX 4090", segmented_no_fallback);
+    CHECK(segmented_mixed_left.pronunciation_text == "русский Teст эр ти икс сорок девяносто");
+
     const std::array<std::pair<std::string, std::string>, 3> standalone_technical = {{
         {"RTX 4090", "эр ти икс сорок девяносто"},
         {"C++", "си плюс плюс"},

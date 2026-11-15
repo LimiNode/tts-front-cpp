@@ -290,7 +290,8 @@ build_local_language_owner_index(std::string_view text,
         std::optional<Language> language;
         if (run_has_cyrillic != run_has_latin)
             language = run_has_cyrillic ? Language::Russian : Language::English;
-        index.runs.push_back({run_begin, run_end, segment, language});
+        if (language)
+            index.runs.push_back({run_begin, run_end, segment, language});
         run_begin = 0;
         run_end = 0;
         run_has_cyrillic = false;
