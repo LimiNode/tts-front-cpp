@@ -16,8 +16,10 @@ const auto result = frontend.process("В 2026 г. API готов.", options);
 
 Для смешанных фраз безопасный default — `MixedLanguagePolicy::DominantLanguage`.
 Если нужно локально озвучивать явно распознанные foreign units/currency, можно
-включить `MixedLanguagePolicy::SegmentCandidates`; технические идентификаторы и
-остальной текст при этом остаются в языке основной фразы.
+включить `MixedLanguagePolicy::SegmentCandidates`; каждый technical token получает
+язык ближайшего надёжного lexical owner в своём bounded-сегменте. При отсутствии
+локального owner используется настроенный Auto fallback, а неоднозначное владение
+сохраняет token без принудительного переписывания.
 
 Build and test: `cmake -S . -B .build/debug && cmake --build .build/debug`, tests: `ctest --test-dir .build/debug`.
 
@@ -43,7 +45,7 @@ Encoding contract: all public `std::string`/`std::string_view` text is UTF-8, an
 
 `StressMode::Disabled` и `resolve_stress=false` полностью отключают semantic stress; dictionary pronunciation replacement при этом продолжает работать. `StressMode::Automatic` использует доступные dictionary decisions и optional Silero backend, а при отсутствии ONNX backend или verified bundle добавляет `AutomaticStressUnavailable`.
 
-Намеренно не поддерживаются в v0.2.6: произвольная семантическая disambiguation дат/чисел, полноценная Unicode NFC normalization и phone/URL spoken rendering. Неоднозначные/неподдержанные случаи сохраняются или сопровождаются warning, а не угадываются молча; leading-zero Russian years сохраняются атомарно с одним `UnresolvedNumber`, включая контекстные формы и неподдержанные диапазоны. Для совместимости смешанных фраз по умолчанию используется `MixedLanguagePolicy::DominantLanguage`; `SegmentCandidates` включает локальные правила языка доминирующего сегмента и сохраняет технические идентификаторы.
+Намеренно не поддерживаются в v0.2.6: произвольная семантическая disambiguation дат/чисел, полноценная Unicode NFC normalization и phone/URL spoken rendering. Неоднозначные/неподдержанные случаи сохраняются или сопровождаются warning, а не угадываются молча; leading-zero Russian years сохраняются атомарно с одним `UnresolvedNumber`, включая контекстные формы и неподдержанные диапазоны. Для совместимости смешанных фраз по умолчанию используется `MixedLanguagePolicy::DominantLanguage`; `SegmentCandidates` назначает каждому technical token язык ближайшего надёжного lexical owner в bounded-сегменте, использует fallback при отсутствии owner и сохраняет token при неоднозначности.
 
 Silero/ONNX является optional-компонентом: verified bundle модели не входит в поставку библиотеки и не скачивается автоматически. Приложение передаёт путь через `TextFrontendOptions::silero_bundle_path` или `TTS_FRONT_SILERO_BUNDLE`.
 
