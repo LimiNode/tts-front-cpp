@@ -2,7 +2,7 @@
 
 TTS-agnostic C++17 text frontend для подготовки текста перед синтезом речи.
 
-Версия 0.2.5 предоставляет детерминированную нормализацию русского и английского текста, подключаемый словарь произношения, semantic stress representation, диагностические предупреждения и opt-in сегментацию числовых кандидатов в смешанном тексте. В executable corpus зафиксированы числа, английские порядковые числительные, grouped/negative values, проценты, десятичные дроби, время, даты/годы, базовые валюты и единицы для RU/EN, а также protected technical spans (`RTX 4090`, `CUDA 13.3`, versions, IPv4, `C++`, `C#`, `HTTP/2`). Библиотека не зависит от Python, PyTorch, Qwen или конкретного TTS runtime.
+Версия 0.2.6 предоставляет детерминированную нормализацию русского и английского текста, подключаемый словарь произношения, semantic stress representation, диагностические предупреждения и opt-in сегментацию числовых кандидатов в смешанном тексте. В executable corpus зафиксированы числа, английские порядковые числительные, grouped/negative values, проценты, десятичные дроби, время, даты/годы, базовые валюты и единицы для RU/EN, а также protected technical spans (`RTX 4090`, `CUDA 13.3`, versions, IPv4, `C++`, `C#`, `HTTP/2`). Библиотека не зависит от Python, PyTorch, Qwen или конкретного TTS runtime.
 
 ## Быстрый старт
 
@@ -16,10 +16,22 @@ const auto result = frontend.process("В 2026 г. API готов.", options);
 
 Для смешанных фраз безопасный default — `MixedLanguagePolicy::DominantLanguage`.
 Если нужно локально озвучивать явно распознанные foreign units/currency, можно
-включить `MixedLanguagePolicy::SegmentCandidates`; технические идентификаторы и
-остальной текст при этом остаются в языке основной фразы.
+включить `MixedLanguagePolicy::SegmentCandidates`; каждый technical token получает
+язык ближайшего надёжного lexical owner в своём bounded-сегменте. При отсутствии
+локального owner используется настроенный Auto fallback, а неоднозначное владение
+сохраняет token без принудительного переписывания.
 
 Build and test: `cmake -S . -B .build/debug && cmake --build .build/debug`, tests: `ctest --test-dir .build/debug`.
+
+В `Language::Auto` техническое произношение может использовать
+`TextFrontendOptions::auto_fallback_language`, если надёжного локального
+языкового контекста нет. По умолчанию сохраняется совместимое английское
+поведение; `std::nullopt` и недопустимое значение `Language::Auto` сохраняют
+technical token. Явный язык и локальный владелец `SegmentCandidates` имеют
+приоритет, а словарь произношения имеет приоритет над встроенными defaults.
+Добавление поля сохраняет source compatibility для aggregate initializers с
+пропущенными хвостовыми полями, но меняет layout публичного `struct`; бинарная
+совместимость (ABI) не гарантируется.
 
 Установка экспортирует пакет `TtsFront::tts_front`; потребитель может использовать `find_package(TtsFront CONFIG REQUIRED)`.
 
@@ -33,7 +45,7 @@ Encoding contract: all public `std::string`/`std::string_view` text is UTF-8, an
 
 `StressMode::Disabled` и `resolve_stress=false` полностью отключают semantic stress; dictionary pronunciation replacement при этом продолжает работать. `StressMode::Automatic` использует доступные dictionary decisions и optional Silero backend, а при отсутствии ONNX backend или verified bundle добавляет `AutomaticStressUnavailable`.
 
-Намеренно не поддерживаются в v0.2.5: произвольная семантическая disambiguation дат/чисел, полноценная Unicode NFC normalization и phone/URL spoken rendering. Неоднозначные/неподдержанные случаи сохраняются или сопровождаются warning, а не угадываются молча; leading-zero Russian years сохраняются атомарно с одним `UnresolvedNumber`, включая контекстные формы и неподдержанные диапазоны. Для совместимости смешанных фраз по умолчанию используется `MixedLanguagePolicy::DominantLanguage`; `SegmentCandidates` включает локальные правила языка доминирующего сегмента и сохраняет технические идентификаторы.
+Намеренно не поддерживаются в v0.2.6: произвольная семантическая disambiguation дат/чисел, полноценная Unicode NFC normalization и phone/URL spoken rendering. Неоднозначные/неподдержанные случаи сохраняются или сопровождаются warning, а не угадываются молча; leading-zero Russian years сохраняются атомарно с одним `UnresolvedNumber`, включая контекстные формы и неподдержанные диапазоны. Для совместимости смешанных фраз по умолчанию используется `MixedLanguagePolicy::DominantLanguage`; `SegmentCandidates` назначает каждому technical token язык ближайшего надёжного lexical owner в bounded-сегменте, использует fallback при отсутствии owner и сохраняет token при неоднозначности.
 
 Silero/ONNX является optional-компонентом: verified bundle модели не входит в поставку библиотеки и не скачивается автоматически. Приложение передаёт путь через `TextFrontendOptions::silero_bundle_path` или `TTS_FRONT_SILERO_BUNDLE`.
 
@@ -69,7 +81,7 @@ cmake --build .build/format --target format-check
 расхождения, пересечения `UnresolvedNumber`, рассинхронизация генератора, нарушения UTF-8,
 warning spans и утечки служебных markers останавливают тест.
 
-Текущий working baseline v0.2.5 содержит 751 кейс: `651` correct transformations,
+Текущий working baseline v0.2.6 содержит 751 кейс: `651` correct transformations,
 `100` justified preservations, `0` unnecessary refusals и `0` incorrect/partial results.
 
 ## Workspace layout

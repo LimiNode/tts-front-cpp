@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.6
+
+- Added configurable technical-pronunciation fallback for `Language::Auto`;
+  the default remains English, while `std::nullopt` and invalid
+  `Language::Auto` fail closed by preserving the technical token.
+- Added bounded local ownership for `SegmentCandidates`: punctuation/newline
+  segments, nearest reliable lexical owners, and preservation when ownership is
+  absent or ambiguous. Mixed-script lexical runs are not treated as owners.
+- Technical pronunciation changes only `pronunciation_text`; normalized text,
+  diagnostics, UTF-8 byte spans, dictionary precedence, and the 751-case
+  working baseline remain unchanged. Published `v0.2.x` quality archives are
+  immutable.
+- Adding `auto_fallback_language` preserves source compatibility for aggregate
+  initializers that omit trailing fields, but changes the public struct layout;
+  binary/ABI compatibility is not guaranteed.
+
 ## 0.2.5
 
 - Added atomic fail-closed handling for Russian four-digit leading-zero years,
