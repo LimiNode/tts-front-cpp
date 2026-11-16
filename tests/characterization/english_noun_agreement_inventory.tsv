@@ -1,0 +1,53 @@
+id	class	input	observed_normalized	observed_pronunciation	diagnostics	contract_status
+regular-book-0-singular	regular	0 book	zero book	zero book	none	known_policy_gap
+regular-book-0-plural	regular	0 books	zero books	zero books	none	known_policy_gap
+regular-book-1-singular	regular	1 book	one book	one book	none	known_policy_gap
+regular-book-1-plural	regular	1 books	one books	one books	none	known_policy_gap
+regular-book-2-singular	regular	2 book	two book	two book	none	known_policy_gap
+regular-book-2-plural	regular	2 books	two books	two books	none	known_policy_gap
+regular-book-3-singular	regular	3 book	three book	three book	none	known_policy_gap
+regular-book-3-plural	regular	3 books	three books	three books	none	known_policy_gap
+regular-book-4-singular	regular	4 book	four book	four book	none	known_policy_gap
+regular-book-4-plural	regular	4 books	four books	four books	none	known_policy_gap
+regular-book-5-singular	regular	5 book	five book	five book	none	known_policy_gap
+regular-book-5-plural	regular	5 books	five books	five books	none	known_policy_gap
+regular-book-11-singular	regular	11 book	eleven book	eleven book	none	known_policy_gap
+regular-book-11-plural	regular	11 books	eleven books	eleven books	none	known_policy_gap
+regular-book-21-singular	regular	21 book	twenty one book	twenty one book	none	known_policy_gap
+regular-book-21-plural	regular	21 books	twenty one books	twenty one books	none	known_policy_gap
+regular-book-22-singular	regular	22 book	twenty two book	twenty two book	none	known_policy_gap
+regular-book-22-plural	regular	22 books	twenty two books	twenty two books	none	known_policy_gap
+regular-book-25-singular	regular	25 book	twenty five book	twenty five book	none	known_policy_gap
+regular-book-25-plural	regular	25 books	twenty five books	twenty five books	none	known_policy_gap
+irregular-person-0-singular	irregular	0 person	zero person	zero person	none	known_policy_gap
+irregular-person-0-plural	irregular	0 people	zero people	zero people	none	known_policy_gap
+irregular-person-1-singular	irregular	1 person	one person	one person	none	known_policy_gap
+irregular-person-1-plural	irregular	1 people	one people	one people	none	known_policy_gap
+irregular-person-2-singular	irregular	2 person	two person	two person	none	known_policy_gap
+irregular-person-2-plural	irregular	2 people	two people	two people	none	known_policy_gap
+irregular-person-3-singular	irregular	3 person	three person	three person	none	known_policy_gap
+irregular-person-3-plural	irregular	3 people	three people	three people	none	known_policy_gap
+irregular-person-4-singular	irregular	4 person	four person	four person	none	known_policy_gap
+irregular-person-4-plural	irregular	4 people	four people	four people	none	known_policy_gap
+irregular-person-5-singular	irregular	5 person	five person	five person	none	known_policy_gap
+irregular-person-5-plural	irregular	5 people	five people	five people	none	known_policy_gap
+irregular-person-11-singular	irregular	11 person	eleven person	eleven person	none	known_policy_gap
+irregular-person-11-plural	irregular	11 people	eleven people	eleven people	none	known_policy_gap
+irregular-person-21-singular	irregular	21 person	twenty one person	twenty one person	none	known_policy_gap
+irregular-person-21-plural	irregular	21 people	twenty one people	twenty one people	none	known_policy_gap
+irregular-person-22-singular	irregular	22 person	twenty two person	twenty two person	none	known_policy_gap
+irregular-person-22-plural	irregular	22 people	twenty two people	twenty two people	none	known_policy_gap
+irregular-person-25-singular	irregular	25 person	twenty five person	twenty five person	none	known_policy_gap
+irregular-person-25-plural	irregular	25 people	twenty five people	twenty five people	none	known_policy_gap
+measurement-01	specialized_control	1 kg	one kilogram	one kilogram	none	existing_specialized_rule
+measurement-02	specialized_control	2 kg	two kilograms	two kilograms	none	existing_specialized_rule
+currency-01	specialized_control	$1	one dollar	one dollar	none	existing_specialized_rule
+currency-02	specialized_control	$2	two dollars	two dollars	none	existing_specialized_rule
+time-01	specialized_control	1:01	one hour one minute	one hour one minute	none	existing_specialized_rule
+time-02	specialized_control	2:02	two hours two minutes	two hours two minutes	none	existing_specialized_rule
+decimal-01	specialized_control	1.5	one point five	one point five	none	existing_specialized_rule
+decimal-02	specialized_control	2.5	two point five	two point five	none	existing_specialized_rule
+ordinal-01	specialized_control	1st book	first book	first book	none	existing_specialized_rule
+ordinal-02	specialized_control	2nd books	second books	second books	none	existing_specialized_rule
+punctuation-02	specialized_control	Count: 2 books.	Count: two books.	Count: two books.	none	existing_specialized_rule
+technical-mixed-02	specialized_control	HTTP/2 returned 2 people.	HTTP/2 returned two people.	H-T-T-P two returned two people.	none	existing_specialized_rule

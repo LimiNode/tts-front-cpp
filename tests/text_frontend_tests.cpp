@@ -3674,7 +3674,8 @@ int main() {
         std::set<std::string> ids;
         std::map<std::string, std::size_t> class_counts;
         std::size_t case_count = 0;
-        const std::set<std::string> expected_numbers = {"1", "2", "3", "4", "5", "21", "22", "25"};
+        const std::set<std::string> expected_numbers = {
+            "0", "1", "2", "3", "4", "5", "11", "21", "22", "25"};
         while (std::getline(inventory, line)) {
             if (!line.empty() && line.back() == '\r')
                 line.pop_back();
@@ -3706,11 +3707,11 @@ int main() {
                 CHECK(result.pronunciation_text.find('\x02') == std::string::npos);
             }
         }
-        CHECK(case_count == 40);
-        CHECK(class_counts["feminine"] == 16);
-        CHECK(class_counts["masculine"] == 8);
-        CHECK(class_counts["neuter"] == 8);
-        CHECK(class_counts["existing_exception"] == 8);
+        CHECK(case_count == 50);
+        CHECK(class_counts["feminine"] == 20);
+        CHECK(class_counts["masculine"] == 10);
+        CHECK(class_counts["neuter"] == 10);
+        CHECK(class_counts["existing_exception"] == 10);
 
         struct BoundaryCase {
             const char* input;
@@ -3742,6 +3743,82 @@ int main() {
                 }
             }
         }
+    }
+    {
+        const auto inventory_path = std::string(TTS_FRONT_SOURCE_DIR) +
+                                    "/tests/characterization/english_noun_agreement_inventory.tsv";
+        std::ifstream inventory(inventory_path, std::ios::binary);
+        CHECK(inventory.good());
+        const auto split_tabs = [](const std::string& line) {
+            std::vector<std::string> fields;
+            std::size_t begin = 0;
+            while (true) {
+                const auto end = line.find('\t', begin);
+                fields.push_back(line.substr(begin, end == std::string::npos ? end : end - begin));
+                if (end == std::string::npos)
+                    return fields;
+                begin = end + 1;
+            }
+        };
+        const auto options_for_mode = [](const std::string& mode) {
+            TextFrontendOptions options;
+            if (mode == "en") {
+                options.language = Language::English;
+            } else {
+                options.language = Language::Auto;
+                if (mode == "segment")
+                    options.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+            }
+            return options;
+        };
+        std::string line;
+        CHECK(std::getline(inventory, line));
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+        CHECK(line == "id\tclass\tinput\tobserved_normalized\tobserved_pronunciation\t"
+                      "diagnostics\tcontract_status");
+        std::set<std::string> ids;
+        std::map<std::string, std::size_t> class_counts;
+        std::size_t case_count = 0;
+        const std::set<std::string> expected_numbers = {
+            "0", "1", "2", "3", "4", "5", "11", "21", "22", "25"};
+        while (std::getline(inventory, line)) {
+            if (!line.empty() && line.back() == '\r')
+                line.pop_back();
+            if (line.empty())
+                continue;
+            const auto fields = split_tabs(line);
+            CHECK(fields.size() == 7);
+            CHECK(ids.insert(fields[0]).second);
+            CHECK(fields[1] == "regular" || fields[1] == "irregular" ||
+                  fields[1] == "specialized_control");
+            CHECK(fields[5] == "none");
+            CHECK(fields[6] == "known_policy_gap" || fields[6] == "existing_specialized_rule");
+            if (fields[1] != "specialized_control") {
+                const auto space = fields[2].find(' ');
+                CHECK(space != std::string::npos);
+                CHECK(expected_numbers.find(fields[2].substr(0, space)) != expected_numbers.end());
+            }
+            ++class_counts[fields[1]];
+            ++case_count;
+
+            for (const auto& mode :
+                 {std::string("en"), std::string("auto"), std::string("segment")}) {
+                const auto result = frontend.process(fields[2], options_for_mode(mode));
+                CHECK(result.original_text == fields[2]);
+                CHECK(result.normalized_text == fields[3]);
+                CHECK(result.pronunciation_text == fields[4]);
+                CHECK(result.warnings.empty());
+                CHECK(result.normalized_text.find('\x01') == std::string::npos);
+                CHECK(result.pronunciation_text.find('\x01') == std::string::npos);
+                CHECK(result.normalized_text.find('\x02') == std::string::npos);
+                CHECK(result.pronunciation_text.find('\x02') == std::string::npos);
+            }
+        }
+        CHECK(case_count == 52);
+        CHECK(class_counts["regular"] == 20);
+        CHECK(class_counts["irregular"] == 20);
+        CHECK(class_counts["specialized_control"] == 12);
     }
     {
         const auto inventory_path = std::string(TTS_FRONT_SOURCE_DIR) +
