@@ -3667,6 +3667,8 @@ int main() {
         };
         std::string line;
         CHECK(std::getline(inventory, line));
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
         CHECK(line == "id\tclass\tinput\tobserved_normalized\tobserved_pronunciation\t"
                       "diagnostics\tcontract_status");
         std::set<std::string> ids;
