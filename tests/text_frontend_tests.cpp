@@ -3783,12 +3783,12 @@ int main() {
             }
             return options;
         };
-        const auto warning_code = [](const std::string& name) {
+        const auto warning_code = [](const std::string& name) -> std::optional<WarningCode> {
             if (name == "ambiguous_normalization")
                 return WarningCode::AmbiguousNormalization;
             if (name == "unresolved_number")
                 return WarningCode::UnresolvedNumber;
-            return WarningCode::InvalidUtf8;
+            return std::nullopt;
         };
         const auto parse_diagnostics = [&](const std::string& encoded) {
             std::vector<std::tuple<WarningCode, std::size_t, std::size_t>> parsed;
@@ -3803,7 +3803,10 @@ int main() {
                 const auto colon = item.find(':', at == std::string::npos ? at : at + 1);
                 if (at == std::string::npos || colon == std::string::npos)
                     std::exit(EXIT_FAILURE);
-                parsed.emplace_back(warning_code(item.substr(0, at)),
+                const auto code = warning_code(item.substr(0, at));
+                if (!code)
+                    std::exit(EXIT_FAILURE);
+                parsed.emplace_back(*code,
                                     std::stoull(item.substr(at + 1, colon - at - 1)),
                                     std::stoull(item.substr(colon + 1)));
                 if (end == std::string::npos)
@@ -3830,6 +3833,7 @@ int main() {
         std::map<std::string, std::size_t> category_counts;
         std::map<std::string, std::size_t> mode_counts;
         std::size_t case_count = 0;
+        std::size_t policy_gap_count = 0;
         while (std::getline(inventory, line)) {
             if (!line.empty() && line.back() == '\r')
                 line.pop_back();
@@ -3841,8 +3845,10 @@ int main() {
             CHECK(expected_modes.find(fields[1]) != expected_modes.end());
             CHECK(expected_categories.find(fields[2]) != expected_categories.end());
             CHECK(fields[7] == "observed_current" || fields[7] == "policy_gap");
-            if (fields[7] == "policy_gap")
+            if (fields[7] == "policy_gap") {
                 CHECK(fields[3] == "7 книга");
+                ++policy_gap_count;
+            }
 
             const auto input = decode_escapes(fields[3]);
             const auto expected_normalized = decode_escapes(fields[4]);
@@ -3877,6 +3883,7 @@ int main() {
         CHECK(mode_counts["ru"] == 17);
         CHECK(mode_counts["auto"] == 17);
         CHECK(mode_counts["segment"] == 17);
+        CHECK(policy_gap_count == 3);
     }
     {
         const auto inventory_path = std::string(TTS_FRONT_SOURCE_DIR) +
