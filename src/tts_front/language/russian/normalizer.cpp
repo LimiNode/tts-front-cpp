@@ -392,6 +392,21 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
         }
         text = apply_source_edits(text, std::move(date_edits));
     }
+    if (text.text.find("книг") != std::string::npos) {
+        text = replace_matches(
+            text,
+            russian::patterns().feminine_book_count,
+            [&](const std::smatch& match, const MappedText& source) {
+                if (!has_context_boundary(
+                        source.text, static_cast<std::size_t>(match.position())))
+                    return match.str();
+                long long value = 0;
+                if (!try_parse_long(match[1].str(), value))
+                    return match.str();
+                return feminine_number(value) + " " +
+                       plural_form(value, "книга", "книги", "книг") + match[3].str();
+            });
+    }
     protect_leading_zero_years(text, warnings, protected_spans);
     std::vector<SourceEdit> typed_edits;
     protect_typed_continuations(text, warnings, protected_spans, typed_edits);
