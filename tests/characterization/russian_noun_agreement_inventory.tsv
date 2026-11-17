@@ -1,0 +1,51 @@
+id	class	input	observed_normalized	observed_pronunciation	diagnostics	contract_status
+feminine-book-01	feminine	1 книга	один книга	один книга	none	known_policy_gap
+feminine-book-02	feminine	2 книги	два книги	два книги	none	known_policy_gap
+feminine-book-03	feminine	3 книги	три книги	три книги	none	known_policy_gap
+feminine-book-04	feminine	4 книги	четыре книги	четыре книги	none	known_policy_gap
+feminine-book-05	feminine	5 книг	пять книг	пять книг	none	known_policy_gap
+feminine-book-21	feminine	21 книга	двадцать один книга	двадцать один книга	none	known_policy_gap
+feminine-book-22	feminine	22 книги	двадцать два книги	двадцать два книги	none	known_policy_gap
+feminine-book-25	feminine	25 книг	двадцать пять книг	двадцать пять книг	none	known_policy_gap
+feminine-book-00	feminine	0 книг	ноль книг	ноль книг	none	known_policy_gap
+feminine-book-11	feminine	11 книг	одиннадцать книг	одиннадцать книг	none	known_policy_gap
+feminine-task-01	feminine	1 задача	один задача	один задача	none	known_policy_gap
+feminine-task-02	feminine	2 задачи	два задачи	два задачи	none	known_policy_gap
+feminine-task-03	feminine	3 задачи	три задачи	три задачи	none	known_policy_gap
+feminine-task-04	feminine	4 задачи	четыре задачи	четыре задачи	none	known_policy_gap
+feminine-task-05	feminine	5 задач	пять задач	пять задач	none	known_policy_gap
+feminine-task-21	feminine	21 задача	двадцать один задача	двадцать один задача	none	known_policy_gap
+feminine-task-22	feminine	22 задачи	двадцать два задачи	двадцать два задачи	none	known_policy_gap
+feminine-task-25	feminine	25 задач	двадцать пять задач	двадцать пять задач	none	known_policy_gap
+feminine-task-00	feminine	0 задач	ноль задач	ноль задач	none	known_policy_gap
+feminine-task-11	feminine	11 задач	одиннадцать задач	одиннадцать задач	none	known_policy_gap
+masculine-table-01	masculine	1 стол	один стол	один стол	none	known_policy_gap
+masculine-table-02	masculine	2 стола	два стола	два стола	none	known_policy_gap
+masculine-table-03	masculine	3 стола	три стола	три стола	none	known_policy_gap
+masculine-table-04	masculine	4 стола	четыре стола	четыре стола	none	known_policy_gap
+masculine-table-05	masculine	5 столов	пять столов	пять столов	none	known_policy_gap
+masculine-table-21	masculine	21 стол	двадцать один стол	двадцать один стол	none	known_policy_gap
+masculine-table-22	masculine	22 стола	двадцать два стола	двадцать два стола	none	known_policy_gap
+masculine-table-25	masculine	25 столов	двадцать пять столов	двадцать пять столов	none	known_policy_gap
+masculine-table-00	masculine	0 столов	ноль столов	ноль столов	none	known_policy_gap
+masculine-table-11	masculine	11 столов	одиннадцать столов	одиннадцать столов	none	known_policy_gap
+neuter-window-01	neuter	1 окно	один окно	один окно	none	known_policy_gap
+neuter-window-02	neuter	2 окна	два окна	два окна	none	known_policy_gap
+neuter-window-03	neuter	3 окна	три окна	три окна	none	known_policy_gap
+neuter-window-04	neuter	4 окна	четыре окна	четыре окна	none	known_policy_gap
+neuter-window-05	neuter	5 окон	пять окон	пять окон	none	known_policy_gap
+neuter-window-21	neuter	21 окно	двадцать один окно	двадцать один окно	none	known_policy_gap
+neuter-window-22	neuter	22 окна	двадцать два окна	двадцать два окна	none	known_policy_gap
+neuter-window-25	neuter	25 окон	двадцать пять окон	двадцать пять окон	none	known_policy_gap
+neuter-window-00	neuter	0 окон	ноль окон	ноль окон	none	known_policy_gap
+neuter-window-11	neuter	11 окон	одиннадцать окон	одиннадцать окон	none	known_policy_gap
+existing-error-01	existing_exception	1 ошибка	одна ошибка	одна ошибка	none	existing_exception
+existing-error-02	existing_exception	2 ошибки	две ошибки	две ошибки	none	existing_exception
+existing-error-03	existing_exception	3 ошибки	три ошибки	три ошибки	none	existing_exception
+existing-error-04	existing_exception	4 ошибки	четыре ошибки	четыре ошибки	none	existing_exception
+existing-error-05	existing_exception	5 ошибок	пять ошибок	пять ошибок	none	existing_exception
+existing-error-21	existing_exception	21 ошибка	двадцать одна ошибка	двадцать одна ошибка	none	existing_exception
+existing-error-22	existing_exception	22 ошибки	двадцать две ошибки	двадцать две ошибки	none	existing_exception
+existing-error-25	existing_exception	25 ошибок	двадцать пять ошибок	двадцать пять ошибок	none	existing_exception
+existing-error-00	existing_exception	0 ошибок	ноль ошибок	ноль ошибок	none	existing_exception
+existing-error-11	existing_exception	11 ошибок	одиннадцать ошибок	одиннадцать ошибок	none	existing_exception
