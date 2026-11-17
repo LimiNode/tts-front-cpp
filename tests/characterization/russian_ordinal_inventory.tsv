@@ -1,0 +1,52 @@
+id	mode	category	input	observed_normalized	observed_pronunciation	diagnostics	contract_status
+ordinal-ru-01	ru	digital_ordinal	7-й стол	7-й стол	7-й стол	unresolved_number@0:2	observed_current
+ordinal-auto-01	auto	digital_ordinal	7-й стол	7-й стол	7-й стол	unresolved_number@0:2	observed_current
+ordinal-segment-01	segment	digital_ordinal	7-й стол	7-й стол	7-й стол	unresolved_number@0:2	observed_current
+ordinal-ru-02	ru	digital_ordinal	7-я книга	7-я книга	7-я книга	unresolved_number@0:2	observed_current
+ordinal-auto-02	auto	digital_ordinal	7-я книга	7-я книга	7-я книга	unresolved_number@0:2	observed_current
+ordinal-segment-02	segment	digital_ordinal	7-я книга	7-я книга	7-я книга	unresolved_number@0:2	observed_current
+ordinal-ru-03	ru	digital_ordinal	7-е окно	7-е окно	7-е окно	unresolved_number@0:2	observed_current
+ordinal-auto-03	auto	digital_ordinal	7-е окно	7-е окно	7-е окно	unresolved_number@0:2	observed_current
+ordinal-segment-03	segment	digital_ordinal	7-е окно	7-е окно	7-е окно	unresolved_number@0:2	observed_current
+ordinal-ru-04	ru	digital_ordinal	7-го стола	7-го стола	7-го стола	unresolved_number@0:2	observed_current
+ordinal-auto-04	auto	digital_ordinal	7-го стола	7-го стола	7-го стола	unresolved_number@0:2	observed_current
+ordinal-segment-04	segment	digital_ordinal	7-го стола	7-го стола	7-го стола	unresolved_number@0:2	observed_current
+ordinal-ru-05	ru	digital_ordinal	7-му столу	7-му столу	7-му столу	unresolved_number@0:2	observed_current
+ordinal-auto-05	auto	digital_ordinal	7-му столу	7-му столу	7-му столу	unresolved_number@0:2	observed_current
+ordinal-segment-05	segment	digital_ordinal	7-му столу	7-му столу	7-му столу	unresolved_number@0:2	observed_current
+ordinal-ru-06	ru	digital_ordinal	7-ю книгу	7-ю книгу	7-ю книгу	unresolved_number@0:2	observed_current
+ordinal-auto-06	auto	digital_ordinal	7-ю книгу	7-ю книгу	7-ю книгу	unresolved_number@0:2	observed_current
+ordinal-segment-06	segment	digital_ordinal	7-ю книгу	7-ю книгу	7-ю книгу	unresolved_number@0:2	observed_current
+cardinal-ru-01	ru	cardinal_control	7 книга	семь книга	семь книга	none	policy_gap
+cardinal-auto-01	auto	cardinal_control	7 книга	семь книга	семь книга	none	policy_gap
+cardinal-segment-01	segment	cardinal_control	7 книга	семь книга	семь книга	none	policy_gap
+cardinal-ru-02	ru	cardinal_control	7 книг	семь книг	семь книг	none	observed_current
+cardinal-auto-02	auto	cardinal_control	7 книг	семь книг	семь книг	none	observed_current
+cardinal-segment-02	segment	cardinal_control	7 книг	семь книг	семь книг	none	observed_current
+lexical-ru-01	ru	lexical_ordinal	седьмая книга	седьмая книга	седьмая книга	none	observed_current
+lexical-auto-01	auto	lexical_ordinal	седьмая книга	седьмая книга	седьмая книга	none	observed_current
+lexical-segment-01	segment	lexical_ordinal	седьмая книга	седьмая книга	седьмая книга	none	observed_current
+punctuation-ru-01	ru	punctuation	До 7-й книги.	До 7-й книги.	До 7-й книги.	unresolved_number@5:2	observed_current
+punctuation-auto-01	auto	punctuation	До 7-й книги.	До 7-й книги.	До 7-й книги.	unresolved_number@5:2	observed_current
+punctuation-segment-01	segment	punctuation	До 7-й книги.	До 7-й книги.	До 7-й книги.	unresolved_number@5:2	observed_current
+newline-ru-01	ru	newline	7-я книга\n7-й стол	7-я книга 7-й стол	7-я книга 7-й стол	unresolved_number@0:2;unresolved_number@16:2	observed_current
+newline-auto-01	auto	newline	7-я книга\n7-й стол	7-я книга 7-й стол	7-я книга 7-й стол	unresolved_number@0:2;unresolved_number@16:2	observed_current
+newline-segment-01	segment	newline	7-я книга\n7-й стол	7-я книга 7-й стол	7-я книга 7-й стол	unresolved_number@0:2;unresolved_number@16:2	observed_current
+continuation-ru-01	ru	continuation	7-я книга#4	7-я книга#4	7-я книга#4	unresolved_number@0:2	observed_current
+continuation-auto-01	auto	continuation	7-я книга#4	7-я книга#4	7-я книга#4	unresolved_number@0:2	observed_current
+continuation-segment-01	segment	continuation	7-я книга#4	7-я книга#4	7-я книга#4	unresolved_number@0:2	observed_current
+continuation-ru-02	ru	continuation	7-я книга/4	7-я книга/4	7-я книга/4	unresolved_number@0:2;unresolved_number@16:1	observed_current
+continuation-auto-02	auto	continuation	7-я книга/4	7-я книга/4	7-я книга/4	unresolved_number@0:2;unresolved_number@16:1	observed_current
+continuation-segment-02	segment	continuation	7-я книга/4	7-я книга/4	7-я книга/4	unresolved_number@0:2;unresolved_number@16:1	observed_current
+continuation-ru-03	ru	continuation	7-я книга%	7-я книга%	7-я книга%	unresolved_number@0:2	observed_current
+continuation-auto-03	auto	continuation	7-я книга%	7-я книга%	7-я книга%	unresolved_number@0:2	observed_current
+continuation-segment-03	segment	continuation	7-я книга%	7-я книга%	7-я книга%	unresolved_number@0:2	observed_current
+technical-ru-01	ru	technical_neighbor	RTX 4090 и 7-я книга.	RTX 4090 и 7-я книга.	эр ти икс сорок девяносто и 7-я книга.	unresolved_number@12:2	observed_current
+technical-auto-01	auto	technical_neighbor	RTX 4090 и 7-я книга.	RTX 4090 и 7-я книга.	эр ти икс сорок девяносто и 7-я книга.	ambiguous_normalization@0:28;unresolved_number@12:2	observed_current
+technical-segment-01	segment	technical_neighbor	RTX 4090 и 7-я книга.	RTX 4090 и 7-я книга.	эр ти икс сорок девяносто и 7-я книга.	unresolved_number@12:2	observed_current
+url-ru-01	ru	technical_neighbor	URL https://example.com/7-я книга	URL https://example.com/7-я книга	URL https://example.com/7-я книга	none	observed_current
+url-auto-01	auto	technical_neighbor	URL https://example.com/7-я книга	URL https://example.com/7-я книга	URL https://example.com/7-я книга	ambiguous_normalization@0:39	observed_current
+url-segment-01	segment	technical_neighbor	URL https://example.com/7-я книга	URL https://example.com/7-я книга	URL https://example.com/7-я книга	ambiguous_normalization@0:39	observed_current
+email-ru-01	ru	technical_neighbor	user7@example.com и 7-я книга	user7@example.com и 7-я книга	user7@example.com и 7-я книга	unresolved_number@21:2	observed_current
+email-auto-01	auto	technical_neighbor	user7@example.com и 7-я книга	user7@example.com и 7-я книга	user7@example.com и 7-я книга	ambiguous_normalization@0:36;unresolved_number@21:2	observed_current
+email-segment-01	segment	technical_neighbor	user7@example.com и 7-я книга	user7@example.com и 7-я книга	user7@example.com и 7-я книга	unresolved_number@21:2	observed_current
