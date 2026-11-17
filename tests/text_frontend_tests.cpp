@@ -3746,6 +3746,140 @@ int main() {
     }
     {
         const auto inventory_path = std::string(TTS_FRONT_SOURCE_DIR) +
+                                    "/tests/characterization/russian_ordinal_inventory.tsv";
+        std::ifstream inventory(inventory_path, std::ios::binary);
+        CHECK(inventory.good());
+        const auto split_tabs = [](const std::string& line) {
+            std::vector<std::string> fields;
+            std::size_t begin = 0;
+            while (true) {
+                const auto end = line.find('\t', begin);
+                fields.push_back(line.substr(begin, end == std::string::npos ? end : end - begin));
+                if (end == std::string::npos)
+                    return fields;
+                begin = end + 1;
+            }
+        };
+        const auto decode_escapes = [](const std::string& value) {
+            std::string decoded;
+            for (std::size_t index = 0; index < value.size(); ++index) {
+                if (value[index] == '\\' && index + 1 < value.size() && value[index + 1] == 'n') {
+                    decoded.push_back('\n');
+                    ++index;
+                } else {
+                    decoded.push_back(value[index]);
+                }
+            }
+            return decoded;
+        };
+        const auto options_for_mode = [](const std::string& mode) {
+            TextFrontendOptions options;
+            if (mode == "ru") {
+                options.language = Language::Russian;
+            } else {
+                options.language = Language::Auto;
+                if (mode == "segment")
+                    options.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+            }
+            return options;
+        };
+        const auto warning_code = [](const std::string& name) {
+            if (name == "ambiguous_normalization")
+                return WarningCode::AmbiguousNormalization;
+            if (name == "unresolved_number")
+                return WarningCode::UnresolvedNumber;
+            return WarningCode::InvalidUtf8;
+        };
+        const auto parse_diagnostics = [&](const std::string& encoded) {
+            std::vector<std::tuple<WarningCode, std::size_t, std::size_t>> parsed;
+            if (encoded == "none")
+                return parsed;
+            std::size_t begin = 0;
+            while (true) {
+                const auto end = encoded.find(';', begin);
+                const auto item =
+                    encoded.substr(begin, end == std::string::npos ? end : end - begin);
+                const auto at = item.find('@');
+                const auto colon = item.find(':', at == std::string::npos ? at : at + 1);
+                if (at == std::string::npos || colon == std::string::npos)
+                    std::exit(EXIT_FAILURE);
+                parsed.emplace_back(warning_code(item.substr(0, at)),
+                                    std::stoull(item.substr(at + 1, colon - at - 1)),
+                                    std::stoull(item.substr(colon + 1)));
+                if (end == std::string::npos)
+                    return parsed;
+                begin = end + 1;
+            }
+        };
+
+        std::string line;
+        CHECK(std::getline(inventory, line));
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+        CHECK(line == "id\tmode\tcategory\tinput\tobserved_normalized\t"
+                      "observed_pronunciation\tdiagnostics\tcontract_status");
+        const std::set<std::string> expected_modes = {"ru", "auto", "segment"};
+        const std::set<std::string> expected_categories = {"digital_ordinal",
+                                                           "cardinal_control",
+                                                           "lexical_ordinal",
+                                                           "punctuation",
+                                                           "newline",
+                                                           "continuation",
+                                                           "technical_neighbor"};
+        std::set<std::string> ids;
+        std::map<std::string, std::size_t> category_counts;
+        std::map<std::string, std::size_t> mode_counts;
+        std::size_t case_count = 0;
+        while (std::getline(inventory, line)) {
+            if (!line.empty() && line.back() == '\r')
+                line.pop_back();
+            if (line.empty())
+                continue;
+            const auto fields = split_tabs(line);
+            CHECK(fields.size() == 8);
+            CHECK(ids.insert(fields[0]).second);
+            CHECK(expected_modes.find(fields[1]) != expected_modes.end());
+            CHECK(expected_categories.find(fields[2]) != expected_categories.end());
+            CHECK(fields[7] == "observed_current" || fields[7] == "policy_gap");
+            if (fields[7] == "policy_gap")
+                CHECK(fields[3] == "7 книга");
+
+            const auto input = decode_escapes(fields[3]);
+            const auto expected_normalized = decode_escapes(fields[4]);
+            const auto expected_pronunciation = decode_escapes(fields[5]);
+            const auto expected_diagnostics = parse_diagnostics(fields[6]);
+            const auto result = frontend.process(input, options_for_mode(fields[1]));
+            CHECK(result.original_text == input);
+            CHECK(result.normalized_text == expected_normalized);
+            CHECK(result.pronunciation_text == expected_pronunciation);
+            CHECK(result.warnings.size() == expected_diagnostics.size());
+            for (std::size_t index = 0; index < expected_diagnostics.size(); ++index) {
+                CHECK(result.warnings[index].code == std::get<0>(expected_diagnostics[index]));
+                CHECK(result.warnings[index].offset == std::get<1>(expected_diagnostics[index]));
+                CHECK(result.warnings[index].length == std::get<2>(expected_diagnostics[index]));
+            }
+            CHECK(result.normalized_text.find('\x01') == std::string::npos);
+            CHECK(result.normalized_text.find('\x02') == std::string::npos);
+            CHECK(result.pronunciation_text.find('\x01') == std::string::npos);
+            CHECK(result.pronunciation_text.find('\x02') == std::string::npos);
+            ++category_counts[fields[2]];
+            ++mode_counts[fields[1]];
+            ++case_count;
+        }
+        CHECK(case_count == 51);
+        CHECK(category_counts["digital_ordinal"] == 18);
+        CHECK(category_counts["cardinal_control"] == 6);
+        CHECK(category_counts["lexical_ordinal"] == 3);
+        CHECK(category_counts["punctuation"] == 3);
+        CHECK(category_counts["newline"] == 3);
+        CHECK(category_counts["continuation"] == 9);
+        CHECK(category_counts["technical_neighbor"] == 9);
+        CHECK(mode_counts["ru"] == 17);
+        CHECK(mode_counts["auto"] == 17);
+        CHECK(mode_counts["segment"] == 17);
+    }
+    {
+        const auto inventory_path = std::string(TTS_FRONT_SOURCE_DIR) +
                                     "/tests/characterization/english_noun_agreement_inventory.tsv";
         std::ifstream inventory(inventory_path, std::ios::binary);
         CHECK(inventory.good());
