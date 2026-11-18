@@ -50,3 +50,6 @@ url-segment-01	segment	technical_neighbor	URL https://example.com/7-я книг�
 email-ru-01	ru	technical_neighbor	user7@example.com и 7-я книга	user7@example.com и 7-я книга	user7@example.com и 7-я книга	unresolved_number@21:2	observed_current
 email-auto-01	auto	technical_neighbor	user7@example.com и 7-я книга	user7@example.com и 7-я книга	user7@example.com и 7-я книга	ambiguous_normalization@0:36;unresolved_number@21:2	observed_current
 email-segment-01	segment	technical_neighbor	user7@example.com и 7-я книга	user7@example.com и 7-я книга	user7@example.com и 7-я книга	unresolved_number@21:2	observed_current
+ordinal-ru-07	ru	digital_ordinal	7-го издания	7-го издания	7-го издания	unresolved_number@0:2	observed_current
+ordinal-auto-07	auto	digital_ordinal	7-го издания	7-го издания	7-го издания	unresolved_number@0:2	observed_current
+ordinal-segment-07	segment	digital_ordinal	7-го издания	7-го издания	7-го издания	unresolved_number@0:2	observed_current

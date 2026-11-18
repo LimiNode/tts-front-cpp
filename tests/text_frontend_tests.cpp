@@ -3872,17 +3872,17 @@ int main() {
             ++mode_counts[fields[1]];
             ++case_count;
         }
-        CHECK(case_count == 51);
-        CHECK(category_counts["digital_ordinal"] == 18);
+        CHECK(case_count == 54);
+        CHECK(category_counts["digital_ordinal"] == 21);
         CHECK(category_counts["cardinal_control"] == 6);
         CHECK(category_counts["lexical_ordinal"] == 3);
         CHECK(category_counts["punctuation"] == 3);
         CHECK(category_counts["newline"] == 3);
         CHECK(category_counts["continuation"] == 9);
         CHECK(category_counts["technical_neighbor"] == 9);
-        CHECK(mode_counts["ru"] == 17);
-        CHECK(mode_counts["auto"] == 17);
-        CHECK(mode_counts["segment"] == 17);
+        CHECK(mode_counts["ru"] == 18);
+        CHECK(mode_counts["auto"] == 18);
+        CHECK(mode_counts["segment"] == 18);
         CHECK(policy_gap_count == 3);
     }
     {
