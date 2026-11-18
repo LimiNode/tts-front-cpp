@@ -15,7 +15,7 @@ The observations below are based on characterization PR #82, merged as
 | `7 книг` | `семь книг`, no diagnostic | Keep on the cardinal path. It is not an ordinal case. |
 | `седьмая книга` | Preserved, no diagnostic | Already a valid lexical ordinal. No normalization is required. |
 | `7-я книга` | Preserved; `UnresolvedNumber` is emitted for the numeric candidate | Fail-closed baseline. Do not infer an ordinal rewrite from the suffix in this policy PR. |
-| `7-го издания` | Preserve the complete source surface and retain the candidate `UnresolvedNumber` diagnostic | Same fail-closed baseline; add a direct characterization row before behavior work. |
+| `7-го издания` | Intended fail-closed boundary: preserve the complete source surface and retain the candidate `UnresolvedNumber` diagnostic | **To be verified.** This row is not in characterization inventory #82; pin its exact output and byte span in a separate characterization PR before behavior work. |
 | `7 книга` | Current baseline is `семь книга` with no diagnostic | Separate `policy_gap`. Do not guess whether the number is cardinal or ordinal. |
 
 The same baseline applies to `RU`, plain `Auto`, and
