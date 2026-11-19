@@ -1,4 +1,5 @@
 #include "tts_front.hpp"
+#include "tts_front/core/normalization_support.hpp"
 #include "tts_front/core/numeric_scanner.hpp"
 #include "tts_front/core/utf8_document.hpp"
 
@@ -36,6 +37,20 @@ int main() {
         CHECK(surface.valid());
         CHECK(surface.numeric.exponent == tts_front::detail::ExponentState::Complete);
         CHECK(surface.end == document.points.size());
+    }
+    {
+        std::vector<TextWarning> warnings;
+        tts_front::detail::WarningSink sink(warnings);
+        sink.add(WarningCode::UnresolvedNumber, "first", detail::SourceRange{0, 1});
+        sink.add(WarningCode::UnresolvedNumber, "second", detail::SourceRange{3, 1});
+        sink.replace_warning(WarningCode::UnresolvedNumber,
+                             detail::SourceRange{0, 1},
+                             "replacement",
+                             detail::SourceRange{5, 2});
+        CHECK(warnings.size() == 2);
+        CHECK(warnings[0].offset == 3);
+        CHECK(warnings[1].offset == 5);
+        CHECK(warnings[1].length == 2);
     }
     {
         const tts_front::detail::Utf8Document document("2 kg#3");
