@@ -1,14 +1,14 @@
 id	class	input	observed_normalized	observed_pronunciation	diagnostics	contract_status
-feminine-book-01	feminine	1 книга	один книга	один книга	none	known_policy_gap
-feminine-book-02	feminine	2 книги	два книги	два книги	none	known_policy_gap
-feminine-book-03	feminine	3 книги	три книги	три книги	none	known_policy_gap
-feminine-book-04	feminine	4 книги	четыре книги	четыре книги	none	known_policy_gap
-feminine-book-05	feminine	5 книг	пять книг	пять книг	none	known_policy_gap
-feminine-book-21	feminine	21 книга	двадцать один книга	двадцать один книга	none	known_policy_gap
-feminine-book-22	feminine	22 книги	двадцать два книги	двадцать два книги	none	known_policy_gap
-feminine-book-25	feminine	25 книг	двадцать пять книг	двадцать пять книг	none	known_policy_gap
-feminine-book-00	feminine	0 книг	ноль книг	ноль книг	none	known_policy_gap
-feminine-book-11	feminine	11 книг	одиннадцать книг	одиннадцать книг	none	known_policy_gap
+feminine-book-01	feminine	1 книга	одна книга	одна книга	none	bounded_behavior
+feminine-book-02	feminine	2 книги	две книги	две книги	none	bounded_behavior
+feminine-book-03	feminine	3 книги	три книги	три книги	none	bounded_behavior
+feminine-book-04	feminine	4 книги	четыре книги	четыре книги	none	bounded_behavior
+feminine-book-05	feminine	5 книг	пять книг	пять книг	none	bounded_behavior
+feminine-book-21	feminine	21 книга	двадцать одна книга	двадцать одна книга	none	bounded_behavior
+feminine-book-22	feminine	22 книги	двадцать две книги	двадцать две книги	none	bounded_behavior
+feminine-book-25	feminine	25 книг	двадцать пять книг	двадцать пять книг	none	bounded_behavior
+feminine-book-00	feminine	0 книг	ноль книг	ноль книг	none	bounded_behavior
+feminine-book-11	feminine	11 книг	одиннадцать книг	одиннадцать книг	none	bounded_behavior
 feminine-task-01	feminine	1 задача	один задача	один задача	none	known_policy_gap
 feminine-task-02	feminine	2 задачи	два задачи	два задачи	none	known_policy_gap
 feminine-task-03	feminine	3 задачи	три задачи	три задачи	none	known_policy_gap

@@ -12,11 +12,13 @@ neuter (`окно`), and the existing hard-coded `ошибка` control for `0`,
 RU, Auto, and SegmentCandidates and compare original text, both output fields,
 diagnostics, and warning cardinality.
 
-The generic noun rows are explicitly classified as `known_policy_gap`: the
-current formatter changes the cardinal number but does not infer noun gender or
-case (`два книги`, `один книга`). The `ошибка` rows are retained as an
-`existing_exception` control and must not be expanded by adding more lexical
-exceptions.
+The bounded `книга` rows are classified as `bounded_behavior`: the approved
+feminine lexicon now rewrites the complete cardinal candidate (`две книги`,
+`двадцать одна книга`). Other generic noun rows remain explicitly classified
+as `known_policy_gap`; the formatter still changes only the cardinal number
+for those nouns. The `ошибка` rows are retained as an `existing_exception`
+control and are implemented by the same bounded scanner path; they must not be
+expanded by adding more lexical exceptions.
 
 The parallel English inventory in
 [`tests/characterization/english_noun_agreement_inventory.tsv`](../tests/characterization/english_noun_agreement_inventory.tsv)

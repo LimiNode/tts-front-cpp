@@ -3687,7 +3687,8 @@ int main() {
             CHECK(fields[1] == "feminine" || fields[1] == "masculine" || fields[1] == "neuter" ||
                   fields[1] == "existing_exception");
             CHECK(fields[5] == "none");
-            CHECK(fields[6] == "known_policy_gap" || fields[6] == "existing_exception");
+            CHECK(fields[6] == "known_policy_gap" || fields[6] == "existing_exception" ||
+                  fields[6] == "bounded_behavior");
             const auto space = fields[2].find(' ');
             CHECK(space != std::string::npos);
             CHECK(expected_numbers.find(fields[2].substr(0, space)) != expected_numbers.end());
@@ -3720,12 +3721,12 @@ int main() {
             std::size_t warning_length;
         };
         const std::vector<BoundaryCase> boundary_cases = {
-            {"2 книги#4", "два книги#4", 0, 0},
-            {"2 книги/4", "два книги/4", 13, 1},
-            {"2 книги\n3 задачи", "два книги три задачи", 0, 0},
+            {"2 книги#4", "2 книги#4", 0, 14},
+            {"2 книги/4", "2 книги/4", 0, 14},
+            {"2 книги\n3 задачи", "две книги три задачи", 0, 0},
             {"книги2", "книги2", 10, 1},
-            {"2 книгами", "два книгами", 0, 0},
-            {"2 книги, 5 задач", "два книги, пять задач", 0, 0}};
+            {"2 книгами", "2 книгами", 0, 16},
+            {"2 книги, 5 задач", "две книги, пять задач", 0, 0}};
         for (const auto& test : boundary_cases) {
             for (const auto& mode :
                  {std::string("ru"), std::string("auto"), std::string("segment")}) {
@@ -3740,6 +3741,93 @@ int main() {
                     CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
                     CHECK(result.warnings.front().offset == test.warning_offset);
                     CHECK(result.warnings.front().length == test.warning_length);
+                }
+            }
+        }
+
+        const std::vector<std::pair<std::string, std::string>> bounded_books = {
+            {"1 книга", "одна книга"},
+            {"2 книги", "две книги"},
+            {"3 книги", "три книги"},
+            {"4 книги", "четыре книги"},
+            {"5 книг", "пять книг"},
+            {"21 книга", "двадцать одна книга"},
+            {"22 книги", "двадцать две книги"},
+            {"0 книг", "ноль книг"},
+            {"11 книг", "одиннадцать книг"},
+            {"25 книг", "двадцать пять книг"}};
+        for (const auto& mode : {std::string("ru"), std::string("auto"), std::string("segment")}) {
+            const auto options = options_for_mode(mode);
+            for (const auto& [input, expected] : bounded_books) {
+                const auto result = frontend.process(input, options);
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text == expected);
+                CHECK(result.pronunciation_text == expected);
+                CHECK(result.warnings.empty());
+            }
+            const auto cardinal_gap = frontend.process("7 книга", options);
+            CHECK(cardinal_gap.normalized_text == "семь книга");
+            CHECK(cardinal_gap.pronunciation_text == "семь книга");
+            CHECK(cardinal_gap.warnings.empty());
+        }
+
+        for (const auto& mode : {std::string("ru"), std::string("auto"), std::string("segment")}) {
+            const auto options = options_for_mode(mode);
+            for (const auto& input : {std::string("+2 книги"), std::string("−2 книги")}) {
+                const auto result = frontend.process(input, options);
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text == input);
+                CHECK(result.pronunciation_text == input);
+                CHECK(result.warnings.size() == 1);
+                CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+                CHECK(result.warnings.front().offset == 0);
+                CHECK(result.warnings.front().length == input.size());
+            }
+            const std::string combining = "2 книги\xCC\x81";
+            const auto combining_result = frontend.process(combining, options);
+            CHECK(combining_result.original_text == combining);
+            CHECK(combining_result.normalized_text == combining);
+            CHECK(combining_result.pronunciation_text == combining);
+            CHECK(combining_result.warnings.size() == 1);
+            CHECK(combining_result.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(combining_result.warnings.front().offset == 0);
+            CHECK(combining_result.warnings.front().length == combining.size());
+        }
+
+        PronunciationDictionary book_dictionary;
+        CHECK(book_dictionary.add_token("книги", "книги пользовательский"));
+        auto dictionary_options = options_for_mode("ru");
+        dictionary_options.dictionary = &book_dictionary;
+        const auto dictionary_result = frontend.process("2 книги", dictionary_options);
+        CHECK(dictionary_result.normalized_text == "две книги");
+        CHECK(dictionary_result.pronunciation_text == "две книги пользовательский");
+        CHECK(dictionary_result.warnings.empty());
+        for (const auto& input : {std::string("https://example.com/2 книги"),
+                                  std::string("user2@example.com и 2 книги"),
+                                  std::string("2 книги RTX-4090")}) {
+            for (const auto& mode :
+                 {std::string("ru"), std::string("auto"), std::string("segment")}) {
+                const auto result = frontend.process(input, options_for_mode(mode));
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text.find('\x01') == std::string::npos);
+                CHECK(result.pronunciation_text.find('\x01') == std::string::npos);
+                if (input == "https://example.com/2 книги") {
+                    CHECK(result.normalized_text == input);
+                    CHECK(result.pronunciation_text == input);
+                } else {
+                    const auto expected = input == "user2@example.com и 2 книги"
+                                              ? "user2@example.com и две книги"
+                                              : "две книги RTX-4090";
+                    CHECK(result.normalized_text == expected);
+                    CHECK(result.pronunciation_text == expected);
+                }
+                if (mode == "auto") {
+                    CHECK(result.warnings.size() == 1);
+                    CHECK(result.warnings.front().code == WarningCode::AmbiguousNormalization);
+                    CHECK(result.warnings.front().offset == 0);
+                    CHECK(result.warnings.front().length == input.size());
+                } else {
+                    CHECK(result.warnings.empty());
                 }
             }
         }
