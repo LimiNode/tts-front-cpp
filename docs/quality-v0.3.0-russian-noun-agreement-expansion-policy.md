@@ -30,10 +30,17 @@ The first characterization matrix uses `0`, `1`, `2`, `3`, `4`, `5`, `11`,
 `21`, `22`, and `25`. The rule is shared; noun forms are lexical data and are
 not inferred from suffixes.
 
-The source noun must already have the form selected by the number. A mismatch
-such as `2 задача` or `5 стол` is not repaired by guessing another paradigm.
-It remains a complete preservation candidate with the existing warning and
-byte-accurate source span. The existing `ошибка` exception keeps its current
+For the proposed catalog rewrite, the source noun must already have the form
+selected by the number. This does not describe the current generic-number
+baseline: unsupported nouns and mismatched forms may still have only their
+number rewritten, without a noun-specific warning. Characterization must
+record those actual outputs and diagnostics, not replace them with a desired
+fail-closed result.
+
+Full-candidate preservation plus `UnresolvedNumber` for mismatches such as
+`2 задача` or `5 стол` is a proposed future behavior requiring separate
+approval. This expansion does not introduce it or repair mismatches by guessing
+another paradigm. The existing `ошибка` exception keeps its current
 compatibility semantics until a separate behavior review changes it.
 
 ## Bounded catalog
@@ -88,7 +95,8 @@ rules.
 
 ## Explicitly unsupported surfaces
 
-The following remain fail-closed and preserve the current baseline:
+The following are outside this expansion. Preserve their current observed
+outputs and diagnostics, which are not uniformly fail-closed:
 
 - governors and case-sensitive contexts after `после`, `из`, `до`, or `за`;
 - ordinal forms such as `7-я книга` and `7-го издания`;
@@ -101,9 +109,13 @@ The following remain fail-closed and preserve the current baseline:
 - signs and malformed combining-mark boundaries when the current scanner
   preserves them.
 
-No new regular expression pass or suffix heuristic is permitted. Unsupported
-input is preserved as one complete source candidate with the existing honest
-diagnostic and UTF-8 byte span.
+No new regular expression pass or suffix heuristic is permitted. Where the
+current scanner already preserves an unsupported candidate, retain its exact
+source bytes, ordered diagnostics, and UTF-8 byte spans. Where the baseline
+still rewrites only a number or emits no warning (for example the `7 книга`
+policy gap), record that observation without treating it as approved product
+semantics. Extending full-candidate preservation and warnings to those gaps is
+a separate policy and behavior decision, not an existing diagnostic contract.
 
 ## Architecture and implementation constraints
 
