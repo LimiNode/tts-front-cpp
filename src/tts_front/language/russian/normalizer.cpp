@@ -415,6 +415,8 @@ bool preserve_adjacent_protected_continuation(MappedText& text,
         if (run.source.offset != candidate_end)
             continue;
         const auto protected_end = run.source.offset + run.source.length;
+        warnings.diagnostic_keys.erase(
+            {WarningCode::UnresolvedNumber, run.source.offset, run.source.length});
         warnings.warnings.erase(std::remove_if(warnings.warnings.begin(),
                                                warnings.warnings.end(),
                                                [&](const TextWarning& warning) {
