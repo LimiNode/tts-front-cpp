@@ -220,14 +220,7 @@ void protect_leading_zero_years(MappedText& text,
                                 edits);
     }
     for (std::size_t point = 0; point < document.points.size(); ++point) {
-        const auto value = document.points[point].value;
-        const auto signed_start = (value == '+' || value == '-' || value == 0x2212) &&
-                                  point + 1 < document.points.size() &&
-                                  text::is_digit(document.points[point + 1].value);
-        const auto unsigned_start =
-            text::is_digit(value) &&
-            (point == 0 || !text::is_digit(document.points[point - 1].value));
-        if (!signed_start && !unsigned_start)
+        if (!is_numeric_surface_start(document, point))
             continue;
 
         const auto candidate =
@@ -368,31 +361,6 @@ bool has_bounded_feminine_noun_prefix(const std::string_view noun) {
     });
 }
 
-bool is_independent_punctuation(const Utf8Document& document,
-                                const std::size_t begin,
-                                const std::size_t end) {
-    if (begin >= end)
-        return false;
-    std::size_t point = begin;
-    bool punctuation = false;
-    while (point < end &&
-           (document.points[point].value == '.' || document.points[point].value == ',' ||
-            document.points[point].value == ':')) {
-        punctuation = true;
-        ++point;
-    }
-    if (!punctuation)
-        return false;
-    while (point < end && text::is_horizontal_space(document.points[point].value))
-        ++point;
-    if (point >= end)
-        return false;
-    if (document.points[point].value == '+' || document.points[point].value == '-' ||
-        document.points[point].value == 0x2212)
-        ++point;
-    return point < end && text::is_digit(document.points[point].value);
-}
-
 bool preserve_adjacent_protected_continuation(MappedText& text,
                                               const std::size_t begin,
                                               const std::size_t end,
@@ -415,20 +383,11 @@ bool preserve_adjacent_protected_continuation(MappedText& text,
         if (run.source.offset != candidate_end)
             continue;
         const auto protected_end = run.source.offset + run.source.length;
-        warnings.diagnostic_keys.erase(
-            {WarningCode::UnresolvedNumber, run.source.offset, run.source.length});
-        warnings.warnings.erase(std::remove_if(warnings.warnings.begin(),
-                                               warnings.warnings.end(),
-                                               [&](const TextWarning& warning) {
-                                                   return warning.code ==
-                                                              WarningCode::UnresolvedNumber &&
-                                                          warning.offset == run.source.offset &&
-                                                          warning.length == run.source.length;
-                                               }),
-                                warnings.warnings.end());
-        warnings.add(WarningCode::UnresolvedNumber,
-                     "Unable to inflect a protected noun continuation",
-                     SourceRange{candidate_source.offset, protected_end - candidate_source.offset});
+        warnings.replace_warning(
+            WarningCode::UnresolvedNumber,
+            run.source,
+            "Unable to inflect a protected noun continuation",
+            SourceRange{candidate_source.offset, protected_end - candidate_source.offset});
         return true;
     }
     return false;
@@ -443,14 +402,7 @@ void normalize_bounded_feminine_nouns(MappedText& text,
 
     std::vector<SourceEdit> edits;
     for (std::size_t point = 0; point < document.points.size(); ++point) {
-        const auto value = document.points[point].value;
-        const bool signed_start = (value == '+' || value == '-' || value == 0x2212) &&
-                                  point + 1 < document.points.size() &&
-                                  text::is_digit(document.points[point + 1].value);
-        const bool unsigned_start =
-            text::is_digit(value) &&
-            (point == 0 || !text::is_digit(document.points[point - 1].value));
-        if (!signed_start && !unsigned_start)
+        if (!is_numeric_surface_start(document, point))
             continue;
 
         const auto begin = document.points[point].offset;
@@ -490,9 +442,7 @@ void normalize_bounded_feminine_nouns(MappedText& text,
             scan_admission(document, candidate, CandidateSurfaceKind::Contextual);
         const auto full_end_point = admission.end;
         const auto full_span = document.span_from_codepoints(candidate_point, full_end_point);
-        const bool independent_punctuation =
-            full_end_point > candidate.end &&
-            is_independent_punctuation(document, candidate.end, full_end_point);
+        const bool independent_punctuation = admission.outcome == AdmissionOutcome::Punctuated;
         const auto preserve = [&](const std::size_t end_point) {
             const auto span = document.span_from_codepoints(candidate_point, end_point);
             add_protected_candidate(text,

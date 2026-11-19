@@ -208,6 +208,17 @@ NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t be
     return surface;
 }
 
+bool is_numeric_surface_start(const Utf8Document& document, const std::size_t begin) {
+    if (begin >= document.points.size())
+        return false;
+    const auto value = document.points[begin].value;
+    if (value == '+' || value == '-' || value == 0x2212)
+        return begin + 1 < document.points.size() &&
+               text::is_digit(document.points[begin + 1].value);
+    return text::is_digit(value) &&
+           (begin == 0 || !text::is_digit(document.points[begin - 1].value));
+}
+
 CandidateSurface
 scan_candidate_surface(const Utf8Document& document, std::size_t begin, CandidateSurfaceKind kind) {
     CandidateSurface candidate;
@@ -567,13 +578,7 @@ NumericSurfaceIndex build_numeric_surface_index(const Utf8Document& document) {
     NumericSurfaceIndex index;
     const auto& points = document.points;
     for (std::size_t point = 0; point < points.size(); ++point) {
-        const auto value = points[point].value;
-        const bool signed_start = (value == '+' || value == '-' || value == 0x2212) &&
-                                  point + 1 < points.size() &&
-                                  text::is_digit(points[point + 1].value);
-        const bool unsigned_start =
-            text::is_digit(value) && (point == 0 || !text::is_digit(points[point - 1].value));
-        if (!signed_start && !unsigned_start)
+        if (!is_numeric_surface_start(document, point))
             continue;
         const auto candidate =
             scan_candidate_surface(document, point, CandidateSurfaceKind::Technical);

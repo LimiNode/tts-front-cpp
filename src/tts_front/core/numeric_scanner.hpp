@@ -50,6 +50,11 @@ AdmissionResult scan_admission(const Utf8Document& document,
 AdmissionResult
 scan_admission(const Utf8Document& document, std::size_t begin, CandidateSurfaceKind kind);
 
+// Returns whether `begin` is the first codepoint of a signed or unsigned
+// numeric surface. Language and mixed-mode passes use this admission endpoint
+// instead of reimplementing digit/sign boundary checks.
+bool is_numeric_surface_start(const Utf8Document& document, std::size_t begin);
+
 std::size_t scan_numeric_continuation_points(const Utf8Document& document,
                                              std::size_t start,
                                              bool consume_lexical_suffix);

@@ -165,14 +165,7 @@ MappedText protect_combining_suffix_candidates(MappedText text,
 
     std::vector<SourceEdit> edits;
     for (std::size_t point = 0; point < document.points.size(); ++point) {
-        const auto value = document.points[point].value;
-        const auto signed_start = (value == '+' || value == '-' || value == 0x2212) &&
-                                  point + 1 < document.points.size() &&
-                                  text::is_digit(document.points[point + 1].value);
-        const auto unsigned_start =
-            text::is_digit(value) &&
-            (point == 0 || !text::is_digit(document.points[point - 1].value));
-        if (!signed_start && !unsigned_start)
+        if (!is_numeric_surface_start(document, point))
             continue;
 
         const auto range = scan_combining_suffix(document, point);
