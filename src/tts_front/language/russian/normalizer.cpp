@@ -343,6 +343,212 @@ void protect_typed_continuations(MappedText& text,
     protect_matches(patterns().year_range_context, CandidateSurfaceKind::Contextual, 3, true, true);
 }
 
+struct BoundedFeminineNoun {
+    std::string_view one;
+    std::string_view few;
+    std::string_view many;
+    bool require_matching_source_form = false;
+};
+
+const BoundedFeminineNoun* bounded_feminine_noun(const std::string_view noun) {
+    static const BoundedFeminineNoun books{"книга", "книги", "книг", true};
+    static const BoundedFeminineNoun errors{"ошибка", "ошибки", "ошибок", false};
+    if (noun == books.one || noun == books.few || noun == books.many)
+        return &books;
+    if (noun == errors.one || noun == errors.few || noun == errors.many)
+        return &errors;
+    return nullptr;
+}
+
+bool has_bounded_feminine_noun_prefix(const std::string_view noun) {
+    static constexpr std::string_view forms[] = {
+        "книга", "книги", "книг", "ошибка", "ошибки", "ошибок"};
+    return std::any_of(std::begin(forms), std::end(forms), [&](const auto form) {
+        return noun.size() > form.size() && noun.substr(0, form.size()) == form;
+    });
+}
+
+bool is_independent_punctuation(const Utf8Document& document,
+                                const std::size_t begin,
+                                const std::size_t end) {
+    if (begin >= end)
+        return false;
+    std::size_t point = begin;
+    bool punctuation = false;
+    while (point < end &&
+           (document.points[point].value == '.' || document.points[point].value == ',' ||
+            document.points[point].value == ':')) {
+        punctuation = true;
+        ++point;
+    }
+    if (!punctuation)
+        return false;
+    while (point < end && text::is_horizontal_space(document.points[point].value))
+        ++point;
+    if (point >= end)
+        return false;
+    if (document.points[point].value == '+' || document.points[point].value == '-' ||
+        document.points[point].value == 0x2212)
+        ++point;
+    return point < end && text::is_digit(document.points[point].value);
+}
+
+bool preserve_adjacent_protected_continuation(MappedText& text,
+                                              const std::size_t begin,
+                                              const std::size_t end,
+                                              WarningSink& warnings) {
+    auto marker_begin = end;
+    while (marker_begin < text.text.size() &&
+           (text.text[marker_begin] == '#' || text.text[marker_begin] == '/' ||
+            text.text[marker_begin] == '%' || text.text[marker_begin] == '+' ||
+            text.text[marker_begin] == '-' || text.text[marker_begin] == '=' ||
+            text.text[marker_begin] == '*' || text.text[marker_begin] == '$'))
+        ++marker_begin;
+    if (marker_begin >= text.text.size() ||
+        static_cast<unsigned char>(text.text[marker_begin]) != 0x01)
+        return false;
+    const auto candidate_source = text.source_range(begin, marker_begin);
+    for (const auto& run : text.runs) {
+        if (run.output_begin != marker_begin || run.direct_copy || run.source.length == 0)
+            continue;
+        const auto candidate_end = candidate_source.offset + candidate_source.length;
+        if (run.source.offset != candidate_end)
+            continue;
+        const auto protected_end = run.source.offset + run.source.length;
+        warnings.warnings.erase(std::remove_if(warnings.warnings.begin(),
+                                               warnings.warnings.end(),
+                                               [&](const TextWarning& warning) {
+                                                   return warning.code ==
+                                                              WarningCode::UnresolvedNumber &&
+                                                          warning.offset == run.source.offset &&
+                                                          warning.length == run.source.length;
+                                               }),
+                                warnings.warnings.end());
+        warnings.add(WarningCode::UnresolvedNumber,
+                     "Unable to inflect a protected noun continuation",
+                     SourceRange{candidate_source.offset, protected_end - candidate_source.offset});
+        return true;
+    }
+    return false;
+}
+
+void normalize_bounded_feminine_nouns(MappedText& text,
+                                      WarningSink& warnings,
+                                      std::vector<ProtectedSpan>& protected_spans) {
+    const Utf8Document document(text.text);
+    if (!document.valid)
+        return;
+
+    std::vector<SourceEdit> edits;
+    for (std::size_t point = 0; point < document.points.size(); ++point) {
+        const auto value = document.points[point].value;
+        const bool signed_start = (value == '+' || value == '-' || value == 0x2212) &&
+                                  point + 1 < document.points.size() &&
+                                  text::is_digit(document.points[point + 1].value);
+        const bool unsigned_start =
+            text::is_digit(value) &&
+            (point == 0 || !text::is_digit(document.points[point - 1].value));
+        if (!signed_start && !unsigned_start)
+            continue;
+
+        const auto begin = document.points[point].offset;
+        if (!has_context_boundary(text.text, begin) ||
+            overlaps_preserved_range(text, begin, begin + 1))
+            continue;
+
+        const auto candidate =
+            scan_candidate_surface(document, point, CandidateSurfaceKind::Contextual);
+        if (!candidate.valid() || candidate.numeric.exponent != ExponentState::None)
+            continue;
+        const auto candidate_point = point;
+        point = std::max(point, candidate.end == 0 ? point : candidate.end - 1);
+        const auto candidate_span = document.span_from_codepoints(candidate_point, candidate.end);
+        if (preserve_adjacent_protected_continuation(
+                text, begin, candidate_span.byte_end, warnings))
+            continue;
+
+        auto noun_begin = candidate.numeric.end;
+        const auto noun_probe_begin = noun_begin;
+        while (noun_begin < candidate.end &&
+               text::is_combining_mark(document.points[noun_begin].value))
+            ++noun_begin;
+        const bool malformed_prefix = noun_begin != noun_probe_begin;
+        while (noun_begin < candidate.end &&
+               text::is_horizontal_space(document.points[noun_begin].value))
+            ++noun_begin;
+        if (noun_begin >= candidate.end)
+            continue;
+
+        const auto noun_span = document.span_from_codepoints(noun_begin, candidate.end);
+        const auto noun = std::string_view(text.text).substr(
+            noun_span.byte_begin, noun_span.byte_end - noun_span.byte_begin);
+        const auto* agreement = bounded_feminine_noun(noun);
+        const auto has_known_prefix = has_bounded_feminine_noun_prefix(noun);
+        const auto admission =
+            scan_admission(document, candidate, CandidateSurfaceKind::Contextual);
+        const auto full_end_point = admission.end;
+        const auto full_span = document.span_from_codepoints(candidate_point, full_end_point);
+        const bool independent_punctuation =
+            full_end_point > candidate.end &&
+            is_independent_punctuation(document, candidate.end, full_end_point);
+        const auto preserve = [&](const std::size_t end_point) {
+            const auto span = document.span_from_codepoints(candidate_point, end_point);
+            add_protected_candidate(text,
+                                    NumericCandidate{SourceSpan{begin, span.byte_end},
+                                                     NumericCandidateKind::Numeric,
+                                                     true},
+                                    warnings,
+                                    protected_spans,
+                                    edits);
+        };
+
+        if (agreement == nullptr) {
+            if (has_known_prefix)
+                preserve(independent_punctuation ? candidate.end : full_end_point);
+            continue;
+        }
+        if (full_end_point > candidate.end && !independent_punctuation) {
+            preserve(full_end_point);
+            continue;
+        }
+        if (candidate.numeric.sign == NumericSign::Plus ||
+            candidate.numeric.sign == NumericSign::UnicodeMinus ||
+            noun_begin == candidate.numeric.end || malformed_prefix) {
+            preserve(independent_punctuation ? candidate.end : full_end_point);
+            continue;
+        }
+
+        const auto number_span =
+            document.span_from_codepoints(candidate_point, candidate.numeric.end);
+        const auto token = std::string_view(text.text).substr(
+            number_span.byte_begin, number_span.byte_end - number_span.byte_begin);
+        long long number_value = 0;
+        if (!try_parse_long(token, number_value)) {
+            preserve(independent_punctuation ? candidate.end : full_end_point);
+            continue;
+        }
+        if (agreement->require_matching_source_form) {
+            const auto absolute = std::llabs(number_value);
+            const auto suffix = absolute % 100;
+            const auto last = absolute % 10;
+            const auto expected = suffix >= 11 && suffix <= 19 ? agreement->many
+                                  : last == 1                  ? agreement->one
+                                  : last >= 2 && last <= 4     ? agreement->few
+                                                               : agreement->many;
+            if (noun != expected)
+                continue;
+        }
+        const auto replacement =
+            feminine_number(number_value) + " " +
+            plural_form(
+                number_value, agreement->one.data(), agreement->few.data(), agreement->many.data());
+        const auto replacement_end = independent_punctuation ? candidate_span.byte_end
+                                                               : full_span.byte_end;
+        edits.push_back({begin, replacement_end, replacement});
+    }
+    text = apply_source_edits(text, std::move(edits));
+}
+
 } // namespace
 
 MappedText normalize(MappedText text, WarningSink& warnings) {
@@ -753,14 +959,7 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                 return decimal_genitive(integer, match[2].str()) + match[3].str();
             return std::string(prefix) + decimal(integer, match[2].str()) + match[3].str();
         });
-    text = replace_matches(
-        text, russian::patterns().feminine_count, [&](const std::smatch& match, const MappedText&) {
-            long long value = 0;
-            if (!try_parse_long(match[2].str(), value))
-                return match.str();
-            return match[1].str() + feminine_number(value) + " " +
-                   plural_form(value, "ошибка", "ошибки", "ошибок") + match[4].str();
-        });
+    normalize_bounded_feminine_nouns(text, warnings, protected_spans);
     const Utf8Document generic_document(text.text);
     text = replace_numeric_matches(
         text,

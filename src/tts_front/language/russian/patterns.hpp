@@ -34,8 +34,6 @@ struct Patterns {
     // one complete candidate so generic numeric passes cannot rewrite a head.
     const std::regex admission_unsupported_currency{
         R"((?:(?:(?:\+|−)\d+(?:[.,][0-9]+)?|-?\d+,[0-9]{3,}|(?:\+|-|−)?\d{1,3}(?:[ \t]\d{3})+,[0-9]+)\s*(?:рублей|рубля|рубль|руб)(?:\.{1,3})?|(?:\+|-|−)?(?:\d{1,3}(?:[ \t]\d{3})+,[0-9]+|[0-9]+(?:[.,][0-9]+)?)\s*₽))"};
-    const std::regex feminine_count{
-        R"((^|[^A-Za-zА-Яа-яЁё0-9])(-?\d+)\s+(ошибка|ошибки|ошибок)([^A-Za-zА-Яа-яЁё0-9]|$))"};
     // Capture the numeric head even when a compound suffix follows it.  The
     // admission pass decides whether the complete surface is supported or
     // must be preserved atomically; a lookahead here would hide attached
