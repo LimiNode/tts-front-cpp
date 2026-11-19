@@ -6,6 +6,7 @@ from pathlib import Path
 
 from natural_sentence_expansion_gold import natural_sentence_expansion_cases
 from natural_sentence_gold import natural_sentence_cases
+from russian_noun_agreement_gold import russian_noun_agreement_cases
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -563,6 +564,21 @@ for case in natural_sentence_cases():
     )
 
 for case in natural_sentence_expansion_cases():
+    rows.append(
+        row(
+            case["id"],
+            case["language"],
+            case["mode"],
+            case["category"],
+            case["expectation"],
+            case["source"],
+            case["normalized"],
+            case["diagnostics"],
+            pronunciation=case["pronunciation"],
+        )
+    )
+
+for case in russian_noun_agreement_cases():
     rows.append(
         row(
             case["id"],
