@@ -1,5 +1,6 @@
 #include "tts_front/core.hpp"
 
+#include <algorithm>
 #include <utility>
 
 namespace tts_front::detail {
@@ -37,6 +38,22 @@ void WarningSink::preserve(const SourceRange source) {
 void WarningSink::add(WarningCode code, std::string message, SourceRange source) {
     preserve(source);
     add_range(code, std::move(message), source.offset, source.length);
+}
+
+void WarningSink::replace_warning(const WarningCode code,
+                                  const SourceRange old_source,
+                                  std::string message,
+                                  const SourceRange source) {
+    diagnostic_keys.erase({code, old_source.offset, old_source.length});
+    warnings.erase(std::remove_if(warnings.begin(),
+                                  warnings.end(),
+                                  [&](const TextWarning& warning) {
+                                      return warning.code == code &&
+                                             warning.offset == old_source.offset &&
+                                             warning.length == old_source.length;
+                                  }),
+                   warnings.end());
+    add(code, std::move(message), source);
 }
 
 void add_protected_candidate(const MappedText& text,

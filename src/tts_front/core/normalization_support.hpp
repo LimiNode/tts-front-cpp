@@ -38,6 +38,10 @@ struct WarningSink {
     void preserve(SourceRange source);
     void add_range(WarningCode code, std::string message, std::size_t offset, std::size_t length);
     void add(WarningCode code, std::string message, SourceRange source);
+    void replace_warning(WarningCode code,
+                         SourceRange old_source,
+                         std::string message,
+                         SourceRange source);
 };
 
 struct ProtectedSpan {

@@ -107,14 +107,7 @@ void collect_local_number_candidates(const MappedText& input,
     std::size_t technical_cursor = 0;
     std::size_t typed_cursor = 0;
     for (std::size_t point = 0; point < document.points.size(); ++point) {
-        const auto value = document.points[point].value;
-        const bool signed_start = (value == '+' || value == '-' || value == 0x2212) &&
-                                  point + 1 < document.points.size() &&
-                                  text::is_digit(document.points[point + 1].value);
-        const bool unsigned_start =
-            text::is_digit(value) &&
-            (point == 0 || !text::is_digit(document.points[point - 1].value));
-        if (!signed_start && !unsigned_start)
+        if (!is_numeric_surface_start(document, point))
             continue;
         if (point > 0 &&
             (text::is_letter(document.points[point - 1].value) ||
