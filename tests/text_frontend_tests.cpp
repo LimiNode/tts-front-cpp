@@ -3792,6 +3792,23 @@ int main() {
             CHECK(combining_result.warnings.front().code == WarningCode::UnresolvedNumber);
             CHECK(combining_result.warnings.front().offset == 0);
             CHECK(combining_result.warnings.front().length == combining.size());
+
+            const std::string combining_word = "2 книги\xCC\x81 слово";
+            const auto combining_word_result = frontend.process(combining_word, options);
+            CHECK(combining_word_result.original_text == combining_word);
+            CHECK(combining_word_result.normalized_text == combining_word);
+            CHECK(combining_word_result.pronunciation_text == combining_word);
+            CHECK(combining_word_result.warnings.size() == 1);
+            CHECK(combining_word_result.warnings.front().code == WarningCode::UnresolvedNumber);
+            CHECK(combining_word_result.warnings.front().offset == 0);
+            CHECK(combining_word_result.warnings.front().length ==
+                  std::string("2 книги\xCC\x81").size());
+
+            const auto ascii_minus = frontend.process("-2 книги", options);
+            CHECK(ascii_minus.original_text == "-2 книги");
+            CHECK(ascii_minus.normalized_text == "минус две книги");
+            CHECK(ascii_minus.pronunciation_text == "минус две книги");
+            CHECK(ascii_minus.warnings.empty());
         }
 
         PronunciationDictionary book_dictionary;
