@@ -542,8 +542,8 @@ void normalize_bounded_feminine_nouns(MappedText& text,
             feminine_number(number_value) + " " +
             plural_form(
                 number_value, agreement->one.data(), agreement->few.data(), agreement->many.data());
-        const auto replacement_end = independent_punctuation ? candidate_span.byte_end
-                                                               : full_span.byte_end;
+        const auto replacement_end =
+            independent_punctuation ? candidate_span.byte_end : full_span.byte_end;
         edits.push_back({begin, replacement_end, replacement});
     }
     text = apply_source_edits(text, std::move(edits));
