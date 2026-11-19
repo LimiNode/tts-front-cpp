@@ -750,3 +750,15 @@ tech-auto-01	ru	auto	ambiguous_or_technical	normalize	RTX-4090 обработа�
 tech-auto-02	ru	auto	ambiguous_or_technical	normalize	HTTP/2 обслужил 3 запроса.	HTTP/2 обслужил три запроса.	аш ти ти пи два обслужил три запроса.	ambiguous_normalization@0:41
 tech-segment-01	ru	auto_segment	ambiguous_or_technical	normalize	C# обработал 4 файла и 5 GB.	C# обработал четыре файла и five gigabytes.	C# обработал четыре файла и five gigabytes.	ambiguous_normalization@0:43
 tech-segment-02	ru	auto_segment	ambiguous_or_technical	normalize	CUDA 13.3 completed 6 задач.	CUDA 13.3 completed шесть задач.	CUDA 13.3 completed шесть задач.	ambiguous_normalization@0:33
+ru-book-oracle-explicit-01	ru	explicit	grammar	normalize	В библиотеке нашли 2 книги.	В библиотеке нашли две книги.	В библиотеке нашли две книги.	none
+ru-book-oracle-explicit-02	ru	explicit	grammar	normalize	Архив содержит 21 книга.	Архив содержит двадцать одна книга.	Архив содержит двадцать одна книга.	none
+ru-book-oracle-explicit-03	ru	explicit	grammar	normalize	Нужно взять 25 книг, а не 2 книги.	Нужно взять двадцать пять книг, а не две книги.	Нужно взять двадцать пять книг, а не две книги.	none
+ru-book-oracle-explicit-04	ru	explicit	grammar	normalize	Проверено 7 книг; ещё 2 книги на столе.	Проверено семь книг; ещё две книги на столе.	Проверено семь книг; ещё две книги на столе.	none
+ru-book-oracle-auto-01	ru	auto	grammar	normalize	Русский каталог содержит 22 книги.	Русский каталог содержит двадцать две книги.	Русский каталог содержит двадцать две книги.	none
+ru-book-oracle-auto-02	ru	auto	grammar	normalize	В списке осталась 1 книга.	В списке осталась одна книга.	В списке осталась одна книга.	none
+ru-book-oracle-auto-03	ru	auto	grammar	normalize	Отчёт перечисляет 3 книги.	Отчёт перечисляет три книги.	Отчёт перечисляет три книги.	none
+ru-book-oracle-segment-01	ru	auto_segment	grammar	normalize	Секция содержит 4 книги.	Секция содержит четыре книги.	Секция содержит четыре книги.	none
+ru-book-oracle-segment-02	ru	auto_segment	grammar	normalize	Список: 4 книги и 5 книг.	Список: четыре книги и пять книг.	Список: четыре книги и пять книг.	none
+ru-book-oracle-segment-03	ru	auto_segment	grammar	normalize	Проверка: 2 книги, затем 7 книг.	Проверка: две книги, затем семь книг.	Проверка: две книги, затем семь книг.	none
+ru-book-oracle-continuation-01	ru	explicit	grammar	preserve	Запись 2 книги/4 сохранена.	Запись 2 книги/4 сохранена.	Запись 2 книги/4 сохранена.	unresolved_number@13:14
+ru-book-oracle-continuation-02	ru	explicit	grammar	preserve	Запись 2 книги#4 сохранена.	Запись 2 книги#4 сохранена.	Запись 2 книги#4 сохранена.	unresolved_number@13:14
