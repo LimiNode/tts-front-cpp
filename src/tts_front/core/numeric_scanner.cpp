@@ -574,6 +574,43 @@ bool NumericSurfaceIndex::overlaps(std::size_t begin, std::size_t end) const {
     return found != ranges.end() && found->surface_begin < end && begin < found->end;
 }
 
+bool is_independent_cardinal_candidate(const Utf8Document& document,
+                                       const CandidateSurface& candidate) {
+    const auto& numeric = candidate.numeric;
+    if (!candidate.valid() || numeric.exponent != ExponentState::None ||
+        numeric.malformed_combining || numeric.sign == NumericSign::Plus ||
+        numeric.sign == NumericSign::UnicodeMinus)
+        return false;
+    const auto lexical = scan_lexical_suffix(document, numeric.end);
+    if (lexical.continuation_begin == numeric.end || lexical.end == lexical.continuation_begin)
+        return false;
+    const auto& points = document.points;
+    if (candidate.begin > 0) {
+        const auto previous = points[candidate.begin - 1].value;
+        if (text::is_lexical_numeric_boundary(previous) || previous == '+' || previous == '-' ||
+            previous == 0x2212)
+            return false;
+    }
+    // A three-digit component after 1-3 digits and horizontal whitespace
+    // belongs to the earlier grouped surface, not a new cardinal owner.
+    if (numeric.sign == NumericSign::None && numeric.digits_end - numeric.digits_begin == 3) {
+        auto previous_end = candidate.begin;
+        while (previous_end > 0 && text::is_horizontal_space(points[previous_end - 1].value))
+            --previous_end;
+        if (previous_end < candidate.begin) {
+            auto previous_begin = previous_end;
+            // Four digits suffice to rule out a 1-3 digit grouping head.
+            while (previous_begin > 0 && previous_end - previous_begin < 4 &&
+                   text::is_digit(points[previous_begin - 1].value))
+                --previous_begin;
+            const auto digits = previous_end - previous_begin;
+            if (digits >= 1 && digits <= 3)
+                return false;
+        }
+    }
+    return true;
+}
+
 NumericSurfaceIndex build_numeric_surface_index(const Utf8Document& document) {
     NumericSurfaceIndex index;
     const auto& points = document.points;
