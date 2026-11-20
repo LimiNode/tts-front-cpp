@@ -55,6 +55,12 @@ scan_admission(const Utf8Document& document, std::size_t begin, CandidateSurface
 // instead of reimplementing digit/sign boundary checks.
 bool is_numeric_surface_start(const Utf8Document& document, std::size_t begin);
 
+// Narrow cardinal+noun admission. Reject attached words, unsupported signs,
+// signed-token fragments and trailing components of space-grouped numbers.
+// Existing generic formatting may still handle those surfaces compatibly.
+bool is_independent_cardinal_candidate(const Utf8Document& document,
+                                       const CandidateSurface& candidate);
+
 std::size_t scan_numeric_continuation_points(const Utf8Document& document,
                                              std::size_t start,
                                              bool consume_lexical_suffix);
