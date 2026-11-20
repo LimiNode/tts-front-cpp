@@ -8,6 +8,12 @@ the outputs captured from `main@bc2ca9d` on 2026-11-20. This expansion starts
 from the documentation-only PR #91 merge `5593e90`; production code is
 identical to that capture revision. No third-party morphology data is imported.
 
+The subsequent [catalog behavior report](russian-noun-catalog-behavior.md)
+enumerates intentional changes against these historical observations. The
+source TSV and static control header remain unchanged; current behavior tests
+use independent gold and explicit reviewed deltas rather than relabeling the
+old observations as desired outputs.
+
 The Russian matrix contains fourteen nouns:
 
 - feminine: `книга`, `ошибка`, `задача`, `машина`, `команда`, `строка`;
