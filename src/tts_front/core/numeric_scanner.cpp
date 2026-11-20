@@ -591,7 +591,7 @@ bool is_independent_cardinal_candidate(const Utf8Document& document,
             previous == 0x2212)
             return false;
     }
-    // A three-digit component after 1-3 digits and horizontal whitespace
+    // A three-digit component after a standalone 1-3 digit head and horizontal whitespace
     // belongs to the earlier grouped surface, not a new cardinal owner.
     if (numeric.sign == NumericSign::None && numeric.digits_end - numeric.digits_begin == 3) {
         auto previous_end = candidate.begin;
@@ -604,7 +604,9 @@ bool is_independent_cardinal_candidate(const Utf8Document& document,
                    text::is_digit(points[previous_begin - 1].value))
                 --previous_begin;
             const auto digits = previous_end - previous_begin;
-            if (digits >= 1 && digits <= 3)
+            if (digits >= 1 && digits <= 3 &&
+                (previous_begin == 0 ||
+                 !text::is_lexical_numeric_boundary(points[previous_begin - 1].value)))
                 return false;
         }
     }

@@ -57,6 +57,9 @@ A narrow query in the shared scanner additionally distinguishes independent
 cardinal+noun candidates from attached words, unsupported signs, signed-token
 fragments and raw grouped-number components. Both the Russian and mixed paths
 reuse it; it does not alter the old generic numeric fallback or its diagnostics.
+The raw-group guard requires a non-lexically-attached head: the digit in `v2`
+or `id2` must not suppress an independent following `101 задача` or `102 задачи`.
+This remains a conservative grouping guard, not a general numeric-head parser.
 
 RU and Auto use the existing Russian pass. Mixed SegmentCandidates passes the
 already scanned local noun and mapped context to its existing number formatter;
@@ -125,6 +128,15 @@ governors, false prefixes, and the #92 controls. There are 276 intentional
 gender-output changes, zero original-text or ordered-diagnostic/span drift,
 and zero EN, governor or currency-prefixed output changes. Probes and reports
 are transient under `.temp/noun-behavior/`; they are not oracle gold.
+
+A separate 28-observation technical-head probe compares `v2`/`id2`/`v2000`
+neighbors, short and compound following cardinals, and genuine grouped controls
+in all four modes. Ten outputs intentionally gain the approved noun gender;
+ordered diagnostics and byte spans do not change. In RU/Auto/EN the existing
+`v2 101 задача` preservation and warning remain; SegmentCandidates renders
+`v2 сто одна задача` without treating `2` as a grouping head. The genuine raw
+mixed group `OpenAI 2 101 задача` retains its baseline. Direct tests pin the
+full outputs and ordered diagnostic spans for these technical neighbors.
 
 The working oracle, snapshots and release archives are unchanged. The working
 baseline remains `763 / 661 / 102 / 0 / 0`. A later oracle PR may add a few
