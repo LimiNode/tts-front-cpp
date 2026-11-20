@@ -48,6 +48,13 @@ int main() {
                                            {"2 002 задачи", 0, false},
                                            {"2 002 задачи", 2, false},
                                            {"2002 задачи", 0, true},
+                                           {"v2 101 задача", 3, true},
+                                           {"id2 102 задачи", 4, true},
+                                           {"v2000 101 задача", 6, true},
+                                           {"2 101 задача", 2, false},
+                                           {"-2 101 задача", 3, false},
+                                           {"+2 101 задача", 3, false},
+                                           {"−2 101 задача", 3, false},
                                            {"4 2 задачи", 2, true},
                                            {"2́ задачи", 0, false}};
         for (const auto& test : cases) {
@@ -4233,6 +4240,51 @@ int main() {
             CHECK(result.warnings.front().code == WarningCode::AmbiguousNormalization);
             CHECK(result.warnings.front().offset == 0);
             CHECK(result.warnings.front().length == result.original_text.size());
+        }
+
+        struct NumericTechnicalNeighbor {
+            const char* input;
+            const char* segment_expected;
+            std::size_t offset;
+            std::size_t generic_length;
+            std::size_t segment_length;
+        };
+        const NumericTechnicalNeighbor numeric_technical_neighbors[] = {
+            {"v2 101 задача", "v2 сто одна задача", 1, 5, 1},
+            {"id2 101 задача", "id2 сто одна задача", 2, 5, 1},
+            {"v2 102 задачи", "v2 сто две задачи", 1, 5, 1},
+            {"v2 1 задача", "v2 одна задача", 1, 3, 1},
+            {"v2000 101 задача", "v2000 сто одна задача", 1, 8, 4}};
+        for (const auto& test : numeric_technical_neighbors) {
+            for (const auto& mode : {std::string("ru"),
+                                     std::string("auto"),
+                                     std::string("segment"),
+                                     std::string("en")}) {
+                auto options = options_for_mode(mode);
+                if (mode == "en")
+                    options.language = Language::English;
+                const auto result = frontend.process(test.input, options);
+                const auto* expected = mode == "segment" ? test.segment_expected : test.input;
+                CHECK(result.original_text == test.input);
+                CHECK(result.normalized_text == expected);
+                CHECK(result.pronunciation_text == expected);
+                const bool mixed = mode == "auto" || mode == "segment";
+                CHECK(result.warnings.size() == (mixed ? 2 : 1));
+                if (mixed) {
+                    CHECK(result.warnings[0].code == WarningCode::AmbiguousNormalization);
+                    CHECK(result.warnings[0].offset == 0);
+                    CHECK(result.warnings[0].length == result.original_text.size());
+                }
+                const auto& unresolved = result.warnings[mixed ? 1 : 0];
+                CHECK(unresolved.code == WarningCode::UnresolvedNumber);
+                CHECK(unresolved.offset == test.offset);
+                CHECK(unresolved.length ==
+                      (mode == "segment" ? test.segment_length : test.generic_length));
+                for (const auto& warning : result.warnings) {
+                    CHECK(warning.message.find('\x01') == std::string::npos);
+                    CHECK(warning.message.find('\x02') == std::string::npos);
+                }
+            }
         }
 
         struct PrefixNegative {
