@@ -81,7 +81,8 @@ std::optional<std::string> format(std::string_view candidate) {
     return spoken;
 }
 
-std::optional<std::string> format_number(std::string_view candidate) {
+std::optional<std::string>
+format_number(std::string_view candidate, std::string_view, const MappedText&, std::size_t) {
     long long value = 0;
     if (!try_parse_long(candidate, value))
         return std::nullopt;

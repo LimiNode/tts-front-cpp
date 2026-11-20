@@ -36,7 +36,10 @@ struct MixedCandidateMatch {
 
 using MixedCandidateScanner = std::vector<MixedCandidateMatch> (*)(std::string_view);
 using MixedCandidateFormatter = std::optional<std::string> (*)(std::string_view);
-using MixedNumberFormatter = std::optional<std::string> (*)(std::string_view);
+using MixedNumberFormatter = std::optional<std::string> (*)(std::string_view token,
+                                                            std::string_view noun,
+                                                            const MappedText& context,
+                                                            std::size_t begin);
 
 struct MixedLanguageRules {
     MixedCandidateScanner scan_candidates;

@@ -97,7 +97,12 @@ std::optional<std::string> format(std::string_view candidate) {
     return number_for_token(number_text, integer) + " " + plural_form(integer, one, few, many);
 }
 
-std::optional<std::string> format_number(std::string_view candidate) {
+std::optional<std::string> format_number(std::string_view candidate,
+                                         std::string_view noun,
+                                         const MappedText& context,
+                                         std::size_t begin) {
+    if (const auto agreed = bounded_noun_number(candidate, noun, context, begin))
+        return agreed;
     long long value = 0;
     if (!try_parse_long(candidate, value))
         return std::nullopt;

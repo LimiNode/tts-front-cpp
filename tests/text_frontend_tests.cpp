@@ -1,3 +1,4 @@
+#include "russian_noun_agreement_gold.hpp"
 #include "russian_noun_expansion_cases.hpp"
 #include "tts_front.hpp"
 #include "tts_front/core/normalization_support.hpp"
@@ -31,6 +32,39 @@ int main() {
     TextFrontend frontend;
     TextFrontendOptions ru;
     ru.language = Language::Russian;
+    {
+        struct CardinalAdmission {
+            const char* input;
+            std::size_t point;
+            bool independent;
+        };
+        const CardinalAdmission cases[] = {{"2 задачи", 0, true},
+                                           {"-2 задачи", 0, true},
+                                           {"+2 задачи", 0, false},
+                                           {"+2 задачи", 1, false},
+                                           {"−2 задачи", 0, false},
+                                           {"−2 задачи", 1, false},
+                                           {"2задачи", 0, false},
+                                           {"2 002 задачи", 0, false},
+                                           {"2 002 задачи", 2, false},
+                                           {"2002 задачи", 0, true},
+                                           {"v2 101 задача", 3, true},
+                                           {"id2 102 задачи", 4, true},
+                                           {"v2000 101 задача", 6, true},
+                                           {"2 101 задача", 2, false},
+                                           {"-2 101 задача", 3, false},
+                                           {"+2 101 задача", 3, false},
+                                           {"−2 101 задача", 3, false},
+                                           {"4 2 задачи", 2, true},
+                                           {"2́ задачи", 0, false}};
+        for (const auto& test : cases) {
+            const detail::Utf8Document document(test.input);
+            const auto candidate = detail::scan_candidate_surface(
+                document, test.point, detail::CandidateSurfaceKind::Contextual);
+            CHECK(detail::is_independent_cardinal_candidate(document, candidate) ==
+                  test.independent);
+        }
+    }
     {
         const tts_front::detail::Utf8Document document("+1e+3#4");
         const auto surface = tts_front::detail::scan_candidate_surface(
@@ -3706,6 +3740,11 @@ int main() {
             {"neuter-message", "neuter"}};
         std::map<std::string, std::set<std::string>> group_numbers;
         std::map<std::string, std::size_t> status_counts;
+        std::map<std::string, std::string> approved_inventory;
+        for (const auto& row : noun_agreement_gold::changed_inventory_rows)
+            CHECK(approved_inventory.emplace(row.id, row.expected).second);
+        CHECK(approved_inventory.size() == 24);
+        std::set<std::string> changed_inventory_ids;
         std::size_t case_count = 0;
         const std::set<std::string> expected_numbers = {
             "0", "1", "2", "3", "4", "5", "11", "21", "22", "25"};
@@ -3740,12 +3779,25 @@ int main() {
             ++class_counts[fields[1]];
             ++case_count;
 
+            // Keep #92's captured data intact; only these independently reviewed
+            // gendered-number outputs intentionally supersede its observations.
+            const auto approved = approved_inventory.find(fields[0]);
+            const auto expected_normalized =
+                approved == approved_inventory.end() ? fields[3] : approved->second;
+            const auto expected_pronunciation =
+                approved == approved_inventory.end() ? fields[4] : approved->second;
+            if (approved != approved_inventory.end()) {
+                CHECK(fields[6] == "known_policy_gap");
+                CHECK(fields[3] != expected_normalized);
+                CHECK(fields[4] != expected_pronunciation);
+                CHECK(changed_inventory_ids.insert(fields[0]).second);
+            }
             for (const auto& mode :
                  {std::string("ru"), std::string("auto"), std::string("segment")}) {
                 const auto result = frontend.process(fields[2], options_for_mode(mode));
                 CHECK(result.original_text == fields[2]);
-                CHECK(result.normalized_text == fields[3]);
-                CHECK(result.pronunciation_text == fields[4]);
+                CHECK(result.normalized_text == expected_normalized);
+                CHECK(result.pronunciation_text == expected_pronunciation);
                 CHECK(result.warnings.empty());
                 CHECK(result.normalized_text.find('\x01') == std::string::npos);
                 CHECK(result.pronunciation_text.find('\x01') == std::string::npos);
@@ -3754,6 +3806,7 @@ int main() {
             }
         }
         CHECK(case_count == 140);
+        CHECK(changed_inventory_ids.size() == approved_inventory.size());
         CHECK(class_counts["feminine"] == 50);
         CHECK(class_counts["masculine"] == 40);
         CHECK(class_counts["neuter"] == 40);
@@ -3771,10 +3824,29 @@ int main() {
                    (offset == value.size() ||
                     (static_cast<unsigned char>(value[offset]) & 0xC0U) != 0x80U);
         };
+        std::map<std::string, std::pair<std::string, std::string>> approved_controls;
+        for (const auto& row : noun_agreement_gold::changed_controls)
+            CHECK(
+                approved_controls.emplace(row.id, std::make_pair(row.normalized, row.pronunciation))
+                    .second);
+        CHECK(approved_controls.size() == 11);
+        std::set<std::string> changed_control_ids;
         std::set<std::string> control_ids;
         for (const auto& test : characterization::russian_noun_expansion_controls) {
             CHECK(control_ids.insert(test.id).second);
             const std::string input = test.input;
+            const auto approved = approved_controls.find(test.id);
+            const auto expected_normalized = approved == approved_controls.end()
+                                                 ? std::string(test.observed_normalized)
+                                                 : approved->second.first;
+            const auto expected_pronunciation = approved == approved_controls.end()
+                                                    ? std::string(test.observed_pronunciation)
+                                                    : approved->second.second;
+            if (approved != approved_controls.end()) {
+                CHECK(expected_normalized != test.observed_normalized);
+                CHECK(expected_pronunciation != test.observed_pronunciation);
+                CHECK(changed_control_ids.insert(test.id).second);
+            }
             for (std::size_t mode = 0; mode < control_modes.size(); ++mode) {
                 const auto result = frontend.process(input, options_for_mode(control_modes[mode]));
                 std::string diagnostics;
@@ -3803,14 +3875,14 @@ int main() {
                 }
                 if (diagnostics.empty())
                     diagnostics = "none";
-                if (result.normalized_text != test.observed_normalized ||
-                    result.pronunciation_text != test.observed_pronunciation ||
+                if (result.normalized_text != expected_normalized ||
+                    result.pronunciation_text != expected_pronunciation ||
                     diagnostics != test.observed_diagnostics[mode])
                     std::cerr << "Noun observation: " << test.id << " / " << control_modes[mode]
                               << " diagnostics: " << diagnostics << '\n';
                 CHECK(result.original_text == input);
-                CHECK(result.normalized_text == test.observed_normalized);
-                CHECK(result.pronunciation_text == test.observed_pronunciation);
+                CHECK(result.normalized_text == expected_normalized);
+                CHECK(result.pronunciation_text == expected_pronunciation);
                 CHECK(diagnostics == test.observed_diagnostics[mode]);
                 CHECK(result.normalized_text.find('\x01') == std::string::npos);
                 CHECK(result.normalized_text.find('\x02') == std::string::npos);
@@ -3822,11 +3894,12 @@ int main() {
             }
         }
         CHECK(control_ids.size() == 115);
+        CHECK(changed_control_ids.size() == approved_controls.size());
 
         for (const auto& mode : control_modes) {
             const auto result = frontend.process("2 tasks и 2 задачи", options_for_mode(mode));
             const auto expected =
-                mode == "segment" ? "two tasks и два задачи" : "два tasks и два задачи";
+                mode == "segment" ? "two tasks и две задачи" : "два tasks и две задачи";
             CHECK(result.original_text == "2 tasks и 2 задачи");
             CHECK(result.normalized_text == expected);
             CHECK(result.pronunciation_text == expected);
@@ -3846,10 +3919,10 @@ int main() {
         const DictionaryObservation dictionary_cases[] = {
             {"book", "книги", "две"},
             {"error", "ошибки", "две"},
-            {"task", "задачи", "два"},
-            {"car", "машины", "два"},
-            {"team", "команды", "два"},
-            {"line", "строки", "два"},
+            {"task", "задачи", "две"},
+            {"car", "машины", "две"},
+            {"team", "команды", "две"},
+            {"line", "строки", "две"},
             {"table", "стола", "два"},
             {"house", "дома", "два"},
             {"file", "файла", "два"},
@@ -3878,6 +3951,290 @@ int main() {
             }
         }
         CHECK(dictionary_ids.size() == 14);
+
+        std::set<std::string> gold_noun_ids;
+        std::set<std::string> gold_numbers;
+        for (const auto& number : noun_agreement_gold::numbers) {
+            CHECK(gold_numbers.insert(number.digits).second);
+            CHECK(number.form < 3);
+        }
+        CHECK(gold_numbers == (std::set<std::string>{"0",
+                                                     "1",
+                                                     "2",
+                                                     "3",
+                                                     "4",
+                                                     "5",
+                                                     "11",
+                                                     "21",
+                                                     "22",
+                                                     "25",
+                                                     "101",
+                                                     "102",
+                                                     "111",
+                                                     "112",
+                                                     "113",
+                                                     "114",
+                                                     "121",
+                                                     "122"}));
+        std::size_t gold_execution_count = 0;
+        for (const auto& noun : noun_agreement_gold::nouns) {
+            CHECK(gold_noun_ids.insert(noun.id).second);
+            const auto gender = static_cast<std::size_t>(noun.gender);
+            CHECK(gender < 3);
+            for (const auto& number : noun_agreement_gold::numbers) {
+                const auto input = std::string(number.digits) + " " + noun.forms[number.form];
+                const auto expected =
+                    std::string(number.words[gender]) + " " + noun.forms[number.form];
+                for (const auto& mode : control_modes) {
+                    const auto result = frontend.process(input, options_for_mode(mode));
+                    if (result.normalized_text != expected ||
+                        result.pronunciation_text != expected || !result.warnings.empty())
+                        std::cerr << "Noun gold: " << noun.id << " / " << number.digits << " / "
+                                  << mode << '\n';
+                    CHECK(result.original_text == input);
+                    CHECK(result.normalized_text == expected);
+                    CHECK(result.pronunciation_text == expected);
+                    CHECK(result.warnings.empty());
+                    ++gold_execution_count;
+                }
+            }
+
+            // The two legacy nouns historically discard -0's sign. New entries
+            // retain the generic numeric path's spoken negative zero instead.
+            const bool legacy = std::string(noun.id) == "book" || std::string(noun.id) == "error";
+            const auto zero_input = std::string("-0 ") + noun.forms[2];
+            const auto zero_expected =
+                std::string(legacy ? "ноль " : "минус ноль ") + noun.forms[2];
+            for (const auto& mode : control_modes) {
+                const auto result = frontend.process(zero_input, options_for_mode(mode));
+                CHECK(result.original_text == zero_input);
+                CHECK(result.normalized_text == zero_expected);
+                CHECK(result.pronunciation_text == zero_expected);
+                CHECK(result.warnings.empty());
+            }
+
+            for (const auto& sign : {std::string(""), std::string("-")}) {
+                const auto input = sign + "2 002 " + noun.forms[1];
+                const auto expected =
+                    std::string(sign.empty() ? "" : "минус ") +
+                    (noun.gender == noun_agreement_gold::Gender::Feminine ? "две тысячи две "
+                                                                          : "две тысячи два ") +
+                    noun.forms[1];
+                for (const auto& mode : control_modes) {
+                    const auto result = frontend.process(input, options_for_mode(mode));
+                    CHECK(result.original_text == input);
+                    CHECK(result.normalized_text == expected);
+                    CHECK(result.pronunciation_text == expected);
+                    CHECK(result.warnings.empty());
+                }
+            }
+            if (!legacy) {
+                for (const auto& sign :
+                     {std::string(""), std::string("+"), std::string("-"), std::string("−")}) {
+                    const auto input = sign + "$2 " + noun.forms[1];
+                    for (const auto& mode : {std::string("ru"),
+                                             std::string("auto"),
+                                             std::string("segment"),
+                                             std::string("en")}) {
+                        auto options = options_for_mode(mode);
+                        if (mode == "en")
+                            options.language = Language::English;
+                        const auto expected = !sign.empty() ? input
+                                              : mode == "ru" || mode == "auto"
+                                                  ? std::string("$два ") + noun.forms[1]
+                                                  : std::string("two dollars ") + noun.forms[1];
+                        const auto result = frontend.process(input, options);
+                        CHECK(result.original_text == input);
+                        CHECK(result.normalized_text == expected);
+                        CHECK(result.pronunciation_text == expected);
+                        CHECK(result.warnings.size() == (sign.empty() ? 0 : 1));
+                        if (!sign.empty()) {
+                            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+                            CHECK(result.warnings.front().offset == 0);
+                            CHECK(result.warnings.front().length == sign.size() + 2);
+                        }
+                    }
+                }
+            }
+
+            // Literal governed-number gold captures compatibility, not approval
+            // of any missing case agreement in the generic baseline.
+            struct GovernedNumber {
+                const char* digits;
+                std::size_t form;
+                const char* generic;
+                const char* legacy_feminine;
+                const char* genitive;
+            };
+            const GovernedNumber governed_numbers[] = {
+                {"1", 0, "один", "одна", nullptr},
+                {"2", 1, "два", "две", "двух"},
+                {"21", 0, "двадцать один", "двадцать одна", nullptr},
+                {"22", 1, "двадцать два", "двадцать две", "двадцати двух"}};
+            for (const auto& governor :
+                 {std::string("до"), std::string("из"), std::string("после"), std::string("за")}) {
+                const bool genitive = governor == "из" || governor == "после";
+                for (const auto& number : governed_numbers) {
+                    const auto input =
+                        governor + " " + number.digits + " " + noun.forms[number.form];
+                    const bool preserved = genitive && number.genitive == nullptr;
+                    const auto expected = preserved ? input
+                                                    : governor + " " +
+                                                          (genitive ? number.genitive
+                                                           : legacy ? number.legacy_feminine
+                                                                    : number.generic) +
+                                                          " " + noun.forms[number.form];
+                    for (const auto& mode : control_modes) {
+                        const auto result = frontend.process(input, options_for_mode(mode));
+                        CHECK(result.original_text == input);
+                        CHECK(result.normalized_text == expected);
+                        CHECK(result.pronunciation_text == expected);
+                        CHECK(result.warnings.size() == (preserved ? 1 : 0));
+                        if (preserved) {
+                            CHECK(result.warnings.front().code == WarningCode::UnresolvedNumber);
+                            CHECK(result.warnings.front().offset == governor.size() + 1);
+                            CHECK(result.warnings.front().length ==
+                                  std::string(number.digits).size());
+                            CHECK(result.warnings.front().message.find('\x01') ==
+                                  std::string::npos);
+                            CHECK(result.warnings.front().message.find('\x02') ==
+                                  std::string::npos);
+                        }
+                    }
+                }
+            }
+
+            struct TechnicalNeighbor {
+                const char* source;
+                const char* pronunciation;
+            };
+            const TechnicalNeighbor technical_neighbors[] = {
+                {"RTX 4090 и ", "эр ти икс сорок девяносто и "},
+                {"C++ и ", "си плюс плюс и "},
+                {"HTTP/2 и ", "аш ти ти пи два и "}};
+            for (const auto& technical : technical_neighbors) {
+                for (const std::size_t number_index : {1U, 2U}) {
+                    const auto& number = noun_agreement_gold::numbers[number_index];
+                    const auto input = std::string(technical.source) + number.digits + " " +
+                                       noun.forms[number.form];
+                    const auto noun_expected =
+                        std::string(number.words[gender]) + " " + noun.forms[number.form];
+                    for (const auto& mode : control_modes) {
+                        const auto result = frontend.process(input, options_for_mode(mode));
+                        CHECK(result.original_text == input);
+                        CHECK(result.normalized_text == technical.source + noun_expected);
+                        CHECK(result.pronunciation_text == technical.pronunciation + noun_expected);
+                        CHECK(result.warnings.size() == (mode == "auto" ? 1 : 0));
+                        if (mode == "auto") {
+                            CHECK(result.warnings.front().code ==
+                                  WarningCode::AmbiguousNormalization);
+                            CHECK(result.warnings.front().offset == 0);
+                            CHECK(result.warnings.front().length == input.size());
+                        }
+                    }
+                }
+            }
+        }
+        CHECK(gold_noun_ids.size() == 14);
+        CHECK(gold_execution_count == 14 * 18 * 3);
+
+        struct MixedCardinal {
+            const char* input;
+            const char* expected;
+        };
+        const MixedCardinal mixed_cardinals[] = {
+            {"OpenAI −2 задачи", "OpenAI −два задачи"},
+            {"OpenAI 2задачи", "OpenAI двазадачи"},
+            {"OpenAI 2 002 задачи", "OpenAI два два задачи"},
+            {"OpenAI до 1 окно", "OpenAI до один окно"},
+            {"OpenAI 2 ошибка", "OpenAI два ошибка"},
+            {"OpenAI 2 ошибки", "OpenAI две ошибки"},
+            {"OpenAI 1 окно", "OpenAI одно окно"},
+            {"OpenAI 2002 задачи", "OpenAI две тысячи две задачи"}};
+        for (const auto& test : mixed_cardinals) {
+            const auto result = frontend.process(test.input, options_for_mode("segment"));
+            CHECK(result.original_text == test.input);
+            CHECK(result.normalized_text == test.expected);
+            CHECK(result.pronunciation_text == test.expected);
+            CHECK(result.warnings.size() == 1);
+            CHECK(result.warnings.front().code == WarningCode::AmbiguousNormalization);
+            CHECK(result.warnings.front().offset == 0);
+            CHECK(result.warnings.front().length == result.original_text.size());
+        }
+
+        struct NumericTechnicalNeighbor {
+            const char* input;
+            const char* segment_expected;
+            std::size_t offset;
+            std::size_t generic_length;
+            std::size_t segment_length;
+        };
+        const NumericTechnicalNeighbor numeric_technical_neighbors[] = {
+            {"v2 101 задача", "v2 сто одна задача", 1, 5, 1},
+            {"id2 101 задача", "id2 сто одна задача", 2, 5, 1},
+            {"v2 102 задачи", "v2 сто две задачи", 1, 5, 1},
+            {"v2 1 задача", "v2 одна задача", 1, 3, 1},
+            {"v2000 101 задача", "v2000 сто одна задача", 1, 8, 4}};
+        for (const auto& test : numeric_technical_neighbors) {
+            for (const auto& mode : {std::string("ru"),
+                                     std::string("auto"),
+                                     std::string("segment"),
+                                     std::string("en")}) {
+                auto options = options_for_mode(mode);
+                if (mode == "en")
+                    options.language = Language::English;
+                const auto result = frontend.process(test.input, options);
+                const auto* expected = mode == "segment" ? test.segment_expected : test.input;
+                CHECK(result.original_text == test.input);
+                CHECK(result.normalized_text == expected);
+                CHECK(result.pronunciation_text == expected);
+                const bool mixed = mode == "auto" || mode == "segment";
+                CHECK(result.warnings.size() == (mixed ? 2 : 1));
+                if (mixed) {
+                    CHECK(result.warnings[0].code == WarningCode::AmbiguousNormalization);
+                    CHECK(result.warnings[0].offset == 0);
+                    CHECK(result.warnings[0].length == result.original_text.size());
+                }
+                const auto& unresolved = result.warnings[mixed ? 1 : 0];
+                CHECK(unresolved.code == WarningCode::UnresolvedNumber);
+                CHECK(unresolved.offset == test.offset);
+                CHECK(unresolved.length ==
+                      (mode == "segment" ? test.segment_length : test.generic_length));
+                for (const auto& warning : result.warnings) {
+                    CHECK(warning.message.find('\x01') == std::string::npos);
+                    CHECK(warning.message.find('\x02') == std::string::npos);
+                }
+            }
+        }
+
+        struct PrefixNegative {
+            const char* input;
+            const char* russian;
+            const char* english;
+        };
+        const PrefixNegative prefix_negatives[] = {
+            {"2 домашних", "два домашних", "two домашних"},
+            {"1 домашних", "один домашних", "one домашних"},
+            {"2 словаря", "два словаря", "two словаря"},
+            {"1 словаря", "один словаря", "one словаря"},
+            {"2 домовой", "два домовой", "two домовой"},
+            {"2 словесных", "два словесных", "two словесных"},
+            {"2 словами", "два словами", "two словами"}};
+        for (const auto& test : prefix_negatives) {
+            for (const auto& mode : {std::string("ru"),
+                                     std::string("auto"),
+                                     std::string("segment"),
+                                     std::string("en")}) {
+                auto options = options_for_mode(mode);
+                if (mode == "en")
+                    options.language = Language::English;
+                const auto result = frontend.process(test.input, options);
+                CHECK(result.original_text == test.input);
+                CHECK(result.normalized_text == (mode == "en" ? test.english : test.russian));
+                CHECK(result.pronunciation_text == (mode == "en" ? test.english : test.russian));
+                CHECK(result.warnings.empty());
+            }
+        }
 
         struct BoundaryCase {
             const char* input;
