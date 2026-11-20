@@ -49,3 +49,93 @@ existing-error-22	existing_exception	22 ошибки	двадцать две о�
 existing-error-25	existing_exception	25 ошибок	двадцать пять ошибок	двадцать пять ошибок	none	existing_exception
 existing-error-00	existing_exception	0 ошибок	ноль ошибок	ноль ошибок	none	existing_exception
 existing-error-11	existing_exception	11 ошибок	одиннадцать ошибок	одиннадцать ошибок	none	existing_exception
+feminine-car-01	feminine	1 машина	один машина	один машина	none	known_policy_gap
+feminine-car-02	feminine	2 машины	два машины	два машины	none	known_policy_gap
+feminine-car-03	feminine	3 машины	три машины	три машины	none	known_policy_gap
+feminine-car-04	feminine	4 машины	четыре машины	четыре машины	none	known_policy_gap
+feminine-car-05	feminine	5 машин	пять машин	пять машин	none	known_policy_gap
+feminine-car-21	feminine	21 машина	двадцать один машина	двадцать один машина	none	known_policy_gap
+feminine-car-22	feminine	22 машины	двадцать два машины	двадцать два машины	none	known_policy_gap
+feminine-car-25	feminine	25 машин	двадцать пять машин	двадцать пять машин	none	known_policy_gap
+feminine-car-00	feminine	0 машин	ноль машин	ноль машин	none	known_policy_gap
+feminine-car-11	feminine	11 машин	одиннадцать машин	одиннадцать машин	none	known_policy_gap
+feminine-team-01	feminine	1 команда	один команда	один команда	none	known_policy_gap
+feminine-team-02	feminine	2 команды	два команды	два команды	none	known_policy_gap
+feminine-team-03	feminine	3 команды	три команды	три команды	none	known_policy_gap
+feminine-team-04	feminine	4 команды	четыре команды	четыре команды	none	known_policy_gap
+feminine-team-05	feminine	5 команд	пять команд	пять команд	none	known_policy_gap
+feminine-team-21	feminine	21 команда	двадцать один команда	двадцать один команда	none	known_policy_gap
+feminine-team-22	feminine	22 команды	двадцать два команды	двадцать два команды	none	known_policy_gap
+feminine-team-25	feminine	25 команд	двадцать пять команд	двадцать пять команд	none	known_policy_gap
+feminine-team-00	feminine	0 команд	ноль команд	ноль команд	none	known_policy_gap
+feminine-team-11	feminine	11 команд	одиннадцать команд	одиннадцать команд	none	known_policy_gap
+feminine-line-01	feminine	1 строка	один строка	один строка	none	known_policy_gap
+feminine-line-02	feminine	2 строки	два строки	два строки	none	known_policy_gap
+feminine-line-03	feminine	3 строки	три строки	три строки	none	known_policy_gap
+feminine-line-04	feminine	4 строки	четыре строки	четыре строки	none	known_policy_gap
+feminine-line-05	feminine	5 строк	пять строк	пять строк	none	known_policy_gap
+feminine-line-21	feminine	21 строка	двадцать один строка	двадцать один строка	none	known_policy_gap
+feminine-line-22	feminine	22 строки	двадцать два строки	двадцать два строки	none	known_policy_gap
+feminine-line-25	feminine	25 строк	двадцать пять строк	двадцать пять строк	none	known_policy_gap
+feminine-line-00	feminine	0 строк	ноль строк	ноль строк	none	known_policy_gap
+feminine-line-11	feminine	11 строк	одиннадцать строк	одиннадцать строк	none	known_policy_gap
+masculine-house-01	masculine	1 дом	один дом	один дом	none	known_policy_gap
+masculine-house-02	masculine	2 дома	два дома	два дома	none	known_policy_gap
+masculine-house-03	masculine	3 дома	три дома	три дома	none	known_policy_gap
+masculine-house-04	masculine	4 дома	четыре дома	четыре дома	none	known_policy_gap
+masculine-house-05	masculine	5 домов	пять домов	пять домов	none	known_policy_gap
+masculine-house-21	masculine	21 дом	двадцать один дом	двадцать один дом	none	known_policy_gap
+masculine-house-22	masculine	22 дома	двадцать два дома	двадцать два дома	none	known_policy_gap
+masculine-house-25	masculine	25 домов	двадцать пять домов	двадцать пять домов	none	known_policy_gap
+masculine-house-00	masculine	0 домов	ноль домов	ноль домов	none	known_policy_gap
+masculine-house-11	masculine	11 домов	одиннадцать домов	одиннадцать домов	none	known_policy_gap
+masculine-file-01	masculine	1 файл	один файл	один файл	none	known_policy_gap
+masculine-file-02	masculine	2 файла	два файла	два файла	none	known_policy_gap
+masculine-file-03	masculine	3 файла	три файла	три файла	none	known_policy_gap
+masculine-file-04	masculine	4 файла	четыре файла	четыре файла	none	known_policy_gap
+masculine-file-05	masculine	5 файлов	пять файлов	пять файлов	none	known_policy_gap
+masculine-file-21	masculine	21 файл	двадцать один файл	двадцать один файл	none	known_policy_gap
+masculine-file-22	masculine	22 файла	двадцать два файла	двадцать два файла	none	known_policy_gap
+masculine-file-25	masculine	25 файлов	двадцать пять файлов	двадцать пять файлов	none	known_policy_gap
+masculine-file-00	masculine	0 файлов	ноль файлов	ноль файлов	none	known_policy_gap
+masculine-file-11	masculine	11 файлов	одиннадцать файлов	одиннадцать файлов	none	known_policy_gap
+masculine-server-01	masculine	1 сервер	один сервер	один сервер	none	known_policy_gap
+masculine-server-02	masculine	2 сервера	два сервера	два сервера	none	known_policy_gap
+masculine-server-03	masculine	3 сервера	три сервера	три сервера	none	known_policy_gap
+masculine-server-04	masculine	4 сервера	четыре сервера	четыре сервера	none	known_policy_gap
+masculine-server-05	masculine	5 серверов	пять серверов	пять серверов	none	known_policy_gap
+masculine-server-21	masculine	21 сервер	двадцать один сервер	двадцать один сервер	none	known_policy_gap
+masculine-server-22	masculine	22 сервера	двадцать два сервера	двадцать два сервера	none	known_policy_gap
+masculine-server-25	masculine	25 серверов	двадцать пять серверов	двадцать пять серверов	none	known_policy_gap
+masculine-server-00	masculine	0 серверов	ноль серверов	ноль серверов	none	known_policy_gap
+masculine-server-11	masculine	11 серверов	одиннадцать серверов	одиннадцать серверов	none	known_policy_gap
+neuter-word-01	neuter	1 слово	один слово	один слово	none	known_policy_gap
+neuter-word-02	neuter	2 слова	два слова	два слова	none	known_policy_gap
+neuter-word-03	neuter	3 слова	три слова	три слова	none	known_policy_gap
+neuter-word-04	neuter	4 слова	четыре слова	четыре слова	none	known_policy_gap
+neuter-word-05	neuter	5 слов	пять слов	пять слов	none	known_policy_gap
+neuter-word-21	neuter	21 слово	двадцать один слово	двадцать один слово	none	known_policy_gap
+neuter-word-22	neuter	22 слова	двадцать два слова	двадцать два слова	none	known_policy_gap
+neuter-word-25	neuter	25 слов	двадцать пять слов	двадцать пять слов	none	known_policy_gap
+neuter-word-00	neuter	0 слов	ноль слов	ноль слов	none	known_policy_gap
+neuter-word-11	neuter	11 слов	одиннадцать слов	одиннадцать слов	none	known_policy_gap
+neuter-place-01	neuter	1 место	один место	один место	none	known_policy_gap
+neuter-place-02	neuter	2 места	два места	два места	none	known_policy_gap
+neuter-place-03	neuter	3 места	три места	три места	none	known_policy_gap
+neuter-place-04	neuter	4 места	четыре места	четыре места	none	known_policy_gap
+neuter-place-05	neuter	5 мест	пять мест	пять мест	none	known_policy_gap
+neuter-place-21	neuter	21 место	двадцать один место	двадцать один место	none	known_policy_gap
+neuter-place-22	neuter	22 места	двадцать два места	двадцать два места	none	known_policy_gap
+neuter-place-25	neuter	25 мест	двадцать пять мест	двадцать пять мест	none	known_policy_gap
+neuter-place-00	neuter	0 мест	ноль мест	ноль мест	none	known_policy_gap
+neuter-place-11	neuter	11 мест	одиннадцать мест	одиннадцать мест	none	known_policy_gap
+neuter-message-01	neuter	1 сообщение	один сообщение	один сообщение	none	known_policy_gap
+neuter-message-02	neuter	2 сообщения	два сообщения	два сообщения	none	known_policy_gap
+neuter-message-03	neuter	3 сообщения	три сообщения	три сообщения	none	known_policy_gap
+neuter-message-04	neuter	4 сообщения	четыре сообщения	четыре сообщения	none	known_policy_gap
+neuter-message-05	neuter	5 сообщений	пять сообщений	пять сообщений	none	known_policy_gap
+neuter-message-21	neuter	21 сообщение	двадцать один сообщение	двадцать один сообщение	none	known_policy_gap
+neuter-message-22	neuter	22 сообщения	двадцать два сообщения	двадцать два сообщения	none	known_policy_gap
+neuter-message-25	neuter	25 сообщений	двадцать пять сообщений	двадцать пять сообщений	none	known_policy_gap
+neuter-message-00	neuter	0 сообщений	ноль сообщений	ноль сообщений	none	known_policy_gap
+neuter-message-11	neuter	11 сообщений	одиннадцать сообщений	одиннадцать сообщений	none	known_policy_gap

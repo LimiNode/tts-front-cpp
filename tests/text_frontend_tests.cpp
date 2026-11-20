@@ -1,3 +1,4 @@
+#include "russian_noun_expansion_cases.hpp"
 #include "tts_front.hpp"
 #include "tts_front/core/normalization_support.hpp"
 #include "tts_front/core/numeric_scanner.hpp"
@@ -3688,6 +3689,23 @@ int main() {
                       "diagnostics\tcontract_status");
         std::set<std::string> ids;
         std::map<std::string, std::size_t> class_counts;
+        const std::map<std::string, std::string> expected_groups = {
+            {"feminine-book", "feminine"},
+            {"existing-error", "existing_exception"},
+            {"feminine-task", "feminine"},
+            {"feminine-car", "feminine"},
+            {"feminine-team", "feminine"},
+            {"feminine-line", "feminine"},
+            {"masculine-table", "masculine"},
+            {"masculine-house", "masculine"},
+            {"masculine-file", "masculine"},
+            {"masculine-server", "masculine"},
+            {"neuter-window", "neuter"},
+            {"neuter-word", "neuter"},
+            {"neuter-place", "neuter"},
+            {"neuter-message", "neuter"}};
+        std::map<std::string, std::set<std::string>> group_numbers;
+        std::map<std::string, std::size_t> status_counts;
         std::size_t case_count = 0;
         const std::set<std::string> expected_numbers = {
             "0", "1", "2", "3", "4", "5", "11", "21", "22", "25"};
@@ -3706,7 +3724,19 @@ int main() {
                   fields[6] == "bounded_behavior");
             const auto space = fields[2].find(' ');
             CHECK(space != std::string::npos);
-            CHECK(expected_numbers.find(fields[2].substr(0, space)) != expected_numbers.end());
+            const auto number = fields[2].substr(0, space);
+            CHECK(expected_numbers.find(number) != expected_numbers.end());
+            const auto separator = fields[0].rfind('-');
+            CHECK(separator != std::string::npos);
+            const auto group = fields[0].substr(0, separator);
+            CHECK(expected_groups.find(group) != expected_groups.end());
+            CHECK(expected_groups.at(group) == fields[1]);
+            CHECK(fields[0].substr(separator + 1) == (number.size() == 1 ? "0" : "") + number);
+            CHECK(group_numbers[group].insert(number).second);
+            CHECK(fields[6] == (group == "feminine-book"    ? "bounded_behavior"
+                                : group == "existing-error" ? "existing_exception"
+                                                            : "known_policy_gap"));
+            ++status_counts[fields[6]];
             ++class_counts[fields[1]];
             ++case_count;
 
@@ -3723,11 +3753,131 @@ int main() {
                 CHECK(result.pronunciation_text.find('\x02') == std::string::npos);
             }
         }
-        CHECK(case_count == 50);
-        CHECK(class_counts["feminine"] == 20);
-        CHECK(class_counts["masculine"] == 10);
-        CHECK(class_counts["neuter"] == 10);
+        CHECK(case_count == 140);
+        CHECK(class_counts["feminine"] == 50);
+        CHECK(class_counts["masculine"] == 40);
+        CHECK(class_counts["neuter"] == 40);
         CHECK(class_counts["existing_exception"] == 10);
+        CHECK(group_numbers.size() == expected_groups.size());
+        for (const auto& group : expected_groups)
+            CHECK(group_numbers.at(group.first) == expected_numbers);
+        CHECK(status_counts["bounded_behavior"] == 10);
+        CHECK(status_counts["existing_exception"] == 10);
+        CHECK(status_counts["known_policy_gap"] == 120);
+
+        const std::array<std::string, 3> control_modes = {"ru", "auto", "segment"};
+        const auto utf8_boundary = [](const std::string& value, std::size_t offset) {
+            return offset <= value.size() &&
+                   (offset == value.size() ||
+                    (static_cast<unsigned char>(value[offset]) & 0xC0U) != 0x80U);
+        };
+        std::set<std::string> control_ids;
+        for (const auto& test : characterization::russian_noun_expansion_controls) {
+            CHECK(control_ids.insert(test.id).second);
+            const std::string input = test.input;
+            for (std::size_t mode = 0; mode < control_modes.size(); ++mode) {
+                const auto result = frontend.process(input, options_for_mode(control_modes[mode]));
+                std::string diagnostics;
+                std::set<std::tuple<WarningCode, std::size_t, std::size_t>> seen;
+                std::vector<std::pair<std::size_t, std::size_t>> unresolved_spans;
+                for (const auto& warning : result.warnings) {
+                    CHECK(warning.code == WarningCode::UnresolvedNumber ||
+                          warning.code == WarningCode::AmbiguousNormalization);
+                    if (!diagnostics.empty())
+                        diagnostics += ';';
+                    diagnostics += warning.code == WarningCode::UnresolvedNumber
+                                       ? "unresolved_number"
+                                       : "ambiguous_normalization";
+                    diagnostics +=
+                        '@' + std::to_string(warning.offset) + ':' + std::to_string(warning.length);
+                    CHECK(warning.offset <= input.size());
+                    CHECK(warning.length <= input.size() - warning.offset);
+                    CHECK(utf8_boundary(input, warning.offset));
+                    CHECK(utf8_boundary(input, warning.offset + warning.length));
+                    CHECK(seen.emplace(warning.code, warning.offset, warning.length).second);
+                    if (warning.code == WarningCode::UnresolvedNumber && warning.length)
+                        unresolved_spans.emplace_back(warning.offset,
+                                                      warning.offset + warning.length);
+                    CHECK(warning.message.find('\x01') == std::string::npos);
+                    CHECK(warning.message.find('\x02') == std::string::npos);
+                }
+                if (diagnostics.empty())
+                    diagnostics = "none";
+                if (result.normalized_text != test.observed_normalized ||
+                    result.pronunciation_text != test.observed_pronunciation ||
+                    diagnostics != test.observed_diagnostics[mode])
+                    std::cerr << "Noun observation: " << test.id << " / " << control_modes[mode]
+                              << " diagnostics: " << diagnostics << '\n';
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text == test.observed_normalized);
+                CHECK(result.pronunciation_text == test.observed_pronunciation);
+                CHECK(diagnostics == test.observed_diagnostics[mode]);
+                CHECK(result.normalized_text.find('\x01') == std::string::npos);
+                CHECK(result.normalized_text.find('\x02') == std::string::npos);
+                CHECK(result.pronunciation_text.find('\x01') == std::string::npos);
+                CHECK(result.pronunciation_text.find('\x02') == std::string::npos);
+                std::sort(unresolved_spans.begin(), unresolved_spans.end());
+                for (std::size_t index = 1; index < unresolved_spans.size(); ++index)
+                    CHECK(unresolved_spans[index - 1].second <= unresolved_spans[index].first);
+            }
+        }
+        CHECK(control_ids.size() == 115);
+
+        for (const auto& mode : control_modes) {
+            const auto result = frontend.process("2 tasks и 2 задачи", options_for_mode(mode));
+            const auto expected =
+                mode == "segment" ? "two tasks и два задачи" : "два tasks и два задачи";
+            CHECK(result.original_text == "2 tasks и 2 задачи");
+            CHECK(result.normalized_text == expected);
+            CHECK(result.pronunciation_text == expected);
+            CHECK(result.warnings.size() == (mode == "ru" ? 0 : 1));
+            if (mode != "ru") {
+                CHECK(result.warnings.front().code == WarningCode::AmbiguousNormalization);
+                CHECK(result.warnings.front().offset == 0);
+                CHECK(result.warnings.front().length == result.original_text.size());
+            }
+        }
+
+        struct DictionaryObservation {
+            const char* id;
+            const char* noun;
+            const char* observed_number;
+        };
+        const DictionaryObservation dictionary_cases[] = {
+            {"book", "книги", "две"},
+            {"error", "ошибки", "две"},
+            {"task", "задачи", "два"},
+            {"car", "машины", "два"},
+            {"team", "команды", "два"},
+            {"line", "строки", "два"},
+            {"table", "стола", "два"},
+            {"house", "дома", "два"},
+            {"file", "файла", "два"},
+            {"server", "сервера", "два"},
+            {"window", "окна", "два"},
+            {"word", "слова", "два"},
+            {"place", "места", "два"},
+            {"message", "сообщения", "два"},
+        };
+        std::set<std::string> dictionary_ids;
+        for (const auto& test : dictionary_cases) {
+            CHECK(dictionary_ids.insert(test.id).second);
+            PronunciationDictionary dictionary;
+            CHECK(dictionary.add_token(test.noun, "произношение пользователя"));
+            for (const auto& mode : control_modes) {
+                auto options = options_for_mode(mode);
+                options.dictionary = &dictionary;
+                const auto input = std::string("2 ") + test.noun;
+                const auto result = frontend.process(input, options);
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text ==
+                      std::string(test.observed_number) + " " + test.noun);
+                CHECK(result.pronunciation_text ==
+                      std::string(test.observed_number) + " произношение пользователя");
+                CHECK(result.warnings.empty());
+            }
+        }
+        CHECK(dictionary_ids.size() == 14);
 
         struct BoundaryCase {
             const char* input;
