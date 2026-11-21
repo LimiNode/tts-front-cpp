@@ -587,10 +587,13 @@ bool is_independent_cardinal_candidate(const Utf8Document& document,
     const auto& points = document.points;
     if (candidate.begin > 0) {
         const auto previous = points[candidate.begin - 1].value;
-        if (text::is_lexical_numeric_boundary(previous) || previous == '+' || previous == '-' ||
-            previous == 0x2212)
+        if (text::is_lexical_numeric_boundary(previous) ||
+            is_continuation_connector(previous, CandidateSurfaceKind::Contextual))
             return false;
     }
+    const auto admission = scan_admission(document, candidate, CandidateSurfaceKind::Contextual);
+    if (admission.extended() && admission.outcome != AdmissionOutcome::Punctuated)
+        return false;
     // A three-digit component after a standalone 1-3 digit head and horizontal whitespace
     // belongs to the earlier grouped surface, not a new cardinal owner.
     if (numeric.sign == NumericSign::None && numeric.digits_end - numeric.digits_begin == 3) {
@@ -611,6 +614,53 @@ bool is_independent_cardinal_candidate(const Utf8Document& document,
         }
     }
     return true;
+}
+
+bool CardinalSourceIndex::contains(const SourceRange source) const {
+    const auto found =
+        std::lower_bound(ranges.begin(),
+                         ranges.end(),
+                         source,
+                         [](const SourceRange& range, const SourceRange& value) {
+                             return range.offset < value.offset ||
+                                    (range.offset == value.offset && range.length < value.length);
+                         });
+    return found != ranges.end() && found->offset == source.offset &&
+           found->length == source.length;
+}
+
+CardinalSourceIndex build_cardinal_source_index(const MappedText& text) {
+    CardinalSourceIndex index;
+    const Utf8Document document(text.text);
+    if (!document.valid)
+        return index;
+    for (std::size_t point = 0; point < document.points.size(); ++point) {
+        if (!is_numeric_surface_start(document, point))
+            continue;
+        const auto candidate =
+            scan_candidate_surface(document, point, CandidateSurfaceKind::Contextual);
+        if (!candidate.valid())
+            continue;
+        if (is_independent_cardinal_candidate(document, candidate)) {
+            const auto core = document.span_from_codepoints(point, candidate.numeric.end);
+            index.ranges.push_back(text.source_range(core.byte_begin, core.byte_end));
+        }
+        point = std::max(point, candidate.end - 1);
+    }
+    std::sort(index.ranges.begin(),
+              index.ranges.end(),
+              [](const SourceRange& left, const SourceRange& right) {
+                  return left.offset < right.offset ||
+                         (left.offset == right.offset && left.length < right.length);
+              });
+    index.ranges.erase(std::unique(index.ranges.begin(),
+                                   index.ranges.end(),
+                                   [](const SourceRange& left, const SourceRange& right) {
+                                       return left.offset == right.offset &&
+                                              left.length == right.length;
+                                   }),
+                       index.ranges.end());
+    return index;
 }
 
 NumericSurfaceIndex build_numeric_surface_index(const Utf8Document& document) {

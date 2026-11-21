@@ -52,7 +52,8 @@ bool is_context_space(const std::uint32_t value) {
 
 bool has_contextual_prefix(const MappedText& source,
                            const std::size_t position,
-                           const std::initializer_list<std::string_view> suffixes) {
+                           const std::initializer_list<std::string_view> suffixes,
+                           const bool ignore_case = false) {
     const auto& text = source.text;
     auto end = position;
     while (end > 0) {
@@ -65,8 +66,27 @@ bool has_contextual_prefix(const MappedText& source,
         end = begin;
     }
     const auto has_suffix = [&](const std::string_view suffix) {
-        if (end < suffix.size() || text.compare(end - suffix.size(), suffix.size(), suffix) != 0)
+        if (end < suffix.size())
             return false;
+        if (text.compare(end - suffix.size(), suffix.size(), suffix) != 0) {
+            if (!ignore_case)
+                return false;
+            // Only the bounded governor spelling is decoded, never the whole prefix.
+            const Utf8Document actual(
+                std::string_view(text).substr(end - suffix.size(), suffix.size()));
+            const Utf8Document expected(suffix);
+            const auto lower = [](const std::uint32_t value) {
+                return value >= 0x0410 && value <= 0x042f ? value + 0x20 : value;
+            };
+            if (!actual.valid || actual.points.size() != expected.points.size() ||
+                !std::equal(actual.points.begin(),
+                            actual.points.end(),
+                            expected.points.begin(),
+                            [&](const Utf8CodePoint& left, const Utf8CodePoint& right) {
+                                return lower(left.value) == lower(right.value);
+                            }))
+                return false;
+        }
         auto boundary = end - suffix.size();
         if (boundary > 0 && text[boundary - 1] == '\x02') {
             const auto marker =
@@ -385,8 +405,7 @@ bool has_legacy_noun_prefix(const std::string_view noun) {
 }
 
 bool has_noun_case_governor(const MappedText& text, const std::size_t begin) {
-    return has_contextual_prefix(
-        text, begin, {"до", "До", "из", "Из", "после", "После", "за", "За"});
+    return has_contextual_prefix(text, begin, {"до", "из", "после", "за"}, true);
 }
 
 std::string noun_number(const long long value, const NounGender gender) {
@@ -442,6 +461,9 @@ void normalize_bounded_nouns(MappedText& text,
     if (!document.valid)
         return;
 
+    // Restore once for admission only; edits still target the shielded text.
+    const auto cardinal_sources =
+        build_cardinal_source_index(technical::restore(text, protected_spans));
     std::vector<SourceEdit> edits;
     for (std::size_t point = 0; point < document.points.size(); ++point) {
         if (!is_numeric_surface_start(document, point))
@@ -509,6 +531,9 @@ void normalize_bounded_nouns(MappedText& text,
         }
         if (!agreement->legacy_surface_policy &&
             (!is_independent_cardinal_candidate(document, candidate) ||
+             !cardinal_sources.contains(text.source_range(
+                 begin,
+                 document.span_from_codepoints(candidate_point, candidate.numeric.end).byte_end)) ||
              has_noun_case_governor(text, begin) ||
              scan_currency_prefix_begin(document, candidate_point) != candidate_point))
             continue;

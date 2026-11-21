@@ -57,9 +57,23 @@ A narrow query in the shared scanner additionally distinguishes independent
 cardinal+noun candidates from attached words, unsupported signs, signed-token
 fragments and raw grouped-number components. Both the Russian and mixed paths
 reuse it; it does not alter the old generic numeric fallback or its diagnostics.
+Attached numeric connectors also disqualify a new cardinal head: the final
+digits of `2.2 задачи` and `1:102 задачи` are not independent integers.
 The raw-group guard requires a non-lexically-attached head: the digit in `v2`
 or `id2` must not suppress an independent following `101 задача` or `102 задачи`.
 This remains a conservative grouping guard, not a general numeric-head parser.
+
+For the late Russian pass, admission uses one unshielded, source-mapped snapshot
+created with the existing restoration helper. The shared scanner records exact
+`(offset, length)` origins of admitted numeral cores; it neither stores whole
+noun phrases nor admits merely overlapping source ranges. Edits still target
+the shielded text. Thus an opaque `#4` tail cannot disappear from admission,
+and collapsed `2 002` retains the same complete source origin. The snapshot is
+decoded once, not per candidate. Index construction sorts/deduplicates the
+origins and lookup uses binary search; no repeated document scan is introduced.
+
+The noun-only governor check is case-insensitive for `до/из/после/за`, including
+mixed case. Existing generic genitive handling is deliberately unchanged.
 
 RU and Auto use the existing Russian pass. Mixed SegmentCandidates passes the
 already scanned local noun and mapped context to its existing number formatter;
@@ -113,6 +127,39 @@ override still wins. Ordered warning codes and UTF-8 spans remain unchanged in
 all these controls. Compound gold adds the same gender changes at 101/102 and
 121/122; 111–114 retain many forms in every gender.
 
+### Admission corrective after review of `10c5cd9`
+
+The original boundary matrix missed attached numeric separators and a protected
+spaced hash tail. Green CI did not establish compatibility for those inputs.
+The corrective preserves these exact main@`5df13c9` observations in RU, Auto
+and SegmentCandidates, without adding or suppressing diagnostics:
+
+| Input | Base and corrected result | Rejected `10c5cd9` result |
+| --- | --- | --- |
+| `2.2 задачи` | `2.2 задачи` | `два.две задачи` |
+| `1:102 задачи` | `1:102 задачи` | `один:сто две задачи` |
+| `ДО 1 окно` | `ДО один окно` | `ДО одно окно` |
+| `2 задачи #4` | `два задачи #4` | `две задачи #4` |
+
+Positive controls remain admitted: `1. 2 задачи` becomes `один. две задачи`,
+and `2 002 задачи` becomes `две тысячи две задачи`. Preservation of unsupported
+neighbors is compatibility evidence, not approval of their missing grammar.
+
+Independent literal boundary gold records both the base and approved current
+readings for 156 inputs in all four modes (624 executions): four signs crossed
+with plain/grouped/currency cores and thirteen end/combining/lexical/punctuation/
+attached/spaced/independent tails. Only twelve positive input rows intentionally
+gain gender in the three Russian modes (36 outputs). All other outputs and all
+ordered diagnostics/spans remain equal to the captured baseline. A further
+828-observation probe includes the review regressions and case variants;
+the original 7,784-observation comparison still has exactly 276 intended gender
+changes and no original-text or ordered-diagnostic/span drift. Gold is separate
+from the production catalog and does not alter historical inventories or oracle.
+
+An adversarial noun/protected-tail probe at 1k/5k/10k/20k segments measured
+0.55/2.74/5.60/11.45 seconds (median of three Release runs): 4.98× for 5× input,
+then 2.04× and 2.04× for each doubling. Both maintained scaling gates also pass.
+
 ## Verification boundary
 
 Direct tests include independent 14 × 18 × 3 gold, governors, prefix negatives,
@@ -144,8 +191,8 @@ natural representative sentences only after behavior review.
 
 ### Separately observed existing defect
 
-`SegmentCandidates("OpenAI +2 задачи")` throws `overlapping or out-of-range
-source edit` on the exact base and on this branch: the old local numeric pass
+`SegmentCandidates("OpenAI +2 задачи")` and the ASCII-minus variant throw
+`overlapping or out-of-range source edit` on the exact base and on this branch: the old local numeric pass
 collects overlapping signed-number edits. This PR neither introduces nor fixes
 that independent defect. A separate corrective must decide the shared signed
 candidate fix and verify the complete boundary matrix; tests here do not bless

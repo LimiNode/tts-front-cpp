@@ -1,3 +1,4 @@
+#include "russian_noun_admission_gold.hpp"
 #include "russian_noun_agreement_gold.hpp"
 #include "russian_noun_expansion_cases.hpp"
 #include "tts_front.hpp"
@@ -38,25 +39,16 @@ int main() {
             std::size_t point;
             bool independent;
         };
-        const CardinalAdmission cases[] = {{"2 задачи", 0, true},
-                                           {"-2 задачи", 0, true},
-                                           {"+2 задачи", 0, false},
-                                           {"+2 задачи", 1, false},
-                                           {"−2 задачи", 0, false},
-                                           {"−2 задачи", 1, false},
-                                           {"2задачи", 0, false},
-                                           {"2 002 задачи", 0, false},
-                                           {"2 002 задачи", 2, false},
-                                           {"2002 задачи", 0, true},
-                                           {"v2 101 задача", 3, true},
-                                           {"id2 102 задачи", 4, true},
-                                           {"v2000 101 задача", 6, true},
-                                           {"2 101 задача", 2, false},
-                                           {"-2 101 задача", 3, false},
-                                           {"+2 101 задача", 3, false},
-                                           {"−2 101 задача", 3, false},
-                                           {"4 2 задачи", 2, true},
-                                           {"2́ задачи", 0, false}};
+        const CardinalAdmission cases[] = {
+            {"2 задачи", 0, true},         {"-2 задачи", 0, true},      {"+2 задачи", 0, false},
+            {"+2 задачи", 1, false},       {"−2 задачи", 0, false},     {"−2 задачи", 1, false},
+            {"2задачи", 0, false},         {"2 002 задачи", 0, false},  {"2 002 задачи", 2, false},
+            {"2002 задачи", 0, true},      {"v2 101 задача", 3, true},  {"id2 102 задачи", 4, true},
+            {"v2000 101 задача", 6, true}, {"2 101 задача", 2, false},  {"-2 101 задача", 3, false},
+            {"+2 101 задача", 3, false},   {"−2 101 задача", 3, false}, {"4 2 задачи", 2, true},
+            {"2.2 задачи", 2, false},      {"1:102 задачи", 2, false},  {".2 задачи", 1, false},
+            {"1. 2 задачи", 3, true},      {"2 задачи #4", 0, false},   {"2 задачи # 4", 0, false},
+            {"2 задачи /4", 0, false},     {"2́ задачи", 0, false}};
         for (const auto& test : cases) {
             const detail::Utf8Document document(test.input);
             const auto candidate = detail::scan_candidate_surface(
@@ -64,6 +56,21 @@ int main() {
             CHECK(detail::is_independent_cardinal_candidate(document, candidate) ==
                   test.independent);
         }
+        const auto source = detail::MappedText::from_original("2 002 задачи", nullptr);
+        const auto collapsed = detail::apply_source_edits(source, {{0, 5, "2002"}});
+        const auto index = detail::build_cardinal_source_index(collapsed);
+        CHECK(index.contains({0, 5}));
+        CHECK(!index.contains({0, 4}));
+        const detail::CardinalSourceIndex aliases{{{0, 1}, {0, 2}}};
+        CHECK(aliases.contains({0, 1}));
+        CHECK(aliases.contains({0, 2}));
+        CHECK(!aliases.contains({0, 3}));
+        const auto continuation = detail::build_cardinal_source_index(
+            detail::MappedText::from_original("2 задачи #4", nullptr));
+        CHECK(!continuation.contains({0, 1}));
+        CHECK(detail::build_cardinal_source_index(
+                  detail::MappedText::from_original("2 задачи \xff", nullptr))
+                  .ranges.empty());
     }
     {
         const tts_front::detail::Utf8Document document("+1e+3#4");
@@ -4184,6 +4191,25 @@ int main() {
                 }
             }
 
+            if (!legacy) {
+                for (const auto* governor :
+                     {"ДО", "дО", "ИЗ", "иЗ", "ПОСЛЕ", "пОсЛе", "ЗА", "зА"}) {
+                    for (const auto& number : governed_numbers) {
+                        const auto input = std::string(governor) + " " + number.digits + " " +
+                                           noun.forms[number.form];
+                        const auto expected = std::string(governor) + " " + number.generic + " " +
+                                              noun.forms[number.form];
+                        for (const auto& mode : control_modes) {
+                            const auto result = frontend.process(input, options_for_mode(mode));
+                            CHECK(result.original_text == input);
+                            CHECK(result.normalized_text == expected);
+                            CHECK(result.pronunciation_text == expected);
+                            CHECK(result.warnings.empty());
+                        }
+                    }
+                }
+            }
+
             struct TechnicalNeighbor {
                 const char* source;
                 const char* pronunciation;
@@ -4222,6 +4248,68 @@ int main() {
             const char* input;
             const char* expected;
         };
+        const std::array<std::string, 4> admission_modes = {"ru", "auto", "segment", "en"};
+        std::size_t admission_executions = 0;
+        std::size_t admission_deltas = 0;
+        for (const auto& test : noun_admission_gold::cases) {
+            for (std::size_t mode = 0; mode < admission_modes.size(); ++mode) {
+                auto options = options_for_mode(admission_modes[mode]);
+                if (admission_modes[mode] == "en")
+                    options.language = Language::English;
+                const auto& expected = noun_admission_gold::readings[test.expected[mode]];
+                const auto& baseline = noun_admission_gold::readings[test.baseline[mode]];
+                const auto result = frontend.process(test.input, options);
+                if (result.normalized_text != expected.text)
+                    std::cerr << "Noun admission: " << test.input << " / " << admission_modes[mode]
+                              << '\n';
+                CHECK(result.original_text == test.input);
+                CHECK(result.normalized_text == expected.text);
+                CHECK(result.pronunciation_text == expected.text);
+                CHECK(result.warnings.size() == expected.diagnostics.size());
+                CHECK(baseline.diagnostics.size() == expected.diagnostics.size());
+                for (std::size_t warning = 0; warning < expected.diagnostics.size(); ++warning) {
+                    const auto& gold = expected.diagnostics[warning];
+                    const auto& old = baseline.diagnostics[warning];
+                    const auto& actual = result.warnings[warning];
+                    CHECK(actual.code == gold.code && old.code == gold.code);
+                    CHECK(actual.offset == gold.offset && old.offset == gold.offset);
+                    CHECK(actual.length == gold.length && old.length == gold.length);
+                    CHECK(actual.message.find('\x01') == std::string::npos);
+                    CHECK(actual.message.find('\x02') == std::string::npos);
+                }
+                admission_deltas += std::string(baseline.text) != expected.text;
+                ++admission_executions;
+            }
+        }
+        CHECK(admission_executions == 156 * 4);
+        CHECK(admission_deltas == 36);
+
+        struct AdmissionRegression {
+            const char* input;
+            const char* russian;
+            const char* english;
+        };
+        const AdmissionRegression admission_regressions[] = {
+            {"2.2 задачи", "2.2 задачи", "two point two задачи"},
+            {"1:102 задачи", "1:102 задачи", "1:102 задачи"},
+            {"ДО 1 окно", "ДО один окно", "ДО one окно"},
+            {"2 задачи #4", "два задачи #4", "two задачи #4"},
+            {"2 задачи # 4", "два задачи # четыре", "two задачи # four"},
+            {"1. 2 задачи", "один. две задачи", "one. two задачи"},
+            {"2 002 задачи", "две тысячи две задачи", "two thousand two задачи"}};
+        for (const auto& test : admission_regressions) {
+            for (const auto& mode : admission_modes) {
+                auto options = options_for_mode(mode);
+                if (mode == "en")
+                    options.language = Language::English;
+                const auto result = frontend.process(test.input, options);
+                const auto* expected = mode == "en" ? test.english : test.russian;
+                CHECK(result.original_text == test.input);
+                CHECK(result.normalized_text == expected);
+                CHECK(result.pronunciation_text == expected);
+                CHECK(result.warnings.empty());
+            }
+        }
         const MixedCardinal mixed_cardinals[] = {
             {"OpenAI −2 задачи", "OpenAI −два задачи"},
             {"OpenAI 2задачи", "OpenAI двазадачи"},

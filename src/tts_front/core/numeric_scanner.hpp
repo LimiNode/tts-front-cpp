@@ -1,6 +1,7 @@
 #pragma once
 
 #include "tts_front/core/candidate_types.hpp"
+#include "tts_front/core/mapped_text.hpp"
 #include "tts_front/core/utf8_document.hpp"
 
 namespace tts_front::detail {
@@ -60,6 +61,16 @@ bool is_numeric_surface_start(const Utf8Document& document, std::size_t begin);
 // Existing generic formatting may still handle those surfaces compatibly.
 bool is_independent_cardinal_candidate(const Utf8Document& document,
                                        const CandidateSurface& candidate);
+
+// Exact numeral origins admitted in an unshielded snapshot. A later pass may
+// use the index after shielding without interpreting opaque marker bytes.
+struct CardinalSourceIndex {
+    std::vector<SourceRange> ranges;
+
+    bool contains(SourceRange source) const;
+};
+
+CardinalSourceIndex build_cardinal_source_index(const MappedText& text);
 
 std::size_t scan_numeric_continuation_points(const Utf8Document& document,
                                              std::size_t start,
