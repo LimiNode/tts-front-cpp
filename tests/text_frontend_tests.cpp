@@ -2027,6 +2027,86 @@ int main() {
         }
     }
     {
+        const auto path = std::string(TTS_FRONT_SOURCE_DIR) +
+                          "/tests/characterization/mixed_signed_number_boundaries.tsv";
+        std::ifstream fixture(path, std::ios::binary);
+        CHECK(fixture.good());
+        std::string line;
+        CHECK(std::getline(fixture, line));
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+        CHECK(line == "mode\tinput\tnormalized_and_pronunciation\tdiagnostics");
+        const auto utf8_boundary = [](const std::string& value, std::size_t offset) {
+            return offset <= value.size() &&
+                   (offset == value.size() ||
+                    (static_cast<unsigned char>(value[offset]) & 0xC0U) != 0x80U);
+        };
+        std::set<std::pair<std::string, std::string>> seen_cases;
+        std::map<std::string, std::size_t> mode_counts;
+        while (std::getline(fixture, line)) {
+            if (!line.empty() && line.back() == '\r')
+                line.pop_back();
+            std::istringstream fields_stream(line);
+            std::vector<std::string> fields;
+            std::string field;
+            while (std::getline(fields_stream, field, '\t'))
+                fields.push_back(field);
+            CHECK(fields.size() == 4);
+            CHECK(seen_cases.emplace(fields[0], fields[1]).second);
+            CHECK(fields[0] == "en" || fields[0] == "ru" || fields[0] == "auto" ||
+                  fields[0] == "segment");
+            TextFrontendOptions options;
+            options.language = fields[0] == "en"   ? Language::English
+                               : fields[0] == "ru" ? Language::Russian
+                                                   : Language::Auto;
+            if (fields[0] == "segment")
+                options.mixed_language_policy = MixedLanguagePolicy::SegmentCandidates;
+            const auto result = frontend.process(fields[1], options);
+            std::string diagnostics;
+            std::set<std::tuple<WarningCode, std::size_t, std::size_t>> seen_warnings;
+            std::vector<std::pair<std::size_t, std::size_t>> unresolved_spans;
+            for (const auto& warning : result.warnings) {
+                CHECK(warning.code == WarningCode::UnresolvedNumber ||
+                      warning.code == WarningCode::AmbiguousNormalization);
+                if (!diagnostics.empty())
+                    diagnostics += ';';
+                diagnostics += std::string(to_string(warning.code)) + '@' +
+                               std::to_string(warning.offset) + ':' +
+                               std::to_string(warning.length);
+                CHECK(warning.offset <= fields[1].size());
+                CHECK(warning.length <= fields[1].size() - warning.offset);
+                CHECK(utf8_boundary(fields[1], warning.offset));
+                CHECK(utf8_boundary(fields[1], warning.offset + warning.length));
+                CHECK(seen_warnings.emplace(warning.code, warning.offset, warning.length).second);
+                if (warning.code == WarningCode::UnresolvedNumber && warning.length)
+                    unresolved_spans.emplace_back(warning.offset, warning.offset + warning.length);
+                CHECK(warning.message.find('\x01') == std::string::npos);
+                CHECK(warning.message.find('\x02') == std::string::npos);
+            }
+            if (diagnostics.empty())
+                diagnostics = "none";
+            if (result.normalized_text != fields[2] || result.pronunciation_text != fields[2] ||
+                diagnostics != fields[3])
+                std::cerr << "Mixed signed-number fixture: " << fields[0] << " / " << fields[1]
+                          << " diagnostics: " << diagnostics << '\n';
+            CHECK(result.original_text == fields[1]);
+            CHECK(result.normalized_text == fields[2]);
+            CHECK(result.pronunciation_text == fields[2]);
+            CHECK(diagnostics == fields[3]);
+            CHECK(result.normalized_text.find('\x01') == std::string::npos);
+            CHECK(result.normalized_text.find('\x02') == std::string::npos);
+            CHECK(result.pronunciation_text.find('\x01') == std::string::npos);
+            CHECK(result.pronunciation_text.find('\x02') == std::string::npos);
+            std::sort(unresolved_spans.begin(), unresolved_spans.end());
+            for (std::size_t index = 1; index < unresolved_spans.size(); ++index)
+                CHECK(unresolved_spans[index - 1].second <= unresolved_spans[index].first);
+            ++mode_counts[fields[0]];
+        }
+        CHECK(seen_cases.size() == 720);
+        for (const auto& mode : {"en", "ru", "auto", "segment"})
+            CHECK(mode_counts[mode] == 180);
+    }
+    {
         const std::string mixed_invalid_input = "Привет hello 99:99";
         const auto mixed_invalid = frontend.process(mixed_invalid_input, TextFrontendOptions{});
         CHECK(mixed_invalid.warnings.size() == 2);

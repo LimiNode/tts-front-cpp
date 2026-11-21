@@ -121,6 +121,8 @@ void collect_local_number_candidates(const MappedText& input,
             continue;
         const auto begin = document.points[point].offset;
         const auto core_end = document.span_from_codepoints(0, candidate.numeric.end).byte_end;
+        // The signed core is one source edit; its first digit is not a second candidate.
+        point = candidate.numeric.end - 1;
         if (overlaps(technical_index.ranges, begin, core_end, technical_cursor) ||
             typed_ranges.overlaps(begin, core_end, typed_cursor) ||
             preserved(input, begin, core_end))
