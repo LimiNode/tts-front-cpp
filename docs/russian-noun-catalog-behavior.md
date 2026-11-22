@@ -1,8 +1,10 @@
 # Bounded Russian noun catalog behavior
 
 This behavior batch follows the project owner's approval of the fourteen-word
-scope after PR #92. Its exact base is PR #92 merge
-`5df13c976febeabcd3c72c05fc2a7025adbf79e0`, whose post-merge CI passed 12/12.
+scope after PR #92. Its current exact base is PR #94 merge
+`3c9714a1133f3226da7b845446289b0736a18571`, whose post-merge
+[CI](https://github.com/LimiNode/tts-front-cpp/actions/runs/45060579429) passed 12/12.
+Historical noun observations were captured at PR #92 merge `5df13c9`.
 It does not approve general morphology or mismatch repair.
 
 ## Contract and provenance
@@ -73,7 +75,9 @@ decoded once, not per candidate. Index construction sorts/deduplicates the
 origins and lookup uses binary search; no repeated document scan is introduced.
 
 The noun-only governor check is case-insensitive for `до/из/после/за`, including
-mixed case. Existing generic genitive handling is deliberately unchanged.
+mixed case and combining acute stress (U+0301). Matching does not remove or
+rewrite source stress marks. Whole-word boundaries still exclude `надо́` and
+`непо́сле`. Existing generic genitive handling is deliberately unchanged.
 
 RU and Auto use the existing Russian pass. Mixed SegmentCandidates passes the
 already scanned local noun and mapped context to its existing number formatter;
@@ -156,6 +160,57 @@ the original 7,784-observation comparison still has exactly 276 intended gender
 changes and no original-text or ordered-diagnostic/span drift. Gold is separate
 from the production catalog and does not alter historical inventories or oracle.
 
+### Integration and terminal-boundary corrective after `54c2f56`
+
+PR #94 is merged first. Its complete signed-token edit is retained: the
+`OpenAI −2 задачи` mixed control now preserves the complete source with
+`AmbiguousNormalization @0:24` followed by `UnresolvedNumber @7:17`.
+Exactly 30 readings in its 720-row direct-test fixture intentionally receive
+the already approved feminine numeral on this noun-catalog branch. No input
+or diagnostic field changes in that fixture; it is not the quality oracle.
+
+The remaining review regressions retain the exact merged-base observations:
+
+| Input | Base and corrected result | Rejected `54c2f56` result |
+| --- | --- | --- |
+| `До́ 1 окно` | `До́ один окно` | `До́ одно окно` |
+| `по́сле 1 окно` | `по́сле один окно` | `по́сле одно окно` |
+| `2 задачи%` | `два задачи%` | `две задачи%` |
+| `2 задачи-` | `два задачи-` | `две задачи-` |
+
+All four rows keep empty diagnostics in RU/Auto/SegmentCandidates. This is
+compatibility, not approval of a grammatical case or a malformed connector.
+The narrow shared cardinal query rejects compound connectors after the lexical
+suffix even when no operand follows, attached or horizontally spaced. It uses
+the existing connector classification; it does not change generic continuation
+consumption or warning spans. Ordinary period/comma/colon and an independent
+next number remain admitted; `1. 2 задачи` and `2 002 задачи` still gain gender.
+
+The independent literal boundary gold adds 264 terminal-connector inputs:
+two prefixes (plain and `OpenAI`), four signs, three plain/grouped/currency
+cores, and eleven attached/spaced terminal tails. Across all four modes these
+1,056 executions retain exact merged-base normalized/pronunciation text and
+ordered diagnostics/spans. Together with the earlier 156 inputs, the matrix
+now has 1,680 executions and still exactly 36 approved gender deltas.
+Accented governors also have direct compound-number and false-prefix controls.
+
+A fresh 2,848-observation base-versus-current probe additionally covers those
+governors, combining marks, ASCII/Cyrillic continuations, punctuation,
+independent numbers and mixed heads. It has 186 approved gender-only text
+deltas, zero exceptions, zero original-text drift and zero ordered diagnostic
+or byte-span drift. No EN output changes. The terminal rows above and all
+actual governor rows retain their baseline. Literal gold is independent of
+the runtime catalog; no expectations are generated from production formatters.
+
+The combined Debug and Release builds and full CTest suites pass 13/13,
+including fixture, header/umbrella, generator/checksum and strict `v0.2.2`
+archive checks. Format-check, install-consumer and both maintained scaling
+gates pass. The 720-row signed fixture has zero mismatches after its 30
+approved gender adaptations; an additional 2,944 signed observations have
+zero exceptions or invariant failures. The noun/protected-tail scaling probe
+now measures 0.47/2.27/4.67/9.74 seconds at 1k/5k/10k/20k segments (median of
+three Release runs), with 4.86x/2.06x/2.08x time ratios.
+
 An adversarial noun/protected-tail probe at 1k/5k/10k/20k segments measured
 0.55/2.74/5.60/11.45 seconds (median of three Release runs): 4.98× for 5× input,
 then 2.04× and 2.04× for each doubling. Both maintained scaling gates also pass.
@@ -191,12 +246,13 @@ natural representative sentences only after behavior review.
 
 ### Separately observed existing defect
 
-`SegmentCandidates("OpenAI +2 задачи")` and the ASCII-minus variant throw
-`overlapping or out-of-range source edit` on the exact base and on this branch: the old local numeric pass
-collects overlapping signed-number edits. This PR neither introduces nor fixes
-that independent defect. A separate corrective must decide the shared signed
-candidate fix and verify the complete boundary matrix; tests here do not bless
-the exception as desired product behavior.
+The signed-edit exceptions are fixed by the merged PR #94, not by this batch.
+The separate inherited no-space-colon case
+`SegmentCandidates("OpenAI:−2 задачи")` still produces `OpenAI:−два задачи`
+with `AmbiguousNormalization @0:24` on the merged base and this branch.
+It is recorded independently in [issue #95](https://github.com/LimiNode/tts-front-cpp/issues/95).
+This partial rewrite is not approved behavior and is not repaired or added to
+the quality oracle by the noun-catalog batch.
 
 The maintained strict `v0.2.2` archive audit passes. Additional strict checks
 of `v0.2.0` and `v0.2.1` report their existing snapshot mismatches on both base
