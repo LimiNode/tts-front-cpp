@@ -4311,7 +4311,7 @@ int main() {
             }
         }
         const MixedCardinal mixed_cardinals[] = {
-            {"OpenAI −2 задачи", "OpenAI −два задачи"},
+            {"OpenAI −2 задачи", "OpenAI −2 задачи"},
             {"OpenAI 2задачи", "OpenAI двазадачи"},
             {"OpenAI 2 002 задачи", "OpenAI два два задачи"},
             {"OpenAI до 1 окно", "OpenAI до один окно"},
@@ -4324,10 +4324,16 @@ int main() {
             CHECK(result.original_text == test.input);
             CHECK(result.normalized_text == test.expected);
             CHECK(result.pronunciation_text == test.expected);
-            CHECK(result.warnings.size() == 1);
+            const bool unicode_minus = std::string(test.input) == "OpenAI −2 задачи";
+            CHECK(result.warnings.size() == (unicode_minus ? 2 : 1));
             CHECK(result.warnings.front().code == WarningCode::AmbiguousNormalization);
             CHECK(result.warnings.front().offset == 0);
             CHECK(result.warnings.front().length == result.original_text.size());
+            if (unicode_minus) {
+                CHECK(result.warnings[1].code == WarningCode::UnresolvedNumber);
+                CHECK(result.warnings[1].offset == 7);
+                CHECK(result.warnings[1].length == 17);
+            }
         }
 
         struct NumericTechnicalNeighbor {
