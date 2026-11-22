@@ -1,0 +1,721 @@
+mode	input	normalized_and_pronunciation	diagnostics
+en	OpenAI 2 задачи	OpenAI two задачи	none
+ru	OpenAI 2 задачи	OpenAI два задачи	none
+auto	OpenAI 2 задачи	OpenAI два задачи	ambiguous_normalization@0:21
+segment	OpenAI 2 задачи	OpenAI два задачи	ambiguous_normalization@0:21
+en	OpenAI 2 задачи́	OpenAI two задачи́	none
+ru	OpenAI 2 задачи́	OpenAI два задачи́	none
+auto	OpenAI 2 задачи́	OpenAI два задачи́	ambiguous_normalization@0:23
+segment	OpenAI 2 задачи́	OpenAI два задачи́	ambiguous_normalization@0:23
+en	OpenAI 2 задачи́ слово	OpenAI two задачи́ слово	none
+ru	OpenAI 2 задачи́ слово	OpenAI два задачи́ слово	none
+auto	OpenAI 2 задачи́ слово	OpenAI два задачи́ слово	ambiguous_normalization@0:34
+segment	OpenAI 2 задачи́ слово	OpenAI два задачи́ слово	ambiguous_normalization@0:34
+en	OpenAI 2 задачиx	OpenAI two задачиx	none
+ru	OpenAI 2 задачиx	OpenAI два задачиx	none
+auto	OpenAI 2 задачиx	OpenAI два задачиx	ambiguous_normalization@0:22
+segment	OpenAI 2 задачиx	OpenAI two задачиx	ambiguous_normalization@0:22
+en	OpenAI 2 задачия	OpenAI two задачия	none
+ru	OpenAI 2 задачия	OpenAI два задачия	none
+auto	OpenAI 2 задачия	OpenAI два задачия	ambiguous_normalization@0:23
+segment	OpenAI 2 задачия	OpenAI два задачия	ambiguous_normalization@0:23
+en	OpenAI 2 задачи,	OpenAI two задачи,	none
+ru	OpenAI 2 задачи,	OpenAI два задачи,	none
+auto	OpenAI 2 задачи,	OpenAI два задачи,	ambiguous_normalization@0:22
+segment	OpenAI 2 задачи,	OpenAI два задачи,	ambiguous_normalization@0:22
+en	OpenAI 2 задачи /4	OpenAI two задачи /four	none
+ru	OpenAI 2 задачи /4	OpenAI два задачи /четыре	none
+auto	OpenAI 2 задачи /4	OpenAI два задачи /четыре	ambiguous_normalization@0:24
+segment	OpenAI 2 задачи /4	OpenAI 2 задачи /4	ambiguous_normalization@0:24;unresolved_number@7:17
+en	OpenAI 2 задачи/4	OpenAI two задачи/4	unresolved_number@22:1
+ru	OpenAI 2 задачи/4	OpenAI 2 задачи/4	unresolved_number@7:16
+auto	OpenAI 2 задачи/4	OpenAI 2 задачи/4	ambiguous_normalization@0:23;unresolved_number@7:16
+segment	OpenAI 2 задачи/4	OpenAI 2 задачи/4	ambiguous_normalization@0:23;unresolved_number@7:16
+en	OpenAI 2 задачи 4	OpenAI two задачи four	none
+ru	OpenAI 2 задачи 4	OpenAI два задачи четыре	none
+auto	OpenAI 2 задачи 4	OpenAI два задачи четыре	ambiguous_normalization@0:23
+segment	OpenAI 2 задачи 4	OpenAI два задачи четыре	ambiguous_normalization@0:23
+en	OpenAI 1 002 задачи	OpenAI one thousand two задачи	none
+ru	OpenAI 1 002 задачи	OpenAI одна тысяча два задачи	none
+auto	OpenAI 1 002 задачи	OpenAI одна тысяча два задачи	ambiguous_normalization@0:25
+segment	OpenAI 1 002 задачи	OpenAI один два задачи	ambiguous_normalization@0:25
+en	OpenAI 1 002 задачи́	OpenAI one thousand two задачи́	none
+ru	OpenAI 1 002 задачи́	OpenAI одна тысяча два задачи́	none
+auto	OpenAI 1 002 задачи́	OpenAI одна тысяча два задачи́	ambiguous_normalization@0:27
+segment	OpenAI 1 002 задачи́	OpenAI один два задачи́	ambiguous_normalization@0:27
+en	OpenAI 1 002 задачи́ слово	OpenAI one thousand two задачи́ слово	none
+ru	OpenAI 1 002 задачи́ слово	OpenAI одна тысяча два задачи́ слово	none
+auto	OpenAI 1 002 задачи́ слово	OpenAI одна тысяча два задачи́ слово	ambiguous_normalization@0:38
+segment	OpenAI 1 002 задачи́ слово	OpenAI один два задачи́ слово	ambiguous_normalization@0:38
+en	OpenAI 1 002 задачиx	OpenAI one thousand two задачиx	none
+ru	OpenAI 1 002 задачиx	OpenAI одна тысяча два задачиx	none
+auto	OpenAI 1 002 задачиx	OpenAI одна тысяча два задачиx	ambiguous_normalization@0:26
+segment	OpenAI 1 002 задачиx	OpenAI one thousand two задачиx	ambiguous_normalization@0:26
+en	OpenAI 1 002 задачия	OpenAI one thousand two задачия	none
+ru	OpenAI 1 002 задачия	OpenAI одна тысяча два задачия	none
+auto	OpenAI 1 002 задачия	OpenAI одна тысяча два задачия	ambiguous_normalization@0:27
+segment	OpenAI 1 002 задачия	OpenAI один два задачия	ambiguous_normalization@0:27
+en	OpenAI 1 002 задачи,	OpenAI one thousand two задачи,	none
+ru	OpenAI 1 002 задачи,	OpenAI одна тысяча два задачи,	none
+auto	OpenAI 1 002 задачи,	OpenAI одна тысяча два задачи,	ambiguous_normalization@0:26
+segment	OpenAI 1 002 задачи,	OpenAI один два задачи,	ambiguous_normalization@0:26
+en	OpenAI 1 002 задачи /4	OpenAI one thousand two задачи /four	none
+ru	OpenAI 1 002 задачи /4	OpenAI одна тысяча два задачи /четыре	none
+auto	OpenAI 1 002 задачи /4	OpenAI одна тысяча два задачи /четыре	ambiguous_normalization@0:28
+segment	OpenAI 1 002 задачи /4	OpenAI один 002 задачи /4	ambiguous_normalization@0:28;unresolved_number@9:19
+en	OpenAI 1 002 задачи/4	OpenAI one thousand two задачи/4	unresolved_number@26:1
+ru	OpenAI 1 002 задачи/4	OpenAI 1002 задачи/4	unresolved_number@7:20
+auto	OpenAI 1 002 задачи/4	OpenAI 1002 задачи/4	ambiguous_normalization@0:27;unresolved_number@7:20
+segment	OpenAI 1 002 задачи/4	OpenAI один 002 задачи/4	ambiguous_normalization@0:27;unresolved_number@9:18
+en	OpenAI 1 002 задачи 4	OpenAI one thousand two задачи four	none
+ru	OpenAI 1 002 задачи 4	OpenAI одна тысяча два задачи четыре	none
+auto	OpenAI 1 002 задачи 4	OpenAI одна тысяча два задачи четыре	ambiguous_normalization@0:27
+segment	OpenAI 1 002 задачи 4	OpenAI один два задачи четыре	ambiguous_normalization@0:27
+en	OpenAI $2 задачи	OpenAI two dollars задачи	none
+ru	OpenAI $2 задачи	OpenAI $два задачи	none
+auto	OpenAI $2 задачи	OpenAI $два задачи	ambiguous_normalization@0:22
+segment	OpenAI $2 задачи	OpenAI two dollars задачи	ambiguous_normalization@0:22
+en	OpenAI $2 задачи́	OpenAI two dollars задачи́	none
+ru	OpenAI $2 задачи́	OpenAI $два задачи́	none
+auto	OpenAI $2 задачи́	OpenAI $два задачи́	ambiguous_normalization@0:24
+segment	OpenAI $2 задачи́	OpenAI two dollars задачи́	ambiguous_normalization@0:24
+en	OpenAI $2 задачи́ слово	OpenAI two dollars задачи́ слово	none
+ru	OpenAI $2 задачи́ слово	OpenAI $два задачи́ слово	none
+auto	OpenAI $2 задачи́ слово	OpenAI $два задачи́ слово	ambiguous_normalization@0:35
+segment	OpenAI $2 задачи́ слово	OpenAI two dollars задачи́ слово	ambiguous_normalization@0:35
+en	OpenAI $2 задачиx	OpenAI two dollars задачиx	none
+ru	OpenAI $2 задачиx	OpenAI $два задачиx	none
+auto	OpenAI $2 задачиx	OpenAI $два задачиx	ambiguous_normalization@0:23
+segment	OpenAI $2 задачиx	OpenAI two dollars задачиx	ambiguous_normalization@0:23
+en	OpenAI $2 задачия	OpenAI two dollars задачия	none
+ru	OpenAI $2 задачия	OpenAI $два задачия	none
+auto	OpenAI $2 задачия	OpenAI $два задачия	ambiguous_normalization@0:24
+segment	OpenAI $2 задачия	OpenAI two dollars задачия	ambiguous_normalization@0:24
+en	OpenAI $2 задачи,	OpenAI two dollars задачи,	none
+ru	OpenAI $2 задачи,	OpenAI $два задачи,	none
+auto	OpenAI $2 задачи,	OpenAI $два задачи,	ambiguous_normalization@0:23
+segment	OpenAI $2 задачи,	OpenAI two dollars задачи,	ambiguous_normalization@0:23
+en	OpenAI $2 задачи /4	OpenAI two dollars задачи /four	none
+ru	OpenAI $2 задачи /4	OpenAI $два задачи /четыре	none
+auto	OpenAI $2 задачи /4	OpenAI $два задачи /четыре	ambiguous_normalization@0:25
+segment	OpenAI $2 задачи /4	OpenAI two dollars задачи /четыре	ambiguous_normalization@0:25
+en	OpenAI $2 задачи/4	OpenAI two dollars задачи/4	unresolved_number@23:1
+ru	OpenAI $2 задачи/4	OpenAI $2 задачи/4	unresolved_number@8:16
+auto	OpenAI $2 задачи/4	OpenAI $2 задачи/4	ambiguous_normalization@0:24;unresolved_number@8:16
+segment	OpenAI $2 задачи/4	OpenAI two dollars задачи/4	ambiguous_normalization@0:24;unresolved_number@23:1
+en	OpenAI $2 задачи 4	OpenAI two dollars задачи four	none
+ru	OpenAI $2 задачи 4	OpenAI $два задачи четыре	none
+auto	OpenAI $2 задачи 4	OpenAI $два задачи четыре	ambiguous_normalization@0:24
+segment	OpenAI $2 задачи 4	OpenAI two dollars задачи четыре	ambiguous_normalization@0:24
+en	OpenAI 2 kg	OpenAI two kilograms	none
+ru	OpenAI 2 kg	OpenAI два kg	none
+auto	OpenAI 2 kg	OpenAI two kilograms	none
+segment	OpenAI 2 kg	OpenAI two kilograms	none
+en	OpenAI 2 kǵ	OpenAI 2 kǵ	unresolved_number@7:6
+ru	OpenAI 2 kǵ	OpenAI 2 kǵ	unresolved_number@7:6
+auto	OpenAI 2 kǵ	OpenAI 2 kǵ	unresolved_number@7:6
+segment	OpenAI 2 kǵ	OpenAI 2 kǵ	unresolved_number@7:6
+en	OpenAI 2 kǵ слово	OpenAI 2 kǵ слово	unresolved_number@7:6
+ru	OpenAI 2 kǵ слово	OpenAI 2 kǵ слово	unresolved_number@7:6
+auto	OpenAI 2 kǵ слово	OpenAI 2 kǵ слово	ambiguous_normalization@0:24;unresolved_number@7:6
+segment	OpenAI 2 kǵ слово	OpenAI 2 kǵ слово	ambiguous_normalization@0:24;unresolved_number@7:6
+en	OpenAI 2 kgx	OpenAI 2 kgx	unresolved_number@7:5
+ru	OpenAI 2 kgx	OpenAI 2 kgx	unresolved_number@7:5
+auto	OpenAI 2 kgx	OpenAI 2 kgx	unresolved_number@7:5
+segment	OpenAI 2 kgx	OpenAI 2 kgx	unresolved_number@7:5
+en	OpenAI 2 kgя	OpenAI 2 kgя	unresolved_number@7:6
+ru	OpenAI 2 kgя	OpenAI 2 kgя	unresolved_number@7:6
+auto	OpenAI 2 kgя	OpenAI 2 kgя	ambiguous_normalization@0:13;unresolved_number@7:6
+segment	OpenAI 2 kgя	OpenAI 2 kgя	ambiguous_normalization@0:13;unresolved_number@7:6
+en	OpenAI 2 kg,	OpenAI two kilograms,	none
+ru	OpenAI 2 kg,	OpenAI два kg,	none
+auto	OpenAI 2 kg,	OpenAI two kilograms,	none
+segment	OpenAI 2 kg,	OpenAI two kilograms,	none
+en	OpenAI 2 kg /4	OpenAI 2 kg /4	unresolved_number@7:7
+ru	OpenAI 2 kg /4	OpenAI 2 kg /4	unresolved_number@7:7
+auto	OpenAI 2 kg /4	OpenAI 2 kg /4	unresolved_number@7:7
+segment	OpenAI 2 kg /4	OpenAI 2 kg /4	unresolved_number@7:7
+en	OpenAI 2 kg/4	OpenAI 2 kg/4	unresolved_number@7:6
+ru	OpenAI 2 kg/4	OpenAI 2 kg/4	unresolved_number@7:6
+auto	OpenAI 2 kg/4	OpenAI 2 kg/4	unresolved_number@7:6
+segment	OpenAI 2 kg/4	OpenAI 2 kg/4	unresolved_number@7:6
+en	OpenAI 2 kg 4	OpenAI two kilograms four	none
+ru	OpenAI 2 kg 4	OpenAI два kg четыре	none
+auto	OpenAI 2 kg 4	OpenAI two kilograms four	none
+segment	OpenAI 2 kg 4	OpenAI two kilograms four	none
+en	OpenAI +2 задачи	OpenAI +2 задачи	unresolved_number@7:15
+ru	OpenAI +2 задачи	OpenAI +2 задачи	unresolved_number@7:15
+auto	OpenAI +2 задачи	OpenAI +2 задачи	ambiguous_normalization@0:22;unresolved_number@7:15
+segment	OpenAI +2 задачи	OpenAI два задачи	ambiguous_normalization@0:22
+en	OpenAI +2 задачи́	OpenAI +2 задачи́	unresolved_number@7:17
+ru	OpenAI +2 задачи́	OpenAI +2 задачи́	unresolved_number@7:17
+auto	OpenAI +2 задачи́	OpenAI +2 задачи́	ambiguous_normalization@0:24;unresolved_number@7:17
+segment	OpenAI +2 задачи́	OpenAI два задачи́	ambiguous_normalization@0:24
+en	OpenAI +2 задачи́ слово	OpenAI +2 задачи́ слово	unresolved_number@7:28
+ru	OpenAI +2 задачи́ слово	OpenAI +2 задачи́ слово	unresolved_number@7:28
+auto	OpenAI +2 задачи́ слово	OpenAI +2 задачи́ слово	ambiguous_normalization@0:35;unresolved_number@7:28
+segment	OpenAI +2 задачи́ слово	OpenAI два задачи́ слово	ambiguous_normalization@0:35
+en	OpenAI +2 задачиx	OpenAI +2 задачиx	unresolved_number@7:16
+ru	OpenAI +2 задачиx	OpenAI +2 задачиx	unresolved_number@7:16
+auto	OpenAI +2 задачиx	OpenAI +2 задачиx	ambiguous_normalization@0:23;unresolved_number@7:16
+segment	OpenAI +2 задачиx	OpenAI +2 задачиx	ambiguous_normalization@0:23;unresolved_number@7:16
+en	OpenAI +2 задачия	OpenAI +2 задачия	unresolved_number@7:17
+ru	OpenAI +2 задачия	OpenAI +2 задачия	unresolved_number@7:17
+auto	OpenAI +2 задачия	OpenAI +2 задачия	ambiguous_normalization@0:24;unresolved_number@7:17
+segment	OpenAI +2 задачия	OpenAI два задачия	ambiguous_normalization@0:24
+en	OpenAI +2 задачи,	OpenAI +2 задачи,	unresolved_number@7:15
+ru	OpenAI +2 задачи,	OpenAI +2 задачи,	unresolved_number@7:15
+auto	OpenAI +2 задачи,	OpenAI +2 задачи,	ambiguous_normalization@0:23;unresolved_number@7:15
+segment	OpenAI +2 задачи,	OpenAI два задачи,	ambiguous_normalization@0:23
+en	OpenAI +2 задачи /4	OpenAI +2 задачи /four	unresolved_number@7:15
+ru	OpenAI +2 задачи /4	OpenAI +2 задачи /четыре	unresolved_number@7:15
+auto	OpenAI +2 задачи /4	OpenAI +2 задачи /четыре	ambiguous_normalization@0:25;unresolved_number@7:15
+segment	OpenAI +2 задачи /4	OpenAI +2 задачи /4	ambiguous_normalization@0:25;unresolved_number@7:18
+en	OpenAI +2 задачи/4	OpenAI +2 задачи/4	unresolved_number@7:15;unresolved_number@23:1
+ru	OpenAI +2 задачи/4	OpenAI +2 задачи/4	unresolved_number@7:15;unresolved_number@23:1
+auto	OpenAI +2 задачи/4	OpenAI +2 задачи/4	ambiguous_normalization@0:24;unresolved_number@7:15;unresolved_number@23:1
+segment	OpenAI +2 задачи/4	OpenAI +2 задачи/4	ambiguous_normalization@0:24;unresolved_number@7:17
+en	OpenAI +2 задачи 4	OpenAI +2 задачи four	unresolved_number@7:15
+ru	OpenAI +2 задачи 4	OpenAI +2 задачи четыре	unresolved_number@7:15
+auto	OpenAI +2 задачи 4	OpenAI +2 задачи четыре	ambiguous_normalization@0:24;unresolved_number@7:15
+segment	OpenAI +2 задачи 4	OpenAI два задачи четыре	ambiguous_normalization@0:24
+en	OpenAI +1 002 задачи	OpenAI +1 002 задачи	unresolved_number@7:6
+ru	OpenAI +1 002 задачи	OpenAI +1 002 задачи	unresolved_number@7:6
+auto	OpenAI +1 002 задачи	OpenAI +1 002 задачи	ambiguous_normalization@0:26;unresolved_number@7:6
+segment	OpenAI +1 002 задачи	OpenAI +1 два задачи	ambiguous_normalization@0:26;unresolved_number@7:6
+en	OpenAI +1 002 задачи́	OpenAI +1 002 задачи́	unresolved_number@7:6
+ru	OpenAI +1 002 задачи́	OpenAI +1 002 задачи́	unresolved_number@7:6
+auto	OpenAI +1 002 задачи́	OpenAI +1 002 задачи́	ambiguous_normalization@0:28;unresolved_number@7:6
+segment	OpenAI +1 002 задачи́	OpenAI +1 два задачи́	ambiguous_normalization@0:28;unresolved_number@7:6
+en	OpenAI +1 002 задачи́ слово	OpenAI +1 002 задачи́ слово	unresolved_number@7:6
+ru	OpenAI +1 002 задачи́ слово	OpenAI +1 002 задачи́ слово	unresolved_number@7:6
+auto	OpenAI +1 002 задачи́ слово	OpenAI +1 002 задачи́ слово	ambiguous_normalization@0:39;unresolved_number@7:6
+segment	OpenAI +1 002 задачи́ слово	OpenAI +1 два задачи́ слово	ambiguous_normalization@0:39;unresolved_number@7:6
+en	OpenAI +1 002 задачиx	OpenAI +1 002 задачиx	unresolved_number@7:6
+ru	OpenAI +1 002 задачиx	OpenAI +1 002 задачиx	unresolved_number@7:6
+auto	OpenAI +1 002 задачиx	OpenAI +1 002 задачиx	ambiguous_normalization@0:27;unresolved_number@7:6
+segment	OpenAI +1 002 задачиx	OpenAI +1 002 задачиx	ambiguous_normalization@0:27;unresolved_number@7:6
+en	OpenAI +1 002 задачия	OpenAI +1 002 задачия	unresolved_number@7:6
+ru	OpenAI +1 002 задачия	OpenAI +1 002 задачия	unresolved_number@7:6
+auto	OpenAI +1 002 задачия	OpenAI +1 002 задачия	ambiguous_normalization@0:28;unresolved_number@7:6
+segment	OpenAI +1 002 задачия	OpenAI +1 два задачия	ambiguous_normalization@0:28;unresolved_number@7:6
+en	OpenAI +1 002 задачи,	OpenAI +1 002 задачи,	unresolved_number@7:6
+ru	OpenAI +1 002 задачи,	OpenAI +1 002 задачи,	unresolved_number@7:6
+auto	OpenAI +1 002 задачи,	OpenAI +1 002 задачи,	ambiguous_normalization@0:27;unresolved_number@7:6
+segment	OpenAI +1 002 задачи,	OpenAI +1 два задачи,	ambiguous_normalization@0:27;unresolved_number@7:6
+en	OpenAI +1 002 задачи /4	OpenAI +1 002 задачи /four	unresolved_number@7:6
+ru	OpenAI +1 002 задачи /4	OpenAI +1 002 задачи /четыре	unresolved_number@7:6
+auto	OpenAI +1 002 задачи /4	OpenAI +1 002 задачи /четыре	ambiguous_normalization@0:29;unresolved_number@7:6
+segment	OpenAI +1 002 задачи /4	OpenAI +один 002 задачи /4	ambiguous_normalization@0:29;unresolved_number@10:19
+en	OpenAI +1 002 задачи/4	OpenAI +1 002 задачи/4	unresolved_number@7:6;unresolved_number@27:1
+ru	OpenAI +1 002 задачи/4	OpenAI +1 002 задачи/4	unresolved_number@7:6;unresolved_number@27:1
+auto	OpenAI +1 002 задачи/4	OpenAI +1 002 задачи/4	ambiguous_normalization@0:28;unresolved_number@7:6;unresolved_number@27:1
+segment	OpenAI +1 002 задачи/4	OpenAI +один 002 задачи/4	ambiguous_normalization@0:28;unresolved_number@10:18
+en	OpenAI +1 002 задачи 4	OpenAI +1 002 задачи four	unresolved_number@7:6
+ru	OpenAI +1 002 задачи 4	OpenAI +1 002 задачи четыре	unresolved_number@7:6
+auto	OpenAI +1 002 задачи 4	OpenAI +1 002 задачи четыре	ambiguous_normalization@0:28;unresolved_number@7:6
+segment	OpenAI +1 002 задачи 4	OpenAI +1 два задачи четыре	ambiguous_normalization@0:28;unresolved_number@7:6
+en	OpenAI +$2 задачи	OpenAI +$2 задачи	unresolved_number@7:3
+ru	OpenAI +$2 задачи	OpenAI +$2 задачи	unresolved_number@7:3
+auto	OpenAI +$2 задачи	OpenAI +$2 задачи	ambiguous_normalization@0:23;unresolved_number@7:3
+segment	OpenAI +$2 задачи	OpenAI +$2 задачи	ambiguous_normalization@0:23;unresolved_number@7:3
+en	OpenAI +$2 задачи́	OpenAI +$2 задачи́	unresolved_number@7:3
+ru	OpenAI +$2 задачи́	OpenAI +$2 задачи́	unresolved_number@7:3
+auto	OpenAI +$2 задачи́	OpenAI +$2 задачи́	ambiguous_normalization@0:25;unresolved_number@7:3
+segment	OpenAI +$2 задачи́	OpenAI +$2 задачи́	ambiguous_normalization@0:25;unresolved_number@7:3
+en	OpenAI +$2 задачи́ слово	OpenAI +$2 задачи́ слово	unresolved_number@7:3
+ru	OpenAI +$2 задачи́ слово	OpenAI +$2 задачи́ слово	unresolved_number@7:3
+auto	OpenAI +$2 задачи́ слово	OpenAI +$2 задачи́ слово	ambiguous_normalization@0:36;unresolved_number@7:3
+segment	OpenAI +$2 задачи́ слово	OpenAI +$2 задачи́ слово	ambiguous_normalization@0:36;unresolved_number@7:3
+en	OpenAI +$2 задачиx	OpenAI +$2 задачиx	unresolved_number@7:3
+ru	OpenAI +$2 задачиx	OpenAI +$2 задачиx	unresolved_number@7:3
+auto	OpenAI +$2 задачиx	OpenAI +$2 задачиx	ambiguous_normalization@0:24;unresolved_number@7:3
+segment	OpenAI +$2 задачиx	OpenAI +$2 задачиx	ambiguous_normalization@0:24;unresolved_number@7:3
+en	OpenAI +$2 задачия	OpenAI +$2 задачия	unresolved_number@7:3
+ru	OpenAI +$2 задачия	OpenAI +$2 задачия	unresolved_number@7:3
+auto	OpenAI +$2 задачия	OpenAI +$2 задачия	ambiguous_normalization@0:25;unresolved_number@7:3
+segment	OpenAI +$2 задачия	OpenAI +$2 задачия	ambiguous_normalization@0:25;unresolved_number@7:3
+en	OpenAI +$2 задачи,	OpenAI +$2 задачи,	unresolved_number@7:3
+ru	OpenAI +$2 задачи,	OpenAI +$2 задачи,	unresolved_number@7:3
+auto	OpenAI +$2 задачи,	OpenAI +$2 задачи,	ambiguous_normalization@0:24;unresolved_number@7:3
+segment	OpenAI +$2 задачи,	OpenAI +$2 задачи,	ambiguous_normalization@0:24;unresolved_number@7:3
+en	OpenAI +$2 задачи /4	OpenAI +$2 задачи /four	unresolved_number@7:3
+ru	OpenAI +$2 задачи /4	OpenAI +$2 задачи /четыре	unresolved_number@7:3
+auto	OpenAI +$2 задачи /4	OpenAI +$2 задачи /четыре	ambiguous_normalization@0:26;unresolved_number@7:3
+segment	OpenAI +$2 задачи /4	OpenAI +$2 задачи /четыре	ambiguous_normalization@0:26;unresolved_number@7:3
+en	OpenAI +$2 задачи/4	OpenAI +$2 задачи/4	unresolved_number@7:3;unresolved_number@24:1
+ru	OpenAI +$2 задачи/4	OpenAI +$2 задачи/4	unresolved_number@7:3;unresolved_number@24:1
+auto	OpenAI +$2 задачи/4	OpenAI +$2 задачи/4	ambiguous_normalization@0:25;unresolved_number@7:3;unresolved_number@24:1
+segment	OpenAI +$2 задачи/4	OpenAI +$2 задачи/4	ambiguous_normalization@0:25;unresolved_number@7:3;unresolved_number@24:1
+en	OpenAI +$2 задачи 4	OpenAI +$2 задачи four	unresolved_number@7:3
+ru	OpenAI +$2 задачи 4	OpenAI +$2 задачи четыре	unresolved_number@7:3
+auto	OpenAI +$2 задачи 4	OpenAI +$2 задачи четыре	ambiguous_normalization@0:25;unresolved_number@7:3
+segment	OpenAI +$2 задачи 4	OpenAI +$2 задачи четыре	ambiguous_normalization@0:25;unresolved_number@7:3
+en	OpenAI +2 kg	OpenAI +2 kg	unresolved_number@7:5
+ru	OpenAI +2 kg	OpenAI +2 kg	unresolved_number@7:5
+auto	OpenAI +2 kg	OpenAI +2 kg	unresolved_number@7:5
+segment	OpenAI +2 kg	OpenAI +2 kg	unresolved_number@7:5
+en	OpenAI +2 kǵ	OpenAI +2 kǵ	unresolved_number@8:6
+ru	OpenAI +2 kǵ	OpenAI +2 kǵ	unresolved_number@8:6
+auto	OpenAI +2 kǵ	OpenAI +2 kǵ	unresolved_number@8:6
+segment	OpenAI +2 kǵ	OpenAI +2 kǵ	unresolved_number@8:6
+en	OpenAI +2 kǵ слово	OpenAI +2 kǵ слово	unresolved_number@8:6
+ru	OpenAI +2 kǵ слово	OpenAI +2 kǵ слово	unresolved_number@8:6
+auto	OpenAI +2 kǵ слово	OpenAI +2 kǵ слово	ambiguous_normalization@0:25;unresolved_number@8:6
+segment	OpenAI +2 kǵ слово	OpenAI +2 kǵ слово	ambiguous_normalization@0:25;unresolved_number@7:7
+en	OpenAI +2 kgx	OpenAI +2 kgx	unresolved_number@7:6
+ru	OpenAI +2 kgx	OpenAI +2 kgx	unresolved_number@8:5
+auto	OpenAI +2 kgx	OpenAI +2 kgx	unresolved_number@7:6
+segment	OpenAI +2 kgx	OpenAI +2 kgx	unresolved_number@7:6
+en	OpenAI +2 kgя	OpenAI +2 kgя	unresolved_number@8:6
+ru	OpenAI +2 kgя	OpenAI +2 kgя	unresolved_number@8:6
+auto	OpenAI +2 kgя	OpenAI +2 kgя	ambiguous_normalization@0:14;unresolved_number@8:6
+segment	OpenAI +2 kgя	OpenAI +2 kgя	ambiguous_normalization@0:14;unresolved_number@7:7
+en	OpenAI +2 kg,	OpenAI +2 kg,	unresolved_number@7:5
+ru	OpenAI +2 kg,	OpenAI +2 kg,	unresolved_number@7:5
+auto	OpenAI +2 kg,	OpenAI +2 kg,	unresolved_number@7:5
+segment	OpenAI +2 kg,	OpenAI +2 kg,	unresolved_number@7:5
+en	OpenAI +2 kg /4	OpenAI +2 kg /4	unresolved_number@8:7
+ru	OpenAI +2 kg /4	OpenAI +2 kg /4	unresolved_number@8:7
+auto	OpenAI +2 kg /4	OpenAI +2 kg /4	unresolved_number@8:7
+segment	OpenAI +2 kg /4	OpenAI +2 kg /4	unresolved_number@8:7
+en	OpenAI +2 kg/4	OpenAI +2 kg/4	unresolved_number@8:6
+ru	OpenAI +2 kg/4	OpenAI +2 kg/4	unresolved_number@8:6
+auto	OpenAI +2 kg/4	OpenAI +2 kg/4	unresolved_number@8:6
+segment	OpenAI +2 kg/4	OpenAI +2 kg/4	unresolved_number@8:6
+en	OpenAI +2 kg 4	OpenAI +2 kg four	unresolved_number@7:5
+ru	OpenAI +2 kg 4	OpenAI +2 kg четыре	unresolved_number@7:5
+auto	OpenAI +2 kg 4	OpenAI +2 kg four	unresolved_number@7:5
+segment	OpenAI +2 kg 4	OpenAI +2 kg four	unresolved_number@7:5
+en	OpenAI -2 задачи	OpenAI minus two задачи	none
+ru	OpenAI -2 задачи	OpenAI минус два задачи	none
+auto	OpenAI -2 задачи	OpenAI минус два задачи	ambiguous_normalization@0:22
+segment	OpenAI -2 задачи	OpenAI минус два задачи	ambiguous_normalization@0:22
+en	OpenAI -2 задачи́	OpenAI -2 задачи́	unresolved_number@7:17
+ru	OpenAI -2 задачи́	OpenAI -2 задачи́	unresolved_number@7:17
+auto	OpenAI -2 задачи́	OpenAI -2 задачи́	ambiguous_normalization@0:24;unresolved_number@7:17
+segment	OpenAI -2 задачи́	OpenAI минус два задачи́	ambiguous_normalization@0:24
+en	OpenAI -2 задачи́ слово	OpenAI -2 задачи́ слово	unresolved_number@7:17
+ru	OpenAI -2 задачи́ слово	OpenAI -2 задачи́ слово	unresolved_number@7:17
+auto	OpenAI -2 задачи́ слово	OpenAI -2 задачи́ слово	ambiguous_normalization@0:35;unresolved_number@7:17
+segment	OpenAI -2 задачи́ слово	OpenAI минус два задачи́ слово	ambiguous_normalization@0:35
+en	OpenAI -2 задачиx	OpenAI minus two задачиx	none
+ru	OpenAI -2 задачиx	OpenAI минус два задачиx	none
+auto	OpenAI -2 задачиx	OpenAI минус два задачиx	ambiguous_normalization@0:23
+segment	OpenAI -2 задачиx	OpenAI minus two задачиx	ambiguous_normalization@0:23
+en	OpenAI -2 задачия	OpenAI minus two задачия	none
+ru	OpenAI -2 задачия	OpenAI минус два задачия	none
+auto	OpenAI -2 задачия	OpenAI минус два задачия	ambiguous_normalization@0:24
+segment	OpenAI -2 задачия	OpenAI минус два задачия	ambiguous_normalization@0:24
+en	OpenAI -2 задачи,	OpenAI minus two задачи,	none
+ru	OpenAI -2 задачи,	OpenAI минус два задачи,	none
+auto	OpenAI -2 задачи,	OpenAI минус два задачи,	ambiguous_normalization@0:23
+segment	OpenAI -2 задачи,	OpenAI минус два задачи,	ambiguous_normalization@0:23
+en	OpenAI -2 задачи /4	OpenAI minus two задачи /four	none
+ru	OpenAI -2 задачи /4	OpenAI минус два задачи /четыре	none
+auto	OpenAI -2 задачи /4	OpenAI минус два задачи /четыре	ambiguous_normalization@0:25
+segment	OpenAI -2 задачи /4	OpenAI -2 задачи /4	ambiguous_normalization@0:25;unresolved_number@7:18
+en	OpenAI -2 задачи/4	OpenAI minus two задачи/4	unresolved_number@23:1
+ru	OpenAI -2 задачи/4	OpenAI -2 задачи/4	unresolved_number@7:17
+auto	OpenAI -2 задачи/4	OpenAI -2 задачи/4	ambiguous_normalization@0:24;unresolved_number@7:17
+segment	OpenAI -2 задачи/4	OpenAI -2 задачи/4	ambiguous_normalization@0:24;unresolved_number@7:17
+en	OpenAI -2 задачи 4	OpenAI minus two задачи four	none
+ru	OpenAI -2 задачи 4	OpenAI минус два задачи четыре	none
+auto	OpenAI -2 задачи 4	OpenAI минус два задачи четыре	ambiguous_normalization@0:24
+segment	OpenAI -2 задачи 4	OpenAI минус два задачи четыре	ambiguous_normalization@0:24
+en	OpenAI -1 002 задачи	OpenAI minus one thousand two задачи	none
+ru	OpenAI -1 002 задачи	OpenAI минус одна тысяча два задачи	none
+auto	OpenAI -1 002 задачи	OpenAI минус одна тысяча два задачи	ambiguous_normalization@0:26
+segment	OpenAI -1 002 задачи	OpenAI минус один два задачи	ambiguous_normalization@0:26
+en	OpenAI -1 002 задачи́	OpenAI -1 002 задачи́	unresolved_number@7:21
+ru	OpenAI -1 002 задачи́	OpenAI -1 002 задачи́	unresolved_number@7:21
+auto	OpenAI -1 002 задачи́	OpenAI -1 002 задачи́	ambiguous_normalization@0:28;unresolved_number@7:21
+segment	OpenAI -1 002 задачи́	OpenAI минус один два задачи́	ambiguous_normalization@0:28
+en	OpenAI -1 002 задачи́ слово	OpenAI -1 002 задачи́ слово	unresolved_number@7:21
+ru	OpenAI -1 002 задачи́ слово	OpenAI -1 002 задачи́ слово	unresolved_number@7:21
+auto	OpenAI -1 002 задачи́ слово	OpenAI -1 002 задачи́ слово	ambiguous_normalization@0:39;unresolved_number@7:21
+segment	OpenAI -1 002 задачи́ слово	OpenAI минус один два задачи́ слово	ambiguous_normalization@0:39
+en	OpenAI -1 002 задачиx	OpenAI minus one thousand two задачиx	none
+ru	OpenAI -1 002 задачиx	OpenAI минус одна тысяча два задачиx	none
+auto	OpenAI -1 002 задачиx	OpenAI минус одна тысяча два задачиx	ambiguous_normalization@0:27
+segment	OpenAI -1 002 задачиx	OpenAI minus one thousand two задачиx	ambiguous_normalization@0:27
+en	OpenAI -1 002 задачия	OpenAI minus one thousand two задачия	none
+ru	OpenAI -1 002 задачия	OpenAI минус одна тысяча два задачия	none
+auto	OpenAI -1 002 задачия	OpenAI минус одна тысяча два задачия	ambiguous_normalization@0:28
+segment	OpenAI -1 002 задачия	OpenAI минус один два задачия	ambiguous_normalization@0:28
+en	OpenAI -1 002 задачи,	OpenAI minus one thousand two задачи,	none
+ru	OpenAI -1 002 задачи,	OpenAI минус одна тысяча два задачи,	none
+auto	OpenAI -1 002 задачи,	OpenAI минус одна тысяча два задачи,	ambiguous_normalization@0:27
+segment	OpenAI -1 002 задачи,	OpenAI минус один два задачи,	ambiguous_normalization@0:27
+en	OpenAI -1 002 задачи /4	OpenAI minus one thousand two задачи /four	none
+ru	OpenAI -1 002 задачи /4	OpenAI минус одна тысяча два задачи /четыре	none
+auto	OpenAI -1 002 задачи /4	OpenAI минус одна тысяча два задачи /четыре	ambiguous_normalization@0:29
+segment	OpenAI -1 002 задачи /4	OpenAI минус один 002 задачи /4	ambiguous_normalization@0:29;unresolved_number@10:19
+en	OpenAI -1 002 задачи/4	OpenAI minus one thousand two задачи/4	unresolved_number@27:1
+ru	OpenAI -1 002 задачи/4	OpenAI -1002 задачи/4	unresolved_number@7:21
+auto	OpenAI -1 002 задачи/4	OpenAI -1002 задачи/4	ambiguous_normalization@0:28;unresolved_number@7:21
+segment	OpenAI -1 002 задачи/4	OpenAI минус один 002 задачи/4	ambiguous_normalization@0:28;unresolved_number@10:18
+en	OpenAI -1 002 задачи 4	OpenAI minus one thousand two задачи four	none
+ru	OpenAI -1 002 задачи 4	OpenAI минус одна тысяча два задачи четыре	none
+auto	OpenAI -1 002 задачи 4	OpenAI минус одна тысяча два задачи четыре	ambiguous_normalization@0:28
+segment	OpenAI -1 002 задачи 4	OpenAI минус один два задачи четыре	ambiguous_normalization@0:28
+en	OpenAI -$2 задачи	OpenAI -$2 задачи	unresolved_number@7:3
+ru	OpenAI -$2 задачи	OpenAI -$2 задачи	unresolved_number@7:3
+auto	OpenAI -$2 задачи	OpenAI -$2 задачи	ambiguous_normalization@0:23;unresolved_number@7:3
+segment	OpenAI -$2 задачи	OpenAI -$2 задачи	ambiguous_normalization@0:23;unresolved_number@7:3
+en	OpenAI -$2 задачи́	OpenAI -$2 задачи́	unresolved_number@7:3
+ru	OpenAI -$2 задачи́	OpenAI -$2 задачи́	unresolved_number@7:3
+auto	OpenAI -$2 задачи́	OpenAI -$2 задачи́	ambiguous_normalization@0:25;unresolved_number@7:3
+segment	OpenAI -$2 задачи́	OpenAI -$2 задачи́	ambiguous_normalization@0:25;unresolved_number@7:3
+en	OpenAI -$2 задачи́ слово	OpenAI -$2 задачи́ слово	unresolved_number@7:3
+ru	OpenAI -$2 задачи́ слово	OpenAI -$2 задачи́ слово	unresolved_number@7:3
+auto	OpenAI -$2 задачи́ слово	OpenAI -$2 задачи́ слово	ambiguous_normalization@0:36;unresolved_number@7:3
+segment	OpenAI -$2 задачи́ слово	OpenAI -$2 задачи́ слово	ambiguous_normalization@0:36;unresolved_number@7:3
+en	OpenAI -$2 задачиx	OpenAI -$2 задачиx	unresolved_number@7:3
+ru	OpenAI -$2 задачиx	OpenAI -$2 задачиx	unresolved_number@7:3
+auto	OpenAI -$2 задачиx	OpenAI -$2 задачиx	ambiguous_normalization@0:24;unresolved_number@7:3
+segment	OpenAI -$2 задачиx	OpenAI -$2 задачиx	ambiguous_normalization@0:24;unresolved_number@7:3
+en	OpenAI -$2 задачия	OpenAI -$2 задачия	unresolved_number@7:3
+ru	OpenAI -$2 задачия	OpenAI -$2 задачия	unresolved_number@7:3
+auto	OpenAI -$2 задачия	OpenAI -$2 задачия	ambiguous_normalization@0:25;unresolved_number@7:3
+segment	OpenAI -$2 задачия	OpenAI -$2 задачия	ambiguous_normalization@0:25;unresolved_number@7:3
+en	OpenAI -$2 задачи,	OpenAI -$2 задачи,	unresolved_number@7:3
+ru	OpenAI -$2 задачи,	OpenAI -$2 задачи,	unresolved_number@7:3
+auto	OpenAI -$2 задачи,	OpenAI -$2 задачи,	ambiguous_normalization@0:24;unresolved_number@7:3
+segment	OpenAI -$2 задачи,	OpenAI -$2 задачи,	ambiguous_normalization@0:24;unresolved_number@7:3
+en	OpenAI -$2 задачи /4	OpenAI -$2 задачи /four	unresolved_number@7:3
+ru	OpenAI -$2 задачи /4	OpenAI -$2 задачи /четыре	unresolved_number@7:3
+auto	OpenAI -$2 задачи /4	OpenAI -$2 задачи /четыре	ambiguous_normalization@0:26;unresolved_number@7:3
+segment	OpenAI -$2 задачи /4	OpenAI -$2 задачи /четыре	ambiguous_normalization@0:26;unresolved_number@7:3
+en	OpenAI -$2 задачи/4	OpenAI -$2 задачи/4	unresolved_number@7:3;unresolved_number@24:1
+ru	OpenAI -$2 задачи/4	OpenAI -$2 задачи/4	unresolved_number@7:3;unresolved_number@24:1
+auto	OpenAI -$2 задачи/4	OpenAI -$2 задачи/4	ambiguous_normalization@0:25;unresolved_number@7:3;unresolved_number@24:1
+segment	OpenAI -$2 задачи/4	OpenAI -$2 задачи/4	ambiguous_normalization@0:25;unresolved_number@7:3;unresolved_number@24:1
+en	OpenAI -$2 задачи 4	OpenAI -$2 задачи four	unresolved_number@7:3
+ru	OpenAI -$2 задачи 4	OpenAI -$2 задачи четыре	unresolved_number@7:3
+auto	OpenAI -$2 задачи 4	OpenAI -$2 задачи четыре	ambiguous_normalization@0:25;unresolved_number@7:3
+segment	OpenAI -$2 задачи 4	OpenAI -$2 задачи четыре	ambiguous_normalization@0:25;unresolved_number@7:3
+en	OpenAI -2 kg	OpenAI minus two kilograms	none
+ru	OpenAI -2 kg	OpenAI минус два kg	none
+auto	OpenAI -2 kg	OpenAI minus two kilograms	none
+segment	OpenAI -2 kg	OpenAI minus two kilograms	none
+en	OpenAI -2 kǵ	OpenAI -2 kǵ	unresolved_number@7:7
+ru	OpenAI -2 kǵ	OpenAI -2 kǵ	unresolved_number@7:7
+auto	OpenAI -2 kǵ	OpenAI -2 kǵ	unresolved_number@7:7
+segment	OpenAI -2 kǵ	OpenAI -2 kǵ	unresolved_number@7:7
+en	OpenAI -2 kǵ слово	OpenAI -2 kǵ слово	unresolved_number@7:7
+ru	OpenAI -2 kǵ слово	OpenAI -2 kǵ слово	unresolved_number@7:7
+auto	OpenAI -2 kǵ слово	OpenAI -2 kǵ слово	ambiguous_normalization@0:25;unresolved_number@7:7
+segment	OpenAI -2 kǵ слово	OpenAI -2 kǵ слово	ambiguous_normalization@0:25;unresolved_number@7:7
+en	OpenAI -2 kgx	OpenAI -2 kgx	unresolved_number@7:6
+ru	OpenAI -2 kgx	OpenAI -2 kgx	unresolved_number@7:6
+auto	OpenAI -2 kgx	OpenAI -2 kgx	unresolved_number@7:6
+segment	OpenAI -2 kgx	OpenAI -2 kgx	unresolved_number@7:6
+en	OpenAI -2 kgя	OpenAI -2 kgя	unresolved_number@7:7
+ru	OpenAI -2 kgя	OpenAI -2 kgя	unresolved_number@7:7
+auto	OpenAI -2 kgя	OpenAI -2 kgя	ambiguous_normalization@0:14;unresolved_number@7:7
+segment	OpenAI -2 kgя	OpenAI -2 kgя	ambiguous_normalization@0:14;unresolved_number@7:7
+en	OpenAI -2 kg,	OpenAI minus two kilograms,	none
+ru	OpenAI -2 kg,	OpenAI минус два kg,	none
+auto	OpenAI -2 kg,	OpenAI minus two kilograms,	none
+segment	OpenAI -2 kg,	OpenAI minus two kilograms,	none
+en	OpenAI -2 kg /4	OpenAI -2 kg /4	unresolved_number@7:8
+ru	OpenAI -2 kg /4	OpenAI -2 kg /4	unresolved_number@7:8
+auto	OpenAI -2 kg /4	OpenAI -2 kg /4	unresolved_number@7:8
+segment	OpenAI -2 kg /4	OpenAI -2 kg /4	unresolved_number@7:8
+en	OpenAI -2 kg/4	OpenAI -2 kg/4	unresolved_number@7:7
+ru	OpenAI -2 kg/4	OpenAI -2 kg/4	unresolved_number@7:7
+auto	OpenAI -2 kg/4	OpenAI -2 kg/4	unresolved_number@7:7
+segment	OpenAI -2 kg/4	OpenAI -2 kg/4	unresolved_number@7:7
+en	OpenAI -2 kg 4	OpenAI minus two kilograms four	none
+ru	OpenAI -2 kg 4	OpenAI минус два kg четыре	none
+auto	OpenAI -2 kg 4	OpenAI minus two kilograms four	none
+segment	OpenAI -2 kg 4	OpenAI minus two kilograms four	none
+en	OpenAI −2 задачи	OpenAI −2 задачи	unresolved_number@7:17
+ru	OpenAI −2 задачи	OpenAI −2 задачи	unresolved_number@7:17
+auto	OpenAI −2 задачи	OpenAI −2 задачи	ambiguous_normalization@0:24;unresolved_number@7:17
+segment	OpenAI −2 задачи	OpenAI −2 задачи	ambiguous_normalization@0:24;unresolved_number@7:17
+en	OpenAI −2 задачи́	OpenAI −2 задачи́	unresolved_number@7:19
+ru	OpenAI −2 задачи́	OpenAI −2 задачи́	unresolved_number@7:19
+auto	OpenAI −2 задачи́	OpenAI −2 задачи́	ambiguous_normalization@0:26;unresolved_number@7:19
+segment	OpenAI −2 задачи́	OpenAI −2 задачи́	ambiguous_normalization@0:26;unresolved_number@7:19
+en	OpenAI −2 задачи́ слово	OpenAI −2 задачи́ слово	unresolved_number@7:30
+ru	OpenAI −2 задачи́ слово	OpenAI −2 задачи́ слово	unresolved_number@7:30
+auto	OpenAI −2 задачи́ слово	OpenAI −2 задачи́ слово	ambiguous_normalization@0:37;unresolved_number@7:30
+segment	OpenAI −2 задачи́ слово	OpenAI −2 задачи́ слово	ambiguous_normalization@0:37;unresolved_number@7:30
+en	OpenAI −2 задачиx	OpenAI −2 задачиx	unresolved_number@7:18
+ru	OpenAI −2 задачиx	OpenAI −2 задачиx	unresolved_number@7:18
+auto	OpenAI −2 задачиx	OpenAI −2 задачиx	ambiguous_normalization@0:25;unresolved_number@7:18
+segment	OpenAI −2 задачиx	OpenAI −2 задачиx	ambiguous_normalization@0:25;unresolved_number@7:18
+en	OpenAI −2 задачия	OpenAI −2 задачия	unresolved_number@7:19
+ru	OpenAI −2 задачия	OpenAI −2 задачия	unresolved_number@7:19
+auto	OpenAI −2 задачия	OpenAI −2 задачия	ambiguous_normalization@0:26;unresolved_number@7:19
+segment	OpenAI −2 задачия	OpenAI −2 задачия	ambiguous_normalization@0:26;unresolved_number@7:19
+en	OpenAI −2 задачи,	OpenAI −2 задачи,	unresolved_number@7:17
+ru	OpenAI −2 задачи,	OpenAI −2 задачи,	unresolved_number@7:17
+auto	OpenAI −2 задачи,	OpenAI −2 задачи,	ambiguous_normalization@0:25;unresolved_number@7:17
+segment	OpenAI −2 задачи,	OpenAI −2 задачи,	ambiguous_normalization@0:25;unresolved_number@7:17
+en	OpenAI −2 задачи /4	OpenAI −2 задачи /four	unresolved_number@7:17
+ru	OpenAI −2 задачи /4	OpenAI −2 задачи /четыре	unresolved_number@7:17
+auto	OpenAI −2 задачи /4	OpenAI −2 задачи /четыре	ambiguous_normalization@0:27;unresolved_number@7:17
+segment	OpenAI −2 задачи /4	OpenAI −2 задачи /4	ambiguous_normalization@0:27;unresolved_number@7:20
+en	OpenAI −2 задачи/4	OpenAI −2 задачи/4	unresolved_number@7:17;unresolved_number@25:1
+ru	OpenAI −2 задачи/4	OpenAI −2 задачи/4	unresolved_number@7:17;unresolved_number@25:1
+auto	OpenAI −2 задачи/4	OpenAI −2 задачи/4	ambiguous_normalization@0:26;unresolved_number@7:17;unresolved_number@25:1
+segment	OpenAI −2 задачи/4	OpenAI −2 задачи/4	ambiguous_normalization@0:26;unresolved_number@7:19
+en	OpenAI −2 задачи 4	OpenAI −2 задачи four	unresolved_number@7:17
+ru	OpenAI −2 задачи 4	OpenAI −2 задачи четыре	unresolved_number@7:17
+auto	OpenAI −2 задачи 4	OpenAI −2 задачи четыре	ambiguous_normalization@0:26;unresolved_number@7:17
+segment	OpenAI −2 задачи 4	OpenAI −2 задачи четыре	ambiguous_normalization@0:26;unresolved_number@7:17
+en	OpenAI −1 002 задачи	OpenAI −1 002 задачи	unresolved_number@7:21
+ru	OpenAI −1 002 задачи	OpenAI −1 002 задачи	unresolved_number@7:21
+auto	OpenAI −1 002 задачи	OpenAI −1 002 задачи	ambiguous_normalization@0:28;unresolved_number@7:21
+segment	OpenAI −1 002 задачи	OpenAI −1 два задачи	ambiguous_normalization@0:28;unresolved_number@7:21
+en	OpenAI −1 002 задачи́	OpenAI −1 002 задачи́	unresolved_number@7:23
+ru	OpenAI −1 002 задачи́	OpenAI −1 002 задачи́	unresolved_number@7:23
+auto	OpenAI −1 002 задачи́	OpenAI −1 002 задачи́	ambiguous_normalization@0:30;unresolved_number@7:23
+segment	OpenAI −1 002 задачи́	OpenAI −1 два задачи́	ambiguous_normalization@0:30;unresolved_number@7:21
+en	OpenAI −1 002 задачи́ слово	OpenAI −1 002 задачи́ слово	unresolved_number@7:34
+ru	OpenAI −1 002 задачи́ слово	OpenAI −1 002 задачи́ слово	unresolved_number@7:34
+auto	OpenAI −1 002 задачи́ слово	OpenAI −1 002 задачи́ слово	ambiguous_normalization@0:41;unresolved_number@7:34
+segment	OpenAI −1 002 задачи́ слово	OpenAI −1 два задачи́ слово	ambiguous_normalization@0:41;unresolved_number@7:21
+en	OpenAI −1 002 задачиx	OpenAI −1 002 задачиx	unresolved_number@7:22
+ru	OpenAI −1 002 задачиx	OpenAI −1 002 задачиx	unresolved_number@7:22
+auto	OpenAI −1 002 задачиx	OpenAI −1 002 задачиx	ambiguous_normalization@0:29;unresolved_number@7:22
+segment	OpenAI −1 002 задачиx	OpenAI −1 002 задачиx	ambiguous_normalization@0:29;unresolved_number@7:22
+en	OpenAI −1 002 задачия	OpenAI −1 002 задачия	unresolved_number@7:23
+ru	OpenAI −1 002 задачия	OpenAI −1 002 задачия	unresolved_number@7:23
+auto	OpenAI −1 002 задачия	OpenAI −1 002 задачия	ambiguous_normalization@0:30;unresolved_number@7:23
+segment	OpenAI −1 002 задачия	OpenAI −1 два задачия	ambiguous_normalization@0:30;unresolved_number@7:23
+en	OpenAI −1 002 задачи,	OpenAI −1 002 задачи,	unresolved_number@7:21
+ru	OpenAI −1 002 задачи,	OpenAI −1 002 задачи,	unresolved_number@7:21
+auto	OpenAI −1 002 задачи,	OpenAI −1 002 задачи,	ambiguous_normalization@0:29;unresolved_number@7:21
+segment	OpenAI −1 002 задачи,	OpenAI −1 два задачи,	ambiguous_normalization@0:29;unresolved_number@7:21
+en	OpenAI −1 002 задачи /4	OpenAI −1 002 задачи /four	unresolved_number@7:21
+ru	OpenAI −1 002 задачи /4	OpenAI −1 002 задачи /четыре	unresolved_number@7:21
+auto	OpenAI −1 002 задачи /4	OpenAI −1 002 задачи /четыре	ambiguous_normalization@0:31;unresolved_number@7:21
+segment	OpenAI −1 002 задачи /4	OpenAI −один 002 задачи /4	ambiguous_normalization@0:31;unresolved_number@12:19
+en	OpenAI −1 002 задачи/4	OpenAI −1 002 задачи/4	unresolved_number@7:21;unresolved_number@29:1
+ru	OpenAI −1 002 задачи/4	OpenAI −1 002 задачи/4	unresolved_number@7:21;unresolved_number@29:1
+auto	OpenAI −1 002 задачи/4	OpenAI −1 002 задачи/4	ambiguous_normalization@0:30;unresolved_number@7:21;unresolved_number@29:1
+segment	OpenAI −1 002 задачи/4	OpenAI −один 002 задачи/4	ambiguous_normalization@0:30;unresolved_number@12:18
+en	OpenAI −1 002 задачи 4	OpenAI −1 002 задачи four	unresolved_number@7:21
+ru	OpenAI −1 002 задачи 4	OpenAI −1 002 задачи четыре	unresolved_number@7:21
+auto	OpenAI −1 002 задачи 4	OpenAI −1 002 задачи четыре	ambiguous_normalization@0:30;unresolved_number@7:21
+segment	OpenAI −1 002 задачи 4	OpenAI −1 два задачи четыре	ambiguous_normalization@0:30;unresolved_number@7:21
+en	OpenAI −$2 задачи	OpenAI −$2 задачи	unresolved_number@7:5
+ru	OpenAI −$2 задачи	OpenAI −$2 задачи	unresolved_number@7:5
+auto	OpenAI −$2 задачи	OpenAI −$2 задачи	ambiguous_normalization@0:25;unresolved_number@7:5
+segment	OpenAI −$2 задачи	OpenAI −$2 задачи	ambiguous_normalization@0:25;unresolved_number@7:5
+en	OpenAI −$2 задачи́	OpenAI −$2 задачи́	unresolved_number@7:5
+ru	OpenAI −$2 задачи́	OpenAI −$2 задачи́	unresolved_number@7:5
+auto	OpenAI −$2 задачи́	OpenAI −$2 задачи́	ambiguous_normalization@0:27;unresolved_number@7:5
+segment	OpenAI −$2 задачи́	OpenAI −$2 задачи́	ambiguous_normalization@0:27;unresolved_number@7:5
+en	OpenAI −$2 задачи́ слово	OpenAI −$2 задачи́ слово	unresolved_number@7:5
+ru	OpenAI −$2 задачи́ слово	OpenAI −$2 задачи́ слово	unresolved_number@7:5
+auto	OpenAI −$2 задачи́ слово	OpenAI −$2 задачи́ слово	ambiguous_normalization@0:38;unresolved_number@7:5
+segment	OpenAI −$2 задачи́ слово	OpenAI −$2 задачи́ слово	ambiguous_normalization@0:38;unresolved_number@7:5
+en	OpenAI −$2 задачиx	OpenAI −$2 задачиx	unresolved_number@7:5
+ru	OpenAI −$2 задачиx	OpenAI −$2 задачиx	unresolved_number@7:5
+auto	OpenAI −$2 задачиx	OpenAI −$2 задачиx	ambiguous_normalization@0:26;unresolved_number@7:5
+segment	OpenAI −$2 задачиx	OpenAI −$2 задачиx	ambiguous_normalization@0:26;unresolved_number@7:5
+en	OpenAI −$2 задачия	OpenAI −$2 задачия	unresolved_number@7:5
+ru	OpenAI −$2 задачия	OpenAI −$2 задачия	unresolved_number@7:5
+auto	OpenAI −$2 задачия	OpenAI −$2 задачия	ambiguous_normalization@0:27;unresolved_number@7:5
+segment	OpenAI −$2 задачия	OpenAI −$2 задачия	ambiguous_normalization@0:27;unresolved_number@7:5
+en	OpenAI −$2 задачи,	OpenAI −$2 задачи,	unresolved_number@7:5
+ru	OpenAI −$2 задачи,	OpenAI −$2 задачи,	unresolved_number@7:5
+auto	OpenAI −$2 задачи,	OpenAI −$2 задачи,	ambiguous_normalization@0:26;unresolved_number@7:5
+segment	OpenAI −$2 задачи,	OpenAI −$2 задачи,	ambiguous_normalization@0:26;unresolved_number@7:5
+en	OpenAI −$2 задачи /4	OpenAI −$2 задачи /four	unresolved_number@7:5
+ru	OpenAI −$2 задачи /4	OpenAI −$2 задачи /четыре	unresolved_number@7:5
+auto	OpenAI −$2 задачи /4	OpenAI −$2 задачи /четыре	ambiguous_normalization@0:28;unresolved_number@7:5
+segment	OpenAI −$2 задачи /4	OpenAI −$2 задачи /четыре	ambiguous_normalization@0:28;unresolved_number@7:5
+en	OpenAI −$2 задачи/4	OpenAI −$2 задачи/4	unresolved_number@7:5;unresolved_number@26:1
+ru	OpenAI −$2 задачи/4	OpenAI −$2 задачи/4	unresolved_number@7:5;unresolved_number@26:1
+auto	OpenAI −$2 задачи/4	OpenAI −$2 задачи/4	ambiguous_normalization@0:27;unresolved_number@7:5;unresolved_number@26:1
+segment	OpenAI −$2 задачи/4	OpenAI −$2 задачи/4	ambiguous_normalization@0:27;unresolved_number@7:5;unresolved_number@26:1
+en	OpenAI −$2 задачи 4	OpenAI −$2 задачи four	unresolved_number@7:5
+ru	OpenAI −$2 задачи 4	OpenAI −$2 задачи четыре	unresolved_number@7:5
+auto	OpenAI −$2 задачи 4	OpenAI −$2 задачи четыре	ambiguous_normalization@0:27;unresolved_number@7:5
+segment	OpenAI −$2 задачи 4	OpenAI −$2 задачи четыре	ambiguous_normalization@0:27;unresolved_number@7:5
+en	OpenAI −2 kg	OpenAI −2 kg	unresolved_number@7:7
+ru	OpenAI −2 kg	OpenAI −2 kg	unresolved_number@7:7
+auto	OpenAI −2 kg	OpenAI −2 kg	unresolved_number@7:7
+segment	OpenAI −2 kg	OpenAI −2 kg	unresolved_number@7:7
+en	OpenAI −2 kǵ	OpenAI −2 kǵ	unresolved_number@10:6
+ru	OpenAI −2 kǵ	OpenAI −2 kǵ	unresolved_number@10:6
+auto	OpenAI −2 kǵ	OpenAI −2 kǵ	unresolved_number@10:6
+segment	OpenAI −2 kǵ	OpenAI −2 kǵ	unresolved_number@10:6
+en	OpenAI −2 kǵ слово	OpenAI −2 kǵ слово	unresolved_number@10:6
+ru	OpenAI −2 kǵ слово	OpenAI −2 kǵ слово	unresolved_number@10:6
+auto	OpenAI −2 kǵ слово	OpenAI −2 kǵ слово	ambiguous_normalization@0:27;unresolved_number@10:6
+segment	OpenAI −2 kǵ слово	OpenAI −2 kǵ слово	ambiguous_normalization@0:27;unresolved_number@7:9
+en	OpenAI −2 kgx	OpenAI −2 kgx	unresolved_number@7:8
+ru	OpenAI −2 kgx	OpenAI −2 kgx	unresolved_number@10:5
+auto	OpenAI −2 kgx	OpenAI −2 kgx	unresolved_number@7:8
+segment	OpenAI −2 kgx	OpenAI −2 kgx	unresolved_number@7:8
+en	OpenAI −2 kgя	OpenAI −2 kgя	unresolved_number@10:6
+ru	OpenAI −2 kgя	OpenAI −2 kgя	unresolved_number@10:6
+auto	OpenAI −2 kgя	OpenAI −2 kgя	ambiguous_normalization@0:16;unresolved_number@10:6
+segment	OpenAI −2 kgя	OpenAI −2 kgя	ambiguous_normalization@0:16;unresolved_number@7:9
+en	OpenAI −2 kg,	OpenAI −2 kg,	unresolved_number@7:7
+ru	OpenAI −2 kg,	OpenAI −2 kg,	unresolved_number@7:7
+auto	OpenAI −2 kg,	OpenAI −2 kg,	unresolved_number@7:7
+segment	OpenAI −2 kg,	OpenAI −2 kg,	unresolved_number@7:7
+en	OpenAI −2 kg /4	OpenAI −2 kg /4	unresolved_number@10:7
+ru	OpenAI −2 kg /4	OpenAI −2 kg /4	unresolved_number@10:7
+auto	OpenAI −2 kg /4	OpenAI −2 kg /4	unresolved_number@10:7
+segment	OpenAI −2 kg /4	OpenAI −2 kg /4	unresolved_number@10:7
+en	OpenAI −2 kg/4	OpenAI −2 kg/4	unresolved_number@10:6
+ru	OpenAI −2 kg/4	OpenAI −2 kg/4	unresolved_number@10:6
+auto	OpenAI −2 kg/4	OpenAI −2 kg/4	unresolved_number@10:6
+segment	OpenAI −2 kg/4	OpenAI −2 kg/4	unresolved_number@10:6
+en	OpenAI −2 kg 4	OpenAI −2 kg four	unresolved_number@7:7
+ru	OpenAI −2 kg 4	OpenAI −2 kg четыре	unresolved_number@7:7
+auto	OpenAI −2 kg 4	OpenAI −2 kg four	unresolved_number@7:7
+segment	OpenAI −2 kg 4	OpenAI −2 kg four	unresolved_number@7:7
+en	Привет 2 tasks	Привет two tasks	none
+ru	Привет 2 tasks	Привет два tasks	none
+auto	Привет 2 tasks	Привет два tasks	ambiguous_normalization@0:20
+segment	Привет 2 tasks	Привет two tasks	ambiguous_normalization@0:20
+en	Привет 2 taskś	Привет two taskś	none
+ru	Привет 2 taskś	Привет два taskś	none
+auto	Привет 2 taskś	Привет два taskś	ambiguous_normalization@0:22
+segment	Привет 2 taskś	Привет two taskś	ambiguous_normalization@0:22
+en	Привет 2 taskś слово	Привет two taskś слово	none
+ru	Привет 2 taskś слово	Привет два taskś слово	none
+auto	Привет 2 taskś слово	Привет два taskś слово	ambiguous_normalization@0:33
+segment	Привет 2 taskś слово	Привет two taskś слово	ambiguous_normalization@0:33
+en	Привет 2 tasksx	Привет two tasksx	none
+ru	Привет 2 tasksx	Привет два tasksx	none
+auto	Привет 2 tasksx	Привет два tasksx	ambiguous_normalization@0:21
+segment	Привет 2 tasksx	Привет two tasksx	ambiguous_normalization@0:21
+en	Привет 2 tasksя	Привет two tasksя	none
+ru	Привет 2 tasksя	Привет два tasksя	none
+auto	Привет 2 tasksя	Привет два tasksя	ambiguous_normalization@0:22
+segment	Привет 2 tasksя	Привет два tasksя	ambiguous_normalization@0:22
+en	Привет 2 tasks,	Привет two tasks,	none
+ru	Привет 2 tasks,	Привет два tasks,	none
+auto	Привет 2 tasks,	Привет два tasks,	ambiguous_normalization@0:21
+segment	Привет 2 tasks,	Привет two tasks,	ambiguous_normalization@0:21
+en	Привет 2 tasks /4	Привет two tasks /four	none
+ru	Привет 2 tasks /4	Привет два tasks /четыре	none
+auto	Привет 2 tasks /4	Привет два tasks /четыре	ambiguous_normalization@0:23
+segment	Привет 2 tasks /4	Привет 2 tasks /4	ambiguous_normalization@0:23;unresolved_number@13:10
+en	Привет 2 tasks/4	Привет two tasks/4	unresolved_number@21:1
+ru	Привет 2 tasks/4	Привет 2 tasks/4	unresolved_number@13:9
+auto	Привет 2 tasks/4	Привет 2 tasks/4	ambiguous_normalization@0:22;unresolved_number@13:9
+segment	Привет 2 tasks/4	Привет 2 tasks/4	ambiguous_normalization@0:22;unresolved_number@13:9
+en	Привет 2 tasks 4	Привет two tasks four	none
+ru	Привет 2 tasks 4	Привет два tasks четыре	none
+auto	Привет 2 tasks 4	Привет два tasks четыре	ambiguous_normalization@0:22
+segment	Привет 2 tasks 4	Привет two tasks четыре	ambiguous_normalization@0:22
+en	Привет +2 tasks	Привет +2 tasks	unresolved_number@13:8
+ru	Привет +2 tasks	Привет +2 tasks	unresolved_number@13:8
+auto	Привет +2 tasks	Привет +2 tasks	ambiguous_normalization@0:21;unresolved_number@13:8
+segment	Привет +2 tasks	Привет two tasks	ambiguous_normalization@0:21
+en	Привет +2 taskś	Привет +2 taskś	unresolved_number@13:10
+ru	Привет +2 taskś	Привет +2 taskś	unresolved_number@13:10
+auto	Привет +2 taskś	Привет +2 taskś	ambiguous_normalization@0:23;unresolved_number@13:10
+segment	Привет +2 taskś	Привет two taskś	ambiguous_normalization@0:23
+en	Привет +2 taskś слово	Привет +2 taskś слово	unresolved_number@13:21
+ru	Привет +2 taskś слово	Привет +2 taskś слово	unresolved_number@13:21
+auto	Привет +2 taskś слово	Привет +2 taskś слово	ambiguous_normalization@0:34;unresolved_number@13:21
+segment	Привет +2 taskś слово	Привет two taskś слово	ambiguous_normalization@0:34
+en	Привет +2 tasksx	Привет +2 tasksx	unresolved_number@13:9
+ru	Привет +2 tasksx	Привет +2 tasksx	unresolved_number@13:9
+auto	Привет +2 tasksx	Привет +2 tasksx	ambiguous_normalization@0:22;unresolved_number@13:9
+segment	Привет +2 tasksx	Привет two tasksx	ambiguous_normalization@0:22
+en	Привет +2 tasksя	Привет +2 tasksя	unresolved_number@13:10
+ru	Привет +2 tasksя	Привет +2 tasksя	unresolved_number@13:10
+auto	Привет +2 tasksя	Привет +2 tasksя	ambiguous_normalization@0:23;unresolved_number@13:10
+segment	Привет +2 tasksя	Привет +2 tasksя	ambiguous_normalization@0:23;unresolved_number@13:10
+en	Привет +2 tasks,	Привет +2 tasks,	unresolved_number@13:8
+ru	Привет +2 tasks,	Привет +2 tasks,	unresolved_number@13:8
+auto	Привет +2 tasks,	Привет +2 tasks,	ambiguous_normalization@0:22;unresolved_number@13:8
+segment	Привет +2 tasks,	Привет two tasks,	ambiguous_normalization@0:22
+en	Привет +2 tasks /4	Привет +2 tasks /four	unresolved_number@13:8
+ru	Привет +2 tasks /4	Привет +2 tasks /четыре	unresolved_number@13:8
+auto	Привет +2 tasks /4	Привет +2 tasks /четыре	ambiguous_normalization@0:24;unresolved_number@13:8
+segment	Привет +2 tasks /4	Привет +2 tasks /4	ambiguous_normalization@0:24;unresolved_number@13:11
+en	Привет +2 tasks/4	Привет +2 tasks/4	unresolved_number@13:8;unresolved_number@22:1
+ru	Привет +2 tasks/4	Привет +2 tasks/4	unresolved_number@13:8;unresolved_number@22:1
+auto	Привет +2 tasks/4	Привет +2 tasks/4	ambiguous_normalization@0:23;unresolved_number@13:8;unresolved_number@22:1
+segment	Привет +2 tasks/4	Привет +2 tasks/4	ambiguous_normalization@0:23;unresolved_number@13:10
+en	Привет +2 tasks 4	Привет +2 tasks four	unresolved_number@13:8
+ru	Привет +2 tasks 4	Привет +2 tasks четыре	unresolved_number@13:8
+auto	Привет +2 tasks 4	Привет +2 tasks четыре	ambiguous_normalization@0:23;unresolved_number@13:8
+segment	Привет +2 tasks 4	Привет two tasks четыре	ambiguous_normalization@0:23
+en	Привет -2 tasks	Привет minus two tasks	none
+ru	Привет -2 tasks	Привет минус два tasks	none
+auto	Привет -2 tasks	Привет минус два tasks	ambiguous_normalization@0:21
+segment	Привет -2 tasks	Привет minus two tasks	ambiguous_normalization@0:21
+en	Привет -2 taskś	Привет -2 taskś	unresolved_number@13:10
+ru	Привет -2 taskś	Привет -2 taskś	unresolved_number@13:10
+auto	Привет -2 taskś	Привет -2 taskś	ambiguous_normalization@0:23;unresolved_number@13:10
+segment	Привет -2 taskś	Привет minus two taskś	ambiguous_normalization@0:23
+en	Привет -2 taskś слово	Привет -2 taskś слово	unresolved_number@13:10
+ru	Привет -2 taskś слово	Привет -2 taskś слово	unresolved_number@13:10
+auto	Привет -2 taskś слово	Привет -2 taskś слово	ambiguous_normalization@0:34;unresolved_number@13:10
+segment	Привет -2 taskś слово	Привет minus two taskś слово	ambiguous_normalization@0:34
+en	Привет -2 tasksx	Привет minus two tasksx	none
+ru	Привет -2 tasksx	Привет минус два tasksx	none
+auto	Привет -2 tasksx	Привет минус два tasksx	ambiguous_normalization@0:22
+segment	Привет -2 tasksx	Привет minus two tasksx	ambiguous_normalization@0:22
+en	Привет -2 tasksя	Привет minus two tasksя	none
+ru	Привет -2 tasksя	Привет минус два tasksя	none
+auto	Привет -2 tasksя	Привет минус два tasksя	ambiguous_normalization@0:23
+segment	Привет -2 tasksя	Привет минус два tasksя	ambiguous_normalization@0:23
+en	Привет -2 tasks,	Привет minus two tasks,	none
+ru	Привет -2 tasks,	Привет минус два tasks,	none
+auto	Привет -2 tasks,	Привет минус два tasks,	ambiguous_normalization@0:22
+segment	Привет -2 tasks,	Привет minus two tasks,	ambiguous_normalization@0:22
+en	Привет -2 tasks /4	Привет minus two tasks /four	none
+ru	Привет -2 tasks /4	Привет минус два tasks /четыре	none
+auto	Привет -2 tasks /4	Привет минус два tasks /четыре	ambiguous_normalization@0:24
+segment	Привет -2 tasks /4	Привет -2 tasks /4	ambiguous_normalization@0:24;unresolved_number@13:11
+en	Привет -2 tasks/4	Привет minus two tasks/4	unresolved_number@22:1
+ru	Привет -2 tasks/4	Привет -2 tasks/4	unresolved_number@13:10
+auto	Привет -2 tasks/4	Привет -2 tasks/4	ambiguous_normalization@0:23;unresolved_number@13:10
+segment	Привет -2 tasks/4	Привет -2 tasks/4	ambiguous_normalization@0:23;unresolved_number@13:10
+en	Привет -2 tasks 4	Привет minus two tasks four	none
+ru	Привет -2 tasks 4	Привет минус два tasks четыре	none
+auto	Привет -2 tasks 4	Привет минус два tasks четыре	ambiguous_normalization@0:23
+segment	Привет -2 tasks 4	Привет minus two tasks четыре	ambiguous_normalization@0:23
+en	Привет −2 tasks	Привет −2 tasks	unresolved_number@13:10
+ru	Привет −2 tasks	Привет −2 tasks	unresolved_number@13:10
+auto	Привет −2 tasks	Привет −2 tasks	ambiguous_normalization@0:23;unresolved_number@13:10
+segment	Привет −2 tasks	Привет −2 tasks	ambiguous_normalization@0:23;unresolved_number@13:10
+en	Привет −2 taskś	Привет −2 taskś	unresolved_number@13:12
+ru	Привет −2 taskś	Привет −2 taskś	unresolved_number@13:12
+auto	Привет −2 taskś	Привет −2 taskś	ambiguous_normalization@0:25;unresolved_number@13:12
+segment	Привет −2 taskś	Привет −2 taskś	ambiguous_normalization@0:25;unresolved_number@13:12
+en	Привет −2 taskś слово	Привет −2 taskś слово	unresolved_number@13:23
+ru	Привет −2 taskś слово	Привет −2 taskś слово	unresolved_number@13:23
+auto	Привет −2 taskś слово	Привет −2 taskś слово	ambiguous_normalization@0:36;unresolved_number@13:23
+segment	Привет −2 taskś слово	Привет −2 taskś слово	ambiguous_normalization@0:36;unresolved_number@13:23
+en	Привет −2 tasksx	Привет −2 tasksx	unresolved_number@13:11
+ru	Привет −2 tasksx	Привет −2 tasksx	unresolved_number@13:11
+auto	Привет −2 tasksx	Привет −2 tasksx	ambiguous_normalization@0:24;unresolved_number@13:11
+segment	Привет −2 tasksx	Привет −2 tasksx	ambiguous_normalization@0:24;unresolved_number@13:11
+en	Привет −2 tasksя	Привет −2 tasksя	unresolved_number@13:12
+ru	Привет −2 tasksя	Привет −2 tasksя	unresolved_number@13:12
+auto	Привет −2 tasksя	Привет −2 tasksя	ambiguous_normalization@0:25;unresolved_number@13:12
+segment	Привет −2 tasksя	Привет −2 tasksя	ambiguous_normalization@0:25;unresolved_number@13:12
+en	Привет −2 tasks,	Привет −2 tasks,	unresolved_number@13:10
+ru	Привет −2 tasks,	Привет −2 tasks,	unresolved_number@13:10
+auto	Привет −2 tasks,	Привет −2 tasks,	ambiguous_normalization@0:24;unresolved_number@13:10
+segment	Привет −2 tasks,	Привет −2 tasks,	ambiguous_normalization@0:24;unresolved_number@13:10
+en	Привет −2 tasks /4	Привет −2 tasks /four	unresolved_number@13:10
+ru	Привет −2 tasks /4	Привет −2 tasks /четыре	unresolved_number@13:10
+auto	Привет −2 tasks /4	Привет −2 tasks /четыре	ambiguous_normalization@0:26;unresolved_number@13:10
+segment	Привет −2 tasks /4	Привет −2 tasks /4	ambiguous_normalization@0:26;unresolved_number@13:13
+en	Привет −2 tasks/4	Привет −2 tasks/4	unresolved_number@13:10;unresolved_number@24:1
+ru	Привет −2 tasks/4	Привет −2 tasks/4	unresolved_number@13:10;unresolved_number@24:1
+auto	Привет −2 tasks/4	Привет −2 tasks/4	ambiguous_normalization@0:25;unresolved_number@13:10;unresolved_number@24:1
+segment	Привет −2 tasks/4	Привет −2 tasks/4	ambiguous_normalization@0:25;unresolved_number@13:12
+en	Привет −2 tasks 4	Привет −2 tasks four	unresolved_number@13:10
+ru	Привет −2 tasks 4	Привет −2 tasks четыре	unresolved_number@13:10
+auto	Привет −2 tasks 4	Привет −2 tasks четыре	ambiguous_normalization@0:25;unresolved_number@13:10
+segment	Привет −2 tasks 4	Привет −2 tasks четыре	ambiguous_normalization@0:25;unresolved_number@13:10
