@@ -48,7 +48,9 @@ int main() {
             {"+2 101 задача", 3, false},   {"−2 101 задача", 3, false}, {"4 2 задачи", 2, true},
             {"2.2 задачи", 2, false},      {"1:102 задачи", 2, false},  {".2 задачи", 1, false},
             {"1. 2 задачи", 3, true},      {"2 задачи #4", 0, false},   {"2 задачи # 4", 0, false},
-            {"2 задачи /4", 0, false},     {"2́ задачи", 0, false}};
+            {"2 задачи /4", 0, false},     {"2́ задачи", 0, false},      {"2 задачи%", 0, false},
+            {"2 задачи-", 0, false},       {"2 задачи %", 0, false},    {"2 задачи -", 0, false},
+            {"2 задачи.", 0, true},        {"2 задачи. 4", 0, true},    {"2 задачи 4", 0, true}};
         for (const auto& test : cases) {
             const detail::Utf8Document document(test.input);
             const auto candidate = detail::scan_candidate_surface(
@@ -4294,7 +4296,7 @@ int main() {
                 ++admission_executions;
             }
         }
-        CHECK(admission_executions == 156 * 4);
+        CHECK(admission_executions == (156 + 264) * 4);
         CHECK(admission_deltas == 36);
 
         struct AdmissionRegression {
@@ -4311,6 +4313,10 @@ int main() {
             {"надо́ 1 окно", "надо́ одно окно", "надо́ one окно"},
             {"непо́сле 1 окно", "непо́сле одно окно", "непо́сле one окно"},
             {"2 задачи #4", "два задачи #4", "two задачи #4"},
+            {"2 задачи%", "два задачи%", "two задачи%"},
+            {"2 задачи-", "два задачи-", "two задачи-"},
+            {"2 задачи.", "две задачи.", "two задачи."},
+            {"2 задачи. 4", "две задачи. четыре", "two задачи. four"},
             {"2 задачи # 4", "два задачи # четыре", "two задачи # four"},
             {"1. 2 задачи", "один. две задачи", "one. two задачи"},
             {"2 002 задачи", "две тысячи две задачи", "two thousand two задачи"}};

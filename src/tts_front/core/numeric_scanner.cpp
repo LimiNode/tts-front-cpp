@@ -594,6 +594,13 @@ bool is_independent_cardinal_candidate(const Utf8Document& document,
     const auto admission = scan_admission(document, candidate, CandidateSurfaceKind::Contextual);
     if (admission.extended() && admission.outcome != AdmissionOutcome::Punctuated)
         return false;
+    auto tail = lexical.end;
+    while (tail < points.size() && text::is_horizontal_space(points[tail].value))
+        ++tail;
+    // A bare compound connector is not an independent cardinal+noun ending.
+    if (tail < points.size() &&
+        is_spaced_connector(points[tail].value, CandidateSurfaceKind::Contextual))
+        return false;
     // A three-digit component after a standalone 1-3 digit head and horizontal whitespace
     // belongs to the earlier grouped surface, not a new cardinal owner.
     if (numeric.sign == NumericSign::None && numeric.digits_end - numeric.digits_begin == 3) {
