@@ -53,7 +53,7 @@ bool is_context_space(const std::uint32_t value) {
 bool has_contextual_prefix(const MappedText& source,
                            const std::size_t position,
                            const std::initializer_list<std::string_view> suffixes,
-                           const bool ignore_case = false) {
+                           const bool ignore_case_and_stress = false) {
     const auto& text = source.text;
     auto end = position;
     while (end > 0) {
@@ -66,28 +66,26 @@ bool has_contextual_prefix(const MappedText& source,
         end = begin;
     }
     const auto has_suffix = [&](const std::string_view suffix) {
-        if (end < suffix.size())
-            return false;
-        if (text.compare(end - suffix.size(), suffix.size(), suffix) != 0) {
-            if (!ignore_case)
-                return false;
-            // Only the bounded governor spelling is decoded, never the whole prefix.
-            const Utf8Document actual(
-                std::string_view(text).substr(end - suffix.size(), suffix.size()));
+        auto boundary = end;
+        if (ignore_case_and_stress) {
+            // Match only the governor, not a whole prefix; stress stays in the source.
             const Utf8Document expected(suffix);
             const auto lower = [](const std::uint32_t value) {
                 return value >= 0x0410 && value <= 0x042f ? value + 0x20 : value;
             };
-            if (!actual.valid || actual.points.size() != expected.points.size() ||
-                !std::equal(actual.points.begin(),
-                            actual.points.end(),
-                            expected.points.begin(),
-                            [&](const Utf8CodePoint& left, const Utf8CodePoint& right) {
-                                return lower(left.value) == lower(right.value);
-                            }))
+            for (auto point = expected.points.rbegin(); point != expected.points.rend(); ++point) {
+                while (previous_codepoint(text, boundary) == 0x0301)
+                    boundary -= 2;
+                if (lower(previous_codepoint(text, boundary)) != point->value)
+                    return false;
+                boundary -= point->length;
+            }
+        } else {
+            if (end < suffix.size() ||
+                text.compare(end - suffix.size(), suffix.size(), suffix) != 0)
                 return false;
+            boundary -= suffix.size();
         }
-        auto boundary = end - suffix.size();
         if (boundary > 0 && text[boundary - 1] == '\x02') {
             const auto marker =
                 std::find_if(source.runs.begin(), source.runs.end(), [&](const MappedRun& run) {
