@@ -64,4 +64,9 @@ bool is_ascii_punctuation(std::uint32_t cp) {
     return cp < 0x80 && std::ispunct(static_cast<unsigned char>(cp)) != 0;
 }
 
+bool is_opening_delimiter(std::uint32_t cp) {
+    return cp == '(' || cp == '[' || cp == '{' || cp == '"' || cp == '\'' || cp == 0x00ab ||
+           cp == 0x2039 || cp == 0x2018 || cp == 0x201a || cp == 0x201c || cp == 0x201e;
+}
+
 } // namespace tts_front::detail::text

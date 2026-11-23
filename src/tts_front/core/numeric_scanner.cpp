@@ -600,10 +600,16 @@ bool is_independent_cardinal_candidate(const Utf8Document& document,
         auto next = tail + 1;
         while (next < points.size() && text::is_horizontal_space(points[next].value))
             ++next;
-        // A spaced typographic dash before a word is punctuation, not an operand connector.
+        const bool spaced = next > tail + 1;
+        while (next < points.size() && text::is_opening_delimiter(points[next].value)) {
+            ++next;
+            while (next < points.size() && text::is_horizontal_space(points[next].value))
+                ++next;
+        }
+        // Opening quotes/brackets may introduce the lexical phrase after a spaced dash.
         const bool dash_punctuation =
             tail > lexical.end && (points[tail].value == 0x2013 || points[tail].value == 0x2014) &&
-            next > tail + 1 && next < points.size() && text::is_letter(points[next].value);
+            spaced && next < points.size() && text::is_letter(points[next].value);
         if (!dash_punctuation)
             return false;
     }

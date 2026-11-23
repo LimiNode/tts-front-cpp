@@ -66,6 +66,22 @@ int main() {
                                                 {" – это", true},
                                                 {"\t—\tэто", true},
                                                 {" — tasks", true},
+                                                {" — «готово»", true},
+                                                {" — (готово)", true},
+                                                {" — [готово]", true},
+                                                {" — {готово}", true},
+                                                {" — \"готово\"", true},
+                                                {" — 'готово'", true},
+                                                {" — „готово“", true},
+                                                {" — ‘готово’", true},
+                                                {" — ‹готово›", true},
+                                                {" — ( «готово» )", true},
+                                                {" — «2 задачи»", false},
+                                                {" — (+2)", false},
+                                                {" — «−2»", false},
+                                                {" — «́готово»", false},
+                                                {" — »готово", false},
+                                                {" — «", false},
                                                 {"— это", false},
                                                 {" —это", false},
                                                 {" —", false},
@@ -4374,6 +4390,12 @@ int main() {
             {"1 сообщение — уже в чате.",
              "одно сообщение — уже в чате.",
              "one сообщение — уже в чате."},
+            {"В плане 2 задачи — «запуск» и «проверка».",
+             "В плане две задачи — «запуск» и «проверка».",
+             "В плане two задачи — «запуск» и «проверка»."},
+            {"1 сообщение — «Готово».", "одно сообщение — «Готово».", "one сообщение — «Готово»."},
+            {"2 задачи — «2 задачи»", "два задачи — «две задачи»", "two задачи — «two задачи»"},
+            {"2 задачи — (2 задачи)", "два задачи — (две задачи)", "two задачи — (two задачи)"},
             {"2 задачи # 4", "два задачи # четыре", "two задачи # four"},
             {"1. 2 задачи", "один. две задачи", "one. two задачи"},
             {"2 002 задачи", "две тысячи две задачи", "two thousand two задачи"}};
@@ -4390,6 +4412,31 @@ int main() {
                 CHECK(result.warnings.empty());
             }
         }
+        for (const auto& delimiters : {std::pair<std::string, std::string>{"«", "»"},
+                                       {"(", ")"},
+                                       {"[", "]"},
+                                       {"{", "}"},
+                                       {"\"", "\""},
+                                       {"'", "'"},
+                                       {"„", "“"},
+                                       {"“", "”"},
+                                       {"‘", "’"},
+                                       {"‹", "›"},
+                                       {"( «", "» )"}}) {
+            const auto tail = " задачи — " + delimiters.first + "готово" + delimiters.second + ".";
+            for (const auto& mode : admission_modes) {
+                auto options = options_for_mode(mode);
+                if (mode == "en")
+                    options.language = Language::English;
+                const auto input = "2" + tail;
+                const auto expected = (mode == "en" ? "two" : "две") + tail;
+                const auto result = frontend.process(input, options);
+                CHECK(result.original_text == input);
+                CHECK(result.normalized_text == expected);
+                CHECK(result.pronunciation_text == expected);
+                CHECK(result.warnings.empty());
+            }
+        }
         const MixedCardinal mixed_cardinals[] = {
             {"OpenAI −2 задачи", "OpenAI −2 задачи"},
             {"OpenAI 2задачи", "OpenAI двазадачи"},
@@ -4400,6 +4447,8 @@ int main() {
             {"OpenAI 1 окно", "OpenAI одно окно"},
             {"OpenAI 2 задачи — это весь план.", "OpenAI две задачи — это весь план."},
             {"OpenAI 1 сообщение — уже в чате.", "OpenAI одно сообщение — уже в чате."},
+            {"OpenAI 2 задачи — «готово».", "OpenAI две задачи — «готово»."},
+            {"OpenAI 1 сообщение — (готово).", "OpenAI одно сообщение — (готово)."},
             {"OpenAI 2002 задачи", "OpenAI две тысячи две задачи"}};
         for (const auto& test : mixed_cardinals) {
             const auto result = frontend.process(test.input, options_for_mode("segment"));

@@ -20,6 +20,7 @@ bool is_supported_numeric_separator(std::uint32_t cp);
 bool is_lexical_numeric_boundary(std::uint32_t cp);
 bool is_horizontal_space(std::uint32_t cp);
 bool is_ascii_punctuation(std::uint32_t cp);
+bool is_opening_delimiter(std::uint32_t cp);
 
 } // namespace text
 
