@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cmath>
 #include <cstdlib>
 #include <iostream>
 #include <string>
@@ -347,8 +348,9 @@ bool benchmark_cardinal_source_scaling() {
     constexpr std::string_view phrase = "2 задачи";
     for (const auto connector :
          {std::string_view(" / "), std::string_view(" # "), std::string_view("; ")}) {
-        double previous = 0;
-        for (const auto count : counts) {
+        std::array<MappedText, counts.size()> sources;
+        for (std::size_t size = 0; size < counts.size(); ++size) {
+            const auto count = counts[size];
             std::string text;
             text.reserve((phrase.size() + connector.size()) * count);
             for (unsigned int item = 0; item < count; ++item) {
@@ -356,7 +358,20 @@ bool benchmark_cardinal_source_scaling() {
                     text += connector;
                 text += phrase;
             }
-            const auto source = MappedText::from_original(text, nullptr);
+            sources[size] = MappedText::from_original(text, nullptr);
+        }
+        std::array<double, counts.size()> timings{};
+        // Largest first: warm large allocations before comparing smaller inputs.
+        for (std::size_t size = counts.size(); size-- > 0;) {
+            const auto count = counts[size];
+            const auto& source = sources[size];
+            const auto expected = connector == "; " ? count : 1u;
+            const SourceRange last{source.text.size() - phrase.size(), 1};
+            const auto warm = build_cardinal_source_index(source);
+            if (warm.ranges.size() != expected || !warm.contains(last)) {
+                std::cerr << "unexpected cardinal source index\n";
+                return false;
+            }
             std::array<double, 3> samples{};
             for (auto& sample : samples) {
                 const auto begin = std::chrono::steady_clock::now();
@@ -364,9 +379,7 @@ bool benchmark_cardinal_source_scaling() {
                 double elapsed = 0;
                 do {
                     const auto index = build_cardinal_source_index(source);
-                    const auto expected = connector == "; " ? count : 1u;
-                    if (index.ranges.size() != expected ||
-                        !index.contains({text.size() - phrase.size(), 1})) {
+                    if (index.ranges.size() != expected || !index.contains(last)) {
                         std::cerr << "unexpected cardinal source index\n";
                         return false;
                     }
@@ -378,14 +391,24 @@ bool benchmark_cardinal_source_scaling() {
                 sample = elapsed / repetitions;
             }
             std::sort(samples.begin(), samples.end());
-            const auto elapsed = samples[1];
+            timings[size] = samples[1];
+        }
+        double previous = 0;
+        double log_slope = 0;
+        for (std::size_t size = 0; size < counts.size(); ++size) {
+            const auto count = counts[size];
+            const auto elapsed = timings[size];
             std::cout << count << " cardinal origins, connector [" << connector << "], " << elapsed
                       << " s, slope " << (previous > 0 ? elapsed / previous : 0) << "x\n";
-            if (previous > 0 && elapsed / previous > 3.25) {
-                std::cerr << "cardinal source index exceeded the allowed doubling slope\n";
-                return false;
-            }
+            // Log-time fit at x=0,1,2,3: mean x=1.5, sum of squared deviations=5.
+            log_slope += (static_cast<double>(size) - 1.5) * std::log(elapsed) / 5.0;
             previous = elapsed;
+        }
+        const auto doubling_slope = std::exp(log_slope);
+        std::cout << "cardinal source fitted doubling slope: " << doubling_slope << "x\n";
+        if (doubling_slope > 3.25) {
+            std::cerr << "cardinal source index exceeded the allowed doubling slope\n";
+            return false;
         }
     }
     return true;

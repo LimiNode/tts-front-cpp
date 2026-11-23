@@ -285,10 +285,23 @@ the next phrase after a semicolon keep their exact index membership.
 
 `--cardinal-source-scaling` is a dedicated CI gate on 800/1600/3200/6400
 candidates with `/`, `#` and ordinary `;` separators. It checks membership,
-uses the median of three adaptively batched measurements, and rejects a
-doubling slope above 3.25x. The exact old Release build fails at about 4.1x; the corrected
-index passes. This isolates the added index cost; it does not claim that every
+prepares all mapped inputs before timing, warms and measures largest first,
+and uses the median of three adaptively batched measurements. A least-squares
+fit of log time across all four sizes rejects a doubling slope above 3.25x;
+individual adjacent ratios remain visible in the log. The exact old Release
+build fails at about 4x; the corrected index passes. This isolates the added
+index cost; it does not claim that every
 legacy full-pipeline path is linear on arbitrary connector chains.
+
+The first gate at `9b1cbb4` failed in both Linux workflows: slash ratios stayed
+near 2.1x, but hash ratios jumped only at the last size (3.79x and 4.82x).
+Largest-first warmup alone also left a single-size step on local Windows.
+Consequently, the gate estimates growth over the complete eightfold range
+rather than classifying one allocation/cache transition as asymptotic growth.
+The allocator explanation is plausible, not a proven Linux root cause. The
+threshold is unchanged, and linking the revised benchmark to the complete
+exact `835cf30` Release library still rejects its quadratic path (3.97x fitted
+doubling). Three fresh corrected local runs fit 1.81–2.39x across separators.
 
 Direct tests add 64-element index chains across seven connector spellings,
 opening/closing/numeric/combining neighbors in the existing four-sign and
