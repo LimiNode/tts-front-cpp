@@ -191,7 +191,7 @@ two prefixes (plain and `OpenAI`), four signs, three plain/grouped/currency
 cores, and eleven attached/spaced terminal tails. Across all four modes these
 1,056 executions retain exact merged-base normalized/pronunciation text and
 ordered diagnostics/spans. Together with the earlier 156 inputs, the matrix
-now has 1,680 executions and still exactly 36 approved gender deltas.
+at that stage has 1,680 executions and exactly 36 approved gender deltas.
 Accented governors also have direct compound-number and false-prefix controls.
 
 A fresh 2,848-observation base-versus-current probe additionally covers those
@@ -210,6 +210,58 @@ approved gender adaptations; an additional 2,944 signed observations have
 zero exceptions or invariant failures. The noun/protected-tail scaling probe
 now measures 0.47/2.27/4.67/9.74 seconds at 1k/5k/10k/20k segments (median of
 three Release runs), with 4.86x/2.06x/2.08x time ratios.
+
+### Dash punctuation corrective after `a5bc437`
+
+The terminal-connector guard was too broad: it also rejected an ordinary dash
+between a cardinal phrase and the following word. The shared cardinal query
+now distinguishes a typographic en dash (U+2013) or em dash (U+2014) separated
+on both sides by horizontal whitespace and followed by a letter. It is
+punctuation, not an incomplete numeric continuation. The Russian source-origin
+index and mixed callback reuse that same decision; no language-wrapper guard,
+generic admission change or new dependency is introduced.
+
+| Input | `a5bc437` | Corrected RU/Auto/SegmentCandidates |
+| --- | --- | --- |
+| `2 задачи — это весь план.` | `два задачи — это весь план.` | `две задачи — это весь план.` |
+| `1 сообщение — уже в чате.` | `один сообщение — уже в чате.` | `одно сообщение — уже в чате.` |
+
+Both normalized and pronunciation fields receive only the approved gender
+change; original text remains byte-identical and diagnostics remain empty.
+The same cases with an `OpenAI` head exercise the mixed callback and retain
+their complete original ambiguity spans. Attached dashes, bare terminal dashes,
+digits/signs/combining marks after a dash, ASCII minus and mathematical minus
+do not gain this punctuation admission. Existing `%`, `-`, `#4` and accented
+governor controls are unchanged. EN output is unchanged.
+
+The query itself does not cross a newline. The existing earlier whitespace
+normalizer may collapse a newline around a dash into a space; such sentence
+controls receive the same gender fix after that normalization, without a new
+whitespace or span policy.
+
+Independent literal gold adds 24 sentence/neighbor inputs in all four modes,
+with 29 approved gender-only deltas against `a5bc437` and exact unchanged
+ordered diagnostic spans. The combined admission gold now has 444 inputs,
+1,776 executions and 65 approved deltas across its recorded baselines.
+A separate 192-case scanner matrix crosses four signs, three plain/grouped/
+currency cores and sixteen punctuation/connector neighbors.
+
+A full 2,620-observation comparison against `a5bc437` crosses both plain and
+mixed heads, all signs, grouped/currency cores, combining and ASCII/Cyrillic
+tails, terminal/attached/spaced dashes, numeric operands and ordinary words.
+Exactly 111 readings regain noun gender before punctuation; no EN output,
+original text, ordered warning or byte span changes, and no exceptions occur.
+The previous 2,848-control probe is byte-identical, including all closed
+connector and governor regressions. These reports remain under `.temp/noun-dash/`;
+the focused literal gold and scanner matrix are committed direct tests, not
+quality-oracle changes.
+
+On this corrective, complete Debug/Release builds and CTest pass 13/13 each.
+Format-check, header/umbrella and fixture tests, generator/checksum checks,
+maintained strict `v0.2.2` archive audit, install-consumer smoke and both scaling
+gates pass. The earlier 7,784-observation comparison is also byte-identical.
+The working baseline remains `763 / 661 / 102 / 0 / 0`; the quality oracle,
+published archives, public API and version are untouched.
 
 An adversarial noun/protected-tail probe at 1k/5k/10k/20k segments measured
 0.55/2.74/5.60/11.45 seconds (median of three Release runs): 4.98× for 5× input,
