@@ -591,9 +591,6 @@ bool is_independent_cardinal_candidate(const Utf8Document& document,
             is_continuation_connector(previous, CandidateSurfaceKind::Contextual))
             return false;
     }
-    const auto admission = scan_admission(document, candidate, CandidateSurfaceKind::Contextual);
-    if (admission.extended() && admission.outcome != AdmissionOutcome::Punctuated)
-        return false;
     auto tail = lexical.end;
     while (tail < points.size() && text::is_horizontal_space(points[tail].value))
         ++tail;
@@ -610,6 +607,10 @@ bool is_independent_cardinal_candidate(const Utf8Document& document,
         if (!dash_punctuation)
             return false;
     }
+    // Reject a local connector before walking its potentially document-long continuation.
+    const auto admission = scan_admission(document, candidate, CandidateSurfaceKind::Contextual);
+    if (admission.extended() && admission.outcome != AdmissionOutcome::Punctuated)
+        return false;
     // A three-digit component after a standalone 1-3 digit head and horizontal whitespace
     // belongs to the earlier grouped surface, not a new cardinal owner.
     if (numeric.sign == NumericSign::None && numeric.digits_end - numeric.digits_begin == 3) {

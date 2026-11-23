@@ -107,6 +107,20 @@ int main() {
         const auto continuation = detail::build_cardinal_source_index(
             detail::MappedText::from_original("2 задачи #4", nullptr));
         CHECK(!continuation.contains({0, 1}));
+        for (const auto* connector : {" / ", " # ", " % ", " = ", " * ", " + ", " - "}) {
+            std::string input = "2 задачи";
+            for (int item = 1; item < 64; ++item)
+                input += std::string(connector) + "2 задачи";
+            const auto last_number = input.size() - std::string("2 задачи").size();
+            input += "; 1 окно";
+            const auto after_chain = input.size() - std::string("1 окно").size();
+            const auto chain = detail::build_cardinal_source_index(
+                detail::MappedText::from_original(input, nullptr));
+            CHECK(chain.ranges.size() == 2);
+            CHECK(chain.contains({last_number, 1}));
+            CHECK(chain.contains({after_chain, 1}));
+            CHECK(!chain.contains({0, 1}));
+        }
         CHECK(detail::build_cardinal_source_index(
                   detail::MappedText::from_original("2 задачи \xff", nullptr))
                   .ranges.empty());

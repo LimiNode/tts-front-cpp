@@ -341,6 +341,56 @@ bool benchmark_technical_ownership_scaling() {
     return true;
 }
 
+bool benchmark_cardinal_source_scaling() {
+    using namespace tts_front::detail;
+    constexpr std::array<unsigned int, 4> counts = {800u, 1600u, 3200u, 6400u};
+    constexpr std::string_view phrase = "2 задачи";
+    for (const auto connector :
+         {std::string_view(" / "), std::string_view(" # "), std::string_view("; ")}) {
+        double previous = 0;
+        for (const auto count : counts) {
+            std::string text;
+            text.reserve((phrase.size() + connector.size()) * count);
+            for (unsigned int item = 0; item < count; ++item) {
+                if (item != 0)
+                    text += connector;
+                text += phrase;
+            }
+            const auto source = MappedText::from_original(text, nullptr);
+            std::array<double, 3> samples{};
+            for (auto& sample : samples) {
+                const auto begin = std::chrono::steady_clock::now();
+                unsigned int repetitions = 0;
+                double elapsed = 0;
+                do {
+                    const auto index = build_cardinal_source_index(source);
+                    const auto expected = connector == "; " ? count : 1u;
+                    if (index.ranges.size() != expected ||
+                        !index.contains({text.size() - phrase.size(), 1})) {
+                        std::cerr << "unexpected cardinal source index\n";
+                        return false;
+                    }
+                    ++repetitions;
+                    elapsed =
+                        std::chrono::duration<double>(std::chrono::steady_clock::now() - begin)
+                            .count();
+                } while (elapsed < 0.04);
+                sample = elapsed / repetitions;
+            }
+            std::sort(samples.begin(), samples.end());
+            const auto elapsed = samples[1];
+            std::cout << count << " cardinal origins, connector [" << connector << "], " << elapsed
+                      << " s, slope " << (previous > 0 ? elapsed / previous : 0) << "x\n";
+            if (previous > 0 && elapsed / previous > 3.25) {
+                std::cerr << "cardinal source index exceeded the allowed doubling slope\n";
+                return false;
+            }
+            previous = elapsed;
+        }
+    }
+    return true;
+}
+
 int main(int argc, char** argv) {
     if (argc == 2 && std::string_view(argv[1]) == "--currency-prefix-scaling") {
         benchmark_currency_prefix_scaling();
@@ -350,6 +400,8 @@ int main(int argc, char** argv) {
         return benchmark_warning_sink_scaling() ? EXIT_SUCCESS : EXIT_FAILURE;
     if (argc == 2 && std::string_view(argv[1]) == "--document-scaling")
         return benchmark_document_pipeline_scaling() ? EXIT_SUCCESS : EXIT_FAILURE;
+    if (argc == 2 && std::string_view(argv[1]) == "--cardinal-source-scaling")
+        return benchmark_cardinal_source_scaling() ? EXIT_SUCCESS : EXIT_FAILURE;
     if (argc == 2 && std::string_view(argv[1]) == "--technical-ownership-scaling")
         return benchmark_technical_ownership_scaling() ? EXIT_SUCCESS : EXIT_FAILURE;
     const std::string text = "В 2026 году GPU RTX 4090 обработал 12500 запросов.";
