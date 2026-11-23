@@ -59,6 +59,7 @@ bool is_numeric_surface_start(const Utf8Document& document, std::size_t begin);
 // Narrow cardinal+noun admission. Reject attached words, unsupported signs,
 // signed-token fragments, compound connector tails (even without a following
 // operand), and trailing components of space-grouped numbers.
+// A horizontally spaced typographic en/em dash before a word is punctuation.
 // Existing generic formatting may still handle those surfaces compatibly.
 bool is_independent_cardinal_candidate(const Utf8Document& document,
                                        const CandidateSurface& candidate);

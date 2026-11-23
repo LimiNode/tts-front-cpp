@@ -599,8 +599,17 @@ bool is_independent_cardinal_candidate(const Utf8Document& document,
         ++tail;
     // A bare compound connector is not an independent cardinal+noun ending.
     if (tail < points.size() &&
-        is_spaced_connector(points[tail].value, CandidateSurfaceKind::Contextual))
-        return false;
+        is_spaced_connector(points[tail].value, CandidateSurfaceKind::Contextual)) {
+        auto next = tail + 1;
+        while (next < points.size() && text::is_horizontal_space(points[next].value))
+            ++next;
+        // A spaced typographic dash before a word is punctuation, not an operand connector.
+        const bool dash_punctuation =
+            tail > lexical.end && (points[tail].value == 0x2013 || points[tail].value == 0x2014) &&
+            next > tail + 1 && next < points.size() && text::is_letter(points[next].value);
+        if (!dash_punctuation)
+            return false;
+    }
     // A three-digit component after a standalone 1-3 digit head and horizontal whitespace
     // belongs to the earlier grouped surface, not a new cardinal owner.
     if (numeric.sign == NumericSign::None && numeric.digits_end - numeric.digits_begin == 3) {

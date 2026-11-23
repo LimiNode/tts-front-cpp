@@ -58,6 +58,43 @@ int main() {
             CHECK(detail::is_independent_cardinal_candidate(document, candidate) ==
                   test.independent);
         }
+        struct DashBoundary {
+            const char* tail;
+            bool punctuation;
+        };
+        const DashBoundary dash_boundaries[] = {{" — это", true},
+                                                {" – это", true},
+                                                {"\t—\tэто", true},
+                                                {" — tasks", true},
+                                                {"— это", false},
+                                                {" —это", false},
+                                                {" —", false},
+                                                {" — 4", false},
+                                                {" — +4", false},
+                                                {" — -4", false},
+                                                {" — −4", false},
+                                                {" — ́слово", false},
+                                                {" —\nэто", false},
+                                                {" - это", false},
+                                                {" − это", false},
+                                                {" % это", false}};
+        for (const auto& sign :
+             {std::string(""), std::string("+"), std::string("-"), std::string("−")}) {
+            for (const auto* core : {"2 задачи", "2 002 задачи", "$2 задачи"}) {
+                for (const auto& boundary : dash_boundaries) {
+                    const auto input = sign + core + boundary.tail;
+                    const detail::Utf8Document document(input);
+                    const bool currency = core[0] == '$';
+                    const auto point = currency ? (sign.empty() ? 1 : 2) : 0;
+                    const auto candidate = detail::scan_candidate_surface(
+                        document, point, detail::CandidateSurfaceKind::Contextual);
+                    const bool expected = boundary.punctuation && std::string(core) == "2 задачи" &&
+                                          (sign.empty() || sign == "-");
+                    CHECK(detail::is_independent_cardinal_candidate(document, candidate) ==
+                          expected);
+                }
+            }
+        }
         const auto source = detail::MappedText::from_original("2 002 задачи", nullptr);
         const auto collapsed = detail::apply_source_edits(source, {{0, 5, "2002"}});
         const auto index = detail::build_cardinal_source_index(collapsed);
@@ -4296,8 +4333,8 @@ int main() {
                 ++admission_executions;
             }
         }
-        CHECK(admission_executions == (156 + 264) * 4);
-        CHECK(admission_deltas == 36);
+        CHECK(admission_executions == (156 + 264 + 24) * 4);
+        CHECK(admission_deltas == 65);
 
         struct AdmissionRegression {
             const char* input;
@@ -4317,6 +4354,12 @@ int main() {
             {"2 задачи-", "два задачи-", "two задачи-"},
             {"2 задачи.", "две задачи.", "two задачи."},
             {"2 задачи. 4", "две задачи. четыре", "two задачи. four"},
+            {"2 задачи — это весь план.",
+             "две задачи — это весь план.",
+             "two задачи — это весь план."},
+            {"1 сообщение — уже в чате.",
+             "одно сообщение — уже в чате.",
+             "one сообщение — уже в чате."},
             {"2 задачи # 4", "два задачи # четыре", "two задачи # four"},
             {"1. 2 задачи", "один. две задачи", "one. two задачи"},
             {"2 002 задачи", "две тысячи две задачи", "two thousand two задачи"}};
@@ -4341,6 +4384,8 @@ int main() {
             {"OpenAI 2 ошибка", "OpenAI два ошибка"},
             {"OpenAI 2 ошибки", "OpenAI две ошибки"},
             {"OpenAI 1 окно", "OpenAI одно окно"},
+            {"OpenAI 2 задачи — это весь план.", "OpenAI две задачи — это весь план."},
+            {"OpenAI 1 сообщение — уже в чате.", "OpenAI одно сообщение — уже в чате."},
             {"OpenAI 2002 задачи", "OpenAI две тысячи две задачи"}};
         for (const auto& test : mixed_cardinals) {
             const auto result = frontend.process(test.input, options_for_mode("segment"));
