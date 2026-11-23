@@ -263,6 +263,51 @@ gates pass. The earlier 7,784-observation comparison is also byte-identical.
 The working baseline remains `763 / 661 / 102 / 0 / 0`; the quality oracle,
 published archives, public API and version are untouched.
 
+### Quoted phrases and index scaling corrective after `835cf30`
+
+Opening quotes or brackets may occur between a spaced typographic dash and
+the lexical phrase. Shared neutral classification recognizes `(`, `[`, `{`,
+ASCII single/double quotes, `«`, `‹`, `‘`, `‚`, `“` and `„`. The cardinal query
+skips opening delimiters and horizontal spaces, then still requires a letter.
+It does not parse an entire quoted sentence or infer a numeral inside quotes.
+Empty prefixes, closing delimiters, numeric/sign starts and combining-only
+starts remain outside this punctuation admission. The supplied sentences now
+read `В плане две задачи — «запуск» и «проверка».` and
+`одно сообщение — «Готово».` in RU/Auto/SegmentCandidates, with no diagnostics.
+Both text fields change only the numeral gender; original bytes remain intact.
+
+The index regression had a separate cause: its boolean admission query walked
+the complete connector continuation before checking the immediately visible
+connector. The same rejection now short-circuits before that full-span scan.
+No cache, new index model, cursor skipping, or generic diagnostic-boundary
+change is introduced. The final independent numeral in a connector chain and
+the next phrase after a semicolon keep their exact index membership.
+
+`--cardinal-source-scaling` is a dedicated CI gate on 800/1600/3200/6400
+candidates with `/`, `#` and ordinary `;` separators. It checks membership,
+uses the median of three adaptively batched measurements, and rejects a
+doubling slope above 3.25x. The exact old Release build fails at about 4.1x; the corrected
+index passes. This isolates the added index cost; it does not claim that every
+legacy full-pipeline path is linear on arbitrary connector chains.
+
+Direct tests add 64-element index chains across seven connector spellings,
+opening/closing/numeric/combining neighbors in the existing four-sign and
+three-core scanner matrix, eleven independently expected delimiter sentences
+in RU/Auto/SegmentCandidates/EN, and the review sentences and mixed heads.
+The historical indexed C++ gold is not expanded or migrated in this corrective.
+A fresh 4,340-observation comparison records 380 approved quoted-phrase gender
+changes, no EN/original/ordered-diagnostic/span drift, and no exceptions.
+The baseline is confirmed with a separate complete Release library build of
+`835cf305181ee668ae9785097ed051c8fc2e4a69`, using the same compiler/optimization.
+Earlier 2,620 dash cases and the broader 7,784-case comparison stay byte-identical.
+
+Complete Debug/Release builds and CTest pass 13/13 each. Format, maintained
+strict archive, generator/checksum, header/umbrella, fixture, consumer and all
+three maintained scaling gates pass. The quality baseline is unchanged at
+`763 / 661 / 102 / 0 / 0`. The oracle, archives, API and version remain untouched.
+The independent GCC 14 stack report and issue #95 are not fixed by this batch;
+neither a release nor an oracle update is authorized by these local checks.
+
 An adversarial noun/protected-tail probe at 1k/5k/10k/20k segments measured
 0.55/2.74/5.60/11.45 seconds (median of three Release runs): 4.98× for 5× input,
 then 2.04× and 2.04× for each doubling. Both maintained scaling gates also pass.
