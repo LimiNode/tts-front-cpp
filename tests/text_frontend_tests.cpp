@@ -123,7 +123,8 @@ int main() {
         const auto continuation = detail::build_cardinal_source_index(
             detail::MappedText::from_original("2 задачи #4", nullptr));
         CHECK(!continuation.contains({0, 1}));
-        for (const auto* connector : {" / ", " # ", " % ", " = ", " * ", " + ", " - "}) {
+        for (const auto* connector :
+             {" / ", " # ", " % ", " = ", " * ", " + ", " - ", "./ ", ":# "}) {
             std::string input = "2 задачи";
             for (int item = 1; item < 64; ++item)
                 input += std::string(connector) + "2 задачи";
@@ -136,6 +137,49 @@ int main() {
             CHECK(chain.contains({last_number, 1}));
             CHECK(chain.contains({after_chain, 1}));
             CHECK(!chain.contains({0, 1}));
+        }
+        // Compare memoized source-index membership with the unchanged uncached query.
+        for (const auto* connector : {"./ ", ":# ", ",% ", "./ -", ":# +", "./ −", ". / ", "./"}) {
+            for (const auto* neighbor : {connector, " / ", "./ -"}) {
+                for (const auto* core : {"2 задачи",
+                                         "2задачи",
+                                         "2 002 задачи",
+                                         "$2 задачи",
+                                         "2 задачи́",
+                                         "2 задачи́ слово",
+                                         "2 задачиx",
+                                         "2 задачия",
+                                         "2́ задачи"}) {
+                    std::string input = core;
+                    for (int item = 1; item < 16; ++item)
+                        input += std::string(item % 2 ? connector : neighbor) + core;
+                    input += "; 1 окно";
+                    const detail::Utf8Document document(input);
+                    std::vector<detail::SourceRange> expected;
+                    for (std::size_t point = 0; point < document.points.size(); ++point) {
+                        if (!detail::is_numeric_surface_start(document, point))
+                            continue;
+                        const auto candidate = detail::scan_candidate_surface(
+                            document, point, detail::CandidateSurfaceKind::Contextual);
+                        if (!candidate.valid())
+                            continue;
+                        if (detail::is_independent_cardinal_candidate(document, candidate)) {
+                            const auto span =
+                                document.span_from_codepoints(point, candidate.numeric.end);
+                            expected.push_back({span.byte_begin, span.byte_end - span.byte_begin});
+                        }
+                        point = std::max(point, candidate.end - 1);
+                    }
+                    const auto cached = detail::build_cardinal_source_index(
+                        detail::MappedText::from_original(input, nullptr));
+                    CHECK(cached.ranges.size() == expected.size());
+                    for (std::size_t item = 0; item < expected.size(); ++item) {
+                        CHECK(cached.ranges[item].offset == expected[item].offset);
+                        CHECK(cached.ranges[item].length == expected[item].length);
+                    }
+                    CHECK(cached.contains({input.size() - std::string("1 окно").size(), 1}));
+                }
+            }
         }
         CHECK(detail::build_cardinal_source_index(
                   detail::MappedText::from_original("2 задачи \xff", nullptr))

@@ -346,8 +346,12 @@ bool benchmark_cardinal_source_scaling() {
     using namespace tts_front::detail;
     constexpr std::array<unsigned int, 4> counts = {800u, 1600u, 3200u, 6400u};
     constexpr std::string_view phrase = "2 задачи";
-    for (const auto connector :
-         {std::string_view(" / "), std::string_view(" # "), std::string_view("; ")}) {
+    for (const auto connector : {std::string_view(" / "),
+                                 std::string_view(" # "),
+                                 std::string_view("./ "),
+                                 std::string_view(":# "),
+                                 std::string_view(",% "),
+                                 std::string_view("; ")}) {
         std::array<MappedText, counts.size()> sources;
         for (std::size_t size = 0; size < counts.size(); ++size) {
             const auto count = counts[size];
@@ -365,7 +369,7 @@ bool benchmark_cardinal_source_scaling() {
         for (std::size_t size = counts.size(); size-- > 0;) {
             const auto count = counts[size];
             const auto& source = sources[size];
-            const auto expected = connector == "; " ? count : 1u;
+            const auto expected = connector == "; " || connector == ",% " ? count : 1u;
             const SourceRange last{source.text.size() - phrase.size(), 1};
             const auto warm = build_cardinal_source_index(source);
             if (warm.ranges.size() != expected || !warm.contains(last)) {

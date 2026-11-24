@@ -325,6 +325,52 @@ An adversarial noun/protected-tail probe at 1k/5k/10k/20k segments measured
 0.55/2.74/5.60/11.45 seconds (median of three Release runs): 4.98× for 5× input,
 then 2.04× and 2.04× for each doubling. Both maintained scaling gates also pass.
 
+### Punctuation-chain performance corrective after `e31913b`
+
+The earlier local rejection is insufficient when punctuation precedes a
+connector. `./ ` and `:# ` can enter the complete attached-continuation scan
+before the rejection. Each later numeral then repeats the same suffix walk.
+Rejecting these spellings unconditionally would also be incorrect: the
+existing `./ -2 задачи` and `,% 2 задачи` paths can have a `Punctuated` outcome
+and retain different index membership. This corrective changes cost, not that
+admission policy.
+
+The existing source-index build now owns a document-local memo for Contextual
+scanner results: continuation endpoints and admission-tail endpoints/outcomes.
+The same scanner implementation runs with or without this memo; there is no
+second punctuation grammar. Intermediate suffix results are reused, including
+the merged outcome of mixed continuation chains. Combining-mark positions are
+collected once so the candidate's combining probe does not re-read a cached
+long suffix. Storage is transient and proportional to the UTF-8 document's
+codepoint count; there is no persistent cache, new header/API, language data,
+dependency edge or change to full-span diagnostic callers. Legacy pipeline
+cost outside the added source index is not claimed to be fixed.
+
+The scaling gate adds `./ `, `:# ` and the all-members `,% ` control to the
+existing `/`, `#`, `;` rows. Counts, timing method and 3.25x fitted-doubling
+threshold are unchanged. Linked to the exact saved `e31913b` Release library,
+the new gate fails on `./ ` at 4.03x (800/1600/3200/6400: about
+28/111/449/1817 ms). The corrected index passes: about 0.54/1.25/2.28/5.54 ms
+for `./ ` and 0.50/0.95/2.13/5.32 ms for `:# `; fitted slopes are 2.13x and
+2.21x. The original slash/hash controls and the pure-Punctuated control pass.
+
+Direct tests retain exact last-candidate and independent-after-`;` membership
+on 64-element chains. A further 216 short chain matrices compare the memoized
+index against the uncached scanner query, crossing punctuation/sign spellings,
+mixed connector neighbors, plain/attached/grouped/currency cores, combining
+marks and ASCII/Cyrillic lexical continuations. Expected admission is not
+redefined by these tests. An exact-base comparison of 7,936 observations in
+RU/Auto/SegmentCandidates/EN is byte-identical, including every index range,
+original/normalized/pronunciation text and ordered warning code/message/span;
+there are no exceptions. Reports remain transient under `.temp/noun-final/`.
+Oracle, archives, public API and version are untouched.
+
+Full local Debug/Release builds and CTest pass 13/13 each, including corpus
+generation/checksum checks, fixtures, header/umbrella tests and the maintained
+strict `v0.2.2` archive audit. Format-check, install-consumer and all three
+scaling gates pass. The working baseline stays `763 / 661 / 102 / 0 / 0`.
+Exact-head CI and a fresh review remain gates before any merge.
+
 ## Verification boundary
 
 Direct tests include independent 14 × 18 × 3 gold, governors, prefix negatives,
