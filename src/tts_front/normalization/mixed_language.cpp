@@ -166,7 +166,13 @@ void collect_local_number_candidates(const MappedText& input,
             continue;
         }
         const auto token = input.text.substr(begin, core_end - begin);
-        const auto replacement = formatter(token);
+        // Currency ownership belongs to the typed path, not noun agreement.
+        const auto noun =
+            is_independent_cardinal_candidate(document, candidate) &&
+                    scan_currency_prefix_begin(document, candidate.begin) == candidate.begin
+                ? std::string_view(word)
+                : std::string_view{};
+        const auto replacement = formatter(token, noun, input, begin);
         if (replacement && *replacement != input.text.substr(begin, core_end - begin))
             edits.push_back({begin, core_end, *replacement});
     }

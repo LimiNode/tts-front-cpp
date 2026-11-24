@@ -28,6 +28,8 @@ jobs:
         run: ./.build/benchmark/tts_front_benchmark --warning-scaling
       - name: Run document pipeline scaling gate
         run: ./.build/benchmark/tts_front_benchmark --document-scaling
+      - name: Run cardinal source index scaling gate
+        run: ./.build/benchmark/tts_front_benchmark --cardinal-source-scaling
   linux:
     strategy:
       matrix:

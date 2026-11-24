@@ -2,10 +2,35 @@
 #include "tts_front/core/text/codepoint_classification.hpp"
 
 #include <algorithm>
+#include <limits>
+#include <utility>
 
 namespace tts_front::detail {
 
 namespace {
+
+// One document/kind per source-index build; full-span diagnostic callers stay uncached.
+struct AdmissionMemo {
+    static constexpr auto uncomputed = std::numeric_limits<std::size_t>::max();
+    struct Tail {
+        std::size_t end = uncomputed;
+        AdmissionOutcome outcome = AdmissionOutcome::None;
+    };
+    explicit AdmissionMemo(const Utf8Document& document)
+        : continuations(document.points.size() + 1, uncomputed), tails(document.points.size() + 1) {
+        for (std::size_t point = 0; point < document.points.size(); ++point)
+            if (text::is_combining_mark(document.points[point].value))
+                combining.push_back(point);
+    }
+    std::vector<std::size_t> continuations;
+    std::vector<Tail> tails;
+    std::vector<std::size_t> combining;
+};
+
+std::size_t scan_candidate_continuation_impl(const Utf8Document& document,
+                                             std::size_t begin,
+                                             CandidateSurfaceKind kind,
+                                             AdmissionMemo* memo);
 
 bool is_continuation_connector(const std::uint32_t value, const CandidateSurfaceKind kind) {
     return value == '-' || value == '+' || value == '.' || value == ',' || value == ':' ||
@@ -78,7 +103,8 @@ AdmissionOutcome classify_admission_step(const Utf8Document& document,
 
 std::size_t scan_punctuated_continuation(const Utf8Document& document,
                                          const std::size_t begin,
-                                         const CandidateSurfaceKind kind) {
+                                         const CandidateSurfaceKind kind,
+                                         AdmissionMemo* memo) {
     const auto& points = document.points;
     auto punctuation = begin;
     while (punctuation < points.size() &&
@@ -104,7 +130,7 @@ std::size_t scan_punctuated_continuation(const Utf8Document& document,
     const auto numeric = scan_numeric_surface(document, next);
     if (numeric.valid())
         return numeric.continuation_end;
-    const auto lexical = scan_candidate_continuation(document, punctuation, kind);
+    const auto lexical = scan_candidate_continuation_impl(document, punctuation, kind, memo);
     return lexical > punctuation ? lexical : begin;
 }
 
@@ -219,8 +245,12 @@ bool is_numeric_surface_start(const Utf8Document& document, const std::size_t be
            (begin == 0 || !text::is_digit(document.points[begin - 1].value));
 }
 
-CandidateSurface
-scan_candidate_surface(const Utf8Document& document, std::size_t begin, CandidateSurfaceKind kind) {
+namespace {
+
+CandidateSurface scan_candidate_surface_impl(const Utf8Document& document,
+                                             std::size_t begin,
+                                             CandidateSurfaceKind kind,
+                                             AdmissionMemo* memo) {
     CandidateSurface candidate;
     candidate.kind = kind;
     candidate.begin = begin;
@@ -231,11 +261,18 @@ scan_candidate_surface(const Utf8Document& document, std::size_t begin, Candidat
         return candidate;
 
     const auto combining_probe =
-        std::max(candidate.end, scan_candidate_continuation(document, candidate.numeric.end, kind));
-    candidate.has_combining = std::any_of(
-        document.points.begin() + static_cast<std::ptrdiff_t>(candidate.numeric.end),
-        document.points.begin() + static_cast<std::ptrdiff_t>(combining_probe),
-        [](const Utf8CodePoint& point) { return text::is_combining_mark(point.value); });
+        std::max(candidate.end,
+                 scan_candidate_continuation_impl(document, candidate.numeric.end, kind, memo));
+    if (memo) {
+        const auto mark =
+            std::lower_bound(memo->combining.begin(), memo->combining.end(), candidate.numeric.end);
+        candidate.has_combining = mark != memo->combining.end() && *mark < combining_probe;
+    } else {
+        candidate.has_combining = std::any_of(
+            document.points.begin() + static_cast<std::ptrdiff_t>(candidate.numeric.end),
+            document.points.begin() + static_cast<std::ptrdiff_t>(combining_probe),
+            [](const Utf8CodePoint& point) { return text::is_combining_mark(point.value); });
+    }
     // Scientific and encoded numeric surfaces may continue through a
     // connector and another numeric token.  Compute that continuation once
     // here so technical and malformed admission share the same boundary.
@@ -244,18 +281,46 @@ scan_candidate_surface(const Utf8Document& document, std::size_t begin, Candidat
     return candidate;
 }
 
+} // namespace
+
+CandidateSurface
+scan_candidate_surface(const Utf8Document& document, std::size_t begin, CandidateSurfaceKind kind) {
+    return scan_candidate_surface_impl(document, begin, kind, nullptr);
+}
+
 std::size_t scan_candidate_continuation(const Utf8Document& document,
                                         std::size_t begin,
                                         CandidateSurfaceKind kind) {
+    return scan_candidate_continuation_impl(document, begin, kind, nullptr);
+}
+
+namespace {
+
+std::size_t scan_candidate_continuation_impl(const Utf8Document& document,
+                                             std::size_t begin,
+                                             CandidateSurfaceKind kind,
+                                             AdmissionMemo* memo) {
     const auto& points = document.points;
     auto end = begin;
     const auto lexical = [&](std::size_t point) {
         return text::is_letter(points[point].value) || text::is_digit(points[point].value) ||
                text::is_combining_mark(points[point].value) || points[point].value == '_';
     };
+    std::vector<std::size_t> pending;
     while (end < points.size()) {
-        while (end < points.size() && lexical(end))
+        if (memo) {
+            const auto cached = memo->continuations[end];
+            if (cached != AdmissionMemo::uncomputed) {
+                end = cached;
+                break;
+            }
+            pending.push_back(end);
+        }
+        while (end < points.size() && lexical(end)) {
+            if (memo)
+                pending.push_back(end);
             ++end;
+        }
         if (end >= points.size())
             break;
         const auto value = points[end].value;
@@ -341,8 +406,13 @@ std::size_t scan_candidate_continuation(const Utf8Document& document,
             break;
         }
     }
+    if (memo)
+        for (const auto point : pending)
+            memo->continuations[point] = end;
     return end;
 }
+
+} // namespace
 
 NumericSurfaceRange scan_lexical_suffix(const Utf8Document& document, const std::size_t begin) {
     NumericSurfaceRange result{begin, begin, begin};
@@ -406,9 +476,12 @@ std::size_t scan_currency_numeric_end(const Utf8Document& document, std::size_t 
     return numeric_begin;
 }
 
-std::size_t scan_spaced_numeric_continuation(const Utf8Document& document,
-                                             std::size_t begin,
-                                             CandidateSurfaceKind kind) {
+namespace {
+
+std::size_t scan_spaced_numeric_continuation_impl(const Utf8Document& document,
+                                                  std::size_t begin,
+                                                  CandidateSurfaceKind kind,
+                                                  AdmissionMemo* memo) {
     const auto& points = document.points;
     auto connector = begin;
     const auto connector_start = connector;
@@ -451,11 +524,19 @@ std::size_t scan_spaced_numeric_continuation(const Utf8Document& document,
     if (numeric.valid())
         return numeric.continuation_end;
     if (kind != CandidateSurfaceKind::Numeric) {
-        const auto lexical = scan_candidate_continuation(document, connector, kind);
+        const auto lexical = scan_candidate_continuation_impl(document, connector, kind, memo);
         if (lexical > connector)
             return lexical;
     }
     return begin;
+}
+
+} // namespace
+
+std::size_t scan_spaced_numeric_continuation(const Utf8Document& document,
+                                             std::size_t begin,
+                                             CandidateSurfaceKind kind) {
+    return scan_spaced_numeric_continuation_impl(document, begin, kind, nullptr);
 }
 
 AdmissionResult scan_admission(const Utf8Document& document,
@@ -495,9 +576,12 @@ AdmissionResult scan_admission(const Utf8Document& document,
     return result;
 }
 
-AdmissionResult scan_admission(const Utf8Document& document,
-                               const CandidateSurface& candidate,
-                               CandidateSurfaceKind kind) {
+namespace {
+
+AdmissionResult scan_admission_impl(const Utf8Document& document,
+                                    const CandidateSurface& candidate,
+                                    CandidateSurfaceKind kind,
+                                    AdmissionMemo* memo) {
     if (!candidate.valid())
         return {kind, candidate.begin, candidate.begin, candidate.begin, AdmissionOutcome::None};
 
@@ -516,18 +600,28 @@ AdmissionResult scan_admission(const Utf8Document& document,
             record_admission_step(result, end, suffix + 1, outcome);
         }
     }
+    std::vector<std::pair<std::size_t, AdmissionOutcome>> pending;
+    AdmissionMemo::Tail suffix;
     for (;;) {
-        const auto attached = scan_candidate_continuation(document, end, kind);
-        const auto spaced = scan_spaced_numeric_continuation(document, end, kind);
-        const auto punctuated = scan_punctuated_continuation(document, end, kind);
+        const auto start = end;
+        if (memo && memo->tails[end].end != AdmissionMemo::uncomputed) {
+            suffix = memo->tails[end];
+            result.outcome = merge_admission_outcome(result.outcome, suffix.outcome);
+            result.end = suffix.end;
+            break;
+        }
+        const auto attached = scan_candidate_continuation_impl(document, end, kind, memo);
+        const auto spaced = scan_spaced_numeric_continuation_impl(document, end, kind, memo);
+        const auto punctuated = scan_punctuated_continuation(document, end, kind, memo);
         auto next = std::max({attached, spaced, punctuated});
         auto step = classify_admission_step(document, end, attached, spaced, punctuated);
         if (end > candidate.begin) {
             const auto previous = document.points[end - 1].value;
             if (is_spaced_connector(previous, kind)) {
-                const auto previous_attached = scan_candidate_continuation(document, end - 1, kind);
+                const auto previous_attached =
+                    scan_candidate_continuation_impl(document, end - 1, kind, memo);
                 const auto previous_spaced =
-                    scan_spaced_numeric_continuation(document, end - 1, kind);
+                    scan_spaced_numeric_continuation_impl(document, end - 1, kind, memo);
                 const auto previous_next = std::max(previous_attached, previous_spaced);
                 if (previous_next > next) {
                     next = previous_next;
@@ -550,10 +644,31 @@ AdmissionResult scan_admission(const Utf8Document& document,
                 }
             }
         }
-        if (!record_admission_step(result, end, next, step))
+        if (!record_admission_step(result, end, next, step)) {
+            suffix = {end, AdmissionOutcome::None};
+            if (memo)
+                memo->tails[end] = suffix;
             break;
+        }
+        if (memo)
+            pending.emplace_back(
+                start, step == AdmissionOutcome::None ? AdmissionOutcome::Compound : step);
+    }
+    if (memo) {
+        for (auto point = pending.rbegin(); point != pending.rend(); ++point) {
+            suffix.outcome = merge_admission_outcome(point->second, suffix.outcome);
+            memo->tails[point->first] = suffix;
+        }
     }
     return result;
+}
+
+} // namespace
+
+AdmissionResult scan_admission(const Utf8Document& document,
+                               const CandidateSurface& candidate,
+                               CandidateSurfaceKind kind) {
+    return scan_admission_impl(document, candidate, kind, nullptr);
 }
 
 bool NumericSurfaceIndex::contains(std::size_t point) const {
@@ -572,6 +687,130 @@ bool NumericSurfaceIndex::overlaps(std::size_t begin, std::size_t end) const {
         begin,
         [](const NumericSurfaceRange& range, std::size_t value) { return range.end <= value; });
     return found != ranges.end() && found->surface_begin < end && begin < found->end;
+}
+
+namespace {
+
+bool is_independent_cardinal_candidate_impl(const Utf8Document& document,
+                                            const CandidateSurface& candidate,
+                                            AdmissionMemo* memo) {
+    const auto& numeric = candidate.numeric;
+    if (!candidate.valid() || numeric.exponent != ExponentState::None ||
+        numeric.malformed_combining || numeric.sign == NumericSign::Plus ||
+        numeric.sign == NumericSign::UnicodeMinus)
+        return false;
+    const auto lexical = scan_lexical_suffix(document, numeric.end);
+    if (lexical.continuation_begin == numeric.end || lexical.end == lexical.continuation_begin)
+        return false;
+    const auto& points = document.points;
+    if (candidate.begin > 0) {
+        const auto previous = points[candidate.begin - 1].value;
+        if (text::is_lexical_numeric_boundary(previous) ||
+            is_continuation_connector(previous, CandidateSurfaceKind::Contextual))
+            return false;
+    }
+    auto tail = lexical.end;
+    while (tail < points.size() && text::is_horizontal_space(points[tail].value))
+        ++tail;
+    // A bare compound connector is not an independent cardinal+noun ending.
+    if (tail < points.size() &&
+        is_spaced_connector(points[tail].value, CandidateSurfaceKind::Contextual)) {
+        auto next = tail + 1;
+        while (next < points.size() && text::is_horizontal_space(points[next].value))
+            ++next;
+        const bool spaced = next > tail + 1;
+        while (next < points.size() && text::is_opening_delimiter(points[next].value)) {
+            ++next;
+            while (next < points.size() && text::is_horizontal_space(points[next].value))
+                ++next;
+        }
+        // Opening quotes/brackets may introduce the lexical phrase after a spaced dash.
+        const bool dash_punctuation =
+            tail > lexical.end && (points[tail].value == 0x2013 || points[tail].value == 0x2014) &&
+            spaced && next < points.size() && text::is_letter(points[next].value);
+        if (!dash_punctuation)
+            return false;
+    }
+    // Reject a local connector before walking its potentially document-long continuation.
+    const auto admission =
+        scan_admission_impl(document, candidate, CandidateSurfaceKind::Contextual, memo);
+    if (admission.extended() && admission.outcome != AdmissionOutcome::Punctuated)
+        return false;
+    // A three-digit component after a standalone 1-3 digit head and horizontal whitespace
+    // belongs to the earlier grouped surface, not a new cardinal owner.
+    if (numeric.sign == NumericSign::None && numeric.digits_end - numeric.digits_begin == 3) {
+        auto previous_end = candidate.begin;
+        while (previous_end > 0 && text::is_horizontal_space(points[previous_end - 1].value))
+            --previous_end;
+        if (previous_end < candidate.begin) {
+            auto previous_begin = previous_end;
+            // Four digits suffice to rule out a 1-3 digit grouping head.
+            while (previous_begin > 0 && previous_end - previous_begin < 4 &&
+                   text::is_digit(points[previous_begin - 1].value))
+                --previous_begin;
+            const auto digits = previous_end - previous_begin;
+            if (digits >= 1 && digits <= 3 &&
+                (previous_begin == 0 ||
+                 !text::is_lexical_numeric_boundary(points[previous_begin - 1].value)))
+                return false;
+        }
+    }
+    return true;
+}
+
+} // namespace
+
+bool is_independent_cardinal_candidate(const Utf8Document& document,
+                                       const CandidateSurface& candidate) {
+    return is_independent_cardinal_candidate_impl(document, candidate, nullptr);
+}
+
+bool CardinalSourceIndex::contains(const SourceRange source) const {
+    const auto found =
+        std::lower_bound(ranges.begin(),
+                         ranges.end(),
+                         source,
+                         [](const SourceRange& range, const SourceRange& value) {
+                             return range.offset < value.offset ||
+                                    (range.offset == value.offset && range.length < value.length);
+                         });
+    return found != ranges.end() && found->offset == source.offset &&
+           found->length == source.length;
+}
+
+CardinalSourceIndex build_cardinal_source_index(const MappedText& text) {
+    CardinalSourceIndex index;
+    const Utf8Document document(text.text);
+    if (!document.valid)
+        return index;
+    AdmissionMemo memo(document);
+    for (std::size_t point = 0; point < document.points.size(); ++point) {
+        if (!is_numeric_surface_start(document, point))
+            continue;
+        const auto candidate =
+            scan_candidate_surface_impl(document, point, CandidateSurfaceKind::Contextual, &memo);
+        if (!candidate.valid())
+            continue;
+        if (is_independent_cardinal_candidate_impl(document, candidate, &memo)) {
+            const auto core = document.span_from_codepoints(point, candidate.numeric.end);
+            index.ranges.push_back(text.source_range(core.byte_begin, core.byte_end));
+        }
+        point = std::max(point, candidate.end - 1);
+    }
+    std::sort(index.ranges.begin(),
+              index.ranges.end(),
+              [](const SourceRange& left, const SourceRange& right) {
+                  return left.offset < right.offset ||
+                         (left.offset == right.offset && left.length < right.length);
+              });
+    index.ranges.erase(std::unique(index.ranges.begin(),
+                                   index.ranges.end(),
+                                   [](const SourceRange& left, const SourceRange& right) {
+                                       return left.offset == right.offset &&
+                                              left.length == right.length;
+                                   }),
+                       index.ranges.end());
+    return index;
 }
 
 NumericSurfaceIndex build_numeric_surface_index(const Utf8Document& document) {

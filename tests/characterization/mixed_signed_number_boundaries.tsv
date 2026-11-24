@@ -1,8 +1,8 @@
 mode	input	normalized_and_pronunciation	diagnostics
 en	OpenAI 2 задачи	OpenAI two задачи	none
-ru	OpenAI 2 задачи	OpenAI два задачи	none
-auto	OpenAI 2 задачи	OpenAI два задачи	ambiguous_normalization@0:21
-segment	OpenAI 2 задачи	OpenAI два задачи	ambiguous_normalization@0:21
+ru	OpenAI 2 задачи	OpenAI две задачи	none
+auto	OpenAI 2 задачи	OpenAI две задачи	ambiguous_normalization@0:21
+segment	OpenAI 2 задачи	OpenAI две задачи	ambiguous_normalization@0:21
 en	OpenAI 2 задачи́	OpenAI two задачи́	none
 ru	OpenAI 2 задачи́	OpenAI два задачи́	none
 auto	OpenAI 2 задачи́	OpenAI два задачи́	ambiguous_normalization@0:23
@@ -20,9 +20,9 @@ ru	OpenAI 2 задачия	OpenAI два задачия	none
 auto	OpenAI 2 задачия	OpenAI два задачия	ambiguous_normalization@0:23
 segment	OpenAI 2 задачия	OpenAI два задачия	ambiguous_normalization@0:23
 en	OpenAI 2 задачи,	OpenAI two задачи,	none
-ru	OpenAI 2 задачи,	OpenAI два задачи,	none
-auto	OpenAI 2 задачи,	OpenAI два задачи,	ambiguous_normalization@0:22
-segment	OpenAI 2 задачи,	OpenAI два задачи,	ambiguous_normalization@0:22
+ru	OpenAI 2 задачи,	OpenAI две задачи,	none
+auto	OpenAI 2 задачи,	OpenAI две задачи,	ambiguous_normalization@0:22
+segment	OpenAI 2 задачи,	OpenAI две задачи,	ambiguous_normalization@0:22
 en	OpenAI 2 задачи /4	OpenAI two задачи /four	none
 ru	OpenAI 2 задачи /4	OpenAI два задачи /четыре	none
 auto	OpenAI 2 задачи /4	OpenAI два задачи /четыре	ambiguous_normalization@0:24
@@ -32,12 +32,12 @@ ru	OpenAI 2 задачи/4	OpenAI 2 задачи/4	unresolved_number@7:16
 auto	OpenAI 2 задачи/4	OpenAI 2 задачи/4	ambiguous_normalization@0:23;unresolved_number@7:16
 segment	OpenAI 2 задачи/4	OpenAI 2 задачи/4	ambiguous_normalization@0:23;unresolved_number@7:16
 en	OpenAI 2 задачи 4	OpenAI two задачи four	none
-ru	OpenAI 2 задачи 4	OpenAI два задачи четыре	none
-auto	OpenAI 2 задачи 4	OpenAI два задачи четыре	ambiguous_normalization@0:23
-segment	OpenAI 2 задачи 4	OpenAI два задачи четыре	ambiguous_normalization@0:23
+ru	OpenAI 2 задачи 4	OpenAI две задачи четыре	none
+auto	OpenAI 2 задачи 4	OpenAI две задачи четыре	ambiguous_normalization@0:23
+segment	OpenAI 2 задачи 4	OpenAI две задачи четыре	ambiguous_normalization@0:23
 en	OpenAI 1 002 задачи	OpenAI one thousand two задачи	none
-ru	OpenAI 1 002 задачи	OpenAI одна тысяча два задачи	none
-auto	OpenAI 1 002 задачи	OpenAI одна тысяча два задачи	ambiguous_normalization@0:25
+ru	OpenAI 1 002 задачи	OpenAI одна тысяча две задачи	none
+auto	OpenAI 1 002 задачи	OpenAI одна тысяча две задачи	ambiguous_normalization@0:25
 segment	OpenAI 1 002 задачи	OpenAI один два задачи	ambiguous_normalization@0:25
 en	OpenAI 1 002 задачи́	OpenAI one thousand two задачи́	none
 ru	OpenAI 1 002 задачи́	OpenAI одна тысяча два задачи́	none
@@ -56,8 +56,8 @@ ru	OpenAI 1 002 задачия	OpenAI одна тысяча два задачи�
 auto	OpenAI 1 002 задачия	OpenAI одна тысяча два задачия	ambiguous_normalization@0:27
 segment	OpenAI 1 002 задачия	OpenAI один два задачия	ambiguous_normalization@0:27
 en	OpenAI 1 002 задачи,	OpenAI one thousand two задачи,	none
-ru	OpenAI 1 002 задачи,	OpenAI одна тысяча два задачи,	none
-auto	OpenAI 1 002 задачи,	OpenAI одна тысяча два задачи,	ambiguous_normalization@0:26
+ru	OpenAI 1 002 задачи,	OpenAI одна тысяча две задачи,	none
+auto	OpenAI 1 002 задачи,	OpenAI одна тысяча две задачи,	ambiguous_normalization@0:26
 segment	OpenAI 1 002 задачи,	OpenAI один два задачи,	ambiguous_normalization@0:26
 en	OpenAI 1 002 задачи /4	OpenAI one thousand two задачи /four	none
 ru	OpenAI 1 002 задачи /4	OpenAI одна тысяча два задачи /четыре	none
@@ -68,8 +68,8 @@ ru	OpenAI 1 002 задачи/4	OpenAI 1002 задачи/4	unresolved_number@7:20
 auto	OpenAI 1 002 задачи/4	OpenAI 1002 задачи/4	ambiguous_normalization@0:27;unresolved_number@7:20
 segment	OpenAI 1 002 задачи/4	OpenAI один 002 задачи/4	ambiguous_normalization@0:27;unresolved_number@9:18
 en	OpenAI 1 002 задачи 4	OpenAI one thousand two задачи four	none
-ru	OpenAI 1 002 задачи 4	OpenAI одна тысяча два задачи четыре	none
-auto	OpenAI 1 002 задачи 4	OpenAI одна тысяча два задачи четыре	ambiguous_normalization@0:27
+ru	OpenAI 1 002 задачи 4	OpenAI одна тысяча две задачи четыре	none
+auto	OpenAI 1 002 задачи 4	OpenAI одна тысяча две задачи четыре	ambiguous_normalization@0:27
 segment	OpenAI 1 002 задачи 4	OpenAI один два задачи четыре	ambiguous_normalization@0:27
 en	OpenAI $2 задачи	OpenAI two dollars задачи	none
 ru	OpenAI $2 задачи	OpenAI $два задачи	none
@@ -288,9 +288,9 @@ ru	OpenAI +2 kg 4	OpenAI +2 kg четыре	unresolved_number@7:5
 auto	OpenAI +2 kg 4	OpenAI +2 kg four	unresolved_number@7:5
 segment	OpenAI +2 kg 4	OpenAI +2 kg four	unresolved_number@7:5
 en	OpenAI -2 задачи	OpenAI minus two задачи	none
-ru	OpenAI -2 задачи	OpenAI минус два задачи	none
-auto	OpenAI -2 задачи	OpenAI минус два задачи	ambiguous_normalization@0:22
-segment	OpenAI -2 задачи	OpenAI минус два задачи	ambiguous_normalization@0:22
+ru	OpenAI -2 задачи	OpenAI минус две задачи	none
+auto	OpenAI -2 задачи	OpenAI минус две задачи	ambiguous_normalization@0:22
+segment	OpenAI -2 задачи	OpenAI минус две задачи	ambiguous_normalization@0:22
 en	OpenAI -2 задачи́	OpenAI -2 задачи́	unresolved_number@7:17
 ru	OpenAI -2 задачи́	OpenAI -2 задачи́	unresolved_number@7:17
 auto	OpenAI -2 задачи́	OpenAI -2 задачи́	ambiguous_normalization@0:24;unresolved_number@7:17
@@ -308,9 +308,9 @@ ru	OpenAI -2 задачия	OpenAI минус два задачия	none
 auto	OpenAI -2 задачия	OpenAI минус два задачия	ambiguous_normalization@0:24
 segment	OpenAI -2 задачия	OpenAI минус два задачия	ambiguous_normalization@0:24
 en	OpenAI -2 задачи,	OpenAI minus two задачи,	none
-ru	OpenAI -2 задачи,	OpenAI минус два задачи,	none
-auto	OpenAI -2 задачи,	OpenAI минус два задачи,	ambiguous_normalization@0:23
-segment	OpenAI -2 задачи,	OpenAI минус два задачи,	ambiguous_normalization@0:23
+ru	OpenAI -2 задачи,	OpenAI минус две задачи,	none
+auto	OpenAI -2 задачи,	OpenAI минус две задачи,	ambiguous_normalization@0:23
+segment	OpenAI -2 задачи,	OpenAI минус две задачи,	ambiguous_normalization@0:23
 en	OpenAI -2 задачи /4	OpenAI minus two задачи /four	none
 ru	OpenAI -2 задачи /4	OpenAI минус два задачи /четыре	none
 auto	OpenAI -2 задачи /4	OpenAI минус два задачи /четыре	ambiguous_normalization@0:25
@@ -320,12 +320,12 @@ ru	OpenAI -2 задачи/4	OpenAI -2 задачи/4	unresolved_number@7:17
 auto	OpenAI -2 задачи/4	OpenAI -2 задачи/4	ambiguous_normalization@0:24;unresolved_number@7:17
 segment	OpenAI -2 задачи/4	OpenAI -2 задачи/4	ambiguous_normalization@0:24;unresolved_number@7:17
 en	OpenAI -2 задачи 4	OpenAI minus two задачи four	none
-ru	OpenAI -2 задачи 4	OpenAI минус два задачи четыре	none
-auto	OpenAI -2 задачи 4	OpenAI минус два задачи четыре	ambiguous_normalization@0:24
-segment	OpenAI -2 задачи 4	OpenAI минус два задачи четыре	ambiguous_normalization@0:24
+ru	OpenAI -2 задачи 4	OpenAI минус две задачи четыре	none
+auto	OpenAI -2 задачи 4	OpenAI минус две задачи четыре	ambiguous_normalization@0:24
+segment	OpenAI -2 задачи 4	OpenAI минус две задачи четыре	ambiguous_normalization@0:24
 en	OpenAI -1 002 задачи	OpenAI minus one thousand two задачи	none
-ru	OpenAI -1 002 задачи	OpenAI минус одна тысяча два задачи	none
-auto	OpenAI -1 002 задачи	OpenAI минус одна тысяча два задачи	ambiguous_normalization@0:26
+ru	OpenAI -1 002 задачи	OpenAI минус одна тысяча две задачи	none
+auto	OpenAI -1 002 задачи	OpenAI минус одна тысяча две задачи	ambiguous_normalization@0:26
 segment	OpenAI -1 002 задачи	OpenAI минус один два задачи	ambiguous_normalization@0:26
 en	OpenAI -1 002 задачи́	OpenAI -1 002 задачи́	unresolved_number@7:21
 ru	OpenAI -1 002 задачи́	OpenAI -1 002 задачи́	unresolved_number@7:21
@@ -344,8 +344,8 @@ ru	OpenAI -1 002 задачия	OpenAI минус одна тысяча два �
 auto	OpenAI -1 002 задачия	OpenAI минус одна тысяча два задачия	ambiguous_normalization@0:28
 segment	OpenAI -1 002 задачия	OpenAI минус один два задачия	ambiguous_normalization@0:28
 en	OpenAI -1 002 задачи,	OpenAI minus one thousand two задачи,	none
-ru	OpenAI -1 002 задачи,	OpenAI минус одна тысяча два задачи,	none
-auto	OpenAI -1 002 задачи,	OpenAI минус одна тысяча два задачи,	ambiguous_normalization@0:27
+ru	OpenAI -1 002 задачи,	OpenAI минус одна тысяча две задачи,	none
+auto	OpenAI -1 002 задачи,	OpenAI минус одна тысяча две задачи,	ambiguous_normalization@0:27
 segment	OpenAI -1 002 задачи,	OpenAI минус один два задачи,	ambiguous_normalization@0:27
 en	OpenAI -1 002 задачи /4	OpenAI minus one thousand two задачи /four	none
 ru	OpenAI -1 002 задачи /4	OpenAI минус одна тысяча два задачи /четыре	none
@@ -356,8 +356,8 @@ ru	OpenAI -1 002 задачи/4	OpenAI -1002 задачи/4	unresolved_number@7:
 auto	OpenAI -1 002 задачи/4	OpenAI -1002 задачи/4	ambiguous_normalization@0:28;unresolved_number@7:21
 segment	OpenAI -1 002 задачи/4	OpenAI минус один 002 задачи/4	ambiguous_normalization@0:28;unresolved_number@10:18
 en	OpenAI -1 002 задачи 4	OpenAI minus one thousand two задачи four	none
-ru	OpenAI -1 002 задачи 4	OpenAI минус одна тысяча два задачи четыре	none
-auto	OpenAI -1 002 задачи 4	OpenAI минус одна тысяча два задачи четыре	ambiguous_normalization@0:28
+ru	OpenAI -1 002 задачи 4	OpenAI минус одна тысяча две задачи четыре	none
+auto	OpenAI -1 002 задачи 4	OpenAI минус одна тысяча две задачи четыре	ambiguous_normalization@0:28
 segment	OpenAI -1 002 задачи 4	OpenAI минус один два задачи четыре	ambiguous_normalization@0:28
 en	OpenAI -$2 задачи	OpenAI -$2 задачи	unresolved_number@7:3
 ru	OpenAI -$2 задачи	OpenAI -$2 задачи	unresolved_number@7:3

@@ -52,7 +52,8 @@ bool is_context_space(const std::uint32_t value) {
 
 bool has_contextual_prefix(const MappedText& source,
                            const std::size_t position,
-                           const std::initializer_list<std::string_view> suffixes) {
+                           const std::initializer_list<std::string_view> suffixes,
+                           const bool ignore_case_and_stress = false) {
     const auto& text = source.text;
     auto end = position;
     while (end > 0) {
@@ -65,9 +66,26 @@ bool has_contextual_prefix(const MappedText& source,
         end = begin;
     }
     const auto has_suffix = [&](const std::string_view suffix) {
-        if (end < suffix.size() || text.compare(end - suffix.size(), suffix.size(), suffix) != 0)
-            return false;
-        auto boundary = end - suffix.size();
+        auto boundary = end;
+        if (ignore_case_and_stress) {
+            // Match only the governor, not a whole prefix; stress stays in the source.
+            const Utf8Document expected(suffix);
+            const auto lower = [](const std::uint32_t value) {
+                return value >= 0x0410 && value <= 0x042f ? value + 0x20 : value;
+            };
+            for (auto point = expected.points.rbegin(); point != expected.points.rend(); ++point) {
+                while (previous_codepoint(text, boundary) == 0x0301)
+                    boundary -= 2;
+                if (lower(previous_codepoint(text, boundary)) != point->value)
+                    return false;
+                boundary -= point->length;
+            }
+        } else {
+            if (end < suffix.size() ||
+                text.compare(end - suffix.size(), suffix.size(), suffix) != 0)
+                return false;
+            boundary -= suffix.size();
+        }
         if (boundary > 0 && text[boundary - 1] == '\x02') {
             const auto marker =
                 std::find_if(source.runs.begin(), source.runs.end(), [&](const MappedRun& run) {
@@ -336,29 +354,70 @@ void protect_typed_continuations(MappedText& text,
     protect_matches(patterns().year_range_context, CandidateSurfaceKind::Contextual, 3, true, true);
 }
 
-struct BoundedFeminineNoun {
+enum class NounGender { Masculine, Feminine, Neuter };
+
+struct BoundedNoun {
+    NounGender gender;
     std::string_view one;
     std::string_view few;
     std::string_view many;
-    bool require_matching_source_form = false;
+    bool require_matching_source_form;
+    bool legacy_surface_policy;
 };
 
-const BoundedFeminineNoun* bounded_feminine_noun(const std::string_view noun) {
-    static const BoundedFeminineNoun books{"книга", "книги", "книг", true};
-    static const BoundedFeminineNoun errors{"ошибка", "ошибки", "ошибок", false};
-    if (noun == books.one || noun == books.few || noun == books.many)
-        return &books;
-    if (noun == errors.one || noun == errors.few || noun == errors.many)
-        return &errors;
+// Product-authored paradigms; provenance and compatibility boundaries are
+// recorded in docs/russian-noun-catalog-behavior.md. No suffix inference.
+constexpr BoundedNoun kBoundedNouns[] = {
+    {NounGender::Feminine, "книга", "книги", "книг", true, true},
+    {NounGender::Feminine, "ошибка", "ошибки", "ошибок", false, true},
+    {NounGender::Feminine, "задача", "задачи", "задач", true, false},
+    {NounGender::Feminine, "машина", "машины", "машин", true, false},
+    {NounGender::Feminine, "команда", "команды", "команд", true, false},
+    {NounGender::Feminine, "строка", "строки", "строк", true, false},
+    {NounGender::Masculine, "стол", "стола", "столов", true, false},
+    {NounGender::Masculine, "дом", "дома", "домов", true, false},
+    {NounGender::Masculine, "файл", "файла", "файлов", true, false},
+    {NounGender::Masculine, "сервер", "сервера", "серверов", true, false},
+    {NounGender::Neuter, "окно", "окна", "окон", true, false},
+    {NounGender::Neuter, "слово", "слова", "слов", true, false},
+    {NounGender::Neuter, "место", "места", "мест", true, false},
+    {NounGender::Neuter, "сообщение", "сообщения", "сообщений", true, false},
+};
+
+const BoundedNoun* bounded_noun(const std::string_view noun) {
+    for (const auto& entry : kBoundedNouns)
+        if (noun == entry.one || noun == entry.few || noun == entry.many)
+            return &entry;
     return nullptr;
 }
 
-bool has_bounded_feminine_noun_prefix(const std::string_view noun) {
-    static constexpr std::string_view forms[] = {
-        "книга", "книги", "книг", "ошибка", "ошибки", "ошибок"};
-    return std::any_of(std::begin(forms), std::end(forms), [&](const auto form) {
-        return noun.size() > form.size() && noun.substr(0, form.size()) == form;
-    });
+bool has_legacy_noun_prefix(const std::string_view noun) {
+    for (const auto& entry : kBoundedNouns) {
+        if (!entry.legacy_surface_policy)
+            continue;
+        for (const auto form : {entry.one, entry.few, entry.many})
+            if (noun.size() > form.size() && noun.substr(0, form.size()) == form)
+                return true;
+    }
+    return false;
+}
+
+bool has_noun_case_governor(const MappedText& text, const std::size_t begin) {
+    return has_contextual_prefix(text, begin, {"до", "из", "после", "за"}, true);
+}
+
+std::string noun_number(const long long value, const NounGender gender) {
+    if (gender == NounGender::Feminine)
+        return feminine_number(value);
+    auto result = number(value);
+    const auto absolute = std::llabs(value);
+    if (gender == NounGender::Neuter && absolute % 10 == 1 && absolute % 100 != 11) {
+        const std::string_view ending = "один";
+        if (result.size() >= ending.size() &&
+            result.compare(result.size() - ending.size(), ending.size(), ending) == 0)
+            result.replace(result.size() - ending.size(), ending.size(), "одно");
+    }
+    return result;
 }
 
 bool preserve_adjacent_protected_continuation(MappedText& text,
@@ -393,13 +452,16 @@ bool preserve_adjacent_protected_continuation(MappedText& text,
     return false;
 }
 
-void normalize_bounded_feminine_nouns(MappedText& text,
-                                      WarningSink& warnings,
-                                      std::vector<ProtectedSpan>& protected_spans) {
+void normalize_bounded_nouns(MappedText& text,
+                             WarningSink& warnings,
+                             std::vector<ProtectedSpan>& protected_spans) {
     const Utf8Document document(text.text);
     if (!document.valid)
         return;
 
+    // Restore once for admission only; edits still target the shielded text.
+    const auto cardinal_sources =
+        build_cardinal_source_index(technical::restore(text, protected_spans));
     std::vector<SourceEdit> edits;
     for (std::size_t point = 0; point < document.points.size(); ++point) {
         if (!is_numeric_surface_start(document, point))
@@ -436,14 +498,20 @@ void normalize_bounded_feminine_nouns(MappedText& text,
         const auto noun_span = document.span_from_codepoints(noun_begin, candidate.end);
         const auto noun = std::string_view(text.text).substr(
             noun_span.byte_begin, noun_span.byte_end - noun_span.byte_begin);
-        const auto* agreement = bounded_feminine_noun(noun);
-        const auto has_known_prefix = has_bounded_feminine_noun_prefix(noun);
+        // The scanner supplies the whole lexical run, including combining
+        // marks. New entries never match a prefix such as дом in домашних.
+        const auto* agreement = bounded_noun(noun);
+        const auto has_known_prefix = has_legacy_noun_prefix(noun);
         const auto admission =
             scan_admission(document, candidate, CandidateSurfaceKind::Contextual);
         const auto full_end_point = admission.end;
         const auto full_span = document.span_from_codepoints(candidate_point, full_end_point);
         const bool independent_punctuation = admission.outcome == AdmissionOutcome::Punctuated;
         const auto preserve = [&](const std::size_t end_point) {
+            // New entries change admitted cardinal text only. Unsupported
+            // surfaces keep the existing generic path and its diagnostics.
+            if (agreement && !agreement->legacy_surface_policy)
+                return;
             const auto span = document.span_from_codepoints(candidate_point, end_point);
             add_protected_candidate(text,
                                     NumericCandidate{SourceSpan{begin, span.byte_end},
@@ -459,6 +527,14 @@ void normalize_bounded_feminine_nouns(MappedText& text,
                 preserve(independent_punctuation ? candidate.end : full_end_point);
             continue;
         }
+        if (!agreement->legacy_surface_policy &&
+            (!is_independent_cardinal_candidate(document, candidate) ||
+             !cardinal_sources.contains(text.source_range(
+                 begin,
+                 document.span_from_codepoints(candidate_point, candidate.numeric.end).byte_end)) ||
+             has_noun_case_governor(text, begin) ||
+             scan_currency_prefix_begin(document, candidate_point) != candidate_point))
+            continue;
         if (full_end_point > candidate.end && !independent_punctuation) {
             preserve(full_end_point);
             continue;
@@ -479,21 +555,14 @@ void normalize_bounded_feminine_nouns(MappedText& text,
             preserve(independent_punctuation ? candidate.end : full_end_point);
             continue;
         }
-        if (agreement->require_matching_source_form) {
-            const auto absolute = std::llabs(number_value);
-            const auto suffix = absolute % 100;
-            const auto last = absolute % 10;
-            const auto expected = suffix >= 11 && suffix <= 19 ? agreement->many
-                                  : last == 1                  ? agreement->one
-                                  : last >= 2 && last <= 4     ? agreement->few
-                                                               : agreement->many;
-            if (noun != expected)
-                continue;
-        }
-        const auto replacement =
-            feminine_number(number_value) + " " +
-            plural_form(
-                number_value, agreement->one.data(), agreement->few.data(), agreement->many.data());
+        const auto selected_form = plural_form(
+            number_value, agreement->one.data(), agreement->few.data(), agreement->many.data());
+        if (agreement->require_matching_source_form && noun != selected_form)
+            continue;
+        const auto numeral = number_value == 0 && !agreement->legacy_surface_policy
+                                 ? number_for_token(token, number_value)
+                                 : noun_number(number_value, agreement->gender);
+        const auto replacement = numeral + " " + selected_form;
         const auto replacement_end =
             independent_punctuation ? candidate_span.byte_end : full_span.byte_end;
         edits.push_back({begin, replacement_end, replacement});
@@ -502,6 +571,21 @@ void normalize_bounded_feminine_nouns(MappedText& text,
 }
 
 } // namespace
+
+std::optional<std::string> bounded_noun_number(const std::string_view token,
+                                               const std::string_view noun,
+                                               const MappedText& context,
+                                               const std::size_t begin) {
+    const auto* entry = bounded_noun(noun);
+    long long value = 0;
+    if (!entry || !try_parse_long(token, value) || has_noun_case_governor(context, begin))
+        return std::nullopt;
+    // Mixed local-number formatting only changes the numeral. Legacy noun
+    // repair remains in normalize(), where the complete phrase can be edited.
+    if (noun != plural_form(value, entry->one.data(), entry->few.data(), entry->many.data()))
+        return std::nullopt;
+    return value == 0 ? number_for_token(token, value) : noun_number(value, entry->gender);
+}
 
 MappedText normalize(MappedText text, WarningSink& warnings) {
     std::vector<ProtectedSpan> protected_spans;
@@ -911,7 +995,7 @@ MappedText normalize(MappedText text, WarningSink& warnings) {
                 return decimal_genitive(integer, match[2].str()) + match[3].str();
             return std::string(prefix) + decimal(integer, match[2].str()) + match[3].str();
         });
-    normalize_bounded_feminine_nouns(text, warnings, protected_spans);
+    normalize_bounded_nouns(text, warnings, protected_spans);
     const Utf8Document generic_document(text.text);
     text = replace_numeric_matches(
         text,
