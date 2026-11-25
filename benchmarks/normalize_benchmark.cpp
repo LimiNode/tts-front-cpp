@@ -3,6 +3,7 @@
 #include "tts_front/core/normalization_support.hpp"
 #include "tts_front/core/numeric_scanner.hpp"
 #include "tts_front/core/utf8_document.hpp"
+#include "tts_front/normalization/admission.hpp"
 #include "tts_front/normalization/mixed_language.hpp"
 #include "tts_front/technical/admission.hpp"
 #include "tts_front/technical/patterns.hpp"
@@ -474,6 +475,112 @@ bool benchmark_ascii_email_scaling() {
     return true;
 }
 
+bool benchmark_signed_colon_scaling() {
+    using namespace tts_front::detail;
+    constexpr std::array<unsigned int, 4> counts = {1000u, 2000u, 4000u, 8000u};
+    constexpr std::string_view phrase = "OpenAI:−2 задачи";
+    constexpr std::size_t numeric_offset = std::string_view("OpenAI:").size();
+    bool passed = true;
+    for (const auto load : {std::string_view("whitespace"),
+                            std::string_view("digit-run"),
+                            std::string_view("unsigned-chain"),
+                            std::string_view("signed-semicolon"),
+                            std::string_view("signed-slash")}) {
+        const bool signed_candidates = load == "signed-semicolon" || load == "signed-slash";
+        const std::string_view separator = load == "signed-semicolon" ? "; " : " / ";
+        std::array<std::string, counts.size()> inputs;
+        for (std::size_t size = 0; size < counts.size(); ++size) {
+            auto& input = inputs[size];
+            const auto count = counts[size];
+            if (load == "whitespace") {
+                input.assign(static_cast<std::size_t>(count) * 32, ' ');
+            } else if (load == "digit-run") {
+                input.assign(count, '2');
+            } else {
+                const auto unit = signed_candidates ? phrase : std::string_view("2");
+                const auto connector = signed_candidates ? separator : std::string_view("/");
+                input.reserve((unit.size() + connector.size()) * count);
+                for (unsigned int item = 0; item < count; ++item) {
+                    if (item != 0)
+                        input += connector;
+                    input += unit;
+                }
+            }
+        }
+        const auto run = [&](const std::size_t size, const bool check_spans) {
+            const auto& input = inputs[size];
+            std::vector<tts_front::TextWarning> warnings;
+            WarningSink sink{warnings, {}};
+            const auto index = build_technical_range_index(input);
+            const auto output = protect_signed_colon_candidates(
+                MappedText::from_original(input, &sink.preserved_ranges),
+                sink,
+                index.admission_barriers);
+            const auto source = output.source_range(0, output.text.size());
+            const auto expected_warnings = signed_candidates ? counts[size] : 0u;
+            if (output.text != input || source.offset != 0 || source.length != input.size() ||
+                warnings.size() != expected_warnings) {
+                std::cerr << "unexpected signed-colon admission result for " << load << '\n';
+                return false;
+            }
+            if (check_spans) {
+                for (std::size_t item = 0; item < warnings.size(); ++item) {
+                    const auto& warning = warnings[item];
+                    const auto offset = item * (phrase.size() + separator.size()) + numeric_offset;
+                    if (warning.code != tts_front::WarningCode::UnresolvedNumber ||
+                        warning.offset != offset ||
+                        warning.length != phrase.size() - numeric_offset ||
+                        !sink.preserved_ranges.overlaps({warning.offset, warning.length})) {
+                        std::cerr << "unexpected signed-colon source span for " << load << '\n';
+                        return false;
+                    }
+                }
+            }
+            return true;
+        };
+        std::array<double, counts.size()> timings{};
+        // Largest first avoids comparing a cold large allocation with warm small inputs.
+        for (std::size_t size = counts.size(); size-- > 0;) {
+            if (!run(size, true))
+                return false;
+            std::array<double, 3> samples{};
+            for (auto& sample : samples) {
+                const auto begin = std::chrono::steady_clock::now();
+                unsigned int repetitions = 0;
+                double elapsed = 0;
+                do {
+                    if (!run(size, false))
+                        return false;
+                    ++repetitions;
+                    elapsed =
+                        std::chrono::duration<double>(std::chrono::steady_clock::now() - begin)
+                            .count();
+                } while (elapsed < 0.035);
+                sample = elapsed / repetitions;
+            }
+            std::sort(samples.begin(), samples.end());
+            timings[size] = samples[1];
+        }
+        double previous = 0;
+        double log_slope = 0;
+        for (std::size_t size = 0; size < counts.size(); ++size) {
+            const auto elapsed = timings[size];
+            std::cout << counts[size] << " signed-colon load units [" << load << "], " << elapsed
+                      << " s, slope " << (previous > 0 ? elapsed / previous : 0) << "x\n";
+            log_slope += (static_cast<double>(size) - 1.5) * std::log(elapsed) / 5.0;
+            previous = elapsed;
+        }
+        const auto doubling_slope = std::exp(log_slope);
+        std::cout << "signed-colon fitted doubling slope [" << load << "]: " << doubling_slope
+                  << "x\n";
+        if (!(doubling_slope < 3.25)) {
+            std::cerr << "signed-colon admission exceeded the allowed doubling slope\n";
+            passed = false;
+        }
+    }
+    return passed;
+}
+
 int main(int argc, char** argv) {
     if (argc == 2 && std::string_view(argv[1]) == "--ascii-email-scaling")
         return benchmark_ascii_email_scaling() ? EXIT_SUCCESS : EXIT_FAILURE;
@@ -487,6 +594,8 @@ int main(int argc, char** argv) {
         return benchmark_document_pipeline_scaling() ? EXIT_SUCCESS : EXIT_FAILURE;
     if (argc == 2 && std::string_view(argv[1]) == "--cardinal-source-scaling")
         return benchmark_cardinal_source_scaling() ? EXIT_SUCCESS : EXIT_FAILURE;
+    if (argc == 2 && std::string_view(argv[1]) == "--signed-colon-scaling")
+        return benchmark_signed_colon_scaling() ? EXIT_SUCCESS : EXIT_FAILURE;
     if (argc == 2 && std::string_view(argv[1]) == "--technical-ownership-scaling")
         return benchmark_technical_ownership_scaling() ? EXIT_SUCCESS : EXIT_FAILURE;
     const std::string text = "В 2026 году GPU RTX 4090 обработал 12500 запросов.";
