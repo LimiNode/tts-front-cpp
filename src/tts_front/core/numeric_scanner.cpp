@@ -819,10 +819,13 @@ NumericSurfaceIndex build_numeric_surface_index(const Utf8Document& document) {
     for (std::size_t point = 0; point < points.size(); ++point) {
         if (!is_numeric_surface_start(document, point))
             continue;
+        const auto numeric = scan_numeric_surface(document, point);
+        if (!numeric.valid() || numeric.exponent == ExponentState::None) {
+            point = std::max(point, numeric.end == 0 ? point : numeric.end - 1);
+            continue;
+        }
         const auto candidate =
             scan_candidate_surface(document, point, CandidateSurfaceKind::Technical);
-        if (!candidate.valid() || candidate.numeric.exponent == ExponentState::None)
-            continue;
         index.ranges.push_back({point, point + 1, candidate.end});
         point = std::max(point, candidate.end - 1);
     }

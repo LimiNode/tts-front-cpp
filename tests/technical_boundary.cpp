@@ -1,8 +1,10 @@
 #include "tts_front/core/mapped_text.hpp"
 #include "tts_front/core/normalization_support.hpp"
+#include "tts_front/core/numeric_scanner.hpp"
 #include "tts_front/technical/admission.hpp"
 #include "tts_front/technical/patterns.hpp"
 
+#include <algorithm>
 #include <regex>
 #include <string>
 #include <utility>
@@ -142,6 +144,55 @@ int main() {
                !warning_sink.preserved_ranges.overlaps({0, 4}) &&
                !warning_sink.preserved_ranges.overlaps({25, 1});
     };
+    const auto check_numeric_surface_index = [] {
+        for (const auto* prefix : {"", "OpenAI:", "v", "https://host/"}) {
+            for (const auto* sign : {"", "+", "-", "−"}) {
+                for (const auto* core : {"2",
+                                         "2 002",
+                                         "$2",
+                                         "2.5",
+                                         "1:02",
+                                         "2e3",
+                                         "2e+3",
+                                         "2e",
+                                         "2e+x",
+                                         "2e+3#4",
+                                         "2e+3́",
+                                         "2e+3 задачи"}) {
+                    for (const auto* tail : {"", " /4", "#4", "́ слово", "; 2e3", "./ 2e+3"}) {
+                        const std::string input = std::string(prefix) + sign + core + tail;
+                        const Utf8Document document(input);
+                        NumericSurfaceIndex reference;
+                        // Exact pre-prefilter implementation, retained as a small differential oracle.
+                        for (std::size_t point = 0; point < document.points.size(); ++point) {
+                            if (!is_numeric_surface_start(document, point))
+                                continue;
+                            const auto candidate = scan_candidate_surface(
+                                document, point, CandidateSurfaceKind::Technical);
+                            if (!candidate.valid() ||
+                                candidate.numeric.exponent == ExponentState::None)
+                                continue;
+                            reference.ranges.push_back({point, point + 1, candidate.end});
+                            point = std::max(point, candidate.end - 1);
+                        }
+                        const auto actual = build_numeric_surface_index(document);
+                        if (actual.ranges.size() != reference.ranges.size() ||
+                            !std::equal(actual.ranges.begin(),
+                                        actual.ranges.end(),
+                                        reference.ranges.begin(),
+                                        [](const auto& left, const auto& right) {
+                                            return left.surface_begin == right.surface_begin &&
+                                                   left.continuation_begin ==
+                                                       right.continuation_begin &&
+                                                   left.end == right.end;
+                                        }))
+                            return false;
+                    }
+                }
+            }
+        }
+        return true;
+    };
 
     const std::string technical = "C++17,23% 456";
     const std::string ruble_suffix = "2.50 ₽";
@@ -153,7 +204,8 @@ int main() {
                    check_protected("user2.50@example.com") && check_warning_indexes() &&
                    check_email_scanner(technical::patterns().technical_utf8_email) &&
                    check_email_scanner(technical::patterns().technical_email) &&
-                   check_long_utf8_email() && check_long_ascii_email()
+                   check_long_utf8_email() && check_long_ascii_email() &&
+                   check_numeric_surface_index()
                ? 0
                : 1;
 }
