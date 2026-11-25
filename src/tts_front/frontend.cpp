@@ -448,7 +448,8 @@ TextFrontendResult TextFrontend::process(std::string_view input,
                                                    ? "pronunciation dictionary"
                                                    : "no deterministic stress rule"});
     }
-    if (options.resolve_stress && options.stress_mode == StressMode::Automatic) {
+    if (options.resolve_stress && (options.stress_mode == StressMode::Automatic ||
+                                   options.stress_mode == StressMode::AutomaticHomographsOnly)) {
         const auto add_unavailable_warning = [&](std::string message) {
             result.warnings.push_back(
                 {WarningCode::AutomaticStressUnavailable, std::move(message), 0, 0});
@@ -472,6 +473,29 @@ TextFrontendResult TextFrontend::process(std::string_view input,
                 std::vector<ProtectedRewrite> protected_rewrites;
                 for (const auto& rewrite : source_rewrites)
                     protected_rewrites.push_back({rewrite.begin, rewrite.end, rewrite.output});
+                const bool homographs_only =
+                    options.stress_mode == StressMode::AutomaticHomographsOnly;
+                if (homographs_only) {
+                    // Explicit user accents are already authoritative, including ordinary words.
+                    std::size_t rewrite_cursor = 0;
+                    for (const auto span : detail::token_spans(result.normalized_text, true)) {
+                        while (rewrite_cursor < source_rewrites.size() &&
+                               source_rewrites[rewrite_cursor].end <= span.begin)
+                            ++rewrite_cursor;
+                        if (rewrite_cursor < source_rewrites.size() &&
+                            source_rewrites[rewrite_cursor].begin < span.end)
+                            continue;
+                        const auto surface =
+                            result.normalized_text.substr(span.begin, span.end - span.begin);
+                        if (surface.find("\xCC\x81") != std::string::npos)
+                            protected_rewrites.push_back({span.begin, span.end, surface});
+                    }
+                    std::sort(protected_rewrites.begin(),
+                              protected_rewrites.end(),
+                              [](const auto& left, const auto& right) {
+                                  return left.begin < right.begin;
+                              });
+                }
 
                 std::string protected_input;
                 std::size_t cursor = 0;
@@ -484,7 +508,7 @@ TextFrontendResult TextFrontend::process(std::string_view input,
                     result.normalized_text, cursor, result.normalized_text.size() - cursor);
 
                 const auto backend = impl_->backend_for(*bundle_root);
-                const auto semantic = backend->process(protected_input);
+                const auto semantic = backend->process(protected_input, homographs_only);
                 auto automatic_words = result.words;
                 auto automatic_stress_decisions = result.stress_decisions;
                 for (const auto& word : semantic.words) {

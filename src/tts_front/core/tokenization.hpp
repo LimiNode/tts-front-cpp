@@ -11,6 +11,7 @@ struct TokenSpan {
     std::size_t end = 0;
 };
 
-std::vector<TokenSpan> token_spans(std::string_view text);
+// Opt-in combining marks extend source spans; legacy token boundaries stay unchanged.
+std::vector<TokenSpan> token_spans(std::string_view text, bool include_combining_marks = false);
 
 } // namespace tts_front::detail

@@ -262,9 +262,11 @@ SileroStressBackend::SileroStressBackend(const SileroStressBackendConfig& config
 
 SileroStressBackend::~SileroStressBackend() = default;
 
-SileroSentenceResult SileroStressBackend::process(const std::string_view sentence) const {
+SileroSentenceResult SileroStressBackend::process(const std::string_view sentence,
+                                                  const bool homographs_only) const {
 #if !defined(TTS_FRONT_ENABLE_ONNX_STRESS)
     (void)sentence;
+    (void)homographs_only;
     throw std::runtime_error("Silero sentence backend requires ONNX Runtime support");
 #else
     if (!runtime_data_ || !sessions_)
@@ -290,6 +292,8 @@ SileroSentenceResult SileroStressBackend::process(const std::string_view sentenc
     for (const auto& token : source_tokens) {
         const auto homograph = runtime_data_->homographs.find(token.clean);
         if (!token.process || homograph == runtime_data_->homographs.end())
+            continue;
+        if (homographs_only && silero_lower_ru(token.raw) != token.clean)
             continue;
         auto variant = silero_phrase_variant(
             *runtime_data_, token.clean, silero_marked_context(transformed, token));
@@ -379,7 +383,6 @@ SileroSentenceResult SileroStressBackend::process(const std::string_view sentenc
                        exception == runtime_data_->exceptions.end() ? nullptr : &exception->second,
                        std::vector<float>(yo_begin, yo_begin + 7));
         const auto pronunciation = encode_values(accent.values);
-        result.pronunciation_text += pronunciation;
         auto route = SileroWordRoute::Model;
         for (const auto& span : route_spans) {
             if (token.byte_start >= span.begin && token.byte_end <= span.end) {
@@ -391,9 +394,17 @@ SileroSentenceResult SileroStressBackend::process(const std::string_view sentenc
             route = SileroWordRoute::Exception;
         const auto homograph_route =
             route == SileroWordRoute::Phrase || route == SileroWordRoute::Homosolver;
+        if (homographs_only && !homograph_route) {
+            result.pronunciation_text += token.raw;
+            continue;
+        }
+        // The selective output omits inserted '+' markers, including preceding homographs.
+        const auto source_offset =
+            homographs_only ? result.pronunciation_text.size() : token.byte_start;
+        result.pronunciation_text += pronunciation;
         result.words.push_back({without_stress_markers(token.raw),
                                 pronunciation,
-                                token.byte_start,
+                                source_offset,
                                 accent.stressed_vowel,
                                 route == SileroWordRoute::Exception,
                                 homograph_route,

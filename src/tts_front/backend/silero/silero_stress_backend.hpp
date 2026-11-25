@@ -79,7 +79,7 @@ class SileroStressBackend {
     const SileroBundle& bundle() const noexcept {
         return bundle_;
     }
-    SileroSentenceResult process(std::string_view sentence) const;
+    SileroSentenceResult process(std::string_view sentence, bool homographs_only = false) const;
 
   private:
     SileroBundle bundle_;
