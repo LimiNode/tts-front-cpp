@@ -1,6 +1,7 @@
 #include "tts_front/core/mapped_text.hpp"
 #include "tts_front/core/normalization_support.hpp"
 #include "tts_front/core/numeric_scanner.hpp"
+#include "tts_front/core/text/codepoint_classification.hpp"
 #include "tts_front/technical/admission.hpp"
 #include "tts_front/technical/patterns.hpp"
 
@@ -194,6 +195,48 @@ int main() {
         return true;
     };
 
+    const auto check_signed_colon_owners = [] {
+        const auto previous = [](const Utf8Document& document,
+                                 std::size_t point) -> std::optional<std::size_t> {
+            const auto prefix = scan_currency_prefix_begin(document, point);
+            if (prefix == 0 || document.points[prefix - 1].value != ':')
+                return std::nullopt;
+            if (scan_numeric_surface(document, point).sign == NumericSign::None &&
+                scan_numeric_surface(document, prefix).sign == NumericSign::None)
+                return std::nullopt;
+            auto owner = prefix - 1;
+            while (owner > 0 &&
+                   (text::is_lexical_numeric_boundary(document.points[owner - 1].value) ||
+                    text::is_numeric_separator(document.points[owner - 1].value)))
+                --owner;
+            return scan_numeric_surface(document, owner).valid()
+                       ? std::nullopt
+                       : std::optional<std::size_t>{prefix};
+        };
+        for (const auto* owner :
+             {"1", "12", "1.2a", "OpenAI", "id2", "строка2", "", "1:-2:-2", "x:-2:-2"}) {
+            for (const auto* sign : {"", "+", "-", "−"}) {
+                for (const auto* core : {"2", "$2", "$-2", "2 002", "2e+3"}) {
+                    for (const auto* tail :
+                         {"", ":-2:-2", "; OpenAI:−2 задачи", " /4", "́ слово", "; 1:-2:-2"}) {
+                        const auto input = std::string(owner) + ':' + sign + core + tail;
+                        const Utf8Document document(input);
+                        SignedColonOwnerCursor cursor;
+                        for (std::size_t point = 0; point < document.points.size(); ++point)
+                            if (scan_signed_colon_prefix(document, point, &cursor) !=
+                                previous(document, point))
+                                return false;
+                        for (std::size_t point = document.points.size(); point-- > 0;)
+                            if (scan_signed_colon_prefix(document, point, &cursor) !=
+                                previous(document, point))
+                                return false;
+                    }
+                }
+            }
+        }
+        return true;
+    };
+
     const std::string technical = "C++17,23% 456";
     const std::string ruble_suffix = "2.50 ₽";
     const std::string ruble_prefix = "₽2.50";
@@ -205,7 +248,7 @@ int main() {
                    check_email_scanner(technical::patterns().technical_utf8_email) &&
                    check_email_scanner(technical::patterns().technical_email) &&
                    check_long_utf8_email() && check_long_ascii_email() &&
-                   check_numeric_surface_index()
+                   check_numeric_surface_index() && check_signed_colon_owners()
                ? 0
                : 1;
 }

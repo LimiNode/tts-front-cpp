@@ -106,7 +106,22 @@ matching through a direct regex iterator.
 
 `--signed-colon-scaling` times technical-index construction plus early common
 admission for whitespace, a digit run, an unsigned connector chain, signed
-semicolon-separated candidates and signed slash-separated candidates. Each
+semicolon-separated candidates, signed slash-separated candidates, an excluded
+numeric-colon chain and a long numeric owner followed by that chain. Each
 load uses 1,000/2,000/4,000/8,000 units, checks original text and mapping,
 warning count and exact source spans, and rejects a fitted doubling slope of
 3.25 or greater. It runs separately from the ASCII email matcher gate.
+
+An additional dependency review found a repeated backward owner walk on the
+excluded `1:-2:-2:...` shape: 800/1,600/3,200/6,400 components took roughly
+3.8/15/59/229 ms in early admission alone. Skipping those candidates or changing
+their preservation policy would hide rather than fix that cost. The shared
+scanner instead carries a per-document forward owner cursor and classifies
+each owner once, including long initial numeric cores. No language-wrapper
+guard or candidate endpoint changes are involved.
+
+A separate performance-only corrective compares cached prefix results with
+the exact previous backward algorithm on 1,080 deterministic source strings,
+querying all codepoints both forwards and backwards. The existing 164-row
+independent frontend probe remains byte-identical. The extended seven-load
+gate fits 1.94x--2.08x locally; the two added owner-chain loads fit 2.01x each.

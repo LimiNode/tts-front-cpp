@@ -337,6 +337,7 @@ MappedText protect_numeric_candidates(MappedText text,
     // one forward state instead of searching backwards through the text for
     // every codepoint; this keeps the candidate admission pass linear.
     bool inside_marker = false;
+    SignedColonOwnerCursor colon_owner;
     for (std::size_t index = 0; index < points.size();) {
         if (points[index].value == 0x01) {
             inside_marker = true;
@@ -362,7 +363,7 @@ MappedText protect_numeric_candidates(MappedText text,
             ++index;
             continue;
         }
-        const auto signed_colon_prefix = scan_signed_colon_prefix(document, index);
+        const auto signed_colon_prefix = scan_signed_colon_prefix(document, index, &colon_owner);
         if (technical_ranges && !signed_colon_prefix) {
             ++index;
             continue;

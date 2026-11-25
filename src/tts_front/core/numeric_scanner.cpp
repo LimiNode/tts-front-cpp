@@ -456,7 +456,8 @@ std::size_t scan_currency_prefix_begin(const Utf8Document& document,
 }
 
 std::optional<std::size_t> scan_signed_colon_prefix(const Utf8Document& document,
-                                                    const std::size_t numeric_begin) {
+                                                    const std::size_t numeric_begin,
+                                                    SignedColonOwnerCursor* cursor) {
     if (numeric_begin >= document.points.size())
         return std::nullopt;
     const auto prefix = scan_currency_prefix_begin(document, numeric_begin);
@@ -467,11 +468,20 @@ std::optional<std::size_t> scan_signed_colon_prefix(const Utf8Document& document
         return std::nullopt;
     // A complete numeric-led surface keeps its colon. Lexical owners such as
     // id2 remain lexical even though their final codepoint happens to be a digit.
-    auto owner = prefix - 1;
-    while (owner > 0 && (text::is_lexical_numeric_boundary(document.points[owner - 1].value) ||
-                         text::is_numeric_separator(document.points[owner - 1].value)))
-        --owner;
-    if (scan_numeric_surface(document, owner).valid())
+    SignedColonOwnerCursor local;
+    auto& owner = cursor ? *cursor : local;
+    if (owner.point > prefix - 1)
+        owner = {};
+    while (owner.point < prefix - 1) {
+        const auto value = document.points[owner.point++].value;
+        if (!text::is_lexical_numeric_boundary(value) && !text::is_numeric_separator(value))
+            owner.owner_begin = owner.point;
+    }
+    if (!owner.classified_owner || *owner.classified_owner != owner.owner_begin) {
+        owner.classified_owner = owner.owner_begin;
+        owner.numeric_owner = scan_numeric_surface(document, owner.owner_begin).valid();
+    }
+    if (owner.numeric_owner)
         return std::nullopt;
     return prefix;
 }

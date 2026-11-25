@@ -484,6 +484,8 @@ bool benchmark_signed_colon_scaling() {
     for (const auto load : {std::string_view("whitespace"),
                             std::string_view("digit-run"),
                             std::string_view("unsigned-chain"),
+                            std::string_view("numeric-colon-chain"),
+                            std::string_view("long-numeric-owner"),
                             std::string_view("signed-semicolon"),
                             std::string_view("signed-slash")}) {
         const bool signed_candidates = load == "signed-semicolon" || load == "signed-slash";
@@ -496,6 +498,10 @@ bool benchmark_signed_colon_scaling() {
                 input.assign(static_cast<std::size_t>(count) * 32, ' ');
             } else if (load == "digit-run") {
                 input.assign(count, '2');
+            } else if (load == "numeric-colon-chain" || load == "long-numeric-owner") {
+                input.assign(load == "long-numeric-owner" ? count : 1u, '1');
+                for (unsigned int item = 0; item < count; ++item)
+                    input += ":-2";
             } else {
                 const auto unit = signed_candidates ? phrase : std::string_view("2");
                 const auto connector = signed_candidates ? separator : std::string_view("/");
