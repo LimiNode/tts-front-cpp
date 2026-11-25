@@ -19,10 +19,6 @@
 namespace tts_front::detail {
 namespace {
 
-std::vector<SourceRange> scan_technical_ranges(const std::string& text) {
-    return technical::scan_protected_ranges(text);
-}
-
 bool overlaps(const std::vector<SourceRange>& ranges,
               std::size_t begin,
               std::size_t end,
@@ -266,7 +262,9 @@ void protect_malformed_candidates(const MappedText& input,
 } // namespace
 
 TechnicalRangeIndex build_technical_range_index(std::string_view text) {
-    return {scan_technical_ranges(std::string(text))};
+    TechnicalRangeIndex index;
+    index.ranges = technical::scan_protected_ranges(text, &index.admission_barriers);
+    return index;
 }
 
 LocalLanguageOwnerIndex

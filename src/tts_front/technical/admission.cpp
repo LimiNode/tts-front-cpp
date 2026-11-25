@@ -506,27 +506,51 @@ MappedText protect_numeric_candidates(MappedText text,
     return apply_source_edits(text, std::move(edits));
 }
 
-std::vector<SourceRange> scan_protected_ranges(const std::string_view text) {
+std::vector<SourceRange> scan_protected_ranges(const std::string_view text,
+                                               std::vector<SourceRange>* admission_barriers) {
     std::vector<SourceRange> ranges;
+    const Utf8Document document(admission_barriers ? text : std::string_view{});
+    const auto numeric_index = build_numeric_surface_index(document);
     for (const auto* pattern : technical_pattern_catalog()) {
-        const auto matches = scan_pattern_ranges(text, *pattern);
-        ranges.insert(ranges.end(), matches.begin(), matches.end());
-    }
-    std::sort(ranges.begin(), ranges.end(), [](const SourceRange& left, const SourceRange& right) {
-        return left.offset < right.offset ||
-               (left.offset == right.offset && left.length > right.length);
-    });
-    std::vector<SourceRange> merged;
-    for (const auto& range : ranges) {
-        if (!merged.empty() && range.offset <= merged.back().offset + merged.back().length) {
-            const auto end =
-                std::max(merged.back().offset + merged.back().length, range.offset + range.length);
-            merged.back().length = end - merged.back().offset;
-        } else {
-            merged.push_back(range);
+        for (const auto& range : scan_pattern_ranges(text, *pattern)) {
+            ranges.push_back(range);
+            if (!admission_barriers)
+                continue;
+            if (pattern == &patterns().technical_identifier) {
+                const auto value = text.substr(range.offset, range.length);
+                const auto begin = codepoint_index_at_or_after(document, range.offset);
+                const auto finish =
+                    codepoint_index_at_or_after(document, range.offset + range.length);
+                // A reachable hash suffix is numeric continuation, not a
+                // barrier. Scientific ownership matches technical shielding.
+                if (value.front() == '#' ||
+                    (!has_known_identifier_prefix(value) && numeric_index.overlaps(begin, finish)))
+                    continue;
+            }
+            admission_barriers->push_back(range);
         }
     }
-    return merged;
+    const auto merge = [](std::vector<SourceRange> ranges) {
+        std::sort(
+            ranges.begin(), ranges.end(), [](const SourceRange& left, const SourceRange& right) {
+                return left.offset < right.offset ||
+                       (left.offset == right.offset && left.length > right.length);
+            });
+        std::vector<SourceRange> merged;
+        for (const auto& range : ranges) {
+            if (!merged.empty() && range.offset <= merged.back().offset + merged.back().length) {
+                const auto end = std::max(merged.back().offset + merged.back().length,
+                                          range.offset + range.length);
+                merged.back().length = end - merged.back().offset;
+            } else {
+                merged.push_back(range);
+            }
+        }
+        return merged;
+    };
+    if (admission_barriers)
+        *admission_barriers = merge(std::move(*admission_barriers));
+    return merge(std::move(ranges));
 }
 
 } // namespace tts_front::detail::technical

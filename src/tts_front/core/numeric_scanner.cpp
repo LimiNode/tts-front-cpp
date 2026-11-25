@@ -455,6 +455,27 @@ std::size_t scan_currency_prefix_begin(const Utf8Document& document,
     return prefix;
 }
 
+std::optional<std::size_t> scan_signed_colon_prefix(const Utf8Document& document,
+                                                    const std::size_t numeric_begin) {
+    if (numeric_begin >= document.points.size())
+        return std::nullopt;
+    const auto prefix = scan_currency_prefix_begin(document, numeric_begin);
+    if (prefix == 0 || document.points[prefix - 1].value != ':')
+        return std::nullopt;
+    if (scan_numeric_surface(document, numeric_begin).sign == NumericSign::None &&
+        scan_numeric_surface(document, prefix).sign == NumericSign::None)
+        return std::nullopt;
+    // A complete numeric-led surface keeps its colon. Lexical owners such as
+    // id2 remain lexical even though their final codepoint happens to be a digit.
+    auto owner = prefix - 1;
+    while (owner > 0 && (text::is_lexical_numeric_boundary(document.points[owner - 1].value) ||
+                         text::is_numeric_separator(document.points[owner - 1].value)))
+        --owner;
+    if (scan_numeric_surface(document, owner).valid())
+        return std::nullopt;
+    return prefix;
+}
+
 std::size_t scan_currency_numeric_end(const Utf8Document& document, std::size_t numeric_begin) {
     const auto& points = document.points;
     if (numeric_begin < points.size() &&
@@ -615,6 +636,17 @@ AdmissionResult scan_admission_impl(const Utf8Document& document,
         const auto punctuated = scan_punctuated_continuation(document, end, kind, memo);
         auto next = std::max({attached, spaced, punctuated});
         auto step = classify_admission_step(document, end, attached, spaced, punctuated);
+        if (kind == CandidateSurfaceKind::SignedColon) {
+            auto connector = end;
+            while (connector < document.points.size() &&
+                   text::is_horizontal_space(document.points[connector].value))
+                ++connector;
+            if (connector + 1 == document.points.size() &&
+                is_spaced_connector(document.points[connector].value, kind)) {
+                next = std::max(next, connector + 1);
+                step = connector == end ? AdmissionOutcome::Attached : AdmissionOutcome::Spaced;
+            }
+        }
         if (end > candidate.begin) {
             const auto previous = document.points[end - 1].value;
             if (is_spaced_connector(previous, kind)) {

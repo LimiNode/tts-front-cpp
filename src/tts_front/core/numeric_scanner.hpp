@@ -4,6 +4,8 @@
 #include "tts_front/core/mapped_text.hpp"
 #include "tts_front/core/utf8_document.hpp"
 
+#include <optional>
+
 namespace tts_front::detail {
 
 NumericSurfaceIndex build_numeric_surface_index(const Utf8Document& document);
@@ -24,6 +26,13 @@ NumericSurfaceRange scan_lexical_suffix(const Utf8Document& document, std::size_
 // admitted. The backward scan is bounded by the immediately preceding prefix,
 // so disjoint candidates remain linear over a document.
 std::size_t scan_currency_prefix_begin(const Utf8Document& document, std::size_t numeric_begin);
+
+// A signed numeric/currency surface attached to a colon is unsupported. Return
+// its complete prefix start, including either currency/sign order, for atomic
+// admission before language or mixed-mode formatting. A preceding numeric
+// component keeps ownership of its colon (clock/ratio compounds are unchanged).
+std::optional<std::size_t> scan_signed_colon_prefix(const Utf8Document& document,
+                                                    std::size_t numeric_begin);
 
 // Scans the numeric component of a currency surface, including an optional
 // leading sign and repeated comma/dot digit groups. Validation of grouping and

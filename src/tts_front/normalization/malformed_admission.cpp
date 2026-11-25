@@ -309,13 +309,28 @@ std::size_t scan_nonterminal_ellipsis(const std::vector<CodePoint>& points, std:
     return continuation;
 }
 
-MappedText protect_malformed_numeric_candidates(MappedText text,
-                                                WarningSink& warnings,
-                                                std::vector<ProtectedSpan>& protected_spans,
-                                                const AdmissionRules& rules) {
-    const Utf8Document document(text.text);
+namespace {
+
+MappedText protect_numeric_candidates(MappedText text,
+                                      WarningSink& warnings,
+                                      std::vector<ProtectedSpan>& protected_spans,
+                                      const AdmissionRules& rules,
+                                      const std::vector<SourceRange>* technical_ranges) {
+    Utf8Document document(text.text);
     if (!document.valid)
         return text;
+    if (technical_ranges) {
+        // Opaque classification barriers keep scanner endpoints outside
+        // technical ranges without changing original bytes or source offsets.
+        std::size_t point = 0;
+        for (const auto& range : *technical_ranges) {
+            while (point < document.points.size() && document.points[point].offset < range.offset)
+                ++point;
+            while (point < document.points.size() &&
+                   document.points[point].offset < range.offset + range.length)
+                document.points[point++].value = 0;
+        }
+    }
     const auto& points = document.points;
     std::vector<SourceEdit> edits;
     // Protected spans are emitted as well-formed control-byte markers. Carry
@@ -338,8 +353,17 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             ++index;
             continue;
         }
+        if (technical_ranges && !is_numeric_surface_start(document, index)) {
+            ++index;
+            continue;
+        }
         const auto start = classify_candidate_start(document, index);
         if (!start.recognized()) {
+            ++index;
+            continue;
+        }
+        const auto signed_colon_prefix = scan_signed_colon_prefix(document, index);
+        if (technical_ranges && !signed_colon_prefix) {
             ++index;
             continue;
         }
@@ -385,6 +409,7 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             analysis.malformed_compound = true;
         const bool saw_dot_decimal = scan_structural_surface(
             document, start, parenthesized_prefix, initial_digit_count, analysis);
+        const auto structural_end = analysis.end_index;
         const auto candidate_structure_at = [&](const std::size_t end_index) {
             CandidateStructure structure;
             structure.separators = analysis.separators;
@@ -511,6 +536,21 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
             analysis.end_index = std::max(
                 analysis.end_index,
                 scan_admission(document, analysis.end_index, CandidateSurfaceKind::Contextual).end);
+        }
+        if (signed_colon_prefix) {
+            const auto lexical = scan_lexical_suffix(document, structural_end);
+            auto full_candidate = candidate_surface;
+            const auto lexical_end =
+                lexical.end > lexical.continuation_begin ? lexical.end : structural_end;
+            full_candidate.end = std::max({candidate_surface.end, analysis.end_index, lexical_end});
+            const auto full_end =
+                scan_admission(document, full_candidate, CandidateSurfaceKind::SignedColon).end;
+            const auto span = document.span_from_codepoints(*signed_colon_prefix, full_end);
+            warnings.add(WarningCode::UnresolvedNumber,
+                         "Unsupported signed numeric candidate after colon",
+                         text.source_range(span.byte_begin, span.byte_end));
+            index = full_end;
+            continue;
         }
         if ((start.positive_numeric || points[index].value == 0x2212) &&
             analysis.end_index < points.size()) {
@@ -872,6 +912,22 @@ MappedText protect_malformed_numeric_candidates(MappedText text,
         index = analysis.end_index;
     }
     return apply_source_edits(text, std::move(edits));
+}
+
+} // namespace
+
+MappedText protect_signed_colon_candidates(MappedText text,
+                                           WarningSink& warnings,
+                                           const std::vector<SourceRange>& technical_ranges) {
+    std::vector<ProtectedSpan> unused;
+    return protect_numeric_candidates(std::move(text), warnings, unused, {}, &technical_ranges);
+}
+
+MappedText protect_malformed_numeric_candidates(MappedText text,
+                                                WarningSink& warnings,
+                                                std::vector<ProtectedSpan>& protected_spans,
+                                                const AdmissionRules& rules) {
+    return protect_numeric_candidates(std::move(text), warnings, protected_spans, rules, nullptr);
 }
 
 } // namespace tts_front::detail

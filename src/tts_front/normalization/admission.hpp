@@ -41,6 +41,12 @@ bool numeric_match_has_valid_boundaries(const std::vector<Utf8CodePoint>& points
 bool try_parse_long(std::string_view token, long long& value);
 bool valid_date(int day, int month, int year);
 
+// Runs before mixed/local rewriting. Technical ranges are from the same
+// unmodified text; protected URL/email/identifier surfaces are never inspected.
+MappedText protect_signed_colon_candidates(MappedText text,
+                                           WarningSink& warnings,
+                                           const std::vector<SourceRange>& technical_ranges);
+
 MappedText protect_malformed_numeric_candidates(MappedText text,
                                                 WarningSink& warnings,
                                                 std::vector<ProtectedSpan>& protected_spans,
