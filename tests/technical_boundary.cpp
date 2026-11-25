@@ -213,12 +213,26 @@ int main() {
                        ? std::nullopt
                        : std::optional<std::size_t>{prefix};
         };
-        for (const auto* owner :
-             {"1", "12", "1.2a", "OpenAI", "id2", "строка2", "", "1:-2:-2", "x:-2:-2"}) {
+        for (const auto* owner : {"1",
+                                  "12",
+                                  "1.2a",
+                                  "1e",
+                                  "1e!",
+                                  "OpenAI",
+                                  "id2",
+                                  "строка2",
+                                  "",
+                                  "1:-2:-2",
+                                  "x:-2:-2"}) {
             for (const auto* sign : {"", "+", "-", "−"}) {
                 for (const auto* core : {"2", "$2", "$-2", "2 002", "2e+3"}) {
-                    for (const auto* tail :
-                         {"", ":-2:-2", "; OpenAI:−2 задачи", " /4", "́ слово", "; 1:-2:-2"}) {
+                    for (const auto* tail : {"",
+                                             ":-2:-2",
+                                             "; OpenAI:−2 задачи",
+                                             " /4",
+                                             "́ слово",
+                                             "; 1:-2:-2",
+                                             "!1e:-2!1e:-2!"}) {
                         const auto input = std::string(owner) + ':' + sign + core + tail;
                         const Utf8Document document(input);
                         SignedColonOwnerCursor cursor;

@@ -134,9 +134,8 @@ std::size_t scan_punctuated_continuation(const Utf8Document& document,
     return lexical > punctuation ? lexical : begin;
 }
 
-} // namespace
-
-NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t begin) {
+// Prefix facts must not walk scientific or lexical continuation tails.
+NumericSurface scan_numeric_prefix(const Utf8Document& document, std::size_t begin) {
     NumericSurface surface;
     surface.digits_begin = begin;
     surface.digits_end = begin;
@@ -159,6 +158,15 @@ NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t be
         return surface;
     surface.end = surface.digits_end;
     surface.continuation_end = surface.end;
+    return surface;
+}
+
+} // namespace
+
+NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t begin) {
+    auto surface = scan_numeric_prefix(document, begin);
+    if (!surface.valid())
+        return surface;
     if (surface.end < document.points.size() &&
         (document.points[surface.end].value == 'e' || document.points[surface.end].value == 'E')) {
         surface.exponent = ExponentState::Incomplete;
@@ -463,8 +471,8 @@ std::optional<std::size_t> scan_signed_colon_prefix(const Utf8Document& document
     const auto prefix = scan_currency_prefix_begin(document, numeric_begin);
     if (prefix == 0 || document.points[prefix - 1].value != ':')
         return std::nullopt;
-    if (scan_numeric_surface(document, numeric_begin).sign == NumericSign::None &&
-        scan_numeric_surface(document, prefix).sign == NumericSign::None)
+    if (scan_numeric_prefix(document, numeric_begin).sign == NumericSign::None &&
+        scan_numeric_prefix(document, prefix).sign == NumericSign::None)
         return std::nullopt;
     // A complete numeric-led surface keeps its colon. Lexical owners such as
     // id2 remain lexical even though their final codepoint happens to be a digit.
@@ -479,7 +487,7 @@ std::optional<std::size_t> scan_signed_colon_prefix(const Utf8Document& document
     }
     if (!owner.classified_owner || *owner.classified_owner != owner.owner_begin) {
         owner.classified_owner = owner.owner_begin;
-        owner.numeric_owner = scan_numeric_surface(document, owner.owner_begin).valid();
+        owner.numeric_owner = scan_numeric_prefix(document, owner.owner_begin).valid();
     }
     if (owner.numeric_owner)
         return std::nullopt;

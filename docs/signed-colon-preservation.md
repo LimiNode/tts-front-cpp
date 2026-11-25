@@ -108,6 +108,8 @@ matching through a direct regex iterator.
 admission for whitespace, a digit run, an unsigned connector chain, signed
 semicolon-separated candidates, signed slash-separated candidates, an excluded
 numeric-colon chain and a long numeric owner followed by that chain. Each
+load also includes distinct malformed-exponent owners (`1e:-2!` repetitions).
+Each
 load uses 1,000/2,000/4,000/8,000 units, checks original text and mapping,
 warning count and exact source spans, and rejects a fitted doubling slope of
 3.25 or greater. It runs separately from the ASCII email matcher gate.
@@ -121,7 +123,19 @@ each owner once, including long initial numeric cores. No language-wrapper
 guard or candidate endpoint changes are involved.
 
 A separate performance-only corrective compares cached prefix results with
-the exact previous backward algorithm on 1,080 deterministic source strings,
+the exact previous backward algorithm on 1,540 deterministic source strings,
 querying all codepoints both forwards and backwards. The existing 164-row
-independent frontend probe remains byte-identical. The extended seven-load
-gate fits 1.94x--2.08x locally; the two added owner-chain loads fit 2.01x each.
+independent frontend probe remains byte-identical.
+
+Independent review then found that sign/validity queries still invoked the
+full numeric-surface parser, whose invalid-exponent tail can cross multiple
+distinct owners. Repeated `1e:-2!` took 3.3/12/46/190/793 ms at
+400/800/1,600/3,200/6,400 components. The existing sign/digit prefix scan is
+now one private helper reused by both the unchanged full parser and these
+prefix-only queries. All seven full `NumericSurface` fields match the exact
+previous function in 7,318 independent comparisons, including out-of-range
+starts and malformed suffixes. The same early-admission probe now takes
+0.23/0.44/0.83/1.77/2.97 ms with identical text and zero warnings.
+
+The final eight-load gate fits 1.96x--2.06x locally, including the new
+malformed-exponent-owner load at 2.00x.
