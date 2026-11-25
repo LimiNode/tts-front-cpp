@@ -762,3 +762,16 @@ ru-book-oracle-segment-02	ru	auto_segment	grammar	normalize	Список: 4 кн
 ru-book-oracle-segment-03	ru	auto_segment	grammar	normalize	Проверка: 2 книги, затем 7 книг.	Проверка: две книги, затем семь книг.	Проверка: две книги, затем семь книг.	none
 ru-book-oracle-continuation-01	ru	explicit	grammar	preserve	Запись 2 книги/4 сохранена.	Запись 2 книги/4 сохранена.	Запись 2 книги/4 сохранена.	unresolved_number@13:14
 ru-book-oracle-continuation-02	ru	explicit	grammar	preserve	Запись 2 книги#4 сохранена.	Запись 2 книги#4 сохранена.	Запись 2 книги#4 сохранена.	unresolved_number@13:14
+ru-noun-catalog-team	ru	explicit	grammar	normalize	1 команда подготовила 2 сообщения.	одна команда подготовила два сообщения.	одна команда подготовила два сообщения.	none
+ru-noun-catalog-parking	ru	auto	grammar	normalize	На парковке 2 машины, а рядом 1 дом.	На парковке две машины, а рядом один дом.	На парковке две машины, а рядом один дом.	none
+ru-noun-catalog-room	ru	auto_segment	grammar	normalize	В комнате 1 окно и 2 стола.	В комнате одно окно и два стола.	В комнате одно окно и два стола.	none
+ru-noun-catalog-report	ru	explicit	grammar	normalize	В отчёте 21 строка и 4 слова.	В отчёте двадцать одна строка и четыре слова.	В отчёте двадцать одна строка и четыре слова.	none
+ru-noun-catalog-deployment	ru	auto	grammar	normalize	Доступно 1 место; настроено 2 сервера.	Доступно одно место; настроено два сервера.	Доступно одно место; настроено два сервера.	none
+ru-noun-catalog-files	ru	auto_segment	grammar	normalize	В папке 22 файла и 3 сообщения.	В папке двадцать два файла и три сообщения.	В папке двадцать два файла и три сообщения.	none
+ru-noun-catalog-dash-quotes	ru	explicit	grammar	normalize	В плане 2 задачи — «запуск» и «проверка».	В плане две задачи — «запуск» и «проверка».	В плане две задачи — «запуск» и «проверка».	none
+ru-noun-catalog-compound-one	ru	auto_segment	grammar	normalize	В журнале 121 сообщение.	В журнале сто двадцать одно сообщение.	В журнале сто двадцать одно сообщение.	none
+ru-noun-catalog-compound-few	ru	auto	grammar	normalize	В очереди 122 задачи.	В очереди сто двадцать две задачи.	В очереди сто двадцать две задачи.	none
+ru-noun-catalog-teen-control	ru	explicit	grammar	normalize	В очереди 112 задач.	В очереди сто двенадцать задач.	В очереди сто двенадцать задач.	none
+ru-noun-catalog-url	ru	auto_segment	ambiguous_or_technical	preserve	Ссылка https://example.com/2/задачи сохранена.	Ссылка https://example.com/2/задачи сохранена.	Ссылка https://example.com/2/задачи сохранена.	none
+en-noun-catalog-control	en	explicit	grammar	normalize	The plan has 2 tasks.	The plan has two tasks.	The plan has two tasks.	none
+en-noun-catalog-url	en	explicit	ambiguous_or_technical	preserve	Link https://example.com/2/tasks is unchanged.	Link https://example.com/2/tasks is unchanged.	Link https://example.com/2/tasks is unchanged.	none

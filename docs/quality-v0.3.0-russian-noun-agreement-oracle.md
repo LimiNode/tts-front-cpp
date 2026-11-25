@@ -1,5 +1,10 @@
 # v0.3.0 Russian noun-agreement oracle update
 
+This is the historical book-only oracle update from PR #88. Its scope does
+not describe the later catalog merged in #93; see the
+[noun-catalog oracle follow-up](russian-noun-catalog-oracle.md) for the expanded
+working corpus. The historical decisions and counts below are retained.
+
 This is the working-oracle follow-up for the merged bounded Russian noun
 agreement behavior. The behavior and characterization PRs passed before this
 oracle change. Published `v0.2.x` archives remain unchanged.
