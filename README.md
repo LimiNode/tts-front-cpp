@@ -45,6 +45,14 @@ Encoding contract: all public `std::string`/`std::string_view` text is UTF-8, an
 
 `StressMode::Disabled` и `resolve_stress=false` полностью отключают semantic stress; dictionary pronunciation replacement при этом продолжает работать. `StressMode::Automatic` использует доступные dictionary decisions и optional Silero backend, а при отсутствии ONNX backend или verified bundle добавляет `AutomaticStressUnavailable`.
 
+`StressMode::AutomaticHomographsOnly` requests automatic stress only for words in
+Silero's homograph catalog. Ordinary words such as `документы` receive no automatic
+stress decision. Explicit U+0301 accents and pronunciation-dictionary overrides
+remain authoritative; without the backend, dictionary behavior and
+`AutomaticStressUnavailable` are unchanged. `Automatic` and the default
+`DictionaryOnly` policy are unchanged. Model-specific accent rendering remains
+the consumer's responsibility.
+
 Намеренно не поддерживаются в v0.2.6: произвольная семантическая disambiguation дат/чисел, полноценная Unicode NFC normalization и phone/URL spoken rendering. Неоднозначные/неподдержанные случаи сохраняются или сопровождаются warning, а не угадываются молча; leading-zero Russian years сохраняются атомарно с одним `UnresolvedNumber`, включая контекстные формы и неподдержанные диапазоны. Для совместимости смешанных фраз по умолчанию используется `MixedLanguagePolicy::DominantLanguage`; `SegmentCandidates` назначает каждому technical token язык ближайшего надёжного lexical owner в bounded-сегменте, использует fallback при отсутствии owner и сохраняет token при неоднозначности.
 
 Silero/ONNX является optional-компонентом: verified bundle модели не входит в поставку библиотеки и не скачивается автоматически. Приложение передаёт путь через `TextFrontendOptions::silero_bundle_path` или `TTS_FRONT_SILERO_BUNDLE`.
