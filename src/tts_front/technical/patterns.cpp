@@ -14,7 +14,8 @@ const Patterns& patterns() {
 
 std::vector<SourceRange> scan_pattern_ranges(std::string_view value, const std::regex& pattern) {
     std::vector<SourceRange> ranges;
-    if (&pattern != &patterns().technical_utf8_email) {
+    const bool utf8_email = &pattern == &patterns().technical_utf8_email;
+    if (!utf8_email && &pattern != &patterns().technical_email) {
         using Iterator = std::regex_iterator<std::string_view::const_iterator>;
         for (Iterator it(value.begin(), value.end(), pattern), end; it != end; ++it)
             ranges.push_back(
@@ -30,13 +31,16 @@ std::vector<SourceRange> scan_pattern_ranges(std::string_view value, const std::
         return letter(byte) || digit(byte) || byte == '_';
     };
     const auto local = [&](unsigned char byte) {
-        return word(byte) || byte == '.' || byte == ',' || byte == '%' || byte == '+' ||
-               byte == '-' || byte >= 0x80;
+        return word(byte) || byte == '.' || byte == '%' || byte == '+' || byte == '-' ||
+               (utf8_email && (byte == ',' || byte >= 0x80));
     };
-    // Preserve the catalog's greedy byte grammar and ASCII word boundary;
-    // the local part can be arbitrarily long without consuming the call stack.
+    // Preserve both catalog byte grammars, including the UTF-8 rule's ASCII
+    // word boundary, without recursive backtracking over long local parts.
     for (std::size_t begin = 0; begin < value.size();) {
-        if (!letter(value[begin]) || (begin > 0 && word(value[begin - 1]))) {
+        const bool starts = utf8_email
+                                ? letter(value[begin]) && (begin == 0 || !word(value[begin - 1]))
+                                : local(value[begin]);
+        if (!starts) {
             ++begin;
             continue;
         }

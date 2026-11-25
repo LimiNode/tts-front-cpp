@@ -12,11 +12,22 @@ int main() {
     using namespace tts_front;
     using namespace tts_front::detail;
 
-    const auto check_email_scanner = [] {
-        const auto& pattern = technical::patterns().technical_utf8_email;
+    const auto check_email_scanner = [](const std::regex& pattern) {
         for (const auto* prefix : {"", " ", "_", "1", "x", ".", "+", "ж", "́"}) {
-            for (const auto* local :
-                 {"a", "a,b", "A_1%+-", "a.ж", "á", "a@b", "a..b", "1a", ",a", "a,b@c"}) {
+            for (const auto* local : {"a",
+                                      "a,b",
+                                      "A_1%+-",
+                                      "a.ж",
+                                      "á",
+                                      "a@b",
+                                      "a..b",
+                                      "1a",
+                                      ",a",
+                                      "a,b@c",
+                                      "12",
+                                      "._%+-",
+                                      "_",
+                                      ""}) {
                 for (const auto* domain : {"example.com",
                                            ".ab",
                                            "..ab",
@@ -46,6 +57,10 @@ int main() {
                 }
             }
         }
+        return true;
+    };
+    const auto check_long_utf8_email = [] {
+        const auto& pattern = technical::patterns().technical_utf8_email;
         std::string local;
         for (int index = 0; index < 10000; ++index)
             local += "a,";
@@ -56,6 +71,24 @@ int main() {
         if (spoken.size() != 1 || spoken.front().offset != local.size() - 3 ||
             spoken.front().length != 3)
             return false;
+        const auto email = local + "@example.com";
+        const auto ranges = technical::scan_protected_ranges(email);
+        if (ranges.size() != 1 || ranges.front().offset != 0 ||
+            ranges.front().length != email.size() ||
+            !technical::scan_pronunciation_candidates(email).empty())
+            return false;
+        std::vector<ProtectedSpan> protected_spans;
+        const auto protected_text =
+            technical::protect(MappedText::from_original(email, nullptr), protected_spans);
+        return protected_spans.size() == 1 && protected_spans.front().value == email &&
+               technical::restore(protected_text, protected_spans).text == email;
+    };
+    const auto check_long_ascii_email = [] {
+        const auto& pattern = technical::patterns().technical_email;
+        const std::string local(100000, '7');
+        for (const auto& invalid : {local, local + "@localhost"})
+            if (!technical::scan_pattern_ranges(invalid, pattern).empty())
+                return false;
         const auto email = local + "@example.com";
         const auto ranges = technical::scan_protected_ranges(email);
         if (ranges.size() != 1 || ranges.front().offset != 0 ||
@@ -118,7 +151,9 @@ int main() {
                    check(ruble_prefix, 0, ruble_prefix.size()) &&
                    check_protected("https://example.com/2.50") &&
                    check_protected("user2.50@example.com") && check_warning_indexes() &&
-                   check_email_scanner()
+                   check_email_scanner(technical::patterns().technical_utf8_email) &&
+                   check_email_scanner(technical::patterns().technical_email) &&
+                   check_long_utf8_email() && check_long_ascii_email()
                ? 0
                : 1;
 }

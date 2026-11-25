@@ -30,6 +30,8 @@ jobs:
         run: ./.build/benchmark/tts_front_benchmark --document-scaling
       - name: Run cardinal source index scaling gate
         run: ./.build/benchmark/tts_front_benchmark --cardinal-source-scaling
+      - name: Run ASCII email scaling gate
+        run: ./.build/benchmark/tts_front_benchmark --ascii-email-scaling
   linux:
     strategy:
       matrix:

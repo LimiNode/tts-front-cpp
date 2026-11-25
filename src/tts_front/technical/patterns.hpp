@@ -28,7 +28,7 @@ struct Patterns {
 
 const Patterns& patterns();
 
-// Match the catalog without recursive backtracking over UTF-8 email locals.
+// Match the catalog without recursive backtracking over email locals.
 std::vector<SourceRange> scan_pattern_ranges(std::string_view value, const std::regex& pattern);
 
 bool has_known_identifier_prefix(std::string_view value);
