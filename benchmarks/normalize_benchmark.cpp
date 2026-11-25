@@ -418,7 +418,65 @@ bool benchmark_cardinal_source_scaling() {
     return true;
 }
 
+bool benchmark_ascii_email_scaling() {
+    using namespace tts_front::detail;
+    constexpr std::array<unsigned int, 4> counts = {1000u, 2000u, 4000u, 8000u};
+    const auto& pattern = technical::patterns().technical_email;
+    for (const auto suffix :
+         {std::string_view(""), std::string_view("@localhost"), std::string_view("@example.com")}) {
+        std::array<double, counts.size()> timings{};
+        for (std::size_t size = counts.size(); size-- > 0;) {
+            const auto text = std::string(counts[size], '7') + std::string(suffix);
+            const std::size_t expected = suffix == "@example.com" ? 1 : 0;
+            const auto warm = technical::scan_pattern_ranges(text, pattern);
+            if (warm.size() != expected ||
+                (expected != 0 &&
+                 (warm.front().offset != 0 || warm.front().length != text.size()))) {
+                std::cerr << "unexpected ASCII email ranges\n";
+                return false;
+            }
+            std::array<double, 3> samples{};
+            for (auto& sample : samples) {
+                const auto begin = std::chrono::steady_clock::now();
+                unsigned int repetitions = 0;
+                double elapsed = 0;
+                do {
+                    const auto ranges = technical::scan_pattern_ranges(text, pattern);
+                    if (ranges.size() != expected ||
+                        (expected != 0 &&
+                         (ranges.front().offset != 0 || ranges.front().length != text.size()))) {
+                        std::cerr << "unexpected ASCII email ranges\n";
+                        return false;
+                    }
+                    ++repetitions;
+                    elapsed =
+                        std::chrono::duration<double>(std::chrono::steady_clock::now() - begin)
+                            .count();
+                } while (elapsed < 0.04);
+                sample = elapsed / repetitions;
+            }
+            std::sort(samples.begin(), samples.end());
+            timings[size] = samples[1];
+        }
+        double log_slope = 0;
+        for (std::size_t size = 0; size < counts.size(); ++size) {
+            std::cout << counts[size] << " ASCII email local bytes, suffix [" << suffix << "], "
+                      << timings[size] << " s\n";
+            log_slope += (static_cast<double>(size) - 1.5) * std::log(timings[size]) / 5.0;
+        }
+        const auto doubling_slope = std::exp(log_slope);
+        std::cout << "ASCII email fitted doubling slope: " << doubling_slope << "x\n";
+        if (doubling_slope > 3.25) {
+            std::cerr << "ASCII email scan exceeded the allowed doubling slope\n";
+            return false;
+        }
+    }
+    return true;
+}
+
 int main(int argc, char** argv) {
+    if (argc == 2 && std::string_view(argv[1]) == "--ascii-email-scaling")
+        return benchmark_ascii_email_scaling() ? EXIT_SUCCESS : EXIT_FAILURE;
     if (argc == 2 && std::string_view(argv[1]) == "--currency-prefix-scaling") {
         benchmark_currency_prefix_scaling();
         return 0;
