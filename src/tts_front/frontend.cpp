@@ -182,6 +182,10 @@ TextFrontendResult TextFrontend::process(std::string_view input,
         return result;
     }
     if (options.normalize) {
+        if (!technical_index)
+            technical_index = detail::build_technical_range_index(text.text);
+        text = detail::protect_signed_colon_candidates(
+            std::move(text), warning_sink, technical_index->admission_barriers);
         if (options.language == Language::Auto &&
             options.mixed_language_policy == MixedLanguagePolicy::SegmentCandidates &&
             has_cyrillic && technical_index) {

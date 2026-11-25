@@ -16,6 +16,10 @@ MappedText protect_numeric_candidates(MappedText text,
 // Return merged ranges that technical shielding will protect. Language
 // admission may use this preflight index to avoid diagnosing numeric-looking
 // substrings inside URLs, e-mails, and identifiers.
-std::vector<SourceRange> scan_protected_ranges(std::string_view text);
+// Optional admission barriers share the scan but leave numeric-owned generic
+// scientific/hash continuations visible to the numeric admission endpoint.
+std::vector<SourceRange>
+scan_protected_ranges(std::string_view text,
+                      std::vector<SourceRange>* admission_barriers = nullptr);
 
 } // namespace tts_front::detail::technical

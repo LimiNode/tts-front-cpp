@@ -14,6 +14,7 @@ namespace tts_front::detail {
 
 struct TechnicalRangeIndex {
     std::vector<SourceRange> ranges;
+    std::vector<SourceRange> admission_barriers;
 };
 
 struct LocalLanguageRun {

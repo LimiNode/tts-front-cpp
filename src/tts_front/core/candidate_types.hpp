@@ -9,7 +9,16 @@ namespace tts_front::detail {
 
 enum class NumericCandidateKind { Technical, Numeric, Grouped, Currency };
 
-enum class CandidateSurfaceKind { Numeric, Percent, Currency, Unit, Date, Contextual, Technical };
+enum class CandidateSurfaceKind {
+    Numeric,
+    Percent,
+    Currency,
+    Unit,
+    Date,
+    Contextual,
+    Technical,
+    SignedColon // Atomic preservation also includes an incomplete terminal connector.
+};
 
 struct NumericCandidate {
     SourceSpan span;

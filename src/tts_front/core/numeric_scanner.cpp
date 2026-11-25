@@ -134,9 +134,8 @@ std::size_t scan_punctuated_continuation(const Utf8Document& document,
     return lexical > punctuation ? lexical : begin;
 }
 
-} // namespace
-
-NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t begin) {
+// Prefix facts must not walk scientific or lexical continuation tails.
+NumericSurface scan_numeric_prefix(const Utf8Document& document, std::size_t begin) {
     NumericSurface surface;
     surface.digits_begin = begin;
     surface.digits_end = begin;
@@ -159,6 +158,15 @@ NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t be
         return surface;
     surface.end = surface.digits_end;
     surface.continuation_end = surface.end;
+    return surface;
+}
+
+} // namespace
+
+NumericSurface scan_numeric_surface(const Utf8Document& document, std::size_t begin) {
+    auto surface = scan_numeric_prefix(document, begin);
+    if (!surface.valid())
+        return surface;
     if (surface.end < document.points.size() &&
         (document.points[surface.end].value == 'e' || document.points[surface.end].value == 'E')) {
         surface.exponent = ExponentState::Incomplete;
@@ -455,6 +463,37 @@ std::size_t scan_currency_prefix_begin(const Utf8Document& document,
     return prefix;
 }
 
+std::optional<std::size_t> scan_signed_colon_prefix(const Utf8Document& document,
+                                                    const std::size_t numeric_begin,
+                                                    SignedColonOwnerCursor* cursor) {
+    if (numeric_begin >= document.points.size())
+        return std::nullopt;
+    const auto prefix = scan_currency_prefix_begin(document, numeric_begin);
+    if (prefix == 0 || document.points[prefix - 1].value != ':')
+        return std::nullopt;
+    if (scan_numeric_prefix(document, numeric_begin).sign == NumericSign::None &&
+        scan_numeric_prefix(document, prefix).sign == NumericSign::None)
+        return std::nullopt;
+    // A complete numeric-led surface keeps its colon. Lexical owners such as
+    // id2 remain lexical even though their final codepoint happens to be a digit.
+    SignedColonOwnerCursor local;
+    auto& owner = cursor ? *cursor : local;
+    if (owner.point > prefix - 1)
+        owner = {};
+    while (owner.point < prefix - 1) {
+        const auto value = document.points[owner.point++].value;
+        if (!text::is_lexical_numeric_boundary(value) && !text::is_numeric_separator(value))
+            owner.owner_begin = owner.point;
+    }
+    if (!owner.classified_owner || *owner.classified_owner != owner.owner_begin) {
+        owner.classified_owner = owner.owner_begin;
+        owner.numeric_owner = scan_numeric_prefix(document, owner.owner_begin).valid();
+    }
+    if (owner.numeric_owner)
+        return std::nullopt;
+    return prefix;
+}
+
 std::size_t scan_currency_numeric_end(const Utf8Document& document, std::size_t numeric_begin) {
     const auto& points = document.points;
     if (numeric_begin < points.size() &&
@@ -615,6 +654,17 @@ AdmissionResult scan_admission_impl(const Utf8Document& document,
         const auto punctuated = scan_punctuated_continuation(document, end, kind, memo);
         auto next = std::max({attached, spaced, punctuated});
         auto step = classify_admission_step(document, end, attached, spaced, punctuated);
+        if (kind == CandidateSurfaceKind::SignedColon) {
+            auto connector = end;
+            while (connector < document.points.size() &&
+                   text::is_horizontal_space(document.points[connector].value))
+                ++connector;
+            if (connector + 1 == document.points.size() &&
+                is_spaced_connector(document.points[connector].value, kind)) {
+                next = std::max(next, connector + 1);
+                step = connector == end ? AdmissionOutcome::Attached : AdmissionOutcome::Spaced;
+            }
+        }
         if (end > candidate.begin) {
             const auto previous = document.points[end - 1].value;
             if (is_spaced_connector(previous, kind)) {
@@ -819,10 +869,13 @@ NumericSurfaceIndex build_numeric_surface_index(const Utf8Document& document) {
     for (std::size_t point = 0; point < points.size(); ++point) {
         if (!is_numeric_surface_start(document, point))
             continue;
+        const auto numeric = scan_numeric_surface(document, point);
+        if (!numeric.valid() || numeric.exponent == ExponentState::None) {
+            point = std::max(point, numeric.end == 0 ? point : numeric.end - 1);
+            continue;
+        }
         const auto candidate =
             scan_candidate_surface(document, point, CandidateSurfaceKind::Technical);
-        if (!candidate.valid() || candidate.numeric.exponent == ExponentState::None)
-            continue;
         index.ranges.push_back({point, point + 1, candidate.end});
         point = std::max(point, candidate.end - 1);
     }
