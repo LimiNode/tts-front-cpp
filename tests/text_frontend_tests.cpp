@@ -1969,6 +1969,34 @@ int main() {
     CHECK(automatic_result.warnings.front().length == 0);
     automatic.resolve_stress = false;
     CHECK(frontend.process("тест", automatic).warnings.empty());
+    {
+        TextFrontendOptions selective;
+        selective.language = Language::Russian;
+        selective.stress_mode = StressMode::AutomaticHomographsOnly;
+        selective.silero_bundle_path = "missing-selective-stress-bundle";
+        PronunciationDictionary overrides;
+        CHECK(overrides.add_token("документы", "документы", 2));
+        selective.dictionary = &overrides;
+        const std::string source = "за́мок документы";
+        const auto result = frontend.process(source, selective);
+        CHECK(result.original_text == source);
+        CHECK(result.normalized_text == source);
+        CHECK(result.pronunciation_text == source);
+        CHECK(result.words.size() == 3);
+        CHECK(!result.words[0].stressed_vowel);
+        CHECK(result.words.back().stressed_vowel == 2);
+        CHECK(result.words.back().from_dictionary);
+        CHECK(result.stress_decisions.size() == 1);
+        CHECK(result.stress_decisions[0].from_dictionary);
+        CHECK(result.warnings.size() == 1);
+        CHECK(result.warnings[0].code == WarningCode::AutomaticStressUnavailable);
+        CHECK(result.warnings[0].offset == 0 && result.warnings[0].length == 0);
+        selective.resolve_stress = false;
+        const auto disabled = frontend.process(source, selective);
+        CHECK(disabled.warnings.empty());
+        CHECK(disabled.stress_decisions.empty());
+        CHECK(!disabled.words.back().stressed_vowel);
+    }
     TextFrontendOptions unsupported;
     unsupported.language = static_cast<Language>(999);
     const auto unsupported_result = frontend.process("test", unsupported);

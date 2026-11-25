@@ -6,7 +6,7 @@
 
 namespace tts_front::detail {
 
-std::vector<TokenSpan> token_spans(std::string_view text) {
+std::vector<TokenSpan> token_spans(std::string_view text, const bool include_combining_marks) {
     std::vector<Utf8CodePoint> points;
     if (!decode_utf8(text, points))
         return {};
@@ -18,7 +18,8 @@ std::vector<TokenSpan> token_spans(std::string_view text) {
         const bool embedded_dot = point.value == '.' && index > 0 && index + 1 < points.size() &&
                                   text::is_digit(points[index - 1].value) &&
                                   text::is_digit(points[index + 1].value);
-        if (text::is_word_codepoint(point.value) || embedded_dot) {
+        if (text::is_word_codepoint(point.value) || embedded_dot ||
+            (include_combining_marks && text::is_combining_mark(point.value))) {
             if (begin == std::string::npos)
                 begin = point.offset;
             end = point.offset + point.length;

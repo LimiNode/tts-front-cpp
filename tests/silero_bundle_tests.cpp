@@ -3,6 +3,7 @@
 #include "tts_front/backend/silero/silero_bundle.hpp"
 #include "tts_front/backend/silero/silero_sentence.hpp"
 #include "tts_front/backend/silero/silero_stress_backend.hpp"
+#include "tts_front/core/tokenization.hpp"
 
 #include <array>
 #include <cstdlib>
@@ -85,6 +86,13 @@ template <typename Function> bool throws_runtime_error(Function&& function) {
 } // namespace
 
 int main() {
+    {
+        const std::string source = "село́";
+        const auto legacy = tts_front::detail::token_spans(source);
+        const auto combined = tts_front::detail::token_spans(source, true);
+        CHECK(legacy.size() == 1 && legacy[0].end == source.size() - 2);
+        CHECK(combined.size() == 1 && combined[0].begin == 0 && combined[0].end == source.size());
+    }
     {
         const auto tokens = tts_front::detail::silero_tokenize("Это село🙂.");
         CHECK(tokens.size() == 5);
@@ -180,6 +188,87 @@ int main() {
         CHECK(overridden.pronunciation_text == "Это большое CUSTOM");
         CHECK(overridden.words[2].from_dictionary);
         CHECK(overridden.words[2].stressed_vowel == 0);
+
+        tts_front::TextFrontendOptions selective;
+        selective.language = tts_front::Language::Russian;
+        selective.stress_mode = tts_front::StressMode::AutomaticHomographsOnly;
+        selective.silero_bundle_path = asset_root;
+        for (const auto& expected : std::array{std::pair{"дверной замок", std::size_t{1}},
+                                               std::pair{"старый замок", std::size_t{0}}}) {
+            const auto result = frontend.process(expected.first, selective);
+            CHECK(result.original_text == expected.first);
+            CHECK(result.normalized_text == expected.first);
+            CHECK(result.pronunciation_text == expected.first);
+            CHECK(result.warnings.empty());
+            CHECK(result.words.size() == 2);
+            CHECK(!result.words[0].stressed_vowel);
+            CHECK(result.words[1].stressed_vowel == expected.second);
+            CHECK(result.stress_decisions.size() == 1);
+            CHECK(!result.stress_decisions[0].from_dictionary);
+        }
+        for (const auto* source : {"документы", "докуме́нты", "за́мок", "село́", "Елка"}) {
+            const auto result = frontend.process(source, selective);
+            CHECK(result.original_text == source);
+            CHECK(result.normalized_text == source);
+            CHECK(result.pronunciation_text == source);
+            CHECK(result.warnings.empty());
+            CHECK(result.stress_decisions.empty());
+            CHECK(!result.words[0].stressed_vowel);
+        }
+        for (const auto* source : {"дверной замок-то", "старый замок-музей"}) {
+            const auto result = frontend.process(source, selective);
+            CHECK(result.original_text == source);
+            CHECK(result.normalized_text == source);
+            CHECK(result.pronunciation_text == source);
+            CHECK(result.warnings.empty());
+            CHECK(result.stress_decisions.empty());
+        }
+        {
+            const std::string source = "дверной замок и старый замок";
+            const auto result = frontend.process(source, selective);
+            CHECK(result.original_text == source);
+            CHECK(result.normalized_text == source);
+            CHECK(result.pronunciation_text == source);
+            CHECK(result.warnings.empty());
+            CHECK(result.words.size() == 5);
+            CHECK(result.words[1].stressed_vowel);
+            CHECK(result.words[4].stressed_vowel);
+            CHECK(result.words[4].source_offset == source.rfind("замок"));
+            CHECK(result.stress_decisions.size() == 2);
+        }
+        tts_front::PronunciationDictionary selective_dictionary;
+        CHECK(selective_dictionary.add_token("замок", "замок", 0));
+        CHECK(selective_dictionary.add_token("документы", "документы", 2));
+        selective.dictionary = &selective_dictionary;
+        const auto dictionary_result = frontend.process("дверной замок документы", selective);
+        CHECK(dictionary_result.original_text == "дверной замок документы");
+        CHECK(dictionary_result.normalized_text == "дверной замок документы");
+        CHECK(dictionary_result.pronunciation_text == "дверной замок документы");
+        CHECK(dictionary_result.warnings.empty());
+        CHECK(dictionary_result.words[1].stressed_vowel == 0);
+        CHECK(dictionary_result.words[2].stressed_vowel == 2);
+        CHECK(dictionary_result.words[1].from_dictionary);
+        CHECK(dictionary_result.words[2].from_dictionary);
+        CHECK(dictionary_result.stress_decisions.size() == 2);
+        tts_front::PronunciationDictionary replacements;
+        CHECK(replacements.add_token("замок", "CUSTOM", 0));
+        CHECK(replacements.add_token("село", "CUSTOM", 0));
+        selective.dictionary = &replacements;
+        const auto explicit_override = frontend.process("село́", selective);
+        CHECK(explicit_override.normalized_text == "село́");
+        CHECK(explicit_override.pronunciation_text == "CUSTOḾ");
+        CHECK(explicit_override.warnings.empty());
+        CHECK(explicit_override.words[0].from_dictionary);
+        CHECK(explicit_override.words[0].stressed_vowel == 0);
+        tts_front::PronunciationDictionary first_word;
+        CHECK(first_word.add_token("замок", "CUSTOM", 0));
+        selective.dictionary = &first_word;
+        const auto later_homograph = frontend.process("замок старое село", selective);
+        CHECK(later_homograph.normalized_text == "замок старое село");
+        CHECK(later_homograph.pronunciation_text == "CUSTOM старое село");
+        CHECK(later_homograph.warnings.empty());
+        CHECK(later_homograph.words[0].from_dictionary);
+        CHECK(later_homograph.words[2].stressed_vowel);
 
         automatic.silero_bundle_path =
             (std::filesystem::path(asset_root) / "missing-bundle").string();

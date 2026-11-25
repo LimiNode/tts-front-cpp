@@ -24,9 +24,10 @@ enum class MixedLanguagePolicy {
 
 /// \brief Controls how semantic stress information is resolved.
 enum class StressMode {
-    Disabled,       ///< Do not produce stress values or stress decisions.
-    DictionaryOnly, ///< Resolve stress only from pronunciation-dictionary entries.
-    Automatic       ///< Request automatic stress from the optional Silero backend.
+    Disabled,               ///< Do not produce stress values or stress decisions.
+    DictionaryOnly,         ///< Resolve stress only from pronunciation-dictionary entries.
+    Automatic,              ///< Request automatic stress from the optional Silero backend.
+    AutomaticHomographsOnly ///< Automatically resolve only Silero-listed homographs.
 };
 
 /// \brief Category of a diagnostic emitted by the frontend.
