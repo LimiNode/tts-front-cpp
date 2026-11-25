@@ -27,6 +27,11 @@ The first lexical run following the numeric core belongs to the candidate.
 A separate ordinary lexical word after that run is not silently pulled into
 its diagnostic merely because the first run has a combining accent.
 
+Terminal-connector inclusion above is limited to end-of-string. For example,
+`OpenAI:-2 задачи%; 4` keeps the signed candidate's source bytes, but its
+`UnresolvedNumber@7:15` does not include `%` before the semicolon. This Draft
+does not widen the existing interior punctuation endpoint policy.
+
 `original_text` remains byte exact. Both output fields preserve the candidate;
 the existing independent spacing cleanup, technical pronunciation and explicit
 dictionary overrides still operate under their existing contracts. No public
@@ -90,3 +95,18 @@ Its committed differential test compares exact ranges with the previous
 implementation on 1,152 deterministic signed/grouped/scientific/continuation
 inputs. It avoids walking an ordinary connector chain's entire remaining tail
 for every non-scientific start.
+
+## Stacked dependencies and performance gate
+
+This Draft is rebased onto #99 (`060af62`), which is itself stacked on #97
+(`56325276`). Those independent email matcher correctives preserve their
+previous exact ranges. Technical range collection must keep using
+`scan_pattern_ranges()` after the rebase, not reintroduce recursive email
+matching through a direct regex iterator.
+
+`--signed-colon-scaling` times technical-index construction plus early common
+admission for whitespace, a digit run, an unsigned connector chain, signed
+semicolon-separated candidates and signed slash-separated candidates. Each
+load uses 1,000/2,000/4,000/8,000 units, checks original text and mapping,
+warning count and exact source spans, and rejects a fitted doubling slope of
+3.25 or greater. It runs separately from the ASCII email matcher gate.

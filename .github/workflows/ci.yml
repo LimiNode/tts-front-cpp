@@ -32,6 +32,8 @@ jobs:
         run: ./.build/benchmark/tts_front_benchmark --cardinal-source-scaling
       - name: Run ASCII email scaling gate
         run: ./.build/benchmark/tts_front_benchmark --ascii-email-scaling
+      - name: Run signed-colon admission scaling gate
+        run: ./.build/benchmark/tts_front_benchmark --signed-colon-scaling
   linux:
     strategy:
       matrix:
