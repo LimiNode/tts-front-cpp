@@ -46,6 +46,16 @@ Selective rendering also preserves explicit `докуме́нты`. A dictionary
 forcing vowel 0 in `замок` yields `дверной за́мок`; a dictionary entry selecting
 vowel 2 in `документы` yields `докуме́нты`. These checks have no warnings.
 
+Selective routing is not a confidence or grammatical-correctness guarantee.
+In the additional input `Проверь дверной замок. Покажи старый замок и документы.`,
+the same verified Silero homosolver selects vowel 1 for both occurrences of
+`замок`, in both backend modes. The selective Qwen text is therefore
+`Проверь дверной замо́к. Покажи старый замо́к и документы.` without warnings.
+This inherited contextual prediction differs from the isolated `старый замок`
+check above; no phrase exception or model change is introduced to conceal it.
+Application dictionary overrides remain the deterministic way to request a
+specific reading.
+
 The local text check used the verified Silero bundle at source revision
 `d38096cae9bf3ac846bbb88705428f3ed3801b96`, model SHA-256
 `aecb207df9db34a079de2ba91edba2a9333839ad24de0cf17e7bc82424876786`, and
