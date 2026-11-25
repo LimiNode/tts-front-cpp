@@ -52,6 +52,39 @@ jobs:
           cmake -S tests/consumer -B .build/consumer -DCMAKE_PREFIX_PATH="$PWD/.build/stage"
           cmake --build .build/consumer --parallel
           ./.build/consumer/tts_front_consumer
+  gcc14-standard-stack:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Debug, Release]
+    env:
+      CC: gcc-14
+      CXX: g++-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify compiler and standard stack
+        shell: bash
+        run: |
+          g++-14 --version
+          test "$(g++-14 -dumpversion)" = 14
+          ulimit -s 8192
+          test "$(ulimit -s)" = 8192
+      - name: Configure
+        run: cmake -S . -B .build/gcc14-${{ matrix.build_type }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DTTS_FRONT_BUILD_TESTS=ON -DTTS_FRONT_BUILD_EXAMPLES=ON -DTTS_FRONT_BUILD_BENCHMARKS=OFF
+      - name: Build and test with standard stack
+        run: |
+          cmake --build .build/gcc14-${{ matrix.build_type }} --parallel
+          ulimit -s 8192
+          test "$(ulimit -s)" = 8192
+          ctest --test-dir .build/gcc14-${{ matrix.build_type }} --output-on-failure
+      - name: Diagnose failed standard-stack test
+        if: failure()
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes gdb
+          ulimit -s 8192
+          gdb --batch -ex run -ex "bt -18" --args .build/gcc14-${{ matrix.build_type }}/tts_front_tests
   windows-msvc:
     runs-on: windows-latest
     strategy:

@@ -52,13 +52,12 @@ MappedText protect(MappedText text, std::vector<ProtectedSpan>& protected_spans)
         output.preserved_ranges = text.preserved_ranges;
         std::size_t cursor = 0;
         std::size_t run_cursor = 0;
-        for (std::sregex_iterator it(text.text.begin(), text.text.end(), *pattern), end; it != end;
-             ++it) {
-            const auto begin = static_cast<std::size_t>(it->position());
-            const auto finish = begin + static_cast<std::size_t>(it->length());
+        for (const auto& range : scan_pattern_ranges(text.text, *pattern)) {
+            const auto begin = range.offset;
+            const auto finish = begin + range.length;
             const auto match_point = codepoint_index_at_or_after(document, begin);
             const auto match_end_point = codepoint_index_at_or_after(document, finish);
-            const auto& value = it->str();
+            const auto value = text.text.substr(begin, range.length);
             const bool generic_identifier = pattern == &patterns.technical_identifier;
             if (generic_identifier) {
                 auto predecessor = match_point;
@@ -88,12 +87,12 @@ MappedText protect(MappedText text, std::vector<ProtectedSpan>& protected_spans)
             // must see the complete `+1e+x` expression and preserve it
             // atomically instead of leaving only `+1` visible.
             if (pattern == &patterns.technical_identifier && begin > 0 &&
-                (text.text[begin - 1] >= '0' && text.text[begin - 1] <= '9') &&
-                !it->str().empty() && (it->str().front() == 'e' || it->str().front() == 'E'))
+                (text.text[begin - 1] >= '0' && text.text[begin - 1] <= '9') && !value.empty() &&
+                (value.front() == 'e' || value.front() == 'E'))
                 continue;
             output.append_copy_with_cursor(text, cursor, begin, run_cursor);
             const auto marker = marker_for(text.text, protected_spans.size());
-            protected_spans.push_back({marker, it->str()});
+            protected_spans.push_back({marker, value});
             output.append_generated(text, begin, finish, marker);
             cursor = finish;
         }
@@ -509,11 +508,9 @@ MappedText protect_numeric_candidates(MappedText text,
 
 std::vector<SourceRange> scan_protected_ranges(const std::string_view text) {
     std::vector<SourceRange> ranges;
-    using Iterator = std::regex_iterator<std::string_view::const_iterator>;
     for (const auto* pattern : technical_pattern_catalog()) {
-        for (Iterator it(text.begin(), text.end(), *pattern), end; it != end; ++it)
-            ranges.push_back(
-                {static_cast<std::size_t>(it->position()), static_cast<std::size_t>(it->length())});
+        const auto matches = scan_pattern_ranges(text, *pattern);
+        ranges.insert(ranges.end(), matches.begin(), matches.end());
     }
     std::sort(ranges.begin(), ranges.end(), [](const SourceRange& left, const SourceRange& right) {
         return left.offset < right.offset ||
