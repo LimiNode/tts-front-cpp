@@ -107,10 +107,9 @@ matching through a direct regex iterator.
 `--signed-colon-scaling` times technical-index construction plus early common
 admission for whitespace, a digit run, an unsigned connector chain, signed
 semicolon-separated candidates, signed slash-separated candidates, an excluded
-numeric-colon chain and a long numeric owner followed by that chain. Each
-load also includes distinct malformed-exponent owners (`1e:-2!` repetitions).
-Each
-load uses 1,000/2,000/4,000/8,000 units, checks original text and mapping,
+numeric-colon chain, a long numeric owner followed by that chain, and distinct
+malformed-exponent owners (`1e:-2!` repetitions). Each load uses
+1,000/2,000/4,000/8,000 units, checks original text and mapping,
 warning count and exact source spans, and rejects a fitted doubling slope of
 3.25 or greater. It runs separately from the ASCII email matcher gate.
 
