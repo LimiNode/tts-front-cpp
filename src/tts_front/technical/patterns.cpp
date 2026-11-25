@@ -12,6 +12,68 @@ const Patterns& patterns() {
     return value;
 }
 
+std::vector<SourceRange> scan_pattern_ranges(std::string_view value, const std::regex& pattern) {
+    std::vector<SourceRange> ranges;
+    if (&pattern != &patterns().technical_utf8_email) {
+        using Iterator = std::regex_iterator<std::string_view::const_iterator>;
+        for (Iterator it(value.begin(), value.end(), pattern), end; it != end; ++it)
+            ranges.push_back(
+                {static_cast<std::size_t>(it->position()), static_cast<std::size_t>(it->length())});
+        return ranges;
+    }
+
+    const auto letter = [](unsigned char byte) {
+        return (byte >= 'A' && byte <= 'Z') || (byte >= 'a' && byte <= 'z');
+    };
+    const auto digit = [](unsigned char byte) { return byte >= '0' && byte <= '9'; };
+    const auto word = [&](unsigned char byte) {
+        return letter(byte) || digit(byte) || byte == '_';
+    };
+    const auto local = [&](unsigned char byte) {
+        return word(byte) || byte == '.' || byte == ',' || byte == '%' || byte == '+' ||
+               byte == '-' || byte >= 0x80;
+    };
+    // Preserve the catalog's greedy byte grammar and ASCII word boundary;
+    // the local part can be arbitrarily long without consuming the call stack.
+    for (std::size_t begin = 0; begin < value.size();) {
+        if (!letter(value[begin]) || (begin > 0 && word(value[begin - 1]))) {
+            ++begin;
+            continue;
+        }
+        auto at = begin + 1;
+        while (at < value.size() && local(value[at]))
+            ++at;
+        if (at == value.size() || value[at] != '@') {
+            begin = at;
+            continue;
+        }
+        auto cursor = at + 1;
+        std::size_t finish = 0;
+        while (cursor < value.size()) {
+            const auto byte = value[cursor];
+            if (byte == '.') {
+                auto letters_end = cursor + 1;
+                while (letters_end < value.size() && letter(value[letters_end]))
+                    ++letters_end;
+                if (cursor > at + 1 && letters_end - cursor > 2)
+                    finish = letters_end;
+                cursor = letters_end;
+            } else if (letter(byte) || digit(byte) || byte == '-') {
+                ++cursor;
+            } else {
+                break;
+            }
+        }
+        if (finish != 0) {
+            ranges.push_back({begin, finish - begin});
+            begin = finish;
+        } else {
+            begin = at + 1;
+        }
+    }
+    return ranges;
+}
+
 bool has_known_identifier_prefix(std::string_view value) {
     constexpr std::array<std::string_view, 5> prefixes = {"RTX", "CUDA", "GPU", "API", "C++"};
     for (const auto prefix : prefixes) {
@@ -26,10 +88,8 @@ std::vector<SourceRange> scan_pronunciation_candidates(std::string_view value) {
     std::vector<SourceRange> candidates;
     std::vector<SourceRange> opaque_ranges;
     const auto collect_opaque = [&](const std::regex& pattern) {
-        using Iterator = std::regex_iterator<std::string_view::const_iterator>;
-        for (Iterator it(value.begin(), value.end(), pattern), end; it != end; ++it)
-            opaque_ranges.push_back(
-                {static_cast<std::size_t>(it->position()), static_cast<std::size_t>(it->length())});
+        const auto ranges = scan_pattern_ranges(value, pattern);
+        opaque_ranges.insert(opaque_ranges.end(), ranges.begin(), ranges.end());
     };
     collect_opaque(source.technical_url);
     collect_opaque(source.technical_utf8_email);
